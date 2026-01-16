@@ -5,4 +5,9 @@ public static class DialogIds {
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";
     public const string EnabledId = "ENABLE_SEGMENT_STATS";
     public const string TargetTimeId = "TARGET_TIME";
+    public const string Minutes = "MINUTES";
+    public const string Seconds = "SECONDS";    
+    public const string MillisecondsFirst = "MILLISECONDS_FIRST";
+    public const string MillisecondsSecond = "MILLISECONDS_SECOND";
+    public const string MillisecondsThird = "MILLISECONDS_THIRD";
 }

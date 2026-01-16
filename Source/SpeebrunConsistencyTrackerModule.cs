@@ -46,12 +46,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             null
         );
         typeof(RoomTimerIntegration).ModInterop();
+        On.Celeste.Level.Update += LevelOnUpdate;
     }
 
     public override void Unload() {
         // TODO: unapply any hooks applied in Load()
         On.Monocle.Engine.Update -= Engine_Update;
         SaveLoadIntegration.Unregister(SaveLoadInstance);
+        On.Celeste.Level.Update -= LevelOnUpdate;
     }
 
     public static void PopupMessage(string message) {
@@ -59,11 +61,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void Engine_Update(On.Monocle.Engine.orig_Update orig, Engine self, GameTime gameTime) {
-        orig(self, gameTime);
         if (!Settings.Enabled) return;
-        if (Settings.KeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
         if (RoomTimerIntegration.RoomTimerIsCompleted()) {
             StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
         }
+        orig(self, gameTime);
+    }
+
+    private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self){
+        orig(self);
+        if (Settings.Enabled && Settings.KeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
     }
 }

@@ -2,4 +2,9 @@
 SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker
 KEY_STATS_EXPORT=                      Export stats to clipboard   
 ENABLE_SEGMENT_STATS=                  Enable      
-TARGET_TIME=                           Target time (in number of frames)      
+TARGET_TIME=                           Define target time
+MINUTES=                               minutes
+SECONDS=                               seconds  
+MILLISECONDS_FIRST=                    milliseconds (1st digit)
+MILLISECONDS_SECOND=                   milliseconds (2nd digit)
+MILLISECONDS_THIRD=                    milliseconds (3rd digit)

@@ -12,7 +12,6 @@ public static class StaticStatsManager {
     private static int numberOfDNF = 0;
     private static int numberOfSuccess = 0;
     private static bool lockUpdate = false;
-    private const long ONE_FRAME = 170000; // in ticks
 
     public static string FormatTime(long time) {
         TimeSpan timeSpan = TimeSpan.FromTicks(time);
@@ -44,7 +43,7 @@ public static class StaticStatsManager {
                 string p90 = FormatTime(Percentile(splitTimes, 0.9));
                 string completionRate = (1 - (double)numberOfDNF / numberOfCompletedSegment).ToString("P2").Replace(" ", "");
                 string successRate = ((double)numberOfSuccess / numberOfCompletedSegment).ToString("P2").Replace(" ", "");
-                string targetTime = FormatTime(TimeSpan.FromMilliseconds(17*SpeebrunConsistencyTrackerModule.Settings.TargetTime).Ticks);
+                string targetTime = FormatTime(GetTargetTimeTicks());
                 sb.Append($",{avg},{med},{min},{max},{stdDev},{p90},{numberOfCompletedSegment},{completionRate},{successRate},{targetTime}");
             }
         }
@@ -79,9 +78,8 @@ public static class StaticStatsManager {
 
     public static void AddSegmentTime(long segmentTime) {
         if (lockUpdate) return;
-        long adjustedTime = segmentTime - ONE_FRAME;
-        splitTimes.Add(adjustedTime);
-        if (isSuccessfulRun(adjustedTime)){
+        splitTimes.Add(segmentTime);
+        if (isSuccessfulRun(segmentTime)){
             numberOfSuccess++;
         }
         lockUpdate = true;
@@ -94,7 +92,13 @@ public static class StaticStatsManager {
     }
 
     static bool isSuccessfulRun(long time){
-        long targetTicks = TimeSpan.FromMilliseconds(17*SpeebrunConsistencyTrackerModule.Settings.TargetTime).Ticks;
+        long targetTicks = GetTargetTimeTicks();
         return time <= targetTicks;
+    }
+
+    static long GetTargetTimeTicks() {
+        var settings = SpeebrunConsistencyTrackerModule.Settings.TargetTime;
+        int totalMilliseconds = settings.Minutes * 60000 + settings.Seconds * 1000 + settings.MillisecondsFirstDigit * 100 + settings.MillisecondsSecondDigit * 10 + settings.MillisecondsThirdDigit;
+        return TimeSpan.FromMilliseconds(totalMilliseconds).Ticks;
     }
 }

@@ -12,7 +12,23 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding KeyStatsExport { get; set; } = new(0, Keys.None);
 
-    [SettingName(DialogIds.TargetTimeId), SettingRange(min: 0, max: 35295, largeRange: true)] // 35295f == 10min
-    public int TargetTime { get; set; }
+    [SettingSubMenu]
+    public class TargetTimeSubMenu {
+        [SettingName(DialogIds.Minutes), SettingRange(min: 0, max: 30)]
+        public int Minutes { get; set; } = 0;
+
+        [SettingName(DialogIds.Seconds), SettingRange(min: 0, max: 59, largeRange: true)]
+        public int Seconds { get; set; } = 0;
+
+        [SettingName(DialogIds.MillisecondsFirst), SettingRange(min: 0, max: 9, largeRange: true)]
+        public int MillisecondsFirstDigit { get; set; } = 0;
+        [SettingName(DialogIds.MillisecondsSecond), SettingRange(min: 0, max: 9, largeRange: true)]
+        public int MillisecondsSecondDigit { get; set; } = 0;
+        [SettingName(DialogIds.MillisecondsThird), SettingRange(min: 0, max: 9, largeRange: true)]
+        public int MillisecondsThirdDigit { get; set; } = 0;
+    }
+
+    [SettingName(DialogIds.TargetTimeId)]
+    public TargetTimeSubMenu TargetTime { get; set; } = new();
 
 }
