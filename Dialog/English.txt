@@ -1,0 +1,5 @@
+# ====================== Mod Menu ==============================
+SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker
+KEY_STATS_EXPORT=                      Export stats to clipboard   
+ENABLE_SEGMENT_STATS=                  Enable      
+TARGET_TIME=                           Target time (in number of frames)      
