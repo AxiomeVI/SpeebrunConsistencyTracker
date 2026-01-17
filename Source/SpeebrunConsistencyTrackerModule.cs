@@ -66,12 +66,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void Engine_Update(On.Monocle.Engine.orig_Update orig, Engine self, GameTime gameTime) {
+        orig(self, gameTime);
         if (!Settings.Enabled) return;
         if (RoomTimerIntegration.RoomTimerIsCompleted()) {
             StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
             Instance.IngameOverlay.SetText(StaticStatsManager.GetStats());
         }
-        orig(self, gameTime);
     }
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self){
@@ -80,6 +80,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
+        if (!Settings.Enabled) return;
         IngameOverlay = new TextOverlay();
         level.Entities.Add(IngameOverlay);
     }

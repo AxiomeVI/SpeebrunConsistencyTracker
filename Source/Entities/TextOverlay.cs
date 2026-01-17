@@ -35,25 +35,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             Visible = visible;
         }
         private void CheckVisibility() {
-            var settings = SpeebrunConsistencyTrackerModule.Settings.IngameOverlay;
-            if (settings.OverlayEnabled) {
-                SetVisibility(true);
-            } else {
-                SetVisibility(false);
-            }
+            SetVisibility(SpeebrunConsistencyTrackerModule.Settings.IngameOverlay.OverlayEnabled);
         }
 
         public override void Update() {
             base.Update();
-            var settings = SpeebrunConsistencyTrackerModule.Settings.IngameOverlay;
+            var settings = SpeebrunConsistencyTrackerModule.Settings;
+            if (!settings.Enabled) return;
+            var overlaySettings = settings.IngameOverlay;
             CheckVisibility();
-            if (Engine.Scene is Level level && (level.Paused || level.PauseMainMenuOpen || level.Entities.FindFirst<TextMenu>() != null)) {
-                return;
-            }
+            // if (Engine.Scene is Level level && (level.Paused || level.PauseMainMenuOpen || level.Entities.FindFirst<TextMenu>() != null)) {
+            //     return;
+            // }
 
-            if (SpeebrunConsistencyTrackerModule.Settings.ButtonToggleIngameOverlay.Pressed) {
-                bool currentVisible = settings.OverlayEnabled;
-                settings.OverlayEnabled = !currentVisible;
+            if (settings.ButtonToggleIngameOverlay.Pressed) {
+                bool currentVisible = overlaySettings.OverlayEnabled;
+                overlaySettings.OverlayEnabled = !currentVisible;
                 Mod.SaveSettings();
             }
         }
@@ -98,7 +95,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public override void Render() {
             base.Render();
-
+            if (!SpeebrunConsistencyTrackerModule.Settings.Enabled) return;
             if (StatText.Visible) {
                 StatText.Render();
             }
