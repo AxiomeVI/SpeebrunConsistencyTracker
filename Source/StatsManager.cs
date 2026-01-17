@@ -12,6 +12,7 @@ public static class StaticStatsManager {
     private static int numberOfDNF = 0;
     private static int numberOfSuccess = 0;
     private static bool lockUpdate = false;
+    private const long ONE_FRAME = 170000; // in ticks
 
     public static string FormatTime(long time) {
         TimeSpan timeSpan = TimeSpan.FromTicks(time);
@@ -59,6 +60,20 @@ public static class StaticStatsManager {
         lockUpdate = false;
     }
 
+    public static string GetStats() {
+        int numberOfCompletedSegment = splitTimes.Count;
+        if (numberOfCompletedSegment == 0) {
+            return "N/A";
+        }
+        StringBuilder sb = new();
+        string avg = FormatTime((long)splitTimes.Average());
+        string med = FormatTime(Percentile(splitTimes, 0.5));
+        string successRate = ((double)numberOfSuccess / numberOfCompletedSegment).ToString("P2").Replace(" ", "");
+        string targetTime = FormatTime(GetTargetTimeTicks());
+        sb.Append($"Average: {avg} | Median: {med} | Nb of completed runs: {numberOfCompletedSegment} | Success Rate (<={targetTime}): {successRate}");
+        return sb.ToString();   
+    }
+
     public static void OnClearState() {
         splitTimes.Clear();
         numberOfDNF = 0;
@@ -78,8 +93,9 @@ public static class StaticStatsManager {
 
     public static void AddSegmentTime(long segmentTime) {
         if (lockUpdate) return;
-        splitTimes.Add(segmentTime);
-        if (isSuccessfulRun(segmentTime)){
+        long adjustedTime = segmentTime - ONE_FRAME;
+        splitTimes.Add(adjustedTime);
+        if (isSuccessfulRun(adjustedTime)){
             numberOfSuccess++;
         }
         lockUpdate = true;
