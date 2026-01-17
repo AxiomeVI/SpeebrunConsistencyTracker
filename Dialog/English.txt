@@ -2,9 +2,14 @@
 SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker
 KEY_STATS_EXPORT=                      Export stats to clipboard   
 ENABLE_SEGMENT_STATS=                  Enable      
-TARGET_TIME=                           Define target time
+TARGET_TIME=                           Define Target Time
 MINUTES=                               minutes
 SECONDS=                               seconds  
 MILLISECONDS_FIRST=                    milliseconds (1st digit)
 MILLISECONDS_SECOND=                   milliseconds (2nd digit)
 MILLISECONDS_THIRD=                    milliseconds (3rd digit)
+INGAME_OVERLAY=                        Ingame Overlay
+OVERLAY_ENABLED=                       Enable overlay
+TEXT_SIZE=                             Text size
+TEXT_POSITION=                         Text position
+TOGGLE_INGAME_OVERLAY=                 Enable/Disable Ingame Overlay

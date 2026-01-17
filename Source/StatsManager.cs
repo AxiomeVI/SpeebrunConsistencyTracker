@@ -3,7 +3,6 @@ using System.Text;
 using System.Collections.Generic;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
-using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using static Celeste.Mod.SpeebrunConsistencyTracker.SpeebrunConsistencyTrackerModule;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.StatsManager;
@@ -59,24 +58,19 @@ public static class StaticStatsManager {
         numberOfDNF = 0;
         numberOfSuccess = 0;
         lockUpdate = false;
-        if (!SpeebrunConsistencyTrackerModule.Settings.IngameOverlay.VisibleDuringRun) level.Entities.FindFirst<TextOverlay>()?.SetTextVisible(false);
     }
 
     public static string GetStats() {
         int numberOfCompletedSegment = splitTimes.Count;
+        if (numberOfCompletedSegment == 0) {
+            return "N/A";
+        }
         StringBuilder sb = new();
-        string lastSegment = FormatTime(splitTimes.Last());
         string avg = FormatTime((long)splitTimes.Average());
         string med = FormatTime(Percentile(splitTimes, 0.5));
-        string max = FormatTime(splitTimes.Max());
-        string stdDev = FormatTime((long)Math.Round(Math.Sqrt(
-            splitTimes.Average(val => Math.Pow(val - splitTimes.Average(), 2))
-        )));
-        string p90 = FormatTime(Percentile(splitTimes, 0.9));
-        string completionRate = (1 - (double)numberOfDNF / numberOfCompletedSegment).ToString("P2").Replace(" ", "");
         string successRate = ((double)numberOfSuccess / numberOfCompletedSegment).ToString("P2").Replace(" ", "");
         string targetTime = FormatTime(GetTargetTimeTicks());
-        sb.Append($"Average: {avg}, Median: {med}, Nb of completed runs: {numberOfCompletedSegment}, Success Rate: {successRate}");
+        sb.Append($"Average: {avg} | Median: {med} | Nb of completed runs: {numberOfCompletedSegment} | Success Rate (<={targetTime}): {successRate}");
         return sb.ToString();   
     }
 
@@ -95,7 +89,6 @@ public static class StaticStatsManager {
 
     public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level) {
         lockUpdate = false;
-        if (!SpeebrunConsistencyTrackerModule.Settings.IngameOverlay.VisibleDuringRun) level.Entities.FindFirst<TextOverlay>()?.SetTextVisible(false);
     }
 
     public static void AddSegmentTime(long segmentTime) {

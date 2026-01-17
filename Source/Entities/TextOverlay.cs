@@ -1,11 +1,4 @@
-﻿using Celeste.Mod.Helpers;
-using Microsoft.Xna.Framework;
-using Monocle;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
@@ -29,9 +22,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         private void ApplyModSettings() {
             var settings = SpeebrunConsistencyTrackerModule.Settings.IngameOverlay;
 
-            Visible = settings.TextEnabled;
+            Visible = settings.OverlayEnabled;
 
-            SetTextVisible(settings.TextEnabled);
+            SetTextVisible(settings.OverlayEnabled);
             SetTextPosition(settings.TextPosition);
             SetTextOffsetX(settings.TextOffsetX);
             SetTextOffsetY(settings.TextOffsetY);
@@ -43,9 +36,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
         private void CheckVisibility() {
             var settings = SpeebrunConsistencyTrackerModule.Settings.IngameOverlay;
-            if (settings.TextEnabled 
-                && (!settings.OnlyShowInPauseMenu 
-                    || (Engine.Scene is Level level && (level.PauseMainMenuOpen || level.Entities.FindFirst<TextMenu>() != null)))) {
+            if (settings.OverlayEnabled) {
                 SetVisibility(true);
             } else {
                 SetVisibility(false);
@@ -60,20 +51,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
                 return;
             }
 
-            if (SpeebrunConsistencyTrackerModule.Settings.ButtonToggleTextOverlayEnabled.Pressed) {
-                bool currentVisible = settings.TextEnabled;
-                settings.TextEnabled = !currentVisible;
+            if (SpeebrunConsistencyTrackerModule.Settings.ButtonToggleIngameOverlay.Pressed) {
+                bool currentVisible = settings.OverlayEnabled;
+                settings.OverlayEnabled = !currentVisible;
                 Mod.SaveSettings();
-            }
-
-            if (!Visible) {
-                return;
-            }
-
-            if (SpeebrunConsistencyTrackerModule.Settings.ButtonToggleTextOverlayText.Pressed) {
-                settings.TextEnabled = !settings.TextEnabled;
-                Mod.SaveSettings();
-                SetTextVisible(settings.TextEnabled);
             }
         }
 

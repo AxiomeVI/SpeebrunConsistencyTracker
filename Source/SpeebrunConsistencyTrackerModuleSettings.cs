@@ -11,11 +11,11 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     #region Hotkeys
     [SettingName(DialogIds.KeyStatsExportId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding KeyStatsExport { get; set; } = new(0, Keys.None);
+    public ButtonBinding ButtonKeyStatsExport { get; set; } = new(0, Keys.None);
 
-    public ButtonBinding ButtonToggleTextOverlayEnabled { get; set; }
-
-    public ButtonBinding ButtonToggleTextOverlayText { get; set; }
+    [SettingName(DialogIds.ToggleIngameOverlayId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonToggleIngameOverlay { get; set; }
     #endregion
 
     [SettingSubMenu]
@@ -39,21 +39,20 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     [SettingSubMenu]
     public class IngameOverlaySubMenu {
-        public bool TextEnabled { get; set; } = true;
+        [SettingName(DialogIds.OverlayEnabledId)]
+        public bool OverlayEnabled { get; set; } = true;
 
-        public bool VisibleDuringRun { get; set; } = false;
-    
-        public bool OnlyShowInPauseMenu { get; set; } = false;
-        
-        [SettingRange(min: 0, max: 100)]
+        [SettingRange(min: 0, max: 100), SettingName(DialogIds.TextSizeId)]
         public int TextSize { get; set; } = 50;
 
         public int TextOffsetX { get; set; } = 5;
 
         public int TextOffsetY { get; set; } = 0;
 
+        [SettingName(DialogIds.TextPositionId)]
         public StatTextPosition TextPosition { get; set; } = StatTextPosition.TopLeft;
     }
 
+    [SettingName(DialogIds.IngameOverlayId)]
     public IngameOverlaySubMenu IngameOverlay { get; set; } = new();
 }

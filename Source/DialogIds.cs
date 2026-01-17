@@ -10,4 +10,9 @@ public static class DialogIds {
     public const string MillisecondsFirst = "MILLISECONDS_FIRST";
     public const string MillisecondsSecond = "MILLISECONDS_SECOND";
     public const string MillisecondsThird = "MILLISECONDS_THIRD";
+    public const string IngameOverlayId = "INGAME_OVERLAY";
+    public const string OverlayEnabledId = "OVERLAY_ENABLED";
+    public const string TextSizeId = "TEXT_SIZE";
+    public const string TextPositionId = "TEXT_POSITION";
+    public const string ToggleIngameOverlayId = "TOGGLE_INGAME_OVERLAY";
 }

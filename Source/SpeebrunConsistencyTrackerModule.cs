@@ -76,7 +76,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self){
         orig(self);
-        if (Settings.Enabled && Settings.KeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
+        if (Settings.Enabled && Settings.ButtonKeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
     }
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
