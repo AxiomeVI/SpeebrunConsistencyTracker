@@ -15,27 +15,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
             StatText = new StatTextComponent(true, true, StatTextPosition.TopLeft);
             InitStatTextOptions();
-
             ApplyModSettings();
         }
 
         private void ApplyModSettings() {
             var settings = SpeebrunConsistencyTrackerModule.Settings.IngameOverlay;
-
             Visible = settings.OverlayEnabled;
-
             SetTextVisible(settings.OverlayEnabled);
             SetTextPosition(settings.TextPosition);
             SetTextOffsetX(settings.TextOffsetX);
             SetTextOffsetY(settings.TextOffsetY);
             SetTextSize(settings.TextSize);
-        }
-        
-        private void SetVisibility(bool visible) {
-            Visible = visible;
-        }
-        private void CheckVisibility() {
-            SetVisibility(SpeebrunConsistencyTrackerModule.Settings.IngameOverlay.OverlayEnabled);
         }
 
         public override void Update() {
@@ -43,11 +33,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             var settings = SpeebrunConsistencyTrackerModule.Settings;
             if (!settings.Enabled) return;
             var overlaySettings = settings.IngameOverlay;
-            CheckVisibility();
-            // if (Engine.Scene is Level level && (level.Paused || level.PauseMainMenuOpen || level.Entities.FindFirst<TextMenu>() != null)) {
-            //     return;
-            // }
-
+            Visible = overlaySettings.OverlayEnabled;
             if (settings.ButtonToggleIngameOverlay.Pressed) {
                 bool currentVisible = overlaySettings.OverlayEnabled;
                 overlaySettings.OverlayEnabled = !currentVisible;
