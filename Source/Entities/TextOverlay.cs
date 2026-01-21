@@ -1,4 +1,5 @@
 ﻿using Monocle;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
@@ -7,13 +8,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         private SpeebrunConsistencyTrackerModule Mod => SpeebrunConsistencyTrackerModule.Instance;
 
-        private StatTextComponent StatText { get; set; }
+        private TextComponent StatText { get; set; }
 
         public TextOverlay() {
             Depth = -101;
             Tag = Tags.HUD | Tags.Global | Tags.PauseUpdate | Tags.TransitionUpdate;
 
-            StatText = new StatTextComponent(true, true, StatTextPosition.TopLeft);
+            StatText = new TextComponent(true, true, StatTextPosition.TopLeft);
             InitStatTextOptions();
             ApplyModSettings();
         }
@@ -32,11 +33,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             base.Update();
             var settings = SpeebrunConsistencyTrackerModule.Settings;
             if (!settings.Enabled) return;
-            var overlaySettings = settings.IngameOverlay;
-            Visible = overlaySettings.OverlayEnabled;
             if (settings.ButtonToggleIngameOverlay.Pressed) {
-                bool currentVisible = overlaySettings.OverlayEnabled;
-                overlaySettings.OverlayEnabled = !currentVisible;
+                var overlaySettings = settings.IngameOverlay;
+                overlaySettings.OverlayEnabled = !overlaySettings.OverlayEnabled;
                 Mod.SaveSettings();
             }
         }

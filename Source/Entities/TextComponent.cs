@@ -1,28 +1,11 @@
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Graphics;
 using Monocle;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-public enum StatTextPosition {
-    TopLeft,
-    TopCenter,
-    TopRight,
-    MiddleLeft,
-    MiddleCenter,
-    MiddleRight,
-    BottomLeft,
-    BottomCenter,
-    BottomRight,
-}
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
-    public class StatTextComponent : Component {
+    public class TextComponent : Component {
 
-        public StatTextPosition Position { get; set; } = StatTextPosition.TopRight;
+        public StatTextPosition Position { get; set; } = StatTextPosition.TopLeft;
         public string Text { get; set; } = "";
         public bool OptionVisible { get; set; }
         public float Scale { get; set; } = 1f;
@@ -51,7 +34,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         private static readonly int WIDTH = 1920;
         private static readonly int HEIGHT = 1080;
 
-        public StatTextComponent(bool active, bool visible, StatTextPosition position) : base(active, visible) {
+        public TextComponent(bool active, bool visible, StatTextPosition position) : base(active, visible) {
             Position = position;
         }
 

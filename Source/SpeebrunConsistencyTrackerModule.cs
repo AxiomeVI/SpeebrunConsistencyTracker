@@ -4,8 +4,6 @@ using Celeste.Mod.SpeebrunConsistencyTracker.StatsManager;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeedrunTool.Message;
 using MonoMod.ModInterop;
-using Microsoft.Xna.Framework;
-using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -37,14 +35,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     public override void Load() {
-        // TODO: apply any hooks that should always be active
-        On.Monocle.Engine.Update += Engine_Update;
         typeof(SaveLoadIntegration).ModInterop();
         SaveLoadInstance = SaveLoadIntegration.RegisterSaveLoadAction(
             StaticStatsManager.OnSaveState, 
             StaticStatsManager.OnLoadState, 
             StaticStatsManager.OnClearState, 
-            null,
+            StaticStatsManager.OnBeforeSaveState,
             StaticStatsManager.OnBeforeLoadState,
             null
         );
@@ -54,8 +50,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     public override void Unload() {
-        // TODO: unapply any hooks applied in Load()
-        On.Monocle.Engine.Update -= Engine_Update;
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
@@ -65,23 +59,27 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         PopupMessageUtils.Show(message, null);
     }
 
-    private static void Engine_Update(On.Monocle.Engine.orig_Update orig, Engine self, GameTime gameTime) {
-        orig(self, gameTime);
-        if (!Settings.Enabled) return;
-        if (RoomTimerIntegration.RoomTimerIsCompleted()) {
-            StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
-            Instance.IngameOverlay.SetText(StaticStatsManager.GetStats());
-        }
-    }
-
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self){
         orig(self);
-        if (Settings.Enabled && Settings.ButtonKeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
+        if (!Settings.Enabled) return;
+
+        if (Settings.ButtonKeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
+        
+        TextOverlay overlay = self.Entities.FindFirst<TextOverlay>();
+        if (RoomTimerIntegration.RoomTimerIsCompleted()) {
+            StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
+            overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
+            if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
+        } else if (Settings.IngameOverlay.ShowInPauseMenu && self.PauseMainMenuOpen) {
+            overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
+            if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
+        } else {
+            overlay?.SetTextVisible(false);
+        }
     }
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!Settings.Enabled) return;
-        IngameOverlay = new TextOverlay();
-        level.Entities.Add(IngameOverlay);
+        level.Entities.Add(new TextOverlay());
     }
 }

@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework.Input;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -9,13 +10,15 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool Enabled { get; set; } = true;
 
     #region Hotkeys
+
     [SettingName(DialogIds.KeyStatsExportId)]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding ButtonKeyStatsExport { get; set; } = new(0, Keys.None);
 
     [SettingName(DialogIds.ToggleIngameOverlayId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonToggleIngameOverlay { get; set; }
+    public ButtonBinding ButtonToggleIngameOverlay { get; set; }  = new(0, Keys.None);
+
     #endregion
 
     [SettingSubMenu]
@@ -26,11 +29,11 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         [SettingName(DialogIds.Seconds), SettingRange(min: 0, max: 59, largeRange: true)]
         public int Seconds { get; set; } = 0;
 
-        [SettingName(DialogIds.MillisecondsFirst), SettingRange(min: 0, max: 9, largeRange: true)]
+        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsFirst), SettingRange(min: 0, max: 9, largeRange: true)]
         public int MillisecondsFirstDigit { get; set; } = 0;
-        [SettingName(DialogIds.MillisecondsSecond), SettingRange(min: 0, max: 9, largeRange: true)]
+        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsSecond), SettingRange(min: 0, max: 9, largeRange: true)]
         public int MillisecondsSecondDigit { get; set; } = 0;
-        [SettingName(DialogIds.MillisecondsThird), SettingRange(min: 0, max: 9, largeRange: true)]
+        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsThird), SettingRange(min: 0, max: 9, largeRange: true)]
         public int MillisecondsThirdDigit { get; set; } = 0;
     }
 
@@ -41,6 +44,9 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public class IngameOverlaySubMenu {
         [SettingName(DialogIds.OverlayEnabledId)]
         public bool OverlayEnabled { get; set; } = true;
+
+        [SettingName(DialogIds.ShowInPauseMenuId)]
+        public bool ShowInPauseMenu { get; set; } = true;
 
         [SettingRange(min: 0, max: 100), SettingName(DialogIds.TextSizeId)]
         public int TextSize { get; set; } = 50;
@@ -55,4 +61,35 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     [SettingName(DialogIds.IngameOverlayId)]
     public IngameOverlaySubMenu IngameOverlay { get; set; } = new();
+
+    [SettingSubMenu]
+    public class StatsSubMenu {
+        [SettingName(DialogIds.RunHistoryId), SettingSubText(DialogIds.RunHistoryTextId)]
+        public bool RunHistory { get; set; } = true;
+        [SettingName(DialogIds.RunCountId), SettingSubText(DialogIds.CompleteRunSubTextId)]
+        public StatOutput RunCount { get; set; } = StatOutput.Both;
+        [SettingName(DialogIds.AverageId)]
+        public StatOutput Average { get; set; } = StatOutput.Both;
+        [SettingName(DialogIds.MedianId)]
+        public StatOutput Median { get; set; } = StatOutput.Both;
+        [SettingName(DialogIds.SuccessRateId), SettingSubText(DialogIds.SuccessRateSubTextId)]
+        public StatOutput SuccessRate { get; set; } = StatOutput.Both;
+        [SettingName(DialogIds.CompletionRateId), SettingSubText(DialogIds.CompleteRunSubTextId)]
+        public StatOutput CompletionRate { get; set; } = StatOutput.Export;
+        [SettingName(DialogIds.MinimumId)]
+        public StatOutput Minimum { get; set; } = StatOutput.Export;
+        [SettingName(DialogIds.MaximumId)]
+        public StatOutput Maximum { get; set; } = StatOutput.Export;
+        [SettingName(DialogIds.StandardDeviationId)]
+        public StatOutput StandardDeviation { get; set; } = StatOutput.Export;
+        [SettingName(DialogIds.TargetTimeStatId)]
+        public StatOutput TargetTime { get; set; } = StatOutput.Both;
+        [SettingName(DialogIds.PercentileId)]
+        public StatOutput Percentile { get; set; } = StatOutput.Export;
+        [SettingName(DialogIds.PercentileValueId)]
+        public PercentileValue PercentileValue { get; set; } = PercentileValue.P90;
+    }
+
+    [SettingName(DialogIds.StatsSubMenuId)]
+    public StatsSubMenu StatsMenu { get; set; } = new();
 }

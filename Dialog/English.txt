@@ -1,15 +1,38 @@
 # ====================== Mod Menu ==============================
-SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker
-KEY_STATS_EXPORT=                      Export stats to clipboard   
+SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker   
 ENABLE_SEGMENT_STATS=                  Enable      
-TARGET_TIME=                           Define Target Time
+TARGET_TIME=                           Set Target Time
 MINUTES=                               minutes
 SECONDS=                               seconds  
-MILLISECONDS_FIRST=                    milliseconds (1st digit)
-MILLISECONDS_SECOND=                   milliseconds (2nd digit)
-MILLISECONDS_THIRD=                    milliseconds (3rd digit)
-INGAME_OVERLAY=                        Ingame Overlay
+MILLISECONDS=                          milliseconds
+MILLISECONDS_FIRST=                    1st digit
+MILLISECONDS_SECOND=                   2nd digit
+MILLISECONDS_THIRD=                    3rd digit
+INGAME_OVERLAY=                        In-game Overlay
+SHOW_IN_PAUSE_MENU=                    Display in pause menu
+SHOW_IN_PAUSE_MENU_SUBTEXT=            Display in-game overlay in the pause menu during gameplay
 OVERLAY_ENABLED=                       Enable overlay
 TEXT_SIZE=                             Text size
 TEXT_POSITION=                         Text position
-TOGGLE_INGAME_OVERLAY=                 Enable/Disable Ingame Overlay
+
+# ======================= Hotkeys ==============================
+KEY_STATS_EXPORT=                      Export stats to clipboard
+TOGGLE_INGAME_OVERLAY=                 Enable/Disable In-game Overlay
+
+# ======================== Stats ===============================
+STATS_SUBMENU=                         Statistics to track
+RUN_COUNT=                             Completed Run Count
+SUCCESS_RATE=                          Success Rate
+COMPLETION_RATE=                       Completion Rate
+AVERAGE=                               Average
+MEDIAN=                                Median
+MINIMUM=                               Best
+MAXIMUM=                               Worst
+STANDARD_DEVIATION=                    Standard Deviation
+TARGET_TIME_STAT=                      Target Time
+PERCENTILE=                            Percentile
+PERCENTILE_VALUE=                      Percentile Value
+RUN_HISTORY=                           Attempts History
+SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
+COMPLETE_RUN_SUBTEXT=                  A run is considered incomplete if the timer started but the endpoint was never reached
+RUN_HISTORY_TEXT=                      Only available on export
