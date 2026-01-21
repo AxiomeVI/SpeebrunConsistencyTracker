@@ -16,7 +16,7 @@ public static class StaticStatsManager {
     private static bool lockUpdate = false;
     private const long ONE_FRAME = 170000; // in ticks
 
-    public static string FormatTime(long time) {
+    private static string FormatTime(long time) {
         TimeSpan timeSpan = TimeSpan.FromTicks(time);
         return timeSpan.ToString(timeSpan.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
     }
@@ -31,59 +31,61 @@ public static class StaticStatsManager {
         StringBuilder sb = new();
         // Header row
         if (settings.RunHistory) sb.Append("Time,");
-        if (settings.SuccessRate == StatOutput.Both || settings.SuccessRate == StatOutput.Export) sb.Append($"Success Rate,");
-        if (settings.TargetTime == StatOutput.Both || settings.TargetTime == StatOutput.Export) sb.Append($"Target Time,");
-        if (settings.Average == StatOutput.Both || settings.Average == StatOutput.Export) sb.Append("Average,");
-        if (settings.Median == StatOutput.Both || settings.Median == StatOutput.Export) sb.Append("Median,");
-        if (settings.Minimum == StatOutput.Both || settings.Minimum == StatOutput.Export) sb.Append("Best,");
-        if (settings.Maximum == StatOutput.Both || settings.Maximum == StatOutput.Export) sb.Append("Worst,");
-        if (settings.StandardDeviation == StatOutput.Both || settings.StandardDeviation == StatOutput.Export) sb.Append("Std Dev,");
-        if (settings.Percentile == StatOutput.Both || settings.Percentile == StatOutput.Export) sb.Append($"{settings.PercentileValue.ToString()},");
-        if (settings.RunCount == StatOutput.Both || settings.RunCount == StatOutput.Export) sb.Append("Run Count,");
-        if (settings.CompletionRate == StatOutput.Both || settings.CompletionRate == StatOutput.Export) sb.Append("Completion Rate,");
+        if (isSettingEnabled(StatOutput.Export, settings.SuccessRate)) sb.Append($"Success Rate,");
+        if (isSettingEnabled(StatOutput.Export, settings.TargetTime)) sb.Append($"Target Time,");
+        if (isSettingEnabled(StatOutput.Export, settings.Average)) sb.Append("Average,");
+        if (isSettingEnabled(StatOutput.Export, settings.Median)) sb.Append("Median,");
+        if (isSettingEnabled(StatOutput.Export, settings.Minimum)) sb.Append("Best,");
+        if (isSettingEnabled(StatOutput.Export, settings.Maximum)) sb.Append("Worst,");
+        if (isSettingEnabled(StatOutput.Export, settings.StandardDeviation)) sb.Append("Std Dev,");
+        if (isSettingEnabled(StatOutput.Export, settings.Percentile)) sb.Append($"{settings.PercentileValue.ToString()},");
+        if (isSettingEnabled(StatOutput.Export, settings.RunCount)) sb.Append("Run Count,");
+        if (isSettingEnabled(StatOutput.Export, settings.CompletionRate)) sb.Append("Completion Rate,");
+        if (isSettingEnabled(StatOutput.Export, settings.LinearRegression)) sb.Append("Trend Slope,");
         if (sb.Length > 0 && sb[^1] == ',') sb.Length--; // Remove last ","
 
         // First data row
         sb.Append("\n");
         if (settings.RunHistory) sb.Append($"{FormatTime(splitTimes[0])},");
-        if (settings.SuccessRate == StatOutput.Both || settings.SuccessRate == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.SuccessRate)) {
             string successRate = ((double)successCount / runCount).ToString("P2").Replace(" ", "");
             sb.Append($"{successRate},");
         }
-        if (settings.TargetTime == StatOutput.Both || settings.TargetTime == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.TargetTime)) {
             sb.Append($"{FormatTime(GetTargetTimeTicks())},");
         }
-        if (settings.Average == StatOutput.Both || settings.Average == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.Average)) {
             string average = FormatTime((long)Math.Round(splitTimes.Average()));
             sb.Append($"{average},");
         }
-        if (settings.Median == StatOutput.Both || settings.Median == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.Median)) {
             string median = FormatTime(Percentile(splitTimes, 50));
             sb.Append($"{median},");
         }
-        if (settings.Minimum == StatOutput.Both || settings.Minimum == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.Minimum)) {
             string best = FormatTime(splitTimes.Min());
             sb.Append($"{best},");
         }
-        if (settings.Maximum == StatOutput.Both || settings.Maximum == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.Maximum)) {
             string worst = FormatTime(splitTimes.Max());
             sb.Append($"{worst},");
         }
-        if (settings.StandardDeviation == StatOutput.Both || settings.StandardDeviation == StatOutput.Export) {
-            double average = splitTimes.Average();
-            string stdDev = FormatTime((long)Math.Round(Math.Sqrt(
-                splitTimes.Average(val => Math.Pow(val - average, 2))
-            )));
+        if (isSettingEnabled(StatOutput.Export, settings.StandardDeviation)) {
+            string stdDev = FormatTime(StandardDeviation(splitTimes));
             sb.Append($"{stdDev},");
         }
-        if (settings.Percentile == StatOutput.Both || settings.Percentile == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.Percentile)) {
             string percentile = FormatTime(Percentile(splitTimes, ToInt(settings.PercentileValue)));
             sb.Append($"{percentile},");
         }
-        if (settings.RunCount == StatOutput.Both || settings.RunCount == StatOutput.Export) sb.Append($"{runCount.ToString()},");
-        if (settings.CompletionRate == StatOutput.Both || settings.CompletionRate == StatOutput.Export) {
+        if (isSettingEnabled(StatOutput.Export, settings.RunCount)) sb.Append($"{runCount.ToString()},");
+        if (isSettingEnabled(StatOutput.Export, settings.CompletionRate)) {
             string completionRate = (1 - (double)DNFCount / runCount).ToString("P2").Replace(" ", "");
             sb.Append($"{completionRate},");
+        }
+        if (isSettingEnabled(StatOutput.Export, settings.LinearRegression)) {
+            double slope = LinearRegression(splitTimes);
+            sb.Append($"{slope.ToString()},");
         }
         if (sb.Length > 0 && sb[^1] == ',') sb.Length--; // Remove last ","
         // Remaining segment times
@@ -104,43 +106,44 @@ public static class StaticStatsManager {
         }
         var settings = SpeebrunConsistencyTrackerModule.Settings.StatsMenu;
         StringBuilder sb = new();
-        if (settings.SuccessRate == StatOutput.Both || settings.SuccessRate == StatOutput.Overlay) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.SuccessRate)) {
             string successRate = ((double)successCount / runCount).ToString("P2").Replace(" ", "");
-            sb.Append($"success{(settings.TargetTime == StatOutput.Both || settings.TargetTime == StatOutput.Overlay ? $" (<={FormatTime(GetTargetTimeTicks())})" : "")}: {successRate} | ");
+            sb.Append($"success{(isSettingEnabled(StatOutput.Overlay, settings.TargetTime) ? $" (<={FormatTime(GetTargetTimeTicks())})" : "")}: {successRate} | ");
         }
-        if (settings.RunCount == StatOutput.Both || settings.RunCount == StatOutput.Overlay) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.RunCount)) {
             sb.Append($"runs: {runCount.ToString()} | ");
         }
-        if (settings.Average == StatOutput.Both || settings.Average == StatOutput.Overlay) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.Average)) {
             string average = FormatTime((long)Math.Round(splitTimes.Average()));
             sb.Append($"avg: {average} | ");
         }
-        if (settings.Median == StatOutput.Both || settings.Median == StatOutput.Overlay) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.Median)) {
             string median = FormatTime(Percentile(splitTimes, 50));
             sb.Append($"med: {median} | ");
         }
-        if (settings.Minimum == StatOutput.Both || settings.Minimum == StatOutput.Overlay) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.Minimum)) {
             string best = FormatTime(splitTimes.Min());
             sb.Append($"best: {best} | ");
         }
-        if (settings.Maximum == StatOutput.Both || settings.Maximum == StatOutput.Overlay) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.Maximum)) {
             string worst = FormatTime(splitTimes.Max());
             sb.Append($"worst: {worst} | ");
         }
-        if (settings.StandardDeviation == StatOutput.Both || settings.StandardDeviation == StatOutput.Overlay) {
-            double average = splitTimes.Average();
-            string stdDev = FormatTime((long)Math.Round(Math.Sqrt(
-                splitTimes.Average(val => Math.Pow(val - average, 2))
-            )));
+        if (isSettingEnabled(StatOutput.Overlay, settings.StandardDeviation)) {
+            string stdDev = FormatTime(StandardDeviation(splitTimes));
             sb.Append($"stdev: {stdDev} | ");
         }
-        if (settings.Percentile == StatOutput.Overlay || settings.Percentile == StatOutput.Both) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.Percentile)) {
             string percentile = FormatTime(Percentile(splitTimes, ToInt(settings.PercentileValue)));
             sb.Append($"{settings.PercentileValue.ToString()}: {percentile} | ");
         }
-        if (settings.CompletionRate == StatOutput.Both || settings.CompletionRate == StatOutput.Overlay) {
+        if (isSettingEnabled(StatOutput.Overlay, settings.CompletionRate)) {
             string completionRate = (1 - (double)DNFCount / runCount).ToString("P2").Replace(" ", "");
             sb.Append($"completion: {completionRate} | ");
+        }
+        if (isSettingEnabled(StatOutput.Overlay, settings.LinearRegression)) {
+            double slope = LinearRegression(splitTimes);
+            sb.Append($"trend: {slope.ToString()} | ");
         }
         if (sb.Length >= 3) sb.Remove(sb.Length - 3, 3); // Remove last " | "
         return sb.ToString();   
@@ -156,24 +159,52 @@ public static class StaticStatsManager {
         lockUpdate = true;
     }
 
-    static long Percentile(List<long> values, int p){
+    private static bool isSettingEnabled(StatOutput output, StatOutput setting) {
+        return setting == StatOutput.Both || setting == output;
+    }
+
+    private static long Percentile(List<long> values, int p){
         var sorted = values.OrderBy(x => x).ToList();
         int index = (int)Math.Ceiling((double)p/100 * sorted.Count) - 1;
         return sorted[Math.Clamp(index, 0, sorted.Count - 1)];
     }
 
-    static bool isSuccessfulRun(long time){
+    private static long StandardDeviation(List<long> values){
+        double average = values.Average();
+        double variance = values.Average(val => (val - average) * (val - average));
+        return (long)Math.Round(Math.Sqrt(variance));
+    }
+
+    private static double LinearRegression(IList<long> values) {
+        int n = values.Count;
+
+        // x = indices starting from 1
+        var x = Enumerable.Range(1, n).Select(i => (double)i).ToList();
+        var y = values.Select(v => (double)v).ToList();
+
+        double sumX = x.Sum();
+        double sumY = y.Sum();
+        double sumXY = x.Zip(y, (xi, yi) => xi * yi).Sum();
+        double sumX2 = x.Sum(xi => xi * xi);
+
+        double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
+        // double intercept = (sumY - slope * sumX) / n;
+
+        return Math.Round(slope, 3);
+    }
+
+    private static bool isSuccessfulRun(long time){
         long targetTimeInTicks = GetTargetTimeTicks();
         return time <= targetTimeInTicks;
     }
 
-    static long GetTargetTimeTicks() {
+    private static long GetTargetTimeTicks() {
         var settings = SpeebrunConsistencyTrackerModule.Settings.TargetTime;
         int totalMilliseconds = settings.Minutes * 60000 + settings.Seconds * 1000 + settings.MillisecondsFirstDigit * 100 + settings.MillisecondsSecondDigit * 10 + settings.MillisecondsThirdDigit;
         return TimeSpan.FromMilliseconds(totalMilliseconds).Ticks;
     }
 
-    public static int ToInt(PercentileChoice choice) {
+    private static int ToInt(PercentileChoice choice) {
         return choice switch {
             PercentileChoice.P10 => 10,
             PercentileChoice.P20 => 20,

@@ -23,17 +23,17 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     [SettingSubMenu]
     public class TargetTimeSubMenu {
-        [SettingName(DialogIds.Minutes), SettingRange(min: 0, max: 30)]
+        [SettingName(DialogIds.Minutes), SettingRange(min: 0, max: 30, largeRange: true), SettingSubHeader(DialogIds.TargetTimeFormatId)]
         public int Minutes { get; set; } = 0;
 
         [SettingName(DialogIds.Seconds), SettingRange(min: 0, max: 59, largeRange: true)]
         public int Seconds { get; set; } = 0;
 
-        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsFirst), SettingRange(min: 0, max: 9, largeRange: true)]
+        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsFirst), SettingRange(min: 0, max: 9)]
         public int MillisecondsFirstDigit { get; set; } = 0;
-        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsSecond), SettingRange(min: 0, max: 9, largeRange: true)]
+        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsSecond), SettingRange(min: 0, max: 9)]
         public int MillisecondsSecondDigit { get; set; } = 0;
-        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsThird), SettingRange(min: 0, max: 9, largeRange: true)]
+        [SettingName(DialogIds.Milliseconds), SettingSubText(DialogIds.MillisecondsThird), SettingRange(min: 0, max: 9)]
         public int MillisecondsThirdDigit { get; set; } = 0;
     }
 
@@ -68,7 +68,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         public bool RunHistory { get; set; } = true;
         [SettingName(DialogIds.SuccessRateId), SettingSubText(DialogIds.SuccessRateSubTextId)]
         public StatOutput SuccessRate { get; set; } = StatOutput.Both;
-        [SettingName(DialogIds.TargetTimeId)]
+        [SettingName(DialogIds.TargetTimeStatId)]
         public StatOutput TargetTime { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.RunCountId)]
         public StatOutput RunCount { get; set; } = StatOutput.Both;
@@ -88,6 +88,8 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         public StatOutput Percentile { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.PercentileValueId)]
         public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
+        [SettingName(DialogIds.LinearRegressionId), SettingSubText(DialogIds.LinearRegressionSubTextId)]
+        public StatOutput LinearRegression { get; set; } = StatOutput.Export;
     }
 
     [SettingName(DialogIds.StatsSubMenuId)]
