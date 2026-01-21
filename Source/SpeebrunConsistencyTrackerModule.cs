@@ -64,13 +64,19 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled) return;
 
         if (Settings.ButtonKeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
-        
+
+        if (Settings.ButtonToggleIngameOverlay.Pressed) {
+            var overlaySettings = Settings.IngameOverlay;
+            overlaySettings.OverlayEnabled = !overlaySettings.OverlayEnabled;
+            Instance.SaveSettings();
+        }
+
         TextOverlay overlay = self.Entities.FindFirst<TextOverlay>();
         if (RoomTimerIntegration.RoomTimerIsCompleted()) {
             StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
             overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
             if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
-        } else if (Settings.IngameOverlay.ShowInPauseMenu && self.PauseMainMenuOpen) {
+        } else if (self.PauseMainMenuOpen && Settings.IngameOverlay.ShowInPauseMenu) {
             overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
             if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
         } else {
@@ -80,6 +86,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!Settings.Enabled) return;
-        level.Entities.Add(new TextOverlay());
+        if (level.Entities.FindFirst<TextOverlay>() == null) level.Entities.Add(new TextOverlay());
     }
 }

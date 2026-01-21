@@ -7,15 +7,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         Both
     }
 
-    public enum PercentileValue {
-        P10 = 10,
-        P20 = 20,
-        P30 = 30,
-        P40 = 40,
-        P60 = 60,
-        P70 = 70,
-        P80 = 80,
-        P90 = 90
+    public enum PercentileChoice {
+        P10,
+        P20,
+        P30,
+        P40,
+        P60,
+        P70,
+        P80,
+        P90
     }
 
     public enum StatTextPosition {

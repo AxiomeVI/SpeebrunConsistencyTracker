@@ -29,17 +29,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             SetTextSize(settings.TextSize);
         }
 
-        public override void Update() {
-            base.Update();
-            var settings = SpeebrunConsistencyTrackerModule.Settings;
-            if (!settings.Enabled) return;
-            if (settings.ButtonToggleIngameOverlay.Pressed) {
-                var overlaySettings = settings.IngameOverlay;
-                overlaySettings.OverlayEnabled = !overlaySettings.OverlayEnabled;
-                Mod.SaveSettings();
-            }
-        }
-
         private void InitStatTextOptions() {
             StatText.Font = Dialog.Language.Font;
             StatText.FontFaceSize = Dialog.Language.FontFaceSize;

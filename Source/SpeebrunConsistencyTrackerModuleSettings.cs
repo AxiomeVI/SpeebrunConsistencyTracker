@@ -45,7 +45,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         [SettingName(DialogIds.OverlayEnabledId)]
         public bool OverlayEnabled { get; set; } = true;
 
-        [SettingName(DialogIds.ShowInPauseMenuId)]
+        [SettingName(DialogIds.ShowInPauseMenuId), SettingSubText(DialogIds.ShowInPauseMenuSubTextId)]
         public bool ShowInPauseMenu { get; set; } = true;
 
         [SettingRange(min: 0, max: 100), SettingName(DialogIds.TextSizeId)]
@@ -66,14 +66,16 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public class StatsSubMenu {
         [SettingName(DialogIds.RunHistoryId), SettingSubText(DialogIds.RunHistoryTextId)]
         public bool RunHistory { get; set; } = true;
-        [SettingName(DialogIds.RunCountId), SettingSubText(DialogIds.CompleteRunSubTextId)]
+        [SettingName(DialogIds.SuccessRateId), SettingSubText(DialogIds.SuccessRateSubTextId)]
+        public StatOutput SuccessRate { get; set; } = StatOutput.Both;
+        [SettingName(DialogIds.TargetTimeId)]
+        public StatOutput TargetTime { get; set; } = StatOutput.Both;
+        [SettingName(DialogIds.RunCountId)]
         public StatOutput RunCount { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.AverageId)]
         public StatOutput Average { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.MedianId)]
         public StatOutput Median { get; set; } = StatOutput.Both;
-        [SettingName(DialogIds.SuccessRateId), SettingSubText(DialogIds.SuccessRateSubTextId)]
-        public StatOutput SuccessRate { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.CompletionRateId), SettingSubText(DialogIds.CompleteRunSubTextId)]
         public StatOutput CompletionRate { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.MinimumId)]
@@ -82,12 +84,10 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         public StatOutput Maximum { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.StandardDeviationId)]
         public StatOutput StandardDeviation { get; set; } = StatOutput.Export;
-        [SettingName(DialogIds.TargetTimeStatId)]
-        public StatOutput TargetTime { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.PercentileId)]
         public StatOutput Percentile { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.PercentileValueId)]
-        public PercentileValue PercentileValue { get; set; } = PercentileValue.P90;
+        public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
     }
 
     [SettingName(DialogIds.StatsSubMenuId)]

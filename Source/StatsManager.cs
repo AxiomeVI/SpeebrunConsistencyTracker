@@ -38,10 +38,10 @@ public static class StaticStatsManager {
         if (settings.Minimum == StatOutput.Both || settings.Minimum == StatOutput.Export) sb.Append("Best,");
         if (settings.Maximum == StatOutput.Both || settings.Maximum == StatOutput.Export) sb.Append("Worst,");
         if (settings.StandardDeviation == StatOutput.Both || settings.StandardDeviation == StatOutput.Export) sb.Append("Std Dev,");
-        if (settings.Percentile == StatOutput.Both || settings.Percentile == StatOutput.Export) sb.Append($"P{settings.PercentileValue.ToString()},");
+        if (settings.Percentile == StatOutput.Both || settings.Percentile == StatOutput.Export) sb.Append($"{settings.PercentileValue.ToString()},");
         if (settings.RunCount == StatOutput.Both || settings.RunCount == StatOutput.Export) sb.Append("Run Count,");
         if (settings.CompletionRate == StatOutput.Both || settings.CompletionRate == StatOutput.Export) sb.Append("Completion Rate,");
-        sb.Remove(sb.Length - 1, 1); // Remove last ","
+        if (sb.Length > 0 && sb[^1] == ',') sb.Length--; // Remove last ","
 
         // First data row
         sb.Append("\n");
@@ -77,7 +77,7 @@ public static class StaticStatsManager {
             sb.Append($"{stdDev},");
         }
         if (settings.Percentile == StatOutput.Both || settings.Percentile == StatOutput.Export) {
-            string percentile = FormatTime(Percentile(splitTimes, (int)settings.PercentileValue));
+            string percentile = FormatTime(Percentile(splitTimes, ToInt(settings.PercentileValue)));
             sb.Append($"{percentile},");
         }
         if (settings.RunCount == StatOutput.Both || settings.RunCount == StatOutput.Export) sb.Append($"{runCount.ToString()},");
@@ -85,7 +85,7 @@ public static class StaticStatsManager {
             string completionRate = (1 - (double)DNFCount / runCount).ToString("P2").Replace(" ", "");
             sb.Append($"{completionRate},");
         }
-        sb.Remove(sb.Length - 1, 1); // Remove last ","
+        if (sb.Length > 0 && sb[^1] == ',') sb.Length--; // Remove last ","
         // Remaining segment times
         if (settings.RunHistory) {
             for (int i = 1; i < runCount; i++) {
@@ -106,7 +106,7 @@ public static class StaticStatsManager {
         StringBuilder sb = new();
         if (settings.SuccessRate == StatOutput.Both || settings.SuccessRate == StatOutput.Overlay) {
             string successRate = ((double)successCount / runCount).ToString("P2").Replace(" ", "");
-            sb.Append($"success{(settings.TargetTime == StatOutput.Both || settings.TargetTime == StatOutput.Overlay ? "" : $" (<={FormatTime(GetTargetTimeTicks())})")}: {successRate} | ");
+            sb.Append($"success{(settings.TargetTime == StatOutput.Both || settings.TargetTime == StatOutput.Overlay ? $" (<={FormatTime(GetTargetTimeTicks())})" : "")}: {successRate} | ");
         }
         if (settings.RunCount == StatOutput.Both || settings.RunCount == StatOutput.Overlay) {
             sb.Append($"runs: {runCount.ToString()} | ");
@@ -135,14 +135,14 @@ public static class StaticStatsManager {
             sb.Append($"stdev: {stdDev} | ");
         }
         if (settings.Percentile == StatOutput.Overlay || settings.Percentile == StatOutput.Both) {
-            string percentile = FormatTime(Percentile(splitTimes, (int)settings.PercentileValue));
-            sb.Append($"P{settings.PercentileValue.ToString()}: {percentile} | ");
+            string percentile = FormatTime(Percentile(splitTimes, ToInt(settings.PercentileValue)));
+            sb.Append($"{settings.PercentileValue.ToString()}: {percentile} | ");
         }
         if (settings.CompletionRate == StatOutput.Both || settings.CompletionRate == StatOutput.Overlay) {
             string completionRate = (1 - (double)DNFCount / runCount).ToString("P2").Replace(" ", "");
             sb.Append($"completion: {completionRate} | ");
         }
-        sb.Remove(sb.Length - 3, 3); // Remove last " | "
+        if (sb.Length >= 3) sb.Remove(sb.Length - 3, 3); // Remove last " | "
         return sb.ToString();   
     }
 
@@ -171,6 +171,20 @@ public static class StaticStatsManager {
         var settings = SpeebrunConsistencyTrackerModule.Settings.TargetTime;
         int totalMilliseconds = settings.Minutes * 60000 + settings.Seconds * 1000 + settings.MillisecondsFirstDigit * 100 + settings.MillisecondsSecondDigit * 10 + settings.MillisecondsThirdDigit;
         return TimeSpan.FromMilliseconds(totalMilliseconds).Ticks;
+    }
+
+    public static int ToInt(PercentileChoice choice) {
+        return choice switch {
+            PercentileChoice.P10 => 10,
+            PercentileChoice.P20 => 20,
+            PercentileChoice.P30 => 30,
+            PercentileChoice.P40 => 40,
+            PercentileChoice.P60 => 60,
+            PercentileChoice.P70 => 70,
+            PercentileChoice.P80 => 80,
+            PercentileChoice.P90 => 90,
+            _ => 0
+        };
     }
 
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level) {			

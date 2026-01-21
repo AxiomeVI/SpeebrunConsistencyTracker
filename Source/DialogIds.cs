@@ -14,6 +14,7 @@ public static class DialogIds {
     public const string IngameOverlayId = "INGAME_OVERLAY";
     public const string OverlayEnabledId = "OVERLAY_ENABLED";
     public const string ShowInPauseMenuId = "SHOW_IN_PAUSE_MENU";
+    public const string ShowInPauseMenuSubTextId = "SHOW_IN_PAUSE_MENU_SUBTEXT";
     public const string TextSizeId = "TEXT_SIZE";
     public const string TextPositionId = "TEXT_POSITION";
     public const string ToggleIngameOverlayId = "TOGGLE_INGAME_OVERLAY";
