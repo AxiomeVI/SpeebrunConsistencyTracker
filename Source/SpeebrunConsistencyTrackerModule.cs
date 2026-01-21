@@ -65,6 +65,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         if (Settings.ButtonKeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
 
+        if (Settings.ButtonKeyClearStats.Pressed) StaticStatsManager.Reset(false);
+        
         if (Settings.ButtonToggleIngameOverlay.Pressed) {
             var overlaySettings = Settings.IngameOverlay;
             overlaySettings.OverlayEnabled = !overlaySettings.OverlayEnabled;

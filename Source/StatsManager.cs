@@ -16,6 +16,13 @@ public static class StaticStatsManager {
     private static bool lockUpdate = false;
     private const long ONE_FRAME = 170000; // in ticks
 
+    public static void Reset(bool fullReset = true) {
+        splitTimes.Clear();
+        DNFCount = 0;
+        successCount = 0;
+        if (fullReset) lockUpdate = false;
+    }
+
     private static string FormatTime(long time) {
         TimeSpan timeSpan = TimeSpan.FromTicks(time);
         string sign = timeSpan < TimeSpan.Zero ? "-" : "";
@@ -230,17 +237,11 @@ public static class StaticStatsManager {
     }
 
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level) {			
-        splitTimes.Clear();
-        DNFCount = 0;
-        successCount = 0;
-        lockUpdate = false;
+        Reset();
     }
 
     public static void OnClearState() {
-        splitTimes.Clear();
-        DNFCount = 0;
-        successCount = 0;
-        lockUpdate = false;
+        Reset();
     }
 
     public static void OnBeforeLoadState(Level level) {

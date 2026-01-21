@@ -19,6 +19,10 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding ButtonToggleIngameOverlay { get; set; }  = new(0, Keys.None);
 
+    [SettingName(DialogIds.KeyClearStatsId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonKeyClearStats { get; set; }  = new(0, Keys.None);
+
     #endregion
 
     [SettingSubMenu]
