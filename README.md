@@ -15,3 +15,7 @@ A mod designed to help speedrunners measure consistency during practice. This mo
 - Completion Rate (a run is considered incomplete if the timer started but the endpoint was never reached)
 - Success Rate (a run is considered successful if the endpoint is reached within the target time)
 - Linear Regression (the slope of the line using Least Square method)
+
+## Limitations
+
+- Does not support multiple save states
