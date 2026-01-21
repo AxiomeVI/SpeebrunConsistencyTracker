@@ -18,7 +18,8 @@ public static class StaticStatsManager {
 
     private static string FormatTime(long time) {
         TimeSpan timeSpan = TimeSpan.FromTicks(time);
-        return timeSpan.ToString(timeSpan.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
+        string sign = timeSpan < TimeSpan.Zero ? "-" : "";
+        return sign + timeSpan.ToString(timeSpan.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
     }
 
     public static void ExportHotkey() {
@@ -28,74 +29,81 @@ public static class StaticStatsManager {
             return;
         }
         var settings = SpeebrunConsistencyTrackerModule.Settings.StatsMenu;
-        StringBuilder sb = new();
+        StringBuilder headerRow = new();
+        StringBuilder firstRow = new();
         // Header row
-        if (settings.RunHistory) sb.Append("Time,");
-        if (isSettingEnabled(StatOutput.Export, settings.SuccessRate)) sb.Append($"Success Rate,");
-        if (isSettingEnabled(StatOutput.Export, settings.TargetTime)) sb.Append($"Target Time,");
-        if (isSettingEnabled(StatOutput.Export, settings.Average)) sb.Append("Average,");
-        if (isSettingEnabled(StatOutput.Export, settings.Median)) sb.Append("Median,");
-        if (isSettingEnabled(StatOutput.Export, settings.Minimum)) sb.Append("Best,");
-        if (isSettingEnabled(StatOutput.Export, settings.Maximum)) sb.Append("Worst,");
-        if (isSettingEnabled(StatOutput.Export, settings.StandardDeviation)) sb.Append("Std Dev,");
-        if (isSettingEnabled(StatOutput.Export, settings.Percentile)) sb.Append($"{settings.PercentileValue.ToString()},");
-        if (isSettingEnabled(StatOutput.Export, settings.RunCount)) sb.Append("Run Count,");
-        if (isSettingEnabled(StatOutput.Export, settings.CompletionRate)) sb.Append("Completion Rate,");
-        if (isSettingEnabled(StatOutput.Export, settings.LinearRegression)) sb.Append("Trend Slope,");
-        if (sb.Length > 0 && sb[^1] == ',') sb.Length--; // Remove last ","
-
-        // First data row
-        sb.Append("\n");
-        if (settings.RunHistory) sb.Append($"{FormatTime(splitTimes[0])},");
+        if (settings.RunHistory) {
+            headerRow.Append("Time,");
+            firstRow.Append($"{FormatTime(splitTimes[0])},");
+        }
         if (isSettingEnabled(StatOutput.Export, settings.SuccessRate)) {
+            headerRow.Append($"Success Rate,");
             string successRate = ((double)successCount / runCount).ToString("P2").Replace(" ", "");
-            sb.Append($"{successRate},");
+            firstRow.Append($"{successRate},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.TargetTime)) {
-            sb.Append($"{FormatTime(GetTargetTimeTicks())},");
+            headerRow.Append($"Target Time,");
+            firstRow.Append($"{FormatTime(GetTargetTimeTicks())},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Average)) {
+            headerRow.Append("Average,");
             string average = FormatTime((long)Math.Round(splitTimes.Average()));
-            sb.Append($"{average},");
+            firstRow.Append($"{average},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Median)) {
+            headerRow.Append("Median,");
             string median = FormatTime(Percentile(splitTimes, 50));
-            sb.Append($"{median},");
+            firstRow.Append($"{median},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Minimum)) {
+            headerRow.Append("Best,");
             string best = FormatTime(splitTimes.Min());
-            sb.Append($"{best},");
+            firstRow.Append($"{best},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Maximum)) {
+            headerRow.Append("Worst,");
             string worst = FormatTime(splitTimes.Max());
-            sb.Append($"{worst},");
+            firstRow.Append($"{worst},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.StandardDeviation)) {
+            headerRow.Append("Std Dev,");
             string stdDev = FormatTime(StandardDeviation(splitTimes));
-            sb.Append($"{stdDev},");
+            firstRow.Append($"{stdDev},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Percentile)) {
+            headerRow.Append($"{settings.PercentileValue.ToString()},");
             string percentile = FormatTime(Percentile(splitTimes, ToInt(settings.PercentileValue)));
-            sb.Append($"{percentile},");
+            firstRow.Append($"{percentile},");
         }
-        if (isSettingEnabled(StatOutput.Export, settings.RunCount)) sb.Append($"{runCount.ToString()},");
+        if (isSettingEnabled(StatOutput.Export, settings.RunCount)) {
+            headerRow.Append("Run Count,");
+            firstRow.Append($"{runCount.ToString()},");
+        }
         if (isSettingEnabled(StatOutput.Export, settings.CompletionRate)) {
+            headerRow.Append("Completion Rate,");
             string completionRate = (1 - (double)DNFCount / runCount).ToString("P2").Replace(" ", "");
-            sb.Append($"{completionRate},");
+            firstRow.Append($"{completionRate},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.LinearRegression)) {
-            double slope = LinearRegression(splitTimes);
-            sb.Append($"{slope.ToString()},");
+            headerRow.Append("Trend Slope,");
+            string slope = FormatTime(LinearRegression(splitTimes));
+            firstRow.Append($"{slope},");
         }
-        if (sb.Length > 0 && sb[^1] == ',') sb.Length--; // Remove last ","
+        if (headerRow.Length > 0 && headerRow[^1] == ',') headerRow.Length--; // Remove last ","
+
+        // First data row
+        headerRow.Append("\n");
+        if (firstRow.Length > 0 && firstRow[^1] == ',') firstRow.Length--; // Remove last ","
+        headerRow.Append(firstRow.ToString());
+
         // Remaining segment times
         if (settings.RunHistory) {
             for (int i = 1; i < runCount; i++) {
-                sb.Append($"\n{FormatTime(splitTimes[i])}");
+                headerRow.Append($"\n{FormatTime(splitTimes[i])}");
             }
         }
 
-        TextInput.SetClipboardText(sb.ToString());
+        TextInput.SetClipboardText(headerRow.ToString());
         PopupMessage("Segment stats exported");
     }
 
@@ -142,8 +150,8 @@ public static class StaticStatsManager {
             sb.Append($"completion: {completionRate} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.LinearRegression)) {
-            double slope = LinearRegression(splitTimes);
-            sb.Append($"trend: {slope.ToString()} | ");
+            string slope = FormatTime(LinearRegression(splitTimes));
+            sb.Append($"trend: {slope} | ");
         }
         if (sb.Length >= 3) sb.Remove(sb.Length - 3, 3); // Remove last " | "
         return sb.ToString();   
@@ -175,12 +183,12 @@ public static class StaticStatsManager {
         return (long)Math.Round(Math.Sqrt(variance));
     }
 
-    private static double LinearRegression(IList<long> values) {
+    private static long LinearRegression(List<long> values) {
         int n = values.Count;
-
+        if (n <= 1) return 0;
         // x = indices starting from 1
-        var x = Enumerable.Range(1, n).Select(i => (double)i).ToList();
-        var y = values.Select(v => (double)v).ToList();
+        List<double> x = Enumerable.Range(1, n).Select(i => (double)i).ToList();
+        List<double> y = values.Select(v => (double)v).ToList();
 
         double sumX = x.Sum();
         double sumY = y.Sum();
@@ -189,8 +197,11 @@ public static class StaticStatsManager {
 
         double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
         // double intercept = (sumY - slope * sumX) / n;
-
-        return Math.Round(slope, 3);
+        bool slopeIsNegative = slope < 0;
+        long slopeAsLong = (long)Math.Round(slope);
+        // Fix sign indication loss due to rounding errors
+        if (slopeIsNegative && slopeAsLong > 0) slopeAsLong = -slopeAsLong;
+        return slopeAsLong;
     }
 
     private static bool isSuccessfulRun(long time){
