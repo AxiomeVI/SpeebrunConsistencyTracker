@@ -88,7 +88,7 @@ public static class StaticStatsManager {
         }
         if (isSettingEnabled(StatOutput.Export, settings.CompletionRate)) {
             headerRow.Append("Completion Rate,");
-            string completionRate = (1 - (double)DNFCount / runCount).ToString("P2").Replace(" ", "");
+            string completionRate = (1 - (double)DNFCount / (DNFCount + runCount)).ToString("P2").Replace(" ", "");
             firstRow.Append($"{completionRate},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.LinearRegression)) {
@@ -153,7 +153,7 @@ public static class StaticStatsManager {
             sb.Append($"{settings.PercentileValue.ToString()}: {percentile} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.CompletionRate)) {
-            string completionRate = (1 - (double)DNFCount / runCount).ToString("P2").Replace(" ", "");
+            string completionRate = (1 - (double)DNFCount / (DNFCount + runCount)).ToString("P2").Replace(" ", "");
             sb.Append($"completion: {completionRate} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.LinearRegression)) {
@@ -204,11 +204,7 @@ public static class StaticStatsManager {
 
         double slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX);
         // double intercept = (sumY - slope * sumX) / n;
-        bool slopeIsNegative = slope < 0;
-        long slopeAsLong = (long)Math.Round(slope);
-        // Fix sign indication loss due to rounding errors
-        if (slopeIsNegative && slopeAsLong > 0) slopeAsLong = -slopeAsLong;
-        return slopeAsLong;
+        return (long)Math.Round(slope);
     }
 
     private static bool isSuccessfulRun(long time){
