@@ -43,7 +43,7 @@ public static class DialogIds {
     public const string SuccessRateSubTextId = "SUCCESS_RATE_SUBTEXT";
     public const string CompleteRunSubTextId = "COMPLETE_RUN_SUBTEXT";
     public const string RunCountId = "RUN_COUNT";
-    public const string RunHistoryTextId = "RUN_HISTORY_TEXT";
+    public const string OnlyInExportId = "ONLY_EXPORT";
     public const string LinearRegressionId = "LINEAR_REGRESSION";
     public const string LinearRegressionSubTextId = "LINEAR_REGRESSION_SUBTEXT";
 }

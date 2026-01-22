@@ -43,4 +43,4 @@ LINEAR_REGRESSION=                     Linear Regression
 LINEAR_REGRESSION_SUBTEXT=             The slope of the trend line
 SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
 COMPLETE_RUN_SUBTEXT=                  A run is considered incomplete if the timer started but the endpoint was never reached
-RUN_HISTORY_TEXT=                      Only available on export
+ONLY_EXPORT=                           Only available on export

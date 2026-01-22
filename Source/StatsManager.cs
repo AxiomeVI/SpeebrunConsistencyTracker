@@ -91,7 +91,7 @@ public static class StaticStatsManager {
             string completionRate = (1 - (double)DNFCount / (DNFCount + runCount)).ToString("P2").Replace(" ", "");
             firstRow.Append($"{completionRate},");
         }
-        if (isSettingEnabled(StatOutput.Export, settings.LinearRegression)) {
+        if (settings.LinearRegression) {
             headerRow.Append("Trend Slope,");
             string slope = FormatTime(LinearRegression(splitTimes));
             firstRow.Append($"{slope},");
@@ -155,10 +155,6 @@ public static class StaticStatsManager {
         if (isSettingEnabled(StatOutput.Overlay, settings.CompletionRate)) {
             string completionRate = (1 - (double)DNFCount / (DNFCount + runCount)).ToString("P2").Replace(" ", "");
             sb.Append($"completion: {completionRate} | ");
-        }
-        if (isSettingEnabled(StatOutput.Overlay, settings.LinearRegression)) {
-            string slope = FormatTime(LinearRegression(splitTimes));
-            sb.Append($"trend: {slope} | ");
         }
         if (sb.Length >= 3) sb.Remove(sb.Length - 3, 3); // Remove last " | "
         return sb.ToString();   

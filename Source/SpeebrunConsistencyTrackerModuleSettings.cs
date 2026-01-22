@@ -68,7 +68,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     [SettingSubMenu]
     public class StatsSubMenu {
-        [SettingName(DialogIds.RunHistoryId), SettingSubText(DialogIds.RunHistoryTextId)]
+        [SettingName(DialogIds.RunHistoryId), SettingSubText(DialogIds.OnlyInExportId)]
         public bool RunHistory { get; set; } = true;
         [SettingName(DialogIds.SuccessRateId), SettingSubText(DialogIds.SuccessRateSubTextId)]
         public StatOutput SuccessRate { get; set; } = StatOutput.Both;
@@ -93,7 +93,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         [SettingName(DialogIds.PercentileValueId)]
         public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
         [SettingName(DialogIds.LinearRegressionId), SettingSubText(DialogIds.LinearRegressionSubTextId)]
-        public StatOutput LinearRegression { get; set; } = StatOutput.Export;
+        public bool LinearRegression { get; set; } = false;
     }
 
     [SettingName(DialogIds.StatsSubMenuId)]
