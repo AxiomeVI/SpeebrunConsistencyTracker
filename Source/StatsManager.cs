@@ -26,6 +26,11 @@ public static class StaticStatsManager {
         public TimeData(int DNFCount) {
             this.DNFCount = DNFCount;
         }
+
+        public void WipeData() {
+            times.Clear();
+            DNFCount = 0;
+        }
     }
     private static TimeData segmentData = new TimeData();
     private static List<TimeData> roomData = new List<TimeData>();
@@ -44,7 +49,8 @@ public static class StaticStatsManager {
         previousRoom = "";
         currentSegmentTime = 0;
         roomData.Clear();
-        segmentData = new TimeData();
+        if (fullReset) segmentData = new TimeData();
+        else segmentData.WipeData();
     }
 
     private static string FormatTime(long time) {
