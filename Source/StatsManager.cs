@@ -6,6 +6,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using static Celeste.Mod.SpeebrunConsistencyTracker.SpeebrunConsistencyTrackerModule;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeedrunTool.SaveLoad;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.StatsManager;
 
@@ -14,27 +15,21 @@ public static class StaticStatsManager {
     public class TimeData {
         public List<long> times = new List<long>();
         public int DNFCount = 0;
-        public bool lockUpdate = false;
 
         public TimeData() { }
 
-        public TimeData(List<long> times, bool lockUpdate) {
+        public TimeData(List<long> times) {
             this.times = times;
-            this.lockUpdate = lockUpdate;
         }
 
         public TimeData(int DNFCount) {
             this.DNFCount = DNFCount;
         }
-
-        public void WipeData() {
-            times.Clear();
-            DNFCount = 0;
-        }
     }
     private static TimeData segmentData = new TimeData();
     private static List<TimeData> roomData = new List<TimeData>();
 
+    public static bool lockUpdate = false;
     public static int successCount = 0;
     public static int roomIndex = 0;
     public static long currentSegmentTime = 0;
@@ -49,8 +44,8 @@ public static class StaticStatsManager {
         previousRoom = "";
         currentSegmentTime = 0;
         roomData.Clear();
-        if (fullReset) segmentData = new TimeData();
-        else segmentData.WipeData();
+        segmentData = new TimeData();
+        if (fullReset) lockUpdate = false;
     }
 
     private static string FormatTime(long time) {
@@ -202,9 +197,10 @@ public static class StaticStatsManager {
         }
         if (settings.ResetShare) {
             headerRow.Append("Share of Resets,");
-            segmentRow.Append($"100%,");
+            bool noDNF = segmentData.DNFCount == 0;
+            segmentRow.Append($"{(noDNF ? "0%" : "100%")},");
             for (int i = 0; i < roomData.Count; i++) {
-                string resetShare = ((double)roomData[i].DNFCount / segmentData.DNFCount).ToString("P2").Replace(" ", "");
+                string resetShare = noDNF ? "0%" : ((double)roomData[i].DNFCount / segmentData.DNFCount).ToString("P2").Replace(" ", "");
                 roomRows[i].Append($"{resetShare},");
             }
         }
@@ -308,23 +304,24 @@ public static class StaticStatsManager {
     }
 
     public static void AddSegmentTime(long segmentTime) {
-        if (segmentData.lockUpdate) return;
+        if (lockUpdate) return;
         long adjustedTime = segmentTime - ONE_FRAME;
         segmentData.times.Add(adjustedTime);
         if (isSuccessfulRun(adjustedTime)){
             successCount++;
         }
-        segmentData.lockUpdate = true;
+        if (segmentTime - currentSegmentTime > ONE_FRAME) AddRoomTime(segmentTime); // Try to detect cases where the end isn't a room transition
+        lockUpdate = true;
     }
 
     public static void AddRoomTime(long segmentTime) {
+        if (lockUpdate) return;
         long roomTime = segmentTime - currentSegmentTime;
         currentSegmentTime = segmentTime;
         if (roomData.Count > roomIndex) {
             roomData[roomIndex].times.Add(roomTime);
-            roomData[roomIndex].lockUpdate = true;
         } else {
-            roomData.Add(new TimeData([roomTime], true));
+            roomData.Add(new TimeData([roomTime]));
         }
         roomIndex++;
     }
@@ -419,9 +416,7 @@ public static class StaticStatsManager {
     }
 
     public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level) {
-        foreach (TimeData item in roomData.Prepend(segmentData)) {
-            item.lockUpdate = false;
-        }
+        lockUpdate = false;
         roomIndex = 0;
         currentSegmentTime = 0;
         previousRoom = "";
