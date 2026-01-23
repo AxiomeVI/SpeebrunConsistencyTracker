@@ -85,7 +85,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [SettingSubMenu]
     public class StatsSubMenu {
         [SettingName(DialogIds.RunHistoryId), SettingSubText(DialogIds.OnlyInExportId)]
-        public bool RunHistory { get; set; } = true;
+        public bool History { get; set; } = true;
         [SettingName(DialogIds.SuccessRateId), SettingSubText(DialogIds.SuccessRateSubTextId)]
         public StatOutput SuccessRate { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.TargetTimeStatId)]
@@ -98,12 +98,14 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         public StatOutput Median { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.CompletionRateId), SettingSubText(DialogIds.CompleteRunSubTextId)]
         public StatOutput CompletionRate { get; set; } = StatOutput.Export;
+        [SettingName(DialogIds.ResetShareId)]
+        public bool ResetShare { get; set; } = true;
         [SettingName(DialogIds.MinimumId)]
         public StatOutput Minimum { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.MaximumId)]
         public StatOutput Maximum { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.StandardDeviationId)]
-        public StatOutput StandardDeviation { get; set; } = StatOutput.Export;
+        public StatOutput StandardDeviation { get; set; } = StatOutput.Both;
         [SettingName(DialogIds.CoefficientOfVariationId)]
         public StatOutput CoefficientOfVariation { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.PercentileId)]
@@ -112,6 +114,8 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
         [SettingName(DialogIds.LinearRegressionId), SettingSubText(DialogIds.LinearRegressionSubTextId)]
         public bool LinearRegression { get; set; } = true;
+        [SettingName(DialogIds.SoBId)]
+        public StatOutput SoB { get; set; } = StatOutput.Both;
     }
 
     [SettingName(DialogIds.StatsSubMenuId)]

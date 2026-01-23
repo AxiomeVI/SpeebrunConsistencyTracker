@@ -32,6 +32,7 @@ public static class DialogIds {
     public const string StatsSubMenuId = "STATS_SUBMENU";
     public const string SuccessRateId = "SUCCESS_RATE";
     public const string CompletionRateId = "COMPLETION_RATE";
+    public const string ResetShareId = "RESET_SHARE";
     public const string AverageId = "AVERAGE";
     public const string MedianId = "MEDIAN";
     public const string MinimumId = "MINIMUM";
@@ -48,4 +49,5 @@ public static class DialogIds {
     public const string OnlyInExportId = "ONLY_EXPORT";
     public const string LinearRegressionId = "LINEAR_REGRESSION";
     public const string LinearRegressionSubTextId = "LINEAR_REGRESSION_SUBTEXT";
+    public const string SoBId = "SOB";
 }

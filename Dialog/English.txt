@@ -31,6 +31,7 @@ STATS_SUBMENU=                         Statistics Settings
 RUN_COUNT=                             Completed Run Count
 SUCCESS_RATE=                          Success Rate
 COMPLETION_RATE=                       Completion Rate
+RESET_SHARE                            Share of Resets
 AVERAGE=                               Average
 MEDIAN=                                Median
 MINIMUM=                               Best
@@ -41,6 +42,7 @@ TARGET_TIME_STAT=                      Target Time
 PERCENTILE=                            Percentile
 PERCENTILE_VALUE=                      Percentile Value
 RUN_HISTORY=                           Attempts History
+SOB=                                   Sum of Bests
 LINEAR_REGRESSION=                     Linear Regression
 LINEAR_REGRESSION_SUBTEXT=             The slope of the trend line
 SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
