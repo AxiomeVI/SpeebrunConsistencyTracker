@@ -10,6 +10,7 @@ A mod designed to help speedrunners measure consistency during practice. This mo
 - Best
 - Worst
 - Standard Deviation (may be slightly inaccurate due to rounding errors)
+- Coefficient of Variation
 - Percentile (calculated without interpolation)
 - Number of completed runs
 - Completion Rate (a run is considered incomplete if the timer started but the endpoint was never reached)
