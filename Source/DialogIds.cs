@@ -8,6 +8,7 @@ public static class DialogIds {
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";
     public const string ToggleIngameOverlayId = "TOGGLE_INGAME_OVERLAY";
     public const string KeyClearStatsId = "KEY_CLEAR_STATS";
+    public const string KeyImportTargetTimeId = "KEY_IMPORT_TARGET_TIME";
     
     // Target Time Menu
     public const string TargetTimeId = "TARGET_TIME";
@@ -36,6 +37,7 @@ public static class DialogIds {
     public const string MinimumId = "MINIMUM";
     public const string MaximumId = "MAXIMUM";
     public const string StandardDeviationId = "STANDARD_DEVIATION";
+    public const string CoefficientOfVariationId = "COEFFICIENT_OF_VARIATION";
     public const string TargetTimeStatId = "TARGET_TIME_STAT";
     public const string PercentileValueId = "PERCENTILE_VALUE";
     public const string PercentileId = "PERCENTILE";

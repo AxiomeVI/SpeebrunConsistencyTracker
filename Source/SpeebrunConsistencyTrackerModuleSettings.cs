@@ -1,5 +1,7 @@
 using Microsoft.Xna.Framework.Input;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeebrunConsistencyTracker.StatsManager;
+using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -23,7 +25,21 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding ButtonKeyClearStats { get; set; }  = new(0, Keys.None);
 
+    [SettingName(DialogIds.KeyImportTargetTimeId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonKeyImportTargetTime { get; set; }  = new(0, Keys.None);
+
     #endregion
+
+    [SettingIgnore]
+    public ButtonBinding SetTargetTimeBinding { get; set; }
+
+    public void CreateSetTargetTimeBindingEntry(TextMenu menu, bool inGame) {
+        menu.Add(new TextMenu.Button(Dialog.Clean(DialogIds.KeyImportTargetTimeId)).Pressed(() => {
+                SpeebrunConsistencyTrackerModule.Instance.ImportTargetTimeFromClipboard();
+            })
+        );
+    }
 
     [SettingSubMenu]
     public class TargetTimeSubMenu {
@@ -53,7 +69,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         public bool ShowInPauseMenu { get; set; } = true;
 
         [SettingRange(min: 0, max: 100), SettingName(DialogIds.TextSizeId)]
-        public int TextSize { get; set; } = 50;
+        public int TextSize { get; set; } = 65;
 
         public int TextOffsetX { get; set; } = 5;
 
@@ -88,14 +104,28 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         public StatOutput Maximum { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.StandardDeviationId)]
         public StatOutput StandardDeviation { get; set; } = StatOutput.Export;
+        [SettingName(DialogIds.CoefficientOfVariationId)]
+        public StatOutput CoefficientOfVariation { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.PercentileId)]
         public StatOutput Percentile { get; set; } = StatOutput.Export;
         [SettingName(DialogIds.PercentileValueId)]
         public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
         [SettingName(DialogIds.LinearRegressionId), SettingSubText(DialogIds.LinearRegressionSubTextId)]
-        public bool LinearRegression { get; set; } = false;
+        public bool LinearRegression { get; set; } = true;
     }
 
     [SettingName(DialogIds.StatsSubMenuId)]
     public StatsSubMenu StatsMenu { get; set; } = new();
+
+    [SettingIgnore]
+    public ButtonBinding ExportStatsBinding { get; set; }
+
+    public void CreateExportStatsBindingEntry(TextMenu menu, bool inGame) {
+        if (!inGame) return;
+        menu.Add(new TextMenu.Button(Dialog.Clean(DialogIds.KeyStatsExportId))
+            .Pressed(() => {
+                StaticStatsManager.ExportHotkey();
+            })
+        );
+    }
 }

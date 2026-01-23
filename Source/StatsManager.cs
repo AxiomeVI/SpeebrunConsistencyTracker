@@ -10,14 +10,14 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 namespace Celeste.Mod.SpeebrunConsistencyTracker.StatsManager;
 
 public static class StaticStatsManager {
-    private static List<long> splitTimes = new([]);
+    private static List<long> segmentTimes = new([]);
     private static int DNFCount = 0;
     private static int successCount = 0;
     private static bool lockUpdate = false;
     private const long ONE_FRAME = 170000; // in ticks
 
     public static void Reset(bool fullReset = true) {
-        splitTimes.Clear();
+        segmentTimes.Clear();
         DNFCount = 0;
         successCount = 0;
         if (fullReset) lockUpdate = false;
@@ -30,7 +30,7 @@ public static class StaticStatsManager {
     }
 
     public static void ExportHotkey() {
-        int runCount = splitTimes.Count;
+        int runCount = segmentTimes.Count;
         if (runCount == 0) {
             PopupMessage("No segment stats to export");
             return;
@@ -38,10 +38,13 @@ public static class StaticStatsManager {
         var settings = SpeebrunConsistencyTrackerModule.Settings.StatsMenu;
         StringBuilder headerRow = new();
         StringBuilder firstRow = new();
-        // Header row
+
+        double average = -1;
+        double standardDeviation = -1;
+        
         if (settings.RunHistory) {
             headerRow.Append("Time,");
-            firstRow.Append($"{FormatTime(splitTimes[0])},");
+            firstRow.Append($"{FormatTime(segmentTimes[0])},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.SuccessRate)) {
             headerRow.Append($"Success Rate,");
@@ -54,32 +57,39 @@ public static class StaticStatsManager {
         }
         if (isSettingEnabled(StatOutput.Export, settings.Average)) {
             headerRow.Append("Average,");
-            string average = FormatTime((long)Math.Round(splitTimes.Average()));
-            firstRow.Append($"{average},");
+            average = segmentTimes.Average();
+            string averageString = FormatTime((long)Math.Round(average));
+            firstRow.Append($"{averageString},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Median)) {
             headerRow.Append("Median,");
-            string median = FormatTime(Percentile(splitTimes, 50));
+            string median = FormatTime(Percentile(segmentTimes, 50));
             firstRow.Append($"{median},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Minimum)) {
             headerRow.Append("Best,");
-            string best = FormatTime(splitTimes.Min());
+            string best = FormatTime(segmentTimes.Min());
             firstRow.Append($"{best},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Maximum)) {
             headerRow.Append("Worst,");
-            string worst = FormatTime(splitTimes.Max());
+            string worst = FormatTime(segmentTimes.Max());
             firstRow.Append($"{worst},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.StandardDeviation)) {
             headerRow.Append("Std Dev,");
-            string stdDev = FormatTime(StandardDeviation(splitTimes));
+            standardDeviation = StandardDeviation(segmentTimes, average);
+            string stdDev = FormatTime((long)Math.Round(standardDeviation));
             firstRow.Append($"{stdDev},");
+        }
+        if (isSettingEnabled(StatOutput.Export, settings.CoefficientOfVariation)) {
+            headerRow.Append("Coef of Variation,");
+            string cv = CoefficientOfVariation(segmentTimes, average, standardDeviation).ToString("P2").Replace(" ", "");
+            firstRow.Append($"{cv},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.Percentile)) {
             headerRow.Append($"{settings.PercentileValue.ToString()},");
-            string percentile = FormatTime(Percentile(splitTimes, ToInt(settings.PercentileValue)));
+            string percentile = FormatTime(Percentile(segmentTimes, ToInt(settings.PercentileValue)));
             firstRow.Append($"{percentile},");
         }
         if (isSettingEnabled(StatOutput.Export, settings.RunCount)) {
@@ -93,20 +103,19 @@ public static class StaticStatsManager {
         }
         if (settings.LinearRegression) {
             headerRow.Append("Trend Slope,");
-            string slope = FormatTime(LinearRegression(splitTimes));
+            string slope = FormatTime(LinearRegression(segmentTimes));
             firstRow.Append($"{slope},");
         }
         if (headerRow.Length > 0 && headerRow[^1] == ',') headerRow.Length--; // Remove last ","
-
-        // First data row
-        headerRow.Append("\n");
         if (firstRow.Length > 0 && firstRow[^1] == ',') firstRow.Length--; // Remove last ","
+
+        headerRow.Append("\n");
         headerRow.Append(firstRow.ToString());
 
         // Remaining segment times
         if (settings.RunHistory) {
             for (int i = 1; i < runCount; i++) {
-                headerRow.Append($"\n{FormatTime(splitTimes[i])}");
+                headerRow.Append($"\n{FormatTime(segmentTimes[i])}");
             }
         }
 
@@ -115,10 +124,14 @@ public static class StaticStatsManager {
     }
 
     public static string ToStringForOverlay() {
-        int runCount = splitTimes.Count;
+        int runCount = segmentTimes.Count;
         if (runCount == 0) {
             return "";
         }
+
+        double average = -1;
+        double standardDeviation = -1;
+    
         var settings = SpeebrunConsistencyTrackerModule.Settings.StatsMenu;
         StringBuilder sb = new();
         if (isSettingEnabled(StatOutput.Overlay, settings.SuccessRate)) {
@@ -129,27 +142,33 @@ public static class StaticStatsManager {
             sb.Append($"runs: {runCount.ToString()} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.Average)) {
-            string average = FormatTime((long)Math.Round(splitTimes.Average()));
-            sb.Append($"avg: {average} | ");
+            average = segmentTimes.Average();
+            string averageString = FormatTime((long)Math.Round(average));
+            sb.Append($"avg: {averageString} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.Median)) {
-            string median = FormatTime(Percentile(splitTimes, 50));
+            string median = FormatTime(Percentile(segmentTimes, 50));
             sb.Append($"med: {median} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.Minimum)) {
-            string best = FormatTime(splitTimes.Min());
+            string best = FormatTime(segmentTimes.Min());
             sb.Append($"best: {best} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.Maximum)) {
-            string worst = FormatTime(splitTimes.Max());
+            string worst = FormatTime(segmentTimes.Max());
             sb.Append($"worst: {worst} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.StandardDeviation)) {
-            string stdDev = FormatTime(StandardDeviation(splitTimes));
+            standardDeviation = StandardDeviation(segmentTimes, average);
+            string stdDev = FormatTime((long)Math.Round(standardDeviation));
             sb.Append($"stdev: {stdDev} | ");
         }
+        if (isSettingEnabled(StatOutput.Overlay, settings.CoefficientOfVariation)) {
+            string cv = CoefficientOfVariation(segmentTimes, average, standardDeviation).ToString("P2").Replace(" ", "");
+            sb.Append($"cv: {cv} | ");
+        }
         if (isSettingEnabled(StatOutput.Overlay, settings.Percentile)) {
-            string percentile = FormatTime(Percentile(splitTimes, ToInt(settings.PercentileValue)));
+            string percentile = FormatTime(Percentile(segmentTimes, ToInt(settings.PercentileValue)));
             sb.Append($"{settings.PercentileValue.ToString()}: {percentile} | ");
         }
         if (isSettingEnabled(StatOutput.Overlay, settings.CompletionRate)) {
@@ -163,7 +182,7 @@ public static class StaticStatsManager {
     public static void AddSegmentTime(long segmentTime) {
         if (lockUpdate) return;
         long adjustedTime = segmentTime - ONE_FRAME;
-        splitTimes.Add(adjustedTime);
+        segmentTimes.Add(adjustedTime);
         if (isSuccessfulRun(adjustedTime)){
             successCount++;
         }
@@ -180,10 +199,16 @@ public static class StaticStatsManager {
         return sorted[Math.Clamp(index, 0, sorted.Count - 1)];
     }
 
-    private static long StandardDeviation(List<long> values){
-        double average = values.Average();
+    private static double StandardDeviation(List<long> values, double average){
+        average = average != -1 ? average : values.Average();
         double variance = values.Average(val => (val - average) * (val - average));
-        return (long)Math.Round(Math.Sqrt(variance));
+        return Math.Sqrt(variance);
+    }
+
+    public static double CoefficientOfVariation(List<long> values, double average, double standardDeviation) {
+        average = average != -1 ? average : values.Average();
+        standardDeviation = standardDeviation != -1 ? standardDeviation : StandardDeviation(values, average);
+        return standardDeviation / average;
     }
 
     private static long LinearRegression(List<long> values) {

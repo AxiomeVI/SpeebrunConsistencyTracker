@@ -65,6 +65,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         if (Settings.ButtonKeyStatsExport.Pressed) StaticStatsManager.ExportHotkey();
 
+        if (Settings.ButtonKeyImportTargetTime.Pressed) Instance.ImportTargetTimeFromClipboard();
+
         if (Settings.ButtonKeyClearStats.Pressed) StaticStatsManager.Reset(false);
         
         if (Settings.ButtonToggleIngameOverlay.Pressed) {
@@ -89,5 +91,22 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!Settings.Enabled) return;
         if (level.Entities.FindFirst<TextOverlay>() == null) level.Entities.Add(new TextOverlay());
+    }
+
+    public void ImportTargetTimeFromClipboard() {
+        string input = TextInput.GetClipboardText();
+        if (TimeSpan.TryParseExact(input, "mm\\:ss\\.fff", null, out TimeSpan result) ||
+            TimeSpan.TryParseExact(input, "ss\\.fff", null, out result)) {
+            var targetTimeSettings = Settings.TargetTime;
+            targetTimeSettings.Minutes = result.Minutes;
+            targetTimeSettings.Seconds = result.Seconds;
+            targetTimeSettings.MillisecondsFirstDigit = result.Milliseconds / 100;
+            targetTimeSettings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
+            targetTimeSettings.MillisecondsThirdDigit = result.Milliseconds % 10;
+            PopupMessage($"Target time set to {result:mm\\:ss\\.fff}");
+            SaveSettings();
+        } else {
+            PopupMessage("Invalid time format in clipboard. Please use m:ss.SSS or ss.SSS format.");
+        }
     }
 }
