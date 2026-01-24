@@ -6,7 +6,6 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using static Celeste.Mod.SpeebrunConsistencyTracker.SpeebrunConsistencyTrackerModule;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
-using Celeste.Mod.SpeedrunTool.SaveLoad;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.StatsManager;
 
@@ -26,6 +25,7 @@ public static class StaticStatsManager {
             this.DNFCount = DNFCount;
         }
     }
+
     private static TimeData segmentData = new TimeData();
     private static List<TimeData> roomData = new List<TimeData>();
 
@@ -33,7 +33,7 @@ public static class StaticStatsManager {
     public static int successCount = 0;
     public static int roomIndex = 0;
     public static long currentSegmentTime = 0;
-
+    public static bool runCompleted = false;
     public static string previousRoom = "";
 
     private const long ONE_FRAME = 170000; // in ticks
@@ -45,6 +45,7 @@ public static class StaticStatsManager {
         currentSegmentTime = 0;
         roomData.Clear();
         segmentData = new TimeData();
+        runCompleted = false;
         if (fullReset) lockUpdate = false;
     }
 
@@ -305,12 +306,15 @@ public static class StaticStatsManager {
 
     public static void AddSegmentTime(long segmentTime) {
         if (lockUpdate) return;
-        long adjustedTime = segmentTime - ONE_FRAME;
-        segmentData.times.Add(adjustedTime);
-        if (isSuccessfulRun(adjustedTime)){
+        AddRoomTime(segmentTime);        
+        long sum = 0;
+        foreach (TimeData room in roomData) {
+            sum += room.times[room.times.Count - 1];
+        }
+        segmentData.times.Add(sum);
+        if (isSuccessfulRun(sum)){
             successCount++;
         }
-        if (segmentTime - currentSegmentTime > ONE_FRAME) AddRoomTime(segmentTime); // Try to detect cases where the end isn't a room transition
         lockUpdate = true;
     }
 
@@ -318,6 +322,7 @@ public static class StaticStatsManager {
         if (lockUpdate) return;
         long roomTime = segmentTime - currentSegmentTime;
         currentSegmentTime = segmentTime;
+        if (roomTime <= ONE_FRAME) return;
         if (roomData.Count > roomIndex) {
             roomData[roomIndex].times.Add(roomTime);
         } else {
@@ -420,6 +425,7 @@ public static class StaticStatsManager {
         roomIndex = 0;
         currentSegmentTime = 0;
         previousRoom = "";
+        runCompleted = false;
     }
     #endregion
 }

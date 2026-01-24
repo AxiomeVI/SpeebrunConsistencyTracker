@@ -75,9 +75,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         TextOverlay overlay = self.Entities.FindFirst<TextOverlay>();
         if (RoomTimerIntegration.RoomTimerIsCompleted()) {
-            StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
-            overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
-            if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
+            if (StaticStatsManager.runCompleted) {
+                StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
+                overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
+                if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
+            } else {
+                StaticStatsManager.AddRoomTime(RoomTimerIntegration.GetRoomTime());
+                StaticStatsManager.runCompleted = true;
+            }
         } else if (self.PauseMainMenuOpen && Settings.IngameOverlay.ShowInPauseMenu) {
             overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
             if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
