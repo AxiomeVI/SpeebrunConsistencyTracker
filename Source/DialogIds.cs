@@ -3,6 +3,7 @@ public static class DialogIds {
     // Main Menu
     public const string SpeebrunConsistencyTracker = "SPEEBRUN_CONSISTENCY_TRACKER";
     public const string EnabledId = "ENABLE_MOD";
+    public const string SrtExportId = "EXPORT_WITH_SRT";
 
     // Hotkeys
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";
@@ -20,18 +21,22 @@ public static class DialogIds {
     public const string MillisecondsSecond = "MILLISECONDS_SECOND";
     public const string MillisecondsThird = "MILLISECONDS_THIRD";
 
+    // Popup message
+    public const string PopupTargetTimeSetid = "POPUP_TARGET_TIME_SET";
+    public const string PopupInvalidTargetTimeid = "INVALID_TIME_IMPORT";
+    public const string PopupExportToClipBoardid = "EXPORT_TO_CLIPBOARD";
+    public const string PopupInvalidExportid = "INVALID_EXPORT_CLIPBOARD";
+
     // Ingame Overlay Menu
     public const string IngameOverlayId = "INGAME_OVERLAY";
     public const string OverlayEnabledId = "OVERLAY_ENABLED";
-    public const string ShowInPauseMenuId = "SHOW_IN_PAUSE_MENU";
-    public const string ShowInPauseMenuSubTextId = "SHOW_IN_PAUSE_MENU_SUBTEXT";
     public const string TextSizeId = "TEXT_SIZE";
     public const string TextPositionId = "TEXT_POSITION";
     
     // Stats Menu
     public const string StatsSubMenuId = "STATS_SUBMENU";
     public const string SuccessRateId = "SUCCESS_RATE";
-    public const string CompletionRateId = "COMPLETION_RATE";
+    public const string ResetRateId = "RESET_RATE";
     public const string ResetShareId = "RESET_SHARE";
     public const string AverageId = "AVERAGE";
     public const string MedianId = "MEDIAN";
@@ -44,10 +49,10 @@ public static class DialogIds {
     public const string PercentileId = "PERCENTILE";
     public const string RunHistoryId = "RUN_HISTORY";
     public const string SuccessRateSubTextId = "SUCCESS_RATE_SUBTEXT";
-    public const string CompleteRunSubTextId = "COMPLETE_RUN_SUBTEXT";
-    public const string RunCountId = "RUN_COUNT";
-    public const string OnlyInExportId = "ONLY_EXPORT";
+    public const string CompletedRunCountId = "COMPLETED_RUN_COUNT";
     public const string LinearRegressionId = "LINEAR_REGRESSION";
     public const string LinearRegressionSubTextId = "LINEAR_REGRESSION_SUBTEXT";
     public const string SoBId = "SOB";
+    public const string TotalRunCountId = "TOTAL_RUN_COUNT";
+    public const string DnfCountId = "DNF_COUNT";
 }

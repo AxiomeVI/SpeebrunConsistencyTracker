@@ -1,6 +1,7 @@
 # ====================== Mod Menu ==============================
 SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker   
-ENABLE_MOD=                            Enable   
+ENABLE_MOD=                            Enabled   
+EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 
 # ==================== Target Time =============================
 TARGET_TIME=                           Set Target Time
@@ -14,8 +15,6 @@ MILLISECONDS_THIRD=                    3rd digit
 
 # ======================= Overlay ==============================
 INGAME_OVERLAY=                        In-game Overlay
-SHOW_IN_PAUSE_MENU=                    Display in pause menu
-SHOW_IN_PAUSE_MENU_SUBTEXT=            Display in-game overlay in the pause menu during gameplay
 OVERLAY_ENABLED=                       Enable overlay
 TEXT_SIZE=                             Text size
 TEXT_POSITION=                         Text position
@@ -26,12 +25,20 @@ KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
 TOGGLE_INGAME_OVERLAY=                 Enable/Disable In-game Overlay
 KEY_CLEAR_STATS=                       Clear current stats data
 
+# ===================== Popup message ==========================
+POPUP_TARGET_TIME_SET=                 Target time set to
+INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Please use m:ss.SSS or ss.SSS format
+EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
+INVALID_EXPORT_CLIPBOARD=              No data to export
+
 # ======================== Stats ===============================
 STATS_SUBMENU=                         Statistics Settings
-RUN_COUNT=                             Completed Run Count
+COMPLETED_RUN_COUNT=                   Completed Run Count
 SUCCESS_RATE=                          Success Rate
-COMPLETION_RATE=                       Completion Rate
-RESET_SHARE                            Share of Resets
+TOTAL_RUN_COUNT=                       Total Run Count
+DNF_COUNT=                             DNF Count
+RESET_RATE=                            Reset Rate
+RESET_SHARE=                           Share of Resets
 AVERAGE=                               Average
 MEDIAN=                                Median
 MINIMUM=                               Best
@@ -46,5 +53,3 @@ SOB=                                   Sum of Bests
 LINEAR_REGRESSION=                     Linear Regression
 LINEAR_REGRESSION_SUBTEXT=             The slope of the trend line
 SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
-COMPLETE_RUN_SUBTEXT=                  A run is considered incomplete if the timer started but the endpoint was never reached
-ONLY_EXPORT=                           Only available on export

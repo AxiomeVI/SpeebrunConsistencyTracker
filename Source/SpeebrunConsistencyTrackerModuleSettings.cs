@@ -1,7 +1,5 @@
 using Microsoft.Xna.Framework.Input;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
-using Celeste.Mod.SpeebrunConsistencyTracker.StatsManager;
-using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -65,9 +63,6 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         [SettingName(DialogIds.OverlayEnabledId)]
         public bool OverlayEnabled { get; set; } = true;
 
-        [SettingName(DialogIds.ShowInPauseMenuId), SettingSubText(DialogIds.ShowInPauseMenuSubTextId)]
-        public bool ShowInPauseMenu { get; set; } = true;
-
         [SettingRange(min: 0, max: 100), SettingName(DialogIds.TextSizeId)]
         public int TextSize { get; set; } = 65;
 
@@ -84,38 +79,42 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     [SettingSubMenu]
     public class StatsSubMenu {
-        [SettingName(DialogIds.RunHistoryId), SettingSubText(DialogIds.OnlyInExportId)]
+        [SettingName(DialogIds.RunHistoryId)]
         public bool History { get; set; } = true;
         [SettingName(DialogIds.SuccessRateId), SettingSubText(DialogIds.SuccessRateSubTextId)]
-        public StatOutput SuccessRate { get; set; } = StatOutput.Both;
+        public MetricOutputChoice SuccessRate { get; set; } = MetricOutputChoice.Both;
         [SettingName(DialogIds.TargetTimeStatId)]
-        public StatOutput TargetTime { get; set; } = StatOutput.Both;
-        [SettingName(DialogIds.RunCountId)]
-        public StatOutput RunCount { get; set; } = StatOutput.Both;
+        public MetricOutputChoice TargetTime { get; set; } = MetricOutputChoice.Both;
+        [SettingName(DialogIds.CompletedRunCountId)]
+        public MetricOutputChoice CompletedRunCount { get; set; } = MetricOutputChoice.Both;
+        [SettingName(DialogIds.TotalRunCountId)]
+        public MetricOutputChoice TotalRunCount { get; set; } = MetricOutputChoice.Both;
+        [SettingName(DialogIds.DnfCountId)]
+        public MetricOutputChoice DnfCount { get; set; } = MetricOutputChoice.Both;
         [SettingName(DialogIds.AverageId)]
-        public StatOutput Average { get; set; } = StatOutput.Both;
+        public MetricOutputChoice Average { get; set; } = MetricOutputChoice.Both;
         [SettingName(DialogIds.MedianId)]
-        public StatOutput Median { get; set; } = StatOutput.Both;
-        [SettingName(DialogIds.CompletionRateId), SettingSubText(DialogIds.CompleteRunSubTextId)]
-        public StatOutput CompletionRate { get; set; } = StatOutput.Export;
+        public MetricOutputChoice Median { get; set; } = MetricOutputChoice.Both;
+        [SettingName(DialogIds.ResetRateId)]
+        public MetricOutputChoice ResetRate { get; set; } = MetricOutputChoice.Export;
         [SettingName(DialogIds.ResetShareId)]
         public bool ResetShare { get; set; } = true;
         [SettingName(DialogIds.MinimumId)]
-        public StatOutput Minimum { get; set; } = StatOutput.Export;
+        public MetricOutputChoice Minimum { get; set; } = MetricOutputChoice.Export;
         [SettingName(DialogIds.MaximumId)]
-        public StatOutput Maximum { get; set; } = StatOutput.Export;
+        public MetricOutputChoice Maximum { get; set; } = MetricOutputChoice.Export;
         [SettingName(DialogIds.StandardDeviationId)]
-        public StatOutput StandardDeviation { get; set; } = StatOutput.Both;
+        public MetricOutputChoice StandardDeviation { get; set; } = MetricOutputChoice.Both;
         [SettingName(DialogIds.CoefficientOfVariationId)]
-        public StatOutput CoefficientOfVariation { get; set; } = StatOutput.Export;
+        public MetricOutputChoice CoefficientOfVariation { get; set; } = MetricOutputChoice.Export;
         [SettingName(DialogIds.PercentileId)]
-        public StatOutput Percentile { get; set; } = StatOutput.Export;
+        public MetricOutputChoice Percentile { get; set; } = MetricOutputChoice.Export;
         [SettingName(DialogIds.PercentileValueId)]
         public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
         [SettingName(DialogIds.LinearRegressionId), SettingSubText(DialogIds.LinearRegressionSubTextId)]
         public bool LinearRegression { get; set; } = true;
         [SettingName(DialogIds.SoBId)]
-        public StatOutput SoB { get; set; } = StatOutput.Both;
+        public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Both;
     }
 
     [SettingName(DialogIds.StatsSubMenuId)]
@@ -128,8 +127,11 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         if (!inGame) return;
         menu.Add(new TextMenu.Button(Dialog.Clean(DialogIds.KeyStatsExportId))
             .Pressed(() => {
-                StaticStatsManager.ExportHotkey();
+                SpeebrunConsistencyTrackerModule.Instance.ExportDataToCsv();
             })
         );
     }
+
+    [SettingName(DialogIds.SrtExportId)]
+    public bool ExportWithSRT { get; set; } = true;
 }
