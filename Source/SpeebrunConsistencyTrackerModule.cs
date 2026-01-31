@@ -64,6 +64,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void OnBeforeSaveState(Level level) {
+        if (!Settings.Enabled)
+            return;
         level.Entities.FindAll<TextOverlay>().ForEach(overlay => {
             overlay.SetText("");
         });    
@@ -71,22 +73,33 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
     {
-        SessionManager.OnSaveState(dictionary, level);
+        if (!Settings.Enabled)
+            return;
+        SessionManager.OnSaveState();
+        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "New session started");
     }
 
     public static void OnClearState()
     {
+        if (!Settings.Enabled)
+            return;
         SessionManager.OnClearState();
+        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "Session cleared");
     }
 
     public static void OnBeforeLoadState(Level level)
     {
-        SessionManager.OnBeforeLoadState(level);
+        if (!Settings.Enabled)
+            return;
+        SessionManager.OnBeforeLoadState();
     }
 
     public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
     {
-        SessionManager.OnLoadState(dictionary, level);
+        if (!Settings.Enabled)
+            return;
+        SessionManager.OnLoadState();
+        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "New attempt started");
     }
 
 
@@ -122,9 +135,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (RoomTimerIntegration.RoomTimerIsCompleted())
         {
             //SessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
-            if (SessionManager.HasActiveAttempt)
+            if (SessionManager.IsActive)
             {
                 SessionManager.EndCurrentAttempt();
+                if (overlay?.Visible == true) overlay?.SetText(MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession));
                 PracticeSession currentSession = SessionManager.CurrentSession;
                 Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "Attempt complete");
                 Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Total attempts: {currentSession.TotalAttempts}");
@@ -132,18 +146,16 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
                 foreach (var attempt in currentSession.Attempts)
                 {
-                    Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Attempt #{attempt.Index}: {attempt.Outcome}");
+                    Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Attempt #{currentSession.TotalAttempts}: {attempt.Outcome}");
                     foreach (var room in attempt.CompletedRooms)
                         Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"  Room {room.Key}: {room.Value} ticks");
                     if (attempt.DnfInfo != null)
                         Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"  DNF at Room {attempt.DnfInfo.Room} ({attempt.DnfInfo.TimeIntoRoomTicks} ticks)");
                 }
 
-                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"{SessionHistoryCsvExporter.ExportSessionToCsv(currentSession)}");
+                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Current ExportSessionToCsv: \n{SessionHistoryCsvExporter.ExportSessionToCsv(currentSession)}");
             }
             overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
-            if (overlay?.Visible == true) overlay?.SetText(MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession));
-
         } else {
             overlay?.SetTextVisible(false);
         }
@@ -151,20 +163,27 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!Settings.Enabled) return;
+
         if (level.Entities.FindFirst<TextOverlay>() == null) level.Entities.Add(new TextOverlay());
-        long segmentTime = RoomTimerIntegration.GetRoomTime();
-        if (segmentTime > 0 && !RoomTimerIntegration.RoomTimerIsCompleted() && level.Session.Level != SessionManager.PreviousRoom) {
-            SessionManager.CompleteRoom(segmentTime);
-            SessionManager.PreviousRoom = level.Session.Level;
+        
+        if (SessionManager.IsActive)
+        {
+            long segmentTime = RoomTimerIntegration.GetRoomTime();
+            if (segmentTime > 0 && playerIntro == Player.IntroTypes.Transition) {
+                SessionManager.CompleteRoom(segmentTime);
+            }
         }
     }
 
     public void ExportDataToCsv()
     {
+        if (!Settings.Enabled)
+            return;
         PracticeSession currentSession = SessionManager.CurrentSession;
-        if (currentSession.Attempts.Count == 0)
+        if (currentSession.TotalAttempts == 0)
         {
             PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
+            return;
         }
         StringBuilder sb = new StringBuilder();
         if (Settings.ExportWithSRT)
@@ -173,12 +192,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             TextInput.SetClipboardText("");
             RoomTimerManager.CmdExportRoomTimes();
             sb.Append(TextInput.GetClipboardText());
-            sb.Append("\n\n");
+            sb.AppendLine();
+            sb.AppendLine();
         }
         sb.Append(MetricsExporter.ExportSessionToCsv(currentSession));
         if (Settings.StatsMenu.History)
         {
-            sb.Append("\n\n");
+            sb.AppendLine();
+            sb.AppendLine();
             sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
         }
         TextInput.SetClipboardText(sb.ToString());
@@ -186,21 +207,22 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     public void ImportTargetTimeFromClipboard() {
+        if (!Settings.Enabled)
+            return;
         string input = TextInput.GetClipboardText();
         TimeSpan result;
-        bool success = 
-            TimeSpan.TryParseExact(input, "mm\\:ss\\.fff", null, out result) ||
-            TimeSpan.TryParseExact(input, "m\\:ss\\.fff", null, out result) ||
-            TimeSpan.TryParseExact(input, "ss\\.fff", null, out result) ||
-            TimeSpan.TryParseExact(input, "s\\.fff", null, out result) ||
-            TimeSpan.TryParseExact(input, "ss\\.ff", null, out result) ||
-            TimeSpan.TryParseExact(input, "s\\.ff", null, out result) ||
-            TimeSpan.TryParseExact(input, "ss\\.f", null, out result) ||
-            TimeSpan.TryParseExact(input, "s\\.f", null, out result) ||
-            TimeSpan.TryParseExact(input, "mm\\:ss", null, out result) ||
-            TimeSpan.TryParseExact(input, "m\\:ss", null, out result) ||
-            TimeSpan.TryParseExact(input, "ss", null, out result) ||
-            TimeSpan.TryParseExact(input, "s", null, out result);
+        string[] TimeFormats = [
+                "mm\\:ss\\.fff", "m\\:ss\\.fff",
+                "mm\\:ss\\.ff", "m\\:ss\\.ff",
+                "mm\\:ss\\.f", "m\\:ss\\.f",
+                "ss\\.fff", "s\\.fff",
+                "ss\\.ff", "s\\.ff",
+                "ss\\.f", "s\\.f",
+                "mm\\:ss", "m\\:ss",
+                "ss", "s",
+                "fff"
+            ];
+        bool success = TimeSpan.TryParseExact(input, TimeFormats, null, out result);
         if (success) {
             var targetTimeSettings = Settings.TargetTime;
             targetTimeSettings.Minutes = result.Minutes;

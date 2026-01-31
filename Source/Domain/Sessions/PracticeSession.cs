@@ -9,9 +9,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 
 public sealed class PracticeSession
 {
-    public Guid Id { get; } = Guid.NewGuid();
     public DateTime StartedAt { get; } = DateTime.UtcNow;
-
     public int RoomCount { get; set; }
     private readonly List<Attempt> _attempts = new();
     public IReadOnlyList<Attempt> Attempts => _attempts;

@@ -2,6 +2,7 @@ using System.Text;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
+using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
 {
@@ -9,8 +10,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
     {
         public static string ExportSessionToCsv(PracticeSession session)
         {
-            if (session.Attempts.Count == 0)
-                return string.Empty;
+            if (session.TotalAttempts == 0)
+                return "";
 
             int roomCount = session.RoomCount;
 
@@ -24,19 +25,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
             sb.AppendLine();
 
             // Rows
-            foreach (var attempt in session.Attempts)
+            foreach (var (attempt, i) in session.Attempts.Select((attempt, i) => (attempt, i + 1)))
             {
-                sb.Append(attempt.Index + 1);
-
-                TimeTicks segmentTotal = TimeTicks.Zero;
+                sb.Append(i);
 
                 for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
                 {
                     if (attempt.CompletedRooms.TryGetValue(new RoomIndex(roomIndex), out TimeTicks roomTime))
                     {
                         sb.Append($",{roomTime}");
-                        if (attempt.IsCompleted)
-                            segmentTotal += roomTime;
                     }
                     else
                     {
@@ -44,7 +41,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
                     }
                 }
 
-                sb.Append(attempt.IsCompleted ? $",{segmentTotal}" : ",");
+                sb.Append(attempt.IsCompleted ? $",{attempt.SegmentTime}" : ",");
                 sb.AppendLine();
             }
 

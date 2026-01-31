@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
@@ -11,7 +10,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
     {
         public static string ExportSessionToCsv(PracticeSession session)
         {
-            if (session.Attempts.Count == 0)
+            if (session.TotalAttempts == 0)
                 return "";
             
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);

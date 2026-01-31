@@ -33,11 +33,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             //     Logger.Log(LogLevel.Info, "SpeebrunConsistencyTracker", value.ToString());
             //     if (IsMetricEnabled(value, mode))
             //     {
-            //         Logger.Log(LogLevel.Info, "SpeebrunConsistencyTracker", "COUCOU");
             //         filteredMetrics.Add(metric);
             //     }
             // }
-            Logger.Log(LogLevel.Info, "SpeebrunConsistencyTracker", filteredMetrics.Count.ToString());
+            Logger.Log(LogLevel.Info, "SpeebrunConsistencyTracker", $"# of active metrics: {filteredMetrics.Count.ToString()}");
             return filteredMetrics;
         }
 

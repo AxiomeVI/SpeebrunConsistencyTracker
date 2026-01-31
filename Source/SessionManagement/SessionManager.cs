@@ -9,84 +9,82 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 public static class SessionManager
 {
-    private static SpeebrunConsistencyTrackerModuleSettings Settings => SpeebrunConsistencyTrackerModule.Settings;
-
     private static PracticeSession? _currentSession;
     private static AttemptBuilder? _currentAttemptBuilder;
 
     private static int _currentRoomIndex;
 
-    public static string PreviousRoom { get; set; } = string.Empty;
+    public static string PreviousRoom { get; set; } = "";
 
     public static void Reset()
     {
         _currentSession = null;
         _currentAttemptBuilder = null;
         _currentRoomIndex = 0;
-        PreviousRoom = string.Empty;
+        PreviousRoom = "";
     }
 
 
-    public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
+    public static void OnSaveState()
     {
-        if (!Settings.Enabled) return;
         _currentSession = new PracticeSession();
-        _currentAttemptBuilder = new AttemptBuilder(0);
+        _currentAttemptBuilder = new AttemptBuilder();
         _currentRoomIndex = 0;
-        PreviousRoom = string.Empty;
+        PreviousRoom = "";
     }
 
     public static void OnClearState()
     {
-        if (!Settings.Enabled) return;
         Reset();
     }
 
-    public static void OnBeforeLoadState(Level level)
+    public static void OnBeforeLoadState()
     {
-        if (!Settings.Enabled) return;
-        if (_currentAttemptBuilder != null)
+        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "OnBeforeLoadState");
+        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"IsActive: {IsActive.ToString()}");
+        if (IsActive)
         {
+            Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"RoomTimerIntegration.RoomTimerIsCompleted(): ${RoomTimerIntegration.RoomTimerIsCompleted()}");
+            Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"RoomTimerIntegration.GetRoomTime(): ${RoomTimerIntegration.GetRoomTime()}");
             // If the previous attempt is incomplete and some room was timed, mark as DNF
             if (!RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
             {
+                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "End current attempt early");
                 var dnfRoomIndex = new RoomIndex(_currentRoomIndex);
                 TimeTicks ticks = new TimeTicks(RoomTimerIntegration.GetRoomTime());
-
+                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"DNF room: ${dnfRoomIndex}");
                 _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
-
                 EndCurrentAttempt();
             }
         }
     }
 
-    public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
+    public static void OnLoadState()
     {
-        if (!Settings.Enabled) return;
         if (_currentSession == null)
         {
             _currentSession = new PracticeSession();
         }
 
-        var nextIndex = _currentSession.TotalAttempts;
-        _currentAttemptBuilder = new AttemptBuilder(nextIndex);
+        _currentAttemptBuilder = new AttemptBuilder();
         _currentRoomIndex = 0;
     }
 
     public static void CompleteRoom(long ticks)
     {
-        if (_currentAttemptBuilder == null)
-            throw new InvalidOperationException("No active attempt.");
-
+        if (!IsActive)
+            return;
         var roomIndex = new RoomIndex(_currentRoomIndex);
-        _currentAttemptBuilder.CompleteRoom(roomIndex, new TimeTicks(ticks) - _currentAttemptBuilder.GetRoomTimeAtIndex(_currentRoomIndex-1));
+        TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
+        _currentAttemptBuilder.CompleteRoom(roomIndex, roomTime);
         _currentRoomIndex++;
+        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Room added: {roomTime}");
     }
 
 
     public static void EndCurrentAttempt()
     {
-        if (_currentAttemptBuilder == null)
+        if (!IsActive)
             return;
 
         var attempt = _currentAttemptBuilder.Build();
@@ -100,5 +98,5 @@ public static class SessionManager
     }
 
     public static PracticeSession? CurrentSession => _currentSession;
-    public static bool HasActiveAttempt => _currentAttemptBuilder != null;
+    public static bool IsActive => _currentSession != null && _currentAttemptBuilder != null;
 }

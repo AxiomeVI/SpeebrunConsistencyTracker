@@ -126,9 +126,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public void CreateExportStatsBindingEntry(TextMenu menu, bool inGame) {
         if (!inGame) return;
         menu.Add(new TextMenu.Button(Dialog.Clean(DialogIds.KeyStatsExportId))
-            .Pressed(() => {
-                SpeebrunConsistencyTrackerModule.Instance.ExportDataToCsv();
-            })
+            .Pressed(SpeebrunConsistencyTrackerModule.Instance.ExportDataToCsv)
         );
     }
 
