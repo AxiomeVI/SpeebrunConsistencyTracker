@@ -338,7 +338,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static MetricResult Percentile(PracticeSession session, MetricContext context, bool isExport)
         {
             string segmentValue;
-            int percentile = MetricHelper.ToInt(SpeebrunConsistencyTrackerModule.Settings.StatsMenu.PercentileValue);
+            int percentile = MetricHelper.ToInt(SpeebrunConsistencyTrackerModule.Settings.PercentileValue);
 
             // ---------- Segment ----------
             var segmentSorted = context.GetOrCompute(

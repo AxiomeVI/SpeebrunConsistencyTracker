@@ -2,6 +2,7 @@ using Microsoft.Xna.Framework;
 using Monocle;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
+// https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/StatTextComponent.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
     public class TextComponent : Component {
 

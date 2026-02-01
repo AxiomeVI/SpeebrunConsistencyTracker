@@ -10,6 +10,8 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
 using MonoMod.ModInterop;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
 using System.Text;
+using FMOD.Studio;
+using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -57,6 +59,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
+    }
+
+    public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
+    {
+        CreateModMenuSectionHeader(menu, inGame, pauseSnapshot);
+        ModMenuOptions.CreateMenu(menu, inGame);
+        CreateModMenuSectionKeyBindings(menu, inGame, pauseSnapshot);
     }
 
     public static void PopupMessage(string message) {
@@ -114,8 +123,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (Settings.ButtonKeyClearStats.Pressed) SessionManager.Reset();
         
         if (Settings.ButtonToggleIngameOverlay.Pressed) {
-            var overlaySettings = Settings.IngameOverlay;
-            overlaySettings.OverlayEnabled = !overlaySettings.OverlayEnabled;
+            Settings.OverlayEnabled = !Settings.OverlayEnabled;
             Instance.SaveSettings();
         }
 
@@ -155,7 +163,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
                 Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Current ExportSessionToCsv: \n{SessionHistoryCsvExporter.ExportSessionToCsv(currentSession)}");
             }
-            overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
+            overlay?.SetTextVisible(Settings.OverlayEnabled);
         } else {
             overlay?.SetTextVisible(false);
         }
@@ -175,16 +183,21 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
     }
 
+    public void Reset()
+    {
+        SessionManager.Reset();
+    }
+
     public void ExportDataToCsv()
     {
         if (!Settings.Enabled)
             return;
-        PracticeSession currentSession = SessionManager.CurrentSession;
-        if (currentSession.TotalAttempts == 0)
+        if (!SessionManager.IsActive || SessionManager.CurrentSession?.TotalAttempts == 0)
         {
             PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
         }
+        PracticeSession currentSession = SessionManager.CurrentSession;
         StringBuilder sb = new StringBuilder();
         if (Settings.ExportWithSRT)
         {
@@ -196,7 +209,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             sb.AppendLine();
         }
         sb.Append(MetricsExporter.ExportSessionToCsv(currentSession));
-        if (Settings.StatsMenu.History)
+        if (Settings.History)
         {
             sb.AppendLine();
             sb.AppendLine();
@@ -224,12 +237,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             ];
         bool success = TimeSpan.TryParseExact(input, TimeFormats, null, out result);
         if (success) {
-            var targetTimeSettings = Settings.TargetTime;
-            targetTimeSettings.Minutes = result.Minutes;
-            targetTimeSettings.Seconds = result.Seconds;
-            targetTimeSettings.MillisecondsFirstDigit = result.Milliseconds / 100;
-            targetTimeSettings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
-            targetTimeSettings.MillisecondsThirdDigit = result.Milliseconds % 10;
+            Settings.Minutes = result.Minutes;
+            Settings.Seconds = result.Seconds;
+            Settings.MillisecondsFirstDigit = result.Milliseconds / 100;
+            Settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
+            Settings.MillisecondsThirdDigit = result.Milliseconds % 10;
             PopupMessage($"{Dialog.Clean(DialogIds.PopupTargetTimeSetid)} {result:mm\\:ss\\.fff}");
             SaveSettings();
         } else {

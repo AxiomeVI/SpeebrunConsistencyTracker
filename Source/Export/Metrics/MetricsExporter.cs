@@ -46,8 +46,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             {
                 overlayString.Add($"{desc.InGameName()}: {result.SegmentValue}");
             }
-            
-            return string.Join(" | ", overlayString);
+            string separator = SpeebrunConsistencyTrackerModule.Settings.TextOrientation == StatTextOrientation.Horizontal ? " | " : "\n";
+            return string.Join(separator, overlayString);
         }
     }
 }

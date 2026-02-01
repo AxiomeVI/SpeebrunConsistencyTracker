@@ -41,7 +41,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         }
 
         public static TimeTicks GetTargetTimeTicks() {
-            var settings = SpeebrunConsistencyTrackerModule.Settings.TargetTime;
+            var settings = SpeebrunConsistencyTrackerModule.Settings;
             int totalMilliseconds = settings.Minutes * 60000 + settings.Seconds * 1000 + settings.MillisecondsFirstDigit * 100 + settings.MillisecondsSecondDigit * 10 + settings.MillisecondsThirdDigit;
             return new TimeTicks(TimeSpan.FromMilliseconds(totalMilliseconds).Ticks);
         }

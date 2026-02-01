@@ -38,5 +38,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         BottomLeft,
         BottomCenter,
         BottomRight
-    } 
+    }
+
+    public enum StatTextOrientation
+    {
+        Horizontal,
+        Vertical
+    }
 }

@@ -13,6 +13,7 @@ public static class DialogIds {
     
     // Target Time Menu
     public const string TargetTimeId = "TARGET_TIME";
+    public const string ResetTargetTimeId = "RESET_TARGET_TIME";
     public const string TargetTimeFormatId = "TARGET_TIME_FORMAT";
     public const string Minutes = "MINUTES";
     public const string Seconds = "SECONDS";
@@ -32,9 +33,11 @@ public static class DialogIds {
     public const string OverlayEnabledId = "OVERLAY_ENABLED";
     public const string TextSizeId = "TEXT_SIZE";
     public const string TextPositionId = "TEXT_POSITION";
+    public const string TextOrientationId = "TEXT_ORIENTATION";
     
     // Stats Menu
     public const string StatsSubMenuId = "STATS_SUBMENU";
+    public const string ExportOnlyId = "EXPORT_ONLY";
     public const string SuccessRateId = "SUCCESS_RATE";
     public const string ResetRateId = "RESET_RATE";
     public const string ResetShareId = "RESET_SHARE";
