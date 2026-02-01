@@ -160,7 +160,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             foreach (var time in segmentData.Times)
             {
                 float normalizedY = (float)time.Ticks / maxSegmentTime;
-                Logger.Log(LogLevel.Info, "normalizedY", normalizedY.ToString());
                 float dotY = y + h - (normalizedY * h);
                 Vector2 pos = new Vector2(segmentCenterX, dotY);      
                 allDots.Add((pos, segmentDotColor));          
