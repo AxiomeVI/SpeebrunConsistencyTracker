@@ -43,9 +43,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
                 return "";
 
             if (session.Equals(lastSession) && MetricEngine.SameSettings())
-            {
                 return lastSessionString;
-            }
 
             StatTextOrientation orientation = SpeebrunConsistencyTrackerModule.Settings.TextOrientation;
 

@@ -9,7 +9,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
     public static class MetricEngine
     {
-        private static List<MetricDescriptor> lastFilter = [];
+        private static List<MetricDescriptor> lastFilter = null;
 
         public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
@@ -35,7 +35,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static bool SameSettings()
         {
-            return lastFilter.SequenceEqual(FilterMetrics(MetricOutput.Overlay));
+            if (lastFilter == null) return false;
+            return FilterMetrics(MetricOutput.Overlay).SequenceEqual(lastFilter);
         }
 
         public static TimeTicks GetTargetTimeTicks() {

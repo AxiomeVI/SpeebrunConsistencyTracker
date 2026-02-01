@@ -7,7 +7,7 @@ public static class DialogIds {
 
     // Hotkeys
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";
-    public const string ToggleIngameOverlayId = "TOGGLE_INGAME_OVERLAY";
+    public const string ToggleGraphOverlayId = "TOGGLE_GRAPH_OVERLAY";
     public const string KeyClearStatsId = "KEY_CLEAR_STATS";
     public const string KeyImportTargetTimeId = "KEY_IMPORT_TARGET_TIME";
     

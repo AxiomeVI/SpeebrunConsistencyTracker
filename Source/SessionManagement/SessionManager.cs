@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
@@ -40,16 +38,13 @@ public static class SessionManager
 
     public static void OnBeforeLoadState()
     {
-        if (IsActive)
+        // If the previous attempt is incomplete and some room was timed, mark as DNF
+        if (HasActiveAttempt && !RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
         {
-            // If the previous attempt is incomplete and some room was timed, mark as DNF
-            if (!RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
-            {
-                var dnfRoomIndex = new RoomIndex(_currentRoomIndex);
-                TimeTicks ticks = new TimeTicks(RoomTimerIntegration.GetRoomTime());
-                _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
-                EndCurrentAttempt();
-            }
+            var dnfRoomIndex = new RoomIndex(_currentRoomIndex);
+            TimeTicks ticks = new TimeTicks(RoomTimerIntegration.GetRoomTime());
+            _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
+            EndCurrentAttempt();
         }
     }
 
@@ -66,7 +61,7 @@ public static class SessionManager
 
     public static void CompleteRoom(long ticks)
     {
-        if (!IsActive)
+        if (!HasActiveAttempt)
             return;
         var roomIndex = new RoomIndex(_currentRoomIndex);
         TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
@@ -77,7 +72,7 @@ public static class SessionManager
 
     public static void EndCurrentAttempt()
     {
-        if (!IsActive)
+        if (!HasActiveAttempt)
             return;
 
         var attempt = _currentAttemptBuilder.Build();
@@ -91,5 +86,6 @@ public static class SessionManager
     }
 
     public static PracticeSession? CurrentSession => _currentSession;
-    public static bool IsActive => _currentSession != null && _currentAttemptBuilder != null;
+    public static bool IsActive => _currentSession != null;
+    public static bool HasActiveAttempt => _currentSession != null && _currentAttemptBuilder != null;
 }

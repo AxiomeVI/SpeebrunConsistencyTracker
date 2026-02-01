@@ -121,15 +121,12 @@ public static class ModMenuOptions
 
         textSize.Change(v => {
             _settings.TextSize = v;
-            _instance.Overlay.ApplyModSettings();
         });
         textPosition.Change(v => {
             _settings.TextPosition = enumPositionValues[v];
-            _instance.Overlay.ApplyModSettings();
         });
         textOrientation.Change(v => {
             _settings.TextOrientation = enumOrientationValues[v];
-            _instance.Overlay.ApplyModSettings();
         });
 
         TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled).Change(
@@ -139,7 +136,6 @@ public static class ModMenuOptions
                 textSize.Visible = value;
                 textPosition.Visible = value;
                 textOrientation.Visible = value;
-                _instance.Overlay.ApplyModSettings();
             }
         );
 
