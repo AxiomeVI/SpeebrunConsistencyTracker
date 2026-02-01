@@ -13,14 +13,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public TextOverlay() {
             Depth = -101;
-            Tag = Tags.HUD | Tags.Global | Tags.PauseUpdate | Tags.TransitionUpdate;
+            Tag = Tags.HUD | Tags.Global;
 
             StatText = new TextComponent(true, true, StatTextPosition.TopLeft);
             InitStatTextOptions();
             ApplyModSettings();
         }
 
-        private void ApplyModSettings() {
+        public void ApplyModSettings() {
             Visible = _settings.OverlayEnabled;
             SetTextVisible(_settings.OverlayEnabled);
             SetTextPosition(_settings.TextPosition);
@@ -69,8 +69,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public override void Render() {
             base.Render();
-            if (!_settings.Enabled || !_settings.OverlayEnabled) return;
-            if (StatText.Visible) {
+            if (_settings.Enabled && StatText.Visible)
+            {
                 StatText.Render();
             }
         }

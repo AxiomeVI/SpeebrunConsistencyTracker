@@ -7,7 +7,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 
-public sealed class PracticeSession
+public sealed class PracticeSession : IEquatable<PracticeSession>
 {
     public DateTime StartedAt { get; } = DateTime.UtcNow;
     public int RoomCount { get; set; }
@@ -60,4 +60,23 @@ public sealed class PracticeSession
             .Where(a => a.Outcome == AttemptOutcome.Completed)
             .Where(a => a.CompletedRooms.ContainsKey(new RoomIndex(roomIndex)))
             .Select(a => a.CompletedRooms[new RoomIndex(roomIndex)]);
+
+    public bool Equals(PracticeSession other)
+    {
+        if (other is null)
+            return false;
+
+        if (ReferenceEquals(this, other))
+            return true;
+
+        return StartedAt == other.StartedAt
+            && RoomCount == other.RoomCount
+            && _attempts.Count == other._attempts.Count;
+    }
+
+    public override bool Equals(object obj)
+        => Equals(obj as PracticeSession);
+
+    public override int GetHashCode()
+        => HashCode.Combine(StartedAt, RoomCount, _attempts.Count);
 }

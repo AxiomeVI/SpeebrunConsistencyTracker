@@ -46,7 +46,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         }
     }
 
-    public sealed class MetricDescriptor
+    public sealed class MetricDescriptor : IEquatable<MetricDescriptor>
     {
         public Func<string> CsvHeader { get; }
 
@@ -76,6 +76,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             Func<MetricOutput, bool> isEnabled)
             : this(() => csvHeader, () => inGameName, compute, isEnabled)
         { }
+
+        public bool Equals(MetricDescriptor other)
+        {
+            if (other is null)
+                return false;
+
+            if (ReferenceEquals(this, other))
+                return true;
+
+            return InGameName() == other.InGameName();
+        }
+
+        public override bool Equals(object obj)
+            => Equals(obj as MetricDescriptor);
+        
+        public override int GetHashCode()
+            => InGameName().GetHashCode();
     }
 
     public sealed class MetricResult

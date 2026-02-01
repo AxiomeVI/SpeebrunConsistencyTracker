@@ -9,10 +9,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
     public static class MetricEngine
     {
+        private static List<MetricDescriptor> lastFilter = [];
+
         public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
             MetricContext context = new MetricContext();
             List<(MetricDescriptor, MetricResult)> result = new List<(MetricDescriptor, MetricResult)>();
+
+            List<MetricDescriptor> filteredMetrics = FilterMetrics(mode);
+            if (mode == MetricOutput.Overlay) lastFilter = filteredMetrics;
 
             foreach (MetricDescriptor metric in FilterMetrics(mode))
             {
@@ -25,19 +30,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         private static List<MetricDescriptor> FilterMetrics(MetricOutput mode)
         {
             List<MetricDescriptor> filteredMetrics = MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode)).ToList();
-            // foreach (MetricDescriptor metric in MetricRegistry.AllMetrics)
-            // {
-            //     PropertyInfo prop = SpeebrunConsistencyTrackerModule.Settings.StatsMenu.GetType().GetProperty(metric.Key);
-            //     Logger.Log(LogLevel.Info, "SpeebrunConsistencyTracker", prop.ToString());
-            //     object value = prop.GetValue(SpeebrunConsistencyTrackerModule.Settings.StatsMenu);
-            //     Logger.Log(LogLevel.Info, "SpeebrunConsistencyTracker", value.ToString());
-            //     if (IsMetricEnabled(value, mode))
-            //     {
-            //         filteredMetrics.Add(metric);
-            //     }
-            // }
-            Logger.Log(LogLevel.Info, "SpeebrunConsistencyTracker", $"# of active metrics: {filteredMetrics.Count.ToString()}");
             return filteredMetrics;
+        }
+
+        public static bool SameSettings()
+        {
+            return lastFilter.SequenceEqual(FilterMetrics(MetricOutput.Overlay));
         }
 
         public static TimeTicks GetTargetTimeTicks() {

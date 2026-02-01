@@ -12,6 +12,7 @@ using Celeste.Mod.SpeedrunTool.RoomTimer;
 using System.Text;
 using FMOD.Studio;
 using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
+using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -28,6 +29,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public static SpeebrunConsistencyTrackerModuleSaveData SaveData => (SpeebrunConsistencyTrackerModuleSaveData) Instance._SaveData;
 
     private object SaveLoadInstance = null;
+    public TextOverlay Overlay = null;
 
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
@@ -68,16 +70,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         CreateModMenuSectionKeyBindings(menu, inGame, pauseSnapshot);
     }
 
-    public static void PopupMessage(string message) {
+    private static void PopupMessage(string message) {
         PopupMessageUtils.Show(message, null);
     }
 
     private static void OnBeforeSaveState(Level level) {
         if (!Settings.Enabled)
             return;
-        level.Entities.FindAll<TextOverlay>().ForEach(overlay => {
-            overlay.SetText("");
-        });    
+        Instance.Overlay.SetText("");   
     }
 
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
@@ -85,7 +85,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         SessionManager.OnSaveState();
-        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "New session started");
     }
 
     public static void OnClearState()
@@ -93,7 +92,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         SessionManager.OnClearState();
-        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "Session cleared");
+        Instance.Overlay.SetText("");   
     }
 
     public static void OnBeforeLoadState(Level level)
@@ -108,7 +107,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         SessionManager.OnLoadState();
-        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "New attempt started");
     }
 
 
@@ -127,7 +125,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             Instance.SaveSettings();
         }
 
-        TextOverlay overlay = self.Entities.FindFirst<TextOverlay>();
+        //TextOverlay overlay = self.Entities.FindFirst<TextOverlay>();
         // if (RoomTimerIntegration.RoomTimerIsCompleted()) {
         //     // if (StaticStatsManager.runCompleted) {
         //     //     StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
@@ -146,33 +144,19 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             if (SessionManager.IsActive)
             {
                 SessionManager.EndCurrentAttempt();
-                if (overlay?.Visible == true) overlay?.SetText(MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession));
-                PracticeSession currentSession = SessionManager.CurrentSession;
-                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "Attempt complete");
-                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Total attempts: {currentSession.TotalAttempts}");
-                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Total DNFs: {currentSession.TotalDnfs}");
-
-                foreach (var attempt in currentSession.Attempts)
-                {
-                    Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Attempt #{currentSession.TotalAttempts}: {attempt.Outcome}");
-                    foreach (var room in attempt.CompletedRooms)
-                        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"  Room {room.Key}: {room.Value} ticks");
-                    if (attempt.DnfInfo != null)
-                        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"  DNF at Room {attempt.DnfInfo.Room} ({attempt.DnfInfo.TimeIntoRoomTicks} ticks)");
-                }
-
-                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Current ExportSessionToCsv: \n{SessionHistoryCsvExporter.ExportSessionToCsv(currentSession)}");
             }
-            overlay?.SetTextVisible(Settings.OverlayEnabled);
-        } else {
-            overlay?.SetTextVisible(false);
+            if (Settings.OverlayEnabled) Instance.Overlay?.SetText(MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession));
         }
     }
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!Settings.Enabled) return;
 
-        if (level.Entities.FindFirst<TextOverlay>() == null) level.Entities.Add(new TextOverlay());
+        if (isFromLoader)
+        {
+            Overlay = new TextOverlay();
+            level.Add(Overlay);
+        }
         
         if (SessionManager.IsActive)
         {
@@ -185,7 +169,23 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     public void Reset()
     {
+        Instance.Overlay = null;
         SessionManager.Reset();
+        if (Engine.Scene is Level level)
+        {
+            level.Entities.FindAll<TextOverlay>().ForEach(level.Entities.Remove);
+        }
+    }
+
+    public void Init()
+    {
+        Instance.Overlay = new TextOverlay();
+        SessionManager.Reset();
+        if (Engine.Scene is Level level)
+        {
+            level.Entities.FindAll<TextOverlay>().ForEach(level.Entities.Remove);
+            level.Add(Instance.Overlay);
+        }
     }
 
     public void ExportDataToCsv()

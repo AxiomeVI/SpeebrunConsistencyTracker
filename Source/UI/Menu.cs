@@ -31,7 +31,11 @@ public static class ModMenuOptions
                 _settings.Enabled = value;
                 exportWithSRT.Visible = value;
                 exportStatsButton.Visible = value && inGame;
-                _instance.Reset();
+                targetTimeSubMenu.Visible = value;
+                overlaySubMenu.Visible = value;
+                metricsSubMenu.Visible = value;
+                if (value) _instance.Init();
+                else _instance.Reset();
             }
         ));
 
@@ -115,9 +119,18 @@ public static class ModMenuOptions
         TextMenu.Slider textPosition = new TextMenu.Slider(Dialog.Clean(DialogIds.TextPositionId), i => enumPositionValues[i].ToString(), 0, 8, Array.IndexOf(enumPositionValues, _settings.TextPosition));
         TextMenu.Slider textOrientation = new TextMenu.Slider(Dialog.Clean(DialogIds.TextOrientationId), i => enumOrientationValues[i].ToString(), 0, 1, Array.IndexOf(enumOrientationValues, _settings.TextOrientation));
 
-        textSize.Change(v => _settings.TextSize = v);
-        textPosition.Change(v => _settings.TextPosition = enumPositionValues[v]);
-        textOrientation.Change(v => _settings.TextOrientation = enumOrientationValues[v]);
+        textSize.Change(v => {
+            _settings.TextSize = v;
+            _instance.Overlay.ApplyModSettings();
+        });
+        textPosition.Change(v => {
+            _settings.TextPosition = enumPositionValues[v];
+            _instance.Overlay.ApplyModSettings();
+        });
+        textOrientation.Change(v => {
+            _settings.TextOrientation = enumOrientationValues[v];
+            _instance.Overlay.ApplyModSettings();
+        });
 
         TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled).Change(
             value =>
@@ -126,6 +139,7 @@ public static class ModMenuOptions
                 textSize.Visible = value;
                 textPosition.Visible = value;
                 textOrientation.Visible = value;
+                _instance.Overlay.ApplyModSettings();
             }
         );
 
@@ -169,6 +183,23 @@ public static class ModMenuOptions
         TextMenu.Slider LinearRegression = new TextMenu.Slider(Dialog.Clean(DialogIds.LinearRegressionId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.LinearRegression));
         LinearRegression.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.LinearRegressionSubTextId));
         TextMenu.Slider SoB = new TextMenu.Slider(Dialog.Clean(DialogIds.SoBId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SoB));
+
+        SuccessRate.Change(v => _settings.SuccessRate = enumOutputChoiceValues[v]);
+        TargetTime.Change(v => _settings.TargetTime = enumOutputChoiceValues[v]);
+        CompletedRunCount.Change(v => _settings.CompletedRunCount = enumOutputChoiceValues[v]);
+        TotalRunCount.Change(v => _settings.TotalRunCount = enumOutputChoiceValues[v]);
+        DnfCount.Change(v => _settings.DnfCount = enumOutputChoiceValues[v]);
+        Average.Change(v => _settings.Average = enumOutputChoiceValues[v]);
+        Median.Change(v => _settings.Median = enumOutputChoiceValues[v]);
+        ResetRate.Change(v => _settings.ResetRate = enumOutputChoiceValues[v]);
+        Minimum.Change(v => _settings.Minimum = enumOutputChoiceValues[v]);
+        Maximum.Change(v => _settings.Maximum = enumOutputChoiceValues[v]);
+        StandardDeviation.Change(v => _settings.StandardDeviation = enumOutputChoiceValues[v]);
+        CoefficientOfVariation.Change(v => _settings.CoefficientOfVariation = enumOutputChoiceValues[v]);
+        Percentile.Change(v => _settings.Percentile = enumOutputChoiceValues[v]);
+        PercentileValue.Change(v => _settings.PercentileValue = enumPercentileValues[v]);
+        LinearRegression.Change(v => _settings.LinearRegression = enumOutputChoiceValues[v]);
+        SoB.Change(v => _settings.SoB = enumOutputChoiceValues[v]);
 
         metricsSubMenu.Add(SuccessRate);
         metricsSubMenu.Add(TargetTime);

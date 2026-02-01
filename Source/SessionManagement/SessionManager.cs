@@ -40,19 +40,13 @@ public static class SessionManager
 
     public static void OnBeforeLoadState()
     {
-        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "OnBeforeLoadState");
-        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"IsActive: {IsActive.ToString()}");
         if (IsActive)
         {
-            Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"RoomTimerIntegration.RoomTimerIsCompleted(): ${RoomTimerIntegration.RoomTimerIsCompleted()}");
-            Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"RoomTimerIntegration.GetRoomTime(): ${RoomTimerIntegration.GetRoomTime()}");
             // If the previous attempt is incomplete and some room was timed, mark as DNF
             if (!RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
             {
-                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), "End current attempt early");
                 var dnfRoomIndex = new RoomIndex(_currentRoomIndex);
                 TimeTicks ticks = new TimeTicks(RoomTimerIntegration.GetRoomTime());
-                Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"DNF room: ${dnfRoomIndex}");
                 _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
                 EndCurrentAttempt();
             }
@@ -78,7 +72,6 @@ public static class SessionManager
         TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
         _currentAttemptBuilder.CompleteRoom(roomIndex, roomTime);
         _currentRoomIndex++;
-        Logger.Log(LogLevel.Info, nameof(SpeebrunConsistencyTrackerModule), $"Room added: {roomTime}");
     }
 
 

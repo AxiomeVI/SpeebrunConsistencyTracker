@@ -8,9 +8,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 {
     public static class MetricsExporter
     {
+
+        private static PracticeSession lastSession = null;
+        private static string lastSessionString = "";
+
         public static string ExportSessionToCsv(PracticeSession session)
         {
-            if (session.TotalAttempts == 0)
+            if (session == null || session.TotalAttempts == 0)
                 return "";
             
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
@@ -35,19 +39,28 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 
         public static string ExportSessionToOverlay(PracticeSession session)
         {
-            if (session.TotalCompleted == 0)
+            if (session == null || session.TotalCompleted == 0)
                 return "";
+
+            if (session.Equals(lastSession) && MetricEngine.SameSettings())
+            {
+                return lastSessionString;
+            }
+
+            StatTextOrientation orientation = SpeebrunConsistencyTrackerModule.Settings.TextOrientation;
 
             List<string> overlayString = new List<string>();
 
-            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
+            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
 
             foreach ((MetricDescriptor desc, MetricResult result) in computedMetrics)
             {
-                overlayString.Add($"{desc.InGameName()}: {result.SegmentValue}");
+                overlayString.Add($"{desc.InGameName()}" + ": " + $"{result.SegmentValue}");
             }
-            string separator = SpeebrunConsistencyTrackerModule.Settings.TextOrientation == StatTextOrientation.Horizontal ? " | " : "\n";
-            return string.Join(separator, overlayString);
+            string lineSeparator = orientation == StatTextOrientation.Horizontal ? " | " : "\n";
+            lastSession = session;
+            lastSessionString = string.Join(lineSeparator, overlayString);
+            return lastSessionString;
         }
     }
 }
