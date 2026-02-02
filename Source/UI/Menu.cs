@@ -160,6 +160,7 @@ public static class ModMenuOptions
 
         TextMenu.OnOff History = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RunHistoryId), _settings.History).Change(b => _settings.History = b);
         TextMenu.OnOff ResetShare = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId), _settings.ResetShare).Change(b => _settings.ResetShare = b);
+        TextMenu.OnOff ConsistencyScore = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ConsistencyScoreId), _settings.ConsistencyScore).Change(b => _settings.ConsistencyScore = b);
 
         TextMenu.Slider SuccessRate = new TextMenu.Slider(Dialog.Clean(DialogIds.SuccessRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SuccessRate));
         SuccessRate.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
@@ -169,6 +170,7 @@ public static class ModMenuOptions
         TextMenu.Slider DnfCount = new TextMenu.Slider(Dialog.Clean(DialogIds.DnfCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.DnfCount));
         TextMenu.Slider Average = new TextMenu.Slider(Dialog.Clean(DialogIds.AverageId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Average));
         TextMenu.Slider Median = new TextMenu.Slider(Dialog.Clean(DialogIds.MedianId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Median));
+        TextMenu.Slider MedianAbsoluteDeviation = new TextMenu.Slider(Dialog.Clean(DialogIds.MadID), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.MedianAbsoluteDeviation));
         TextMenu.Slider ResetRate = new TextMenu.Slider(Dialog.Clean(DialogIds.ResetRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.ResetRate));
         TextMenu.Slider Minimum = new TextMenu.Slider(Dialog.Clean(DialogIds.MinimumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Minimum));
         TextMenu.Slider Maximum = new TextMenu.Slider(Dialog.Clean(DialogIds.MaximumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Maximum));
@@ -176,6 +178,7 @@ public static class ModMenuOptions
         TextMenu.Slider CoefficientOfVariation = new TextMenu.Slider(Dialog.Clean(DialogIds.CoefficientOfVariationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CoefficientOfVariation));
         TextMenu.Slider Percentile = new TextMenu.Slider(Dialog.Clean(DialogIds.PercentileId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Percentile));
         TextMenu.Slider PercentileValue = new TextMenu.Slider(Dialog.Clean(DialogIds.PercentileValueId), i => enumPercentileValues[i].ToString(), 0, 7, Array.IndexOf(enumPercentileValues, _settings.PercentileValue));
+        TextMenu.Slider InterquartileRange = new TextMenu.Slider(Dialog.Clean(DialogIds.InterquartileRangeId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.InterquartileRange));
         TextMenu.Slider LinearRegression = new TextMenu.Slider(Dialog.Clean(DialogIds.LinearRegressionId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.LinearRegression));
         LinearRegression.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.LinearRegressionSubTextId));
         TextMenu.Slider SoB = new TextMenu.Slider(Dialog.Clean(DialogIds.SoBId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SoB));
@@ -187,6 +190,7 @@ public static class ModMenuOptions
         DnfCount.Change(v => _settings.DnfCount = enumOutputChoiceValues[v]);
         Average.Change(v => _settings.Average = enumOutputChoiceValues[v]);
         Median.Change(v => _settings.Median = enumOutputChoiceValues[v]);
+        MedianAbsoluteDeviation.Change(v => _settings.MedianAbsoluteDeviation = enumOutputChoiceValues[v]);
         ResetRate.Change(v => _settings.ResetRate = enumOutputChoiceValues[v]);
         Minimum.Change(v => _settings.Minimum = enumOutputChoiceValues[v]);
         Maximum.Change(v => _settings.Maximum = enumOutputChoiceValues[v]);
@@ -194,6 +198,7 @@ public static class ModMenuOptions
         CoefficientOfVariation.Change(v => _settings.CoefficientOfVariation = enumOutputChoiceValues[v]);
         Percentile.Change(v => _settings.Percentile = enumOutputChoiceValues[v]);
         PercentileValue.Change(v => _settings.PercentileValue = enumPercentileValues[v]);
+        InterquartileRange.Change(v => _settings.InterquartileRange = enumOutputChoiceValues[v]);
         LinearRegression.Change(v => _settings.LinearRegression = enumOutputChoiceValues[v]);
         SoB.Change(v => _settings.SoB = enumOutputChoiceValues[v]);
 
@@ -204,6 +209,7 @@ public static class ModMenuOptions
         metricsSubMenu.Add(DnfCount);
         metricsSubMenu.Add(Average);
         metricsSubMenu.Add(Median);
+        metricsSubMenu.Add(MedianAbsoluteDeviation);
         metricsSubMenu.Add(ResetRate);
         metricsSubMenu.Add(Minimum);
         metricsSubMenu.Add(Maximum);
@@ -211,11 +217,13 @@ public static class ModMenuOptions
         metricsSubMenu.Add(CoefficientOfVariation);
         metricsSubMenu.Add(Percentile);
         metricsSubMenu.Add(PercentileValue);
+        metricsSubMenu.Add(InterquartileRange);
         metricsSubMenu.Add(LinearRegression);
         metricsSubMenu.Add(SoB);
         metricsSubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ExportOnlyId), false));
         metricsSubMenu.Add(History);
         metricsSubMenu.Add(ResetShare);
+        metricsSubMenu.Add(ConsistencyScore);
 
         metricsSubMenu.Visible = _settings.Enabled;
         return metricsSubMenu;

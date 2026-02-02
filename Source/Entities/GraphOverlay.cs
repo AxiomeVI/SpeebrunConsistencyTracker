@@ -23,6 +23,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private List<RoomData> roomDataList;
         private RoomData segmentData;
+        private TimeTicks? targetTime = null;
+
+        // Cache computed values
+        private long maxRoomTime;
+        private long maxSegmentTime;
         
         // Graph settings
         private Vector2 position;
@@ -37,12 +42,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private Color dotColor = Color.Cyan;
         private Color segmentDotColor = Color.Orange;
         
-        public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2 pos)
+        public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2 pos, TimeTicks? target = null)
         {
             Depth = -100; // Render on top
             this.roomDataList = rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room)).ToList();
             this.segmentData = new RoomData("Segment", segment);
             this.position = pos;
+            this.targetTime = target;
+            ComputeMaxValues();
             
             Tag = Tags.HUD | Tags.Global;
         }
@@ -60,17 +67,31 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float graphWidth = width - margin * 2;
             float graphHeight = height - margin * 2;
             
-            // Draw axes
             DrawAxes(graphX, graphY, graphWidth, graphHeight);
             
-            // Draw grid
             DrawGrid(graphX, graphY, graphWidth, graphHeight);
             
-            // Draw data points
             DrawDataPoints(graphX, graphY, graphWidth, graphHeight);
+
+            DrawTargetLine(graphX, graphY, graphWidth, graphHeight);
             
-            // Draw labels
             DrawLabels(graphX, graphY, graphWidth, graphHeight);
+        }
+
+        private void ComputeMaxValues()
+        {
+            // Find max time for rooms
+            maxRoomTime = 0;
+            foreach (var room in roomDataList)
+            {
+                if (room.Times.Any())
+                    maxRoomTime = Math.Max(maxRoomTime, room.Times.Max(t => t.Ticks));
+            }
+            
+            // Find max time for segment
+            maxSegmentTime = 0;
+            if (segmentData.Times.Any())
+                maxSegmentTime = segmentData.Times.Max(t => t.Ticks);
         }
 
         private void DrawAxes(float x, float y, float w, float h)
@@ -92,7 +113,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Vertical grid lines (one per room + segment)
             for (int i = 0; i <= totalColumns; i++)
             {
-                float xPos = x + (w / totalColumns) * i;
+                float xPos = x + w / totalColumns * i;
                 Draw.Line(
                     new Vector2(xPos, y),
                     new Vector2(xPos, y + h),
@@ -105,7 +126,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int horizontalLines = 10;
             for (int i = 0; i <= horizontalLines; i++)
             {
-                float yPos = y + (h / horizontalLines) * i;
+                float yPos = y + h / horizontalLines * i;
                 Draw.Line(
                     new Vector2(x, yPos),
                     new Vector2(x + w, yPos),
@@ -115,19 +136,50 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
-        private void DrawDataPoints(float x, float y, float w, float h)
+        private void DrawTargetLine(float x, float y, float w, float h)
         {
-            // Find max time for scaling
-            long maxRoomTime = 0;
-            foreach (var room in roomDataList)
-            {
-                if (room.Times.Any())
-                    maxRoomTime = Math.Max(maxRoomTime, room.Times.Max(t => t.Ticks));
-            }
-            long maxSegmentTime = 0;
-            if (segmentData.Times.Any())
-                maxSegmentTime = segmentData.Times.Max(t => t.Ticks);
+            if (!targetTime.HasValue) return;
             
+            if (maxSegmentTime == 0) return;
+            
+            int totalColumns = roomDataList.Count + 1;
+            float columnWidth = w / totalColumns;
+            
+            // Calculate Y position based on target time
+            float normalizedY = (float)targetTime.Value.Ticks / maxSegmentTime;
+            float targetY = y + h - (normalizedY * h);
+            
+            // Calculate X range (only in segment column)
+            float segmentStartX = x + columnWidth * roomDataList.Count;
+            float segmentEndX = x + w;
+            
+            // Draw the target line in the segment column only
+            Color targetColor = Color.Red;
+            Draw.Line(
+                new Vector2(segmentStartX, targetY),
+                new Vector2(segmentEndX, targetY),
+                targetColor,
+                2f
+            );
+            
+            // Draw small label on the line
+            string targetLabel = $"Target: {targetTime.Value}";
+            Vector2 labelSize = ActiveFont.Measure(targetLabel) * 0.4f;
+            
+            // Position label just to the left of the segment column
+            ActiveFont.DrawOutline(
+                targetLabel,
+                new Vector2(segmentStartX - labelSize.X - 5, targetY - labelSize.Y / 2),
+                new Vector2(0f, 0f),
+                Vector2.One * 0.4f,
+                targetColor,
+                2f,
+                Color.Black
+            );
+        }
+
+        private void DrawDataPoints(float x, float y, float w, float h)
+        {            
             if (maxRoomTime == 0 && maxSegmentTime == 0) return; // No data to display
             
             int totalColumns = roomDataList.Count + 1;
@@ -215,19 +267,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int totalColumns = roomDataList.Count + 1;
             float columnWidth = w / totalColumns;
             
-            // Find max time for rooms
-            long maxRoomTime = 0;
-            foreach (var room in roomDataList)
-            {
-                if (room.Times.Any())
-                    maxRoomTime = Math.Max(maxRoomTime, room.Times.Max(t => t.Ticks));
-            }
-            
-            // Find max time for segment
-            long maxSegmentTime = 0;
-            if (segmentData.Times.Any())
-                maxSegmentTime = segmentData.Times.Max(t => t.Ticks);
-            
             // X axis labels (room names)
             for (int i = 0; i < roomDataList.Count; i++)
             {
@@ -266,8 +305,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int yLabelCount = 5;
             for (int i = 0; i <= yLabelCount; i++)
             {
-                double timeValue = ((double)maxRoomTime / yLabelCount) * i;
-                float yPos = y + h - (h / yLabelCount) * i;
+                double timeValue = (double)maxRoomTime / yLabelCount * i;
+                float yPos = y + h - h / yLabelCount * i;
                 
                 string timeLabel = new TimeTicks((long)Math.Round(timeValue)).ToString();
                 Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.4f;
@@ -286,8 +325,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // RIGHT Y axis labels (segment times)
             for (int i = 0; i <= yLabelCount; i++)
             {
-                double timeValue = ((double)maxSegmentTime / yLabelCount) * i;
-                float yPos = y + h - (h / yLabelCount) * i;
+                double timeValue = (double)maxSegmentTime / yLabelCount * i;
+                float yPos = y + h - h / yLabelCount * i;
                 
                 string timeLabel = new TimeTicks((long)Math.Round(timeValue)).ToString();
                 Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.4f;
@@ -342,22 +381,4 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             );
         }
     }
-    
-    // Extension class to add the overlay to the level
-    // public static class GraphOverlayExtensions
-    // {
-    //     public static void ShowRoomTimeGraph(this Level level, List<RoomTimeGraphOverlay.RoomData> rooms, RoomTimeGraphOverlay.RoomData segment)
-    //     {
-    //         // Remove existing graph if any
-    //         foreach (var entity in level.Entities.FindAll<RoomTimeGraphOverlay>())
-    //         {
-    //             entity.RemoveSelf();
-    //         }
-            
-    //         // Add new graph centered on screen
-    //         Vector2 position = new Vector2(160, 140); // Centered position
-    //         var graph = new RoomTimeGraphOverlay(rooms, segment, position);
-    //         level.Add(graph);
-    //     }
-    // }
 }

@@ -43,6 +43,7 @@ public static class DialogIds {
     public const string ResetShareId = "RESET_SHARE";
     public const string AverageId = "AVERAGE";
     public const string MedianId = "MEDIAN";
+    public const string MadID = "MAD";
     public const string MinimumId = "MINIMUM";
     public const string MaximumId = "MAXIMUM";
     public const string StandardDeviationId = "STANDARD_DEVIATION";
@@ -50,6 +51,7 @@ public static class DialogIds {
     public const string TargetTimeStatId = "TARGET_TIME_STAT";
     public const string PercentileValueId = "PERCENTILE_VALUE";
     public const string PercentileId = "PERCENTILE";
+    public const string InterquartileRangeId = "IQR";
     public const string RunHistoryId = "RUN_HISTORY";
     public const string SuccessRateSubTextId = "SUCCESS_RATE_SUBTEXT";
     public const string CompletedRunCountId = "COMPLETED_RUN_COUNT";
@@ -58,4 +60,5 @@ public static class DialogIds {
     public const string SoBId = "SOB";
     public const string TotalRunCountId = "TOTAL_RUN_COUNT";
     public const string DnfCountId = "DNF_COUNT";
+    public const string ConsistencyScoreId = "CONSISTENCY_SCORE";
 }

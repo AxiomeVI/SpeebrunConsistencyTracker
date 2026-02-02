@@ -4,6 +4,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using System.Globalization;
+using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
@@ -199,6 +200,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double slope = (n * sumXY - sumX * sumY) / denominator;
 
             return new TimeTicks((long)Math.Round(slope));
+        }
+
+        public static TimeTicks ComputeMAD(IList<TimeTicks> sortedTimes)
+        {
+            if (sortedTimes == null || sortedTimes.Count == 0) return TimeTicks.Zero;
+
+            // Use your existing percentile logic to find the median
+            double median = ComputePercentile(sortedTimes, 50).Ticks;
+
+            // Calculate absolute deviations from the median
+            var deviations = sortedTimes
+                .Select(t => (long)Math.Round(Math.Abs(t.Ticks - median)))
+                .OrderBy(d => d);
+
+            // The MAD is the median of those deviations
+            return ComputePercentile(deviations.Select(t => new TimeTicks(t)).ToList(), 50);
         }
     }
 }

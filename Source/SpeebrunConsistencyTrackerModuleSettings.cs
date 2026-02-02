@@ -40,8 +40,11 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice CoefficientOfVariation { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice Percentile { get; set; } = MetricOutputChoice.Export;
     public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
+    public MetricOutputChoice InterquartileRange { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice LinearRegression { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Both;
+    public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Both;
+    public bool ConsistencyScore  { get; set; } = true;
 
     public bool ExportWithSRT { get; set; } = true;
 

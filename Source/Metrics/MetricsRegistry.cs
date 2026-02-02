@@ -7,8 +7,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
     {
         private static SpeebrunConsistencyTrackerModuleSettings _settings => SpeebrunConsistencyTrackerModule.Settings;
 
-        public static readonly List<MetricDescriptor> AllMetrics = new()
-        {
+        public static readonly List<MetricDescriptor> AllMetrics =
+        [
+            new MetricDescriptor(
+                "Consistency Score",
+                "score",
+                Metrics.ConsistencyScore,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.ConsistencyScore, mode)
+            ),
             new MetricDescriptor(
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Export) ? $"Success Rate (≤{MetricEngine.GetTargetTimeTicks()})" : "Success Rate",
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Overlay) ? $"success (≤{MetricEngine.GetTargetTimeTicks()})" : "success",
@@ -26,6 +32,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 "med",
                 Metrics.Median,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.Median, mode)
+            ),
+            new MetricDescriptor(
+                "Median Absolute Deviation",
+                "mad",
+                Metrics.MedianAbsoluteDeviation,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.MedianAbsoluteDeviation, mode)
             ),
             new MetricDescriptor(
                 "Best",
@@ -90,7 +102,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             new MetricDescriptor(
                 "SoB",
                 "sob",
-                (session, context, mode) => Metrics.SumOfBest(session, context),
+                Metrics.SumOfBest,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.SoB, mode)
             ),
             new MetricDescriptor(
@@ -99,6 +111,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 Metrics.TrendSlope,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.LinearRegression, mode)
             )
-        };
+        ];
     }
 }
