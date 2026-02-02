@@ -14,7 +14,6 @@ using FMOD.Studio;
 using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 using Monocle;
 using System.Linq;
-using Microsoft.Xna.Framework;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
@@ -190,7 +189,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
     }
 
-    public void Reset()
+    public static void Reset()
     {
         SessionManager.Reset();
         if (Engine.Scene is Level level)

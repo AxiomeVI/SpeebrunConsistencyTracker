@@ -35,7 +35,7 @@ public static class ModMenuOptions
                 overlaySubMenu.Visible = value;
                 metricsSubMenu.Visible = value;
                 if (value) SpeebrunConsistencyTrackerModule.Init();
-                else _instance.Reset();
+                else SpeebrunConsistencyTrackerModule.Reset();
             }
         ));
 

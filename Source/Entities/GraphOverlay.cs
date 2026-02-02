@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
+// Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/GraphOverlay.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
     public class GraphOverlay : Entity

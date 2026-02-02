@@ -4,7 +4,6 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using System.Linq;
-using Force.DeepCloner;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
