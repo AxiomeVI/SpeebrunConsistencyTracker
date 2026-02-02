@@ -12,15 +12,16 @@ public static class SessionManager
     private static AttemptBuilder? _currentAttemptBuilder;
 
     private static int _currentRoomIndex;
-
-    public static string PreviousRoom { get; set; } = "";
+    public static int EndOfChapterCutsceneSkipCounter = 0;
+    public static bool EndOfChapterCutsceneSkipCheck = false;
 
     public static void Reset()
     {
         _currentSession = null;
         _currentAttemptBuilder = null;
         _currentRoomIndex = 0;
-        PreviousRoom = "";
+        EndOfChapterCutsceneSkipCounter = 0;
+        EndOfChapterCutsceneSkipCheck = false;
         MetricsExporter.Reset();
     }
 
@@ -30,7 +31,8 @@ public static class SessionManager
         _currentSession = new PracticeSession();
         _currentAttemptBuilder = new AttemptBuilder();
         _currentRoomIndex = 0;
-        PreviousRoom = "";
+        EndOfChapterCutsceneSkipCounter = 0;
+        EndOfChapterCutsceneSkipCheck = false;
         MetricsExporter.Reset();
     }
 
@@ -60,6 +62,13 @@ public static class SessionManager
 
         _currentAttemptBuilder = new AttemptBuilder();
         _currentRoomIndex = 0;
+        EndOfChapterCutsceneSkipCounter = 0;
+        EndOfChapterCutsceneSkipCheck = false;
+    }
+
+    public static long CurrentSplitTime()
+    {
+        return _currentAttemptBuilder.SegmentTime.Ticks;
     }
 
     public static void CompleteRoom(long ticks)
@@ -86,6 +95,8 @@ public static class SessionManager
             _currentSession.RoomCount = attempt.CompletedRooms.Count;
 
         _currentAttemptBuilder = null;
+        EndOfChapterCutsceneSkipCounter = 0;
+        EndOfChapterCutsceneSkipCheck = false;
     }
 
     public static PracticeSession? CurrentSession => _currentSession;

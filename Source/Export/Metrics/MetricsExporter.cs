@@ -36,8 +36,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 
             for (int roomIndex = 0; roomIndex < session.RoomCount; roomIndex++)
             {
-                List<string> roomRow = [.. computedMetrics.Select(res => res.Item2.RoomValues[roomIndex])];
-                roomRow.Insert(0, $"R{roomIndex+1}");
+                List<string> roomRow = [.. computedMetrics.Select(res => res.Item2.RoomValues.ElementAtOrDefault(roomIndex) ?? "")];
+                roomRow.Insert(0, $"R{roomIndex + 1}");
                 csvLines.Add(string.Join(",", roomRow));
             }
 

@@ -215,7 +215,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return ComputePercentile([.. deviations.Select(t => new TimeTicks(t))], 50);
         }
 
-        public static double ComputeConsistencyScore(double avg, double median, double std, double mad, double resetRate, double q1, double q3)
+        public static double ComputeConsistencyScore(double median, TimeTicks min, double mad, double resetRate, double q1, double q3)
         {
             double IQR = q3 - q1;
 
@@ -225,15 +225,54 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double stability = (relMad * 25) + (relIqr * 25);
             double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
             double reliability = completionRate * completionRate;
-            double masteryBonus = 1;
-            if (std > 0)
+            double floorProximity = 1;
+            if (median > 0)
             {
-                double npSkew = (avg - median) / std;
+                double gap = (median - (double)min) / median;
                 // Normalizing: Skew of 0.5+ gives full points, -0.5 gives 0 points
-                masteryBonus = Math.Clamp(npSkew + 0.5, 0, 1.0);
+                floorProximity = Math.Max(0, 1.0 - (gap * 2.0));
             }
-            return (stability + (reliability * 40) + (masteryBonus * 10)) / 100;
+            return (stability + (reliability * 40) + (floorProximity * 10)) / 100;
+        }
 
+        public static double CalculateBC(List<TimeTicks> values, double mean)
+        {
+            int n = values.Count;
+            
+            // Moments
+            double m2 = 0, m3 = 0, m4 = 0;
+            foreach (var x in values)
+            {
+                double d = (double)x - mean;
+                double d2 = d * d;
+                m2 += d2;
+                m3 += d2 * d;
+                m4 += d2 * d2;
+            }
+            m2 /= n; m3 /= n; m4 /= n;
+
+            double skew = m3 / Math.Pow(m2, 1.5);
+            double kurtosis = (m4 / (m2 * m2)) - 3; // Excess Kurtosis
+
+            // Bimodality Coefficient Formula
+            double numerator = (skew * skew) + 1;
+            double sampleCorrection = 3.0 * Math.Pow(n - 1, 2) / ((n - 2) * (n - 3));
+            double denominator = kurtosis + sampleCorrection;
+
+            return numerator / denominator;
+        }
+
+        public static bool DetectSignificantGap(List<TimeTicks> sortedValues, double sd)
+        {
+            double maxGap = 0;
+            for (int i = 0; i < sortedValues.Count - 1; i++)
+            {
+                double gap = (double)sortedValues[i + 1] - (double)sortedValues[i];
+                if (gap > maxGap) maxGap = gap;
+            }
+
+            // A gap > 1.2 * SD usually indicates a 'valley' between two strat peaks
+            return maxGap > (sd * 1.2);
         }
     }
 }

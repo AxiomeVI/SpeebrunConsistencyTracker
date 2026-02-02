@@ -45,6 +45,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Both;
     public bool ConsistencyScore  { get; set; } = true;
+    public bool MultimodalTest { get; set; } = true;
 
     public bool ExportWithSRT { get; set; } = true;
 

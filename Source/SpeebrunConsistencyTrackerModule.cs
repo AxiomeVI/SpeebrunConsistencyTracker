@@ -32,6 +32,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private object SaveLoadInstance = null;
 
+    private const long ONE_FRAME = 170000;
+
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
 #if DEBUG
@@ -159,12 +161,27 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         // }
         if (RoomTimerIntegration.RoomTimerIsCompleted())
         {
-            //SessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
             if (SessionManager.HasActiveAttempt)
             {
-                SessionManager.EndCurrentAttempt();
+                // Logic to take care of srt flags, and split buttons: https://gamebanana.com/mods/639197 and https://gamebanana.com/mods/619910
+                if (SessionManager.EndOfChapterCutsceneSkipCounter >= 2)
+                {
+                    if (SessionManager.EndOfChapterCutsceneSkipCheck)
+                        SessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
+                    SessionManager.EndCurrentAttempt();
+                }
+                else
+                {
+                    if (SessionManager.EndOfChapterCutsceneSkipCounter == 0)
+                    {
+                        long currentTime = RoomTimerIntegration.GetRoomTime();
+                        if (currentTime > SessionManager.CurrentSplitTime() + ONE_FRAME) 
+                            SessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
+                    }
+                    SessionManager.EndOfChapterCutsceneSkipCounter ++;
+                }
             }
-            if (Settings.OverlayEnabled) 
+            else if (Settings.OverlayEnabled) 
             {
                 TextOverlay textOverlay = self.Entities.FindFirst<TextOverlay>(); 
                 if (textOverlay == null)
@@ -174,18 +191,24 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 }
                 textOverlay.SetText(MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession));
             }
+        } else if (SessionManager.EndOfChapterCutsceneSkipCounter >= 1)
+        {
+            SessionManager.EndOfChapterCutsceneSkipCheck = true;
         }
     }
 
     private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
-        if (!Settings.Enabled) return;
+        if (!Settings.Enabled) 
+            return;
+
+        if (isFromLoader)
+            Init();
         
-        if (SessionManager.HasActiveAttempt)
+        if (SessionManager.HasActiveAttempt && playerIntro == Player.IntroTypes.Transition)
         {
             long segmentTime = RoomTimerIntegration.GetRoomTime();
-            if (segmentTime > 0 && playerIntro == Player.IntroTypes.Transition) {
+            if (segmentTime > 0)
                 SessionManager.CompleteRoom(segmentTime);
-            }
         }
     }
 
@@ -223,12 +246,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             sb.Append(TextInput.GetClipboardText());
             sb.Append("\n\n\n");
         }
+        Logger.Log(LogLevel.Info, "ExportDataToCsv", "Fin ExportWithSRT");
         sb.Append(MetricsExporter.ExportSessionToCsv(currentSession));
+        Logger.Log(LogLevel.Info, "ExportDataToCsv", "MetricsExporter.ExportSessionToCsv");
         if (Settings.History)
         {
             sb.Append("\n\n\n");
             sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
         }
+        Logger.Log(LogLevel.Info, "ExportDataToCsv", "SessionHistoryCsvExporter.ExportSessionToCsv");
         TextInput.SetClipboardText(sb.ToString());
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
     }

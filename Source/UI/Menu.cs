@@ -161,6 +161,7 @@ public static class ModMenuOptions
         TextMenu.OnOff History = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RunHistoryId), _settings.History).Change(b => _settings.History = b);
         TextMenu.OnOff ResetShare = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId), _settings.ResetShare).Change(b => _settings.ResetShare = b);
         TextMenu.OnOff ConsistencyScore = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ConsistencyScoreId), _settings.ConsistencyScore).Change(b => _settings.ConsistencyScore = b);
+        TextMenu.OnOff MultimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId), _settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
 
         TextMenu.Slider SuccessRate = new(Dialog.Clean(DialogIds.SuccessRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SuccessRate));
         SuccessRate.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
@@ -206,12 +207,14 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.ButtonAllOffId))
             .Pressed(() =>
             {
-                History.Index = 1;
+                History.Index = 0;
                 _settings.History = false;
-                ResetShare.Index = 1;
+                ResetShare.Index = 0;
                 _settings.ResetShare = false;
-                ConsistencyScore.Index = 1;
+                ConsistencyScore.Index = 0;
                 _settings.ConsistencyScore = false;
+                MultimodalTest.Index = 0;
+                _settings.MultimodalTest = false;
                 SuccessRate.Index = 0;
                 _settings.SuccessRate = MetricOutputChoice.Off;
                 TargetTime.Index = 0;
@@ -255,12 +258,14 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.ButtonAllOnId))
             .Pressed(() =>
             {
-                History.Index = 0;
+                History.Index = 1;
                 _settings.History = true;
-                ResetShare.Index = 0;
+                ResetShare.Index = 1;
                 _settings.ResetShare = true;
-                ConsistencyScore.Index = 0;
+                ConsistencyScore.Index = 1;
                 _settings.ConsistencyScore = true;
+                MultimodalTest.Index = 1;
+                _settings.MultimodalTest = true;
                 SuccessRate.Index = 3;
                 _settings.SuccessRate = MetricOutputChoice.Both;
                 TargetTime.Index = 3;
@@ -304,12 +309,14 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.ButtonResetId))
             .Pressed(() =>
             {
-                History.Index = 0;
+                History.Index = 1;
                 _settings.History = true;
-                ResetShare.Index = 0;
+                ResetShare.Index = 1;
                 _settings.ResetShare = true;
-                ConsistencyScore.Index = 0;
+                ConsistencyScore.Index = 1;
                 _settings.ConsistencyScore = true;
+                MultimodalTest.Index = 1;
+                _settings.MultimodalTest = true;
                 SuccessRate.Index = 3;
                 _settings.SuccessRate = MetricOutputChoice.Both;
                 TargetTime.Index = 3;
@@ -374,6 +381,7 @@ public static class ModMenuOptions
         metricsSubMenu.Add(History);
         metricsSubMenu.Add(ResetShare);
         metricsSubMenu.Add(ConsistencyScore);
+        metricsSubMenu.Add(MultimodalTest);
 
         metricsSubMenu.Visible = _settings.Enabled;
         return metricsSubMenu;
