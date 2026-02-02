@@ -13,6 +13,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
         private static PracticeSession lastSession = null;
         private static string lastSessionString = "";
 
+        public static void Reset()
+        {
+            lastSession = null;
+            lastSessionString = "";
+        }
+
         public static string ExportSessionToCsv(PracticeSession session)
         {
             if (session == null || session.TotalAttempts == 0)

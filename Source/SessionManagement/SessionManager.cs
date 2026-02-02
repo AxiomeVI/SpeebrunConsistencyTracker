@@ -2,6 +2,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
@@ -20,6 +21,7 @@ public static class SessionManager
         _currentAttemptBuilder = null;
         _currentRoomIndex = 0;
         PreviousRoom = "";
+        MetricsExporter.Reset();
     }
 
 
@@ -29,6 +31,7 @@ public static class SessionManager
         _currentAttemptBuilder = new AttemptBuilder();
         _currentRoomIndex = 0;
         PreviousRoom = "";
+        MetricsExporter.Reset();
     }
 
     public static void OnClearState()
