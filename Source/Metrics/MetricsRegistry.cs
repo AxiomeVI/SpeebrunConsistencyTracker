@@ -10,15 +10,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static readonly List<MetricDescriptor> AllMetrics =
         [
             new MetricDescriptor(
-                "Consistency Score",
-                "score",
-                Metrics.ConsistencyScore,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.ConsistencyScore, mode)
-            ),
-            new MetricDescriptor(
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Export) ? $"Success Rate (≤{MetricEngine.GetTargetTimeTicks()})" : "Success Rate",
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Overlay) ? $"success (≤{MetricEngine.GetTargetTimeTicks()})" : "success",
-                (session, context, mode) => Metrics.SuccessRate(session, context),
+                Metrics.SuccessRate,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.SuccessRate, mode)
             ),
             new MetricDescriptor(
@@ -70,6 +64,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.Percentile, mode)
             ),
             new MetricDescriptor(
+                "Interquartile Range",
+                "iqr",
+                Metrics.InterquartileRange,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.InterquartileRange, mode)
+            ),
+            new MetricDescriptor(
                 "Completed Run Count",
                 "completed",
                 Metrics.CompletedRunCount,
@@ -110,6 +110,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 "trend",
                 Metrics.TrendSlope,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.LinearRegression, mode)
+            ),
+            new MetricDescriptor(
+                "Consistency Score",
+                "score",
+                Metrics.ConsistencyScore,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.ConsistencyScore, mode)
             )
         ];
     }

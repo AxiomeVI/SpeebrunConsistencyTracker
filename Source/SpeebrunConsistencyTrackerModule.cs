@@ -199,7 +199,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
     }
 
-    public void Init()
+    public static void Init()
     {
         SessionManager.Reset();
     }
@@ -214,21 +214,19 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             return;
         }
         PracticeSession currentSession = SessionManager.CurrentSession;
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new();
         if (Settings.ExportWithSRT)
         {
             // Clean current clipboard state in case srt export is done in file
             TextInput.SetClipboardText("");
             RoomTimerManager.CmdExportRoomTimes();
             sb.Append(TextInput.GetClipboardText());
-            sb.AppendLine();
-            sb.AppendLine();
+            sb.Append("\n\n\n");
         }
         sb.Append(MetricsExporter.ExportSessionToCsv(currentSession));
         if (Settings.History)
         {
-            sb.AppendLine();
-            sb.AppendLine();
+            sb.Append("\n\n\n");
             sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
         }
         TextInput.SetClipboardText(sb.ToString());
@@ -239,7 +237,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         string input = TextInput.GetClipboardText();
-        TimeSpan result;
         string[] TimeFormats = [
                 "mm\\:ss\\.fff", "m\\:ss\\.fff",
                 "mm\\:ss\\.ff", "m\\:ss\\.ff",
@@ -251,7 +248,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 "ss", "s",
                 "fff"
             ];
-        bool success = TimeSpan.TryParseExact(input, TimeFormats, null, out result);
+        bool success = TimeSpan.TryParseExact(input, TimeFormats, null, out TimeSpan result);
         if (success) {
             Settings.Minutes = result.Minutes;
             Settings.Seconds = result.Seconds;

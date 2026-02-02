@@ -112,15 +112,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
     {
         public static bool IsMetricEnabled(object value, MetricOutput mode)
         {
-            switch (value)
+            return value switch
             {
-                case bool b:
-                    return b;
-                case MetricOutputChoice choice:
-                    return (FromChoice(choice) & mode) != 0;
-                default:
-                    throw new InvalidOperationException($"Unsupported type {value.GetType()}");
-            }
+                bool b => b && mode == MetricOutput.Export,
+                MetricOutputChoice choice => (FromChoice(choice) & mode) != 0,
+                _ => throw new InvalidOperationException($"Unsupported type {value.GetType()}"),
+            };
         }
 
         private static MetricOutput FromChoice(MetricOutputChoice choice) => choice switch
@@ -216,6 +213,27 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             // The MAD is the median of those deviations
             return ComputePercentile([.. deviations.Select(t => new TimeTicks(t))], 50);
+        }
+
+        public static double ComputeConsistencyScore(double avg, double median, double std, double mad, double resetRate, double q1, double q3)
+        {
+            double IQR = q3 - q1;
+
+            double relMad = median != 0 ? Math.Max(0, 1.0 - (mad / median)) : 0;
+            double relIqr = median != 0 ? Math.Max(0, 1.0 - (IQR / median)) : 0;
+
+            double stability = (relMad * 25) + (relIqr * 25);
+            double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
+            double reliability = completionRate * completionRate;
+            double masteryBonus = 1;
+            if (std > 0)
+            {
+                double npSkew = (avg - median) / std;
+                // Normalizing: Skew of 0.5+ gives full points, -0.5 gives 0 points
+                masteryBonus = Math.Clamp(npSkew + 0.5, 0, 1.0);
+            }
+            return (stability + (reliability * 40) + (masteryBonus * 10)) / 100;
+
         }
     }
 }

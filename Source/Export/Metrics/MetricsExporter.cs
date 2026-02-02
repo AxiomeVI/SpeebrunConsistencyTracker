@@ -3,6 +3,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using System.Linq;
+using Force.DeepCloner;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 {
@@ -56,7 +57,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
                 overlayString.Add($"{desc.InGameName()}" + ": " + $"{result.SegmentValue}");
             }
             string lineSeparator = orientation == StatTextOrientation.Horizontal ? " | " : "\n";
-            lastSession = session;
+            lastSession = session.DeepClone();
             lastSessionString = string.Join(lineSeparator, overlayString);
             return lastSessionString;
         }

@@ -13,8 +13,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time
             return sign + ts.ToString(ts.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
         }
 
-        public double Seconds => Ticks / (double)TimeSpan.TicksPerSecond;
-
         public static TimeTicks operator +(TimeTicks a, TimeTicks b) => new(a.Ticks + b.Ticks);
         public static TimeTicks operator -(TimeTicks a, TimeTicks b) => new(a.Ticks - b.Ticks);
 
@@ -25,6 +23,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time
 
         public int CompareTo(TimeTicks other) => Ticks.CompareTo(other.Ticks);
 
-        public static readonly TimeTicks Zero = new TimeTicks(0);
+        public static readonly TimeTicks Zero = new(0);
+
+        public static implicit operator double(TimeTicks t) => t.Ticks;
     }
 }
