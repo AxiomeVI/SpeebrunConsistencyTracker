@@ -10,6 +10,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static readonly List<MetricDescriptor> AllMetrics =
         [
             new MetricDescriptor(
+                "Consistency Score",
+                "score",
+                Metrics.ConsistencyScore,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.ConsistencyScore, mode)
+            ),
+            new MetricDescriptor(
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Export) ? $"Success Rate (≤{MetricEngine.GetTargetTimeTicks()})" : "Success Rate",
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Overlay) ? $"success (≤{MetricEngine.GetTargetTimeTicks()})" : "success",
                 Metrics.SuccessRate,
@@ -110,12 +116,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 "trend",
                 Metrics.TrendSlope,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.LinearRegression, mode)
-            ),
-            new MetricDescriptor(
-                "Consistency Score",
-                "score",
-                Metrics.ConsistencyScore,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.ConsistencyScore, mode)
             )
         ];
     }

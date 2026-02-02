@@ -61,4 +61,7 @@ public static class DialogIds {
     public const string TotalRunCountId = "TOTAL_RUN_COUNT";
     public const string DnfCountId = "DNF_COUNT";
     public const string ConsistencyScoreId = "CONSISTENCY_SCORE";
+    public const string ButtonAllOffId = "ALL_METRICS_OFF_BUTTON";
+    public const string ButtonAllOnId = "ALL_METRICS_ON_BUTTON";
+    public const string ButtonResetId = "RESET_METRICS_BUTTON";
 }

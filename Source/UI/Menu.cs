@@ -202,6 +202,156 @@ public static class ModMenuOptions
         LinearRegression.Change(v => _settings.LinearRegression = enumOutputChoiceValues[v]);
         SoB.Change(v => _settings.SoB = enumOutputChoiceValues[v]);
 
+        TextMenu.Button turnAllOff = (TextMenu.Button)new TextMenu.Button(
+            Dialog.Clean(DialogIds.ButtonAllOffId))
+            .Pressed(() =>
+            {
+                History.Index = 1;
+                _settings.History = false;
+                ResetShare.Index = 1;
+                _settings.ResetShare = false;
+                ConsistencyScore.Index = 1;
+                _settings.ConsistencyScore = false;
+                SuccessRate.Index = 0;
+                _settings.SuccessRate = MetricOutputChoice.Off;
+                TargetTime.Index = 0;
+                _settings.TargetTime = MetricOutputChoice.Off;
+                CompletedRunCount.Index = 0;
+                _settings.CompletedRunCount = MetricOutputChoice.Off;
+                TotalRunCount.Index = 0;
+                _settings.TotalRunCount = MetricOutputChoice.Off;
+                DnfCount.Index = 0;
+                _settings.DnfCount = MetricOutputChoice.Off;
+                Average.Index = 0;
+                _settings.Average = MetricOutputChoice.Off;
+                Median.Index = 0;
+                _settings.Median = MetricOutputChoice.Off;
+                MedianAbsoluteDeviation.Index = 0;
+                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Off;
+                ResetRate.Index = 0;
+                _settings.ResetRate = MetricOutputChoice.Off;
+                Minimum.Index = 0;
+                _settings.Minimum = MetricOutputChoice.Off;
+                Maximum.Index = 0;
+                _settings.Maximum = MetricOutputChoice.Off;
+                StandardDeviation.Index = 0;
+                _settings.StandardDeviation = MetricOutputChoice.Off;
+                CoefficientOfVariation.Index = 0;
+                _settings.CoefficientOfVariation = MetricOutputChoice.Off;
+                Percentile.Index = 0;
+                _settings.Percentile = MetricOutputChoice.Off;
+                InterquartileRange.Index = 0;
+                _settings.InterquartileRange = MetricOutputChoice.Off;
+                LinearRegression.Index = 0;
+                _settings.LinearRegression = MetricOutputChoice.Off;
+                SoB.Index = 0;
+                _settings.SoB = MetricOutputChoice.Off;
+                PercentileValue.Index = 7;
+                _settings.PercentileValue = PercentileChoice.P90;
+                _instance.SaveSettings();
+            });
+
+        TextMenu.Button turnAllOn = (TextMenu.Button)new TextMenu.Button(
+            Dialog.Clean(DialogIds.ButtonAllOnId))
+            .Pressed(() =>
+            {
+                History.Index = 0;
+                _settings.History = true;
+                ResetShare.Index = 0;
+                _settings.ResetShare = true;
+                ConsistencyScore.Index = 0;
+                _settings.ConsistencyScore = true;
+                SuccessRate.Index = 3;
+                _settings.SuccessRate = MetricOutputChoice.Both;
+                TargetTime.Index = 3;
+                _settings.TargetTime = MetricOutputChoice.Both;
+                CompletedRunCount.Index = 3;
+                _settings.CompletedRunCount = MetricOutputChoice.Both;
+                TotalRunCount.Index = 3;
+                _settings.TotalRunCount = MetricOutputChoice.Both;
+                DnfCount.Index = 3;
+                _settings.DnfCount = MetricOutputChoice.Both;
+                Average.Index = 3;
+                _settings.Average = MetricOutputChoice.Both;
+                Median.Index = 3;
+                _settings.Median = MetricOutputChoice.Both;
+                MedianAbsoluteDeviation.Index = 3;
+                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Both;
+                ResetRate.Index = 3;
+                _settings.ResetRate = MetricOutputChoice.Both;
+                Minimum.Index = 3;
+                _settings.Minimum = MetricOutputChoice.Both;
+                Maximum.Index = 3;
+                _settings.Maximum = MetricOutputChoice.Both;
+                StandardDeviation.Index = 3;
+                _settings.StandardDeviation = MetricOutputChoice.Both;
+                CoefficientOfVariation.Index = 3;
+                _settings.CoefficientOfVariation = MetricOutputChoice.Both;
+                Percentile.Index = 3;
+                _settings.Percentile = MetricOutputChoice.Both;
+                InterquartileRange.Index = 3;
+                _settings.InterquartileRange = MetricOutputChoice.Both;
+                LinearRegression.Index = 3;
+                _settings.LinearRegression = MetricOutputChoice.Both;
+                SoB.Index = 3;
+                _settings.SoB = MetricOutputChoice.Both;
+                PercentileValue.Index = 7;
+                _settings.PercentileValue = PercentileChoice.P90;
+                _instance.SaveSettings();
+            });
+
+        TextMenu.Button resetAll = (TextMenu.Button)new TextMenu.Button(
+            Dialog.Clean(DialogIds.ButtonResetId))
+            .Pressed(() =>
+            {
+                History.Index = 0;
+                _settings.History = true;
+                ResetShare.Index = 0;
+                _settings.ResetShare = true;
+                ConsistencyScore.Index = 0;
+                _settings.ConsistencyScore = true;
+                SuccessRate.Index = 3;
+                _settings.SuccessRate = MetricOutputChoice.Both;
+                TargetTime.Index = 3;
+                _settings.TargetTime = MetricOutputChoice.Both;
+                CompletedRunCount.Index = 3;
+                _settings.CompletedRunCount = MetricOutputChoice.Both;
+                TotalRunCount.Index = 3;
+                _settings.TotalRunCount = MetricOutputChoice.Both;
+                DnfCount.Index = 3;
+                _settings.DnfCount = MetricOutputChoice.Both;
+                Average.Index = 3;
+                _settings.Average = MetricOutputChoice.Both;
+                Median.Index = 3;
+                _settings.Median = MetricOutputChoice.Both;
+                MedianAbsoluteDeviation.Index = 3;
+                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Both;
+                ResetRate.Index = 2;
+                _settings.ResetRate = MetricOutputChoice.Export;
+                Minimum.Index = 2;
+                _settings.Minimum = MetricOutputChoice.Export;
+                Maximum.Index = 2;
+                _settings.Maximum = MetricOutputChoice.Export;
+                StandardDeviation.Index = 3;
+                _settings.StandardDeviation = MetricOutputChoice.Both;
+                CoefficientOfVariation.Index = 2;
+                _settings.CoefficientOfVariation = MetricOutputChoice.Export;
+                Percentile.Index = 2;
+                _settings.Percentile = MetricOutputChoice.Export;
+                InterquartileRange.Index = 2;
+                _settings.InterquartileRange = MetricOutputChoice.Export;
+                LinearRegression.Index = 2;
+                _settings.LinearRegression = MetricOutputChoice.Export;
+                SoB.Index = 3;
+                _settings.SoB = MetricOutputChoice.Both;
+                PercentileValue.Index = 7;
+                _settings.PercentileValue = PercentileChoice.P90;
+                _instance.SaveSettings();
+            });
+
+        metricsSubMenu.Add(turnAllOff);
+        metricsSubMenu.Add(turnAllOn);
+        metricsSubMenu.Add(resetAll);
         metricsSubMenu.Add(SuccessRate);
         metricsSubMenu.Add(TargetTime);
         metricsSubMenu.Add(CompletedRunCount);
