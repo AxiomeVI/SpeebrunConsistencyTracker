@@ -15,6 +15,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 using Monocle;
 using System.Linq;
 using Microsoft.Xna.Framework;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -134,11 +135,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 self.Entities.Remove(graphs);
             else
             {
-                GraphOverlay graph = new GraphOverlay(
+                GraphOverlay graph = new(
                     [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())],
                     [.. SessionManager.CurrentSession.GetSegmentTimes()],
-
-                    new Vector2(160, 140)
+                    null,
+                    MetricEngine.GetTargetTimeTicks()
                 );
                 self.Entities.Add(graph);
             }

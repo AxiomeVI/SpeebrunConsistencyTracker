@@ -48,16 +48,16 @@ public static class ModMenuOptions
 
     private static TextMenuExt.SubMenu CreateTargetTimeSubMenu(TextMenu menu)
     {
-        TextMenuExt.SubMenu targetTimeSubMenu = new TextMenuExt.SubMenu(
+        TextMenuExt.SubMenu targetTimeSubMenu = new(
             Dialog.Clean(DialogIds.TargetTimeId), 
             false
         );
 
-        TextMenu.Slider minutes = new TextMenu.Slider(Dialog.Clean(DialogIds.Minutes), i => i.ToString(), 0, 30, _settings.Minutes);
-        TextMenu.Slider seconds = new TextMenu.Slider(Dialog.Clean(DialogIds.Seconds), i => i.ToString("D2"), 0, 59, _settings.Seconds);
-        TextMenu.Slider millisecondsFirstDigit = new TextMenu.Slider(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsFirstDigit);
-        TextMenu.Slider millisecondsSecondDigit = new TextMenu.Slider(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsSecondDigit);
-        TextMenu.Slider millisecondsThirdDigit = new TextMenu.Slider(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsThirdDigit);
+        TextMenu.Slider minutes = new(Dialog.Clean(DialogIds.Minutes), i => i.ToString(), 0, 30, _settings.Minutes);
+        TextMenu.Slider seconds = new(Dialog.Clean(DialogIds.Seconds), i => i.ToString("D2"), 0, 59, _settings.Seconds);
+        TextMenu.Slider millisecondsFirstDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsFirstDigit);
+        TextMenu.Slider millisecondsSecondDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsSecondDigit);
+        TextMenu.Slider millisecondsThirdDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsThirdDigit);
         minutes.Change(v => _settings.Minutes = v);
         seconds.Change(v => _settings.Seconds = v);
         millisecondsFirstDigit.Change(v => _settings.MillisecondsFirstDigit = v);
@@ -110,14 +110,14 @@ public static class ModMenuOptions
         StatTextPosition[] enumPositionValues = Enum.GetValues<StatTextPosition>();
         StatTextOrientation[] enumOrientationValues = Enum.GetValues<StatTextOrientation>();
 
-        TextMenuExt.SubMenu overlaySubMenu = new TextMenuExt.SubMenu(
+        TextMenuExt.SubMenu overlaySubMenu = new(
             Dialog.Clean(DialogIds.IngameOverlayId), 
             false
         );
 
-        TextMenu.Slider textSize = new TextMenu.Slider(Dialog.Clean(DialogIds.TextSizeId), i => i.ToString(), 0, 100, _settings.TextSize);
-        TextMenu.Slider textPosition = new TextMenu.Slider(Dialog.Clean(DialogIds.TextPositionId), i => enumPositionValues[i].ToString(), 0, 8, Array.IndexOf(enumPositionValues, _settings.TextPosition));
-        TextMenu.Slider textOrientation = new TextMenu.Slider(Dialog.Clean(DialogIds.TextOrientationId), i => enumOrientationValues[i].ToString(), 0, 1, Array.IndexOf(enumOrientationValues, _settings.TextOrientation));
+        TextMenu.Slider textSize = new(Dialog.Clean(DialogIds.TextSizeId), i => i.ToString(), 0, 100, _settings.TextSize);
+        TextMenu.Slider textPosition = new(Dialog.Clean(DialogIds.TextPositionId), i => enumPositionValues[i].ToString(), 0, 8, Array.IndexOf(enumPositionValues, _settings.TextPosition));
+        TextMenu.Slider textOrientation = new(Dialog.Clean(DialogIds.TextOrientationId), i => enumOrientationValues[i].ToString(), 0, 1, Array.IndexOf(enumOrientationValues, _settings.TextOrientation));
 
         textSize.Change(v => {
             _settings.TextSize = v;
@@ -153,7 +153,7 @@ public static class ModMenuOptions
         MetricOutputChoice[] enumOutputChoiceValues = Enum.GetValues<MetricOutputChoice>();
         PercentileChoice[] enumPercentileValues = Enum.GetValues<PercentileChoice>();
 
-        TextMenuExt.SubMenu metricsSubMenu = new TextMenuExt.SubMenu(
+        TextMenuExt.SubMenu metricsSubMenu = new(
             Dialog.Clean(DialogIds.StatsSubMenuId), 
             false
         );
@@ -162,26 +162,26 @@ public static class ModMenuOptions
         TextMenu.OnOff ResetShare = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId), _settings.ResetShare).Change(b => _settings.ResetShare = b);
         TextMenu.OnOff ConsistencyScore = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ConsistencyScoreId), _settings.ConsistencyScore).Change(b => _settings.ConsistencyScore = b);
 
-        TextMenu.Slider SuccessRate = new TextMenu.Slider(Dialog.Clean(DialogIds.SuccessRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SuccessRate));
+        TextMenu.Slider SuccessRate = new(Dialog.Clean(DialogIds.SuccessRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SuccessRate));
         SuccessRate.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
-        TextMenu.Slider TargetTime = new TextMenu.Slider(Dialog.Clean(DialogIds.TargetTimeStatId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.TargetTime));
-        TextMenu.Slider CompletedRunCount = new TextMenu.Slider(Dialog.Clean(DialogIds.CompletedRunCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CompletedRunCount));
-        TextMenu.Slider TotalRunCount = new TextMenu.Slider(Dialog.Clean(DialogIds.TotalRunCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.TotalRunCount));
-        TextMenu.Slider DnfCount = new TextMenu.Slider(Dialog.Clean(DialogIds.DnfCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.DnfCount));
-        TextMenu.Slider Average = new TextMenu.Slider(Dialog.Clean(DialogIds.AverageId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Average));
-        TextMenu.Slider Median = new TextMenu.Slider(Dialog.Clean(DialogIds.MedianId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Median));
-        TextMenu.Slider MedianAbsoluteDeviation = new TextMenu.Slider(Dialog.Clean(DialogIds.MadID), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.MedianAbsoluteDeviation));
-        TextMenu.Slider ResetRate = new TextMenu.Slider(Dialog.Clean(DialogIds.ResetRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.ResetRate));
-        TextMenu.Slider Minimum = new TextMenu.Slider(Dialog.Clean(DialogIds.MinimumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Minimum));
-        TextMenu.Slider Maximum = new TextMenu.Slider(Dialog.Clean(DialogIds.MaximumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Maximum));
-        TextMenu.Slider StandardDeviation = new TextMenu.Slider(Dialog.Clean(DialogIds.StandardDeviationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.StandardDeviation));
-        TextMenu.Slider CoefficientOfVariation = new TextMenu.Slider(Dialog.Clean(DialogIds.CoefficientOfVariationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CoefficientOfVariation));
-        TextMenu.Slider Percentile = new TextMenu.Slider(Dialog.Clean(DialogIds.PercentileId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Percentile));
-        TextMenu.Slider PercentileValue = new TextMenu.Slider(Dialog.Clean(DialogIds.PercentileValueId), i => enumPercentileValues[i].ToString(), 0, 7, Array.IndexOf(enumPercentileValues, _settings.PercentileValue));
-        TextMenu.Slider InterquartileRange = new TextMenu.Slider(Dialog.Clean(DialogIds.InterquartileRangeId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.InterquartileRange));
-        TextMenu.Slider LinearRegression = new TextMenu.Slider(Dialog.Clean(DialogIds.LinearRegressionId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.LinearRegression));
+        TextMenu.Slider TargetTime = new(Dialog.Clean(DialogIds.TargetTimeStatId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.TargetTime));
+        TextMenu.Slider CompletedRunCount = new(Dialog.Clean(DialogIds.CompletedRunCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CompletedRunCount));
+        TextMenu.Slider TotalRunCount = new(Dialog.Clean(DialogIds.TotalRunCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.TotalRunCount));
+        TextMenu.Slider DnfCount = new(Dialog.Clean(DialogIds.DnfCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.DnfCount));
+        TextMenu.Slider Average = new(Dialog.Clean(DialogIds.AverageId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Average));
+        TextMenu.Slider Median = new(Dialog.Clean(DialogIds.MedianId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Median));
+        TextMenu.Slider MedianAbsoluteDeviation = new(Dialog.Clean(DialogIds.MadID), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.MedianAbsoluteDeviation));
+        TextMenu.Slider ResetRate = new(Dialog.Clean(DialogIds.ResetRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.ResetRate));
+        TextMenu.Slider Minimum = new(Dialog.Clean(DialogIds.MinimumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Minimum));
+        TextMenu.Slider Maximum = new(Dialog.Clean(DialogIds.MaximumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Maximum));
+        TextMenu.Slider StandardDeviation = new(Dialog.Clean(DialogIds.StandardDeviationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.StandardDeviation));
+        TextMenu.Slider CoefficientOfVariation = new(Dialog.Clean(DialogIds.CoefficientOfVariationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CoefficientOfVariation));
+        TextMenu.Slider Percentile = new(Dialog.Clean(DialogIds.PercentileId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Percentile));
+        TextMenu.Slider PercentileValue = new(Dialog.Clean(DialogIds.PercentileValueId), i => enumPercentileValues[i].ToString(), 0, 7, Array.IndexOf(enumPercentileValues, _settings.PercentileValue));
+        TextMenu.Slider InterquartileRange = new(Dialog.Clean(DialogIds.InterquartileRangeId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.InterquartileRange));
+        TextMenu.Slider LinearRegression = new(Dialog.Clean(DialogIds.LinearRegressionId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.LinearRegression));
         LinearRegression.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.LinearRegressionSubTextId));
-        TextMenu.Slider SoB = new TextMenu.Slider(Dialog.Clean(DialogIds.SoBId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SoB));
+        TextMenu.Slider SoB = new(Dialog.Clean(DialogIds.SoBId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SoB));
 
         SuccessRate.Change(v => _settings.SuccessRate = enumOutputChoiceValues[v]);
         TargetTime.Change(v => _settings.TargetTime = enumOutputChoiceValues[v]);

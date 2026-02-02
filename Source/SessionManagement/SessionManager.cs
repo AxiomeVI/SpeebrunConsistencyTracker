@@ -42,7 +42,7 @@ public static class SessionManager
         if (HasActiveAttempt && !RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
         {
             var dnfRoomIndex = new RoomIndex(_currentRoomIndex);
-            TimeTicks ticks = new TimeTicks(RoomTimerIntegration.GetRoomTime());
+            TimeTicks ticks = new(RoomTimerIntegration.GetRoomTime());
             _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
             EndCurrentAttempt();
         }

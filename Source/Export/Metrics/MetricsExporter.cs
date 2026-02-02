@@ -48,7 +48,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 
             StatTextOrientation orientation = SpeebrunConsistencyTrackerModule.Settings.TextOrientation;
 
-            List<string> overlayString = new List<string>();
+            List<string> overlayString = new();
 
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
 

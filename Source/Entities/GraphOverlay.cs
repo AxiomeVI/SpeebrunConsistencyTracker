@@ -25,9 +25,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         
         // Graph settings
         private Vector2 position;
-        private readonly float width = 1600f;
-        private readonly float height = 800f;
-        private readonly float margin = 60f;
+        private readonly float width = 1800f;
+        private readonly float height = 900f;
+        private readonly float margin = 80f;
         
         // Colors
         private Color backgroundColor = Color.Black * 0.8f;
@@ -36,14 +36,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private Color dotColor = Color.Cyan;
         private Color segmentDotColor = Color.Orange;
         
-        public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2 pos, TimeTicks? target = null)
+        public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
         {
             Depth = -100; // Render on top
             roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room))];
             segmentData = new RoomData("Segment", segment);
-            position = pos;
             targetTime = target;
             ComputeMaxValues();
+
+            position = pos ?? new Vector2(
+                (1920 - width) / 2,  // Center horizontally
+                (1080 - height) / 2  // Center vertically
+            );
             
             Tag = Tags.HUD | Tags.Global;
         }
@@ -141,6 +145,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             
             // Calculate Y position based on target time
             float normalizedY = (float)targetTime.Value.Ticks / maxSegmentTime;
+            
+            // Clamp to graph bounds (in case target is outside range)
+            normalizedY = MathHelper.Clamp(normalizedY, 0f, 1f);
+            
             float targetY = y + h - (normalizedY * h);
             
             // Calculate X range (only in segment column)
@@ -153,17 +161,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(segmentStartX, targetY),
                 new Vector2(segmentEndX, targetY),
                 targetColor,
-                2f
+                3f  // Made thicker to be more visible
             );
             
             // Draw small label on the line
             string targetLabel = $"Target: {targetTime.Value}";
             Vector2 labelSize = ActiveFont.Measure(targetLabel) * 0.4f;
             
-            // Position label just to the left of the segment column
             ActiveFont.DrawOutline(
                 targetLabel,
-                new Vector2(segmentStartX - labelSize.X - 5, targetY - labelSize.Y / 2),
+                new Vector2(segmentStartX + 5, targetY - labelSize.Y - 5), // 5px padding from left, 5px above line
                 new Vector2(0f, 0f),
                 Vector2.One * 0.4f,
                 targetColor,
@@ -196,7 +203,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 {
                     float normalizedY = (float)time.Ticks / maxRoomTime;
                     float dotY = y + h - (normalizedY * h); // Invert Y (higher time = higher on graph)
-                    Vector2 pos = new Vector2(centerX, dotY);
+                    Vector2 pos = new(centerX, dotY);
                     allDots.Add((pos, dotColor));
                 }
             }
@@ -207,7 +214,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 float normalizedY = (float)time.Ticks / maxSegmentTime;
                 float dotY = y + h - (normalizedY * h);
-                Vector2 pos = new Vector2(segmentCenterX, dotY);      
+                Vector2 pos = new(segmentCenterX, dotY);      
                 allDots.Add((pos, segmentDotColor));          
             }
 
@@ -345,31 +352,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(0f, 0f),
                 Vector2.One * 0.7f,
                 Color.White,
-                2f,
-                Color.Black
-            );
-            
-            // Axis labels
-            string leftAxisLabel = "Room";
-            Vector2 leftAxisSize = ActiveFont.Measure(leftAxisLabel) * 0.5f;
-            ActiveFont.DrawOutline(
-                leftAxisLabel,
-                new Vector2(x - leftAxisSize.X - 25, y + h / 2 - leftAxisSize.Y / 2),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.5f,
-                dotColor,
-                2f,
-                Color.Black
-            );
-            
-            string rightAxisLabel = "Segment";
-            Vector2 rightAxisSize = ActiveFont.Measure(rightAxisLabel) * 0.5f;
-            ActiveFont.DrawOutline(
-                rightAxisLabel,
-                new Vector2(x + w + 70, y + h / 2 - rightAxisSize.Y / 2),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.5f,
-                segmentDotColor,
                 2f,
                 Color.Black
             );
