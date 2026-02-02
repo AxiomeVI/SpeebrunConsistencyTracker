@@ -18,6 +18,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms
         public override bool Equals(object obj) => obj is RoomIndex other && Equals(other);
         public override int GetHashCode() => Value;
         public override string ToString() => Value.ToString();
+
+        public static bool operator ==(RoomIndex left, RoomIndex right)
+        {
+            return left.Equals(right);
+        }
+
+        public static bool operator !=(RoomIndex left, RoomIndex right)
+        {
+            return !(left == right);
+        }
     }
 
 }

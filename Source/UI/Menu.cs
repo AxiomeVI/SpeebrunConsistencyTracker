@@ -17,7 +17,7 @@ public static class ModMenuOptions
 
         TextMenu.Button exportStatsButton = (TextMenu.Button)new TextMenu.Button(
             Dialog.Clean(DialogIds.KeyStatsExportId))
-            .Pressed(_instance.ExportDataToCsv);
+            .Pressed(SpeebrunConsistencyTrackerModule.ExportDataToCsv);
         exportStatsButton.Visible = _settings.Enabled && inGame;
 
         TextMenuExt.SubMenu targetTimeSubMenu = CreateTargetTimeSubMenu(menu);

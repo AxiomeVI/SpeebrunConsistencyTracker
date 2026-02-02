@@ -4,9 +4,9 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
 // Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/StatTextComponent.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
-    public class TextComponent : Component {
+    public class TextComponent(bool active, bool visible, StatTextPosition position) : Component(active, visible) {
 
-        public StatTextPosition Position { get; set; } = StatTextPosition.TopLeft;
+        public StatTextPosition Position { get; set; } = position;
         public string Text { get; set; } = "";
         public bool OptionVisible { get; set; }
         public float Scale { get; set; } = 1f;
@@ -34,10 +34,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         private static readonly int WIDTH = 1920;
         private static readonly int HEIGHT = 1080;
-
-        public TextComponent(bool active, bool visible, StatTextPosition position) : base(active, visible) {
-            Position = position;
-        }
 
         public void SetPosition() {
             SetPosition(Position);

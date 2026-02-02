@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 

@@ -18,18 +18,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
                 return "";
             
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
-            List<string> headers = computedMetrics.Select(res => res.Item1.CsvHeader()).ToList();
+            List<string> headers = [.. computedMetrics.Select(res => res.Item1.CsvHeader())];
             headers.Insert(0, "Room/Segment");
 
-            List<string> csvLines = new List<string> { string.Join(",", headers) };
+            List<string> csvLines = [string.Join(",", headers)];
 
-            List<string> segmentRow = computedMetrics.Select(res => res.Item2.SegmentValue).ToList();
+            List<string> segmentRow = [.. computedMetrics.Select(res => res.Item2.SegmentValue)];
             segmentRow.Insert(0, "Segment");
             csvLines.Add(string.Join(",", segmentRow));
 
             for (int roomIndex = 0; roomIndex < session.RoomCount; roomIndex++)
             {
-                List<string> roomRow = computedMetrics.Select(res => res.Item2.RoomValues[roomIndex]).ToList();
+                List<string> roomRow = [.. computedMetrics.Select(res => res.Item2.RoomValues[roomIndex])];
                 roomRow.Insert(0, $"R{roomIndex+1}");
                 csvLines.Add(string.Join(",", roomRow));
             }

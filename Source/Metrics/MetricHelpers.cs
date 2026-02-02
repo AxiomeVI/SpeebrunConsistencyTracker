@@ -215,7 +215,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 .OrderBy(d => d);
 
             // The MAD is the median of those deviations
-            return ComputePercentile(deviations.Select(t => new TimeTicks(t)).ToList(), 50);
+            return ComputePercentile([.. deviations.Select(t => new TimeTicks(t))], 50);
         }
     }
 }

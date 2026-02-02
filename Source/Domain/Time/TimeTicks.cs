@@ -2,14 +2,9 @@ using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time
 {
-    public readonly struct TimeTicks : IComparable<TimeTicks>
+    public readonly struct TimeTicks(long ticks) : IComparable<TimeTicks>
     {
-        public long Ticks { get; }
-
-        public TimeTicks(long ticks)
-        {
-            Ticks = ticks;
-        }
+        public long Ticks { get; } = ticks;
 
         public override string ToString()
         {

@@ -17,8 +17,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
 
     public void AddAttempt(Attempt attempt)
     {
-        if (attempt == null) 
-            throw new ArgumentNullException(nameof(attempt));
+        ArgumentNullException.ThrowIfNull(attempt);
 
         _attempts.Add(attempt);
     }

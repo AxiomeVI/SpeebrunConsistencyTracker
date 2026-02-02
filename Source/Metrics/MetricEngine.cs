@@ -13,8 +13,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
-            MetricContext context = new MetricContext();
-            List<(MetricDescriptor, MetricResult)> result = new List<(MetricDescriptor, MetricResult)>();
+            MetricContext context = new();
+            List<(MetricDescriptor, MetricResult)> result = [];
 
             List<MetricDescriptor> filteredMetrics = FilterMetrics(mode);
             if (mode == MetricOutput.Overlay) lastFilter = filteredMetrics;
@@ -29,7 +29,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         private static List<MetricDescriptor> FilterMetrics(MetricOutput mode)
         {
-            List<MetricDescriptor> filteredMetrics = MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode)).ToList();
+            List<MetricDescriptor> filteredMetrics = [.. MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode))];
             return filteredMetrics;
         }
 

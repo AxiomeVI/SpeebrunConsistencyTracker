@@ -122,7 +122,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         orig(self);
         if (!Settings.Enabled) return;
 
-        if (Settings.ButtonKeyStatsExport.Pressed) Instance.ExportDataToCsv();
+        if (Settings.ButtonKeyStatsExport.Pressed) ExportDataToCsv();
 
         if (Settings.ButtonKeyImportTargetTime.Pressed) Instance.ImportTargetTimeFromClipboard();
 
@@ -130,13 +130,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         
         if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled && SessionManager.CurrentSession != null) {
             List<GraphOverlay> graphs = self.Entities.FindAll<GraphOverlay>(); 
-            if (graphs.Count() > 0)
+            if (graphs.Count > 0)
                 self.Entities.Remove(graphs);
             else
             {
                 GraphOverlay graph = new GraphOverlay(
-                    Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList()).ToList(), 
-                    SessionManager.CurrentSession.GetSegmentTimes().ToList(),
+                    [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())],
+                    [.. SessionManager.CurrentSession.GetSegmentTimes()],
 
                     new Vector2(160, 140)
                 );
@@ -169,7 +169,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 TextOverlay textOverlay = self.Entities.FindFirst<TextOverlay>(); 
                 if (textOverlay == null)
                 {
-                    textOverlay = new TextOverlay();
+                    textOverlay = [];
                     self.Entities.Add(textOverlay);
                 }
                 textOverlay.SetText(MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession));
@@ -204,7 +204,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         SessionManager.Reset();
     }
 
-    public void ExportDataToCsv()
+    public static void ExportDataToCsv()
     {
         if (!Settings.Enabled)
             return;

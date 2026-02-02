@@ -9,7 +9,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 public sealed class AttemptBuilder
 {
     private readonly DateTime _startTime;
-    private readonly Dictionary<RoomIndex, TimeTicks> _roomTicks = new();
+    private readonly Dictionary<RoomIndex, TimeTicks> _roomTicks = [];
     private TimeTicks _segmentTime = TimeTicks.Zero;
     private RoomIndex? _dnfRoom;
     private TimeTicks? _dnfTicks;

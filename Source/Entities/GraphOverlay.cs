@@ -9,21 +9,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
     public class GraphOverlay : Entity
     {
-        public class RoomData
+        public class RoomData(string roomName, List<TimeTicks> times)
         {
-            public string RoomName { get; set; }
-            public List<TimeTicks> Times { get; set; }
-
-            public RoomData(string roomName, List<TimeTicks> times)
-            {
-                RoomName = roomName;
-                Times = times;
-            }
+            public string RoomName { get; set; } = roomName;
+            public List<TimeTicks> Times { get; set; } = times;
         }
 
-        private List<RoomData> roomDataList;
-        private RoomData segmentData;
-        private TimeTicks? targetTime = null;
+        private readonly List<RoomData> roomDataList;
+        private readonly RoomData segmentData;
+        private readonly TimeTicks? targetTime = null;
 
         // Cache computed values
         private long maxRoomTime;
@@ -31,9 +25,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         
         // Graph settings
         private Vector2 position;
-        private float width = 1600f;
-        private float height = 800f;
-        private float margin = 60f;
+        private readonly float width = 1600f;
+        private readonly float height = 800f;
+        private readonly float margin = 60f;
         
         // Colors
         private Color backgroundColor = Color.Black * 0.8f;
@@ -45,10 +39,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2 pos, TimeTicks? target = null)
         {
             Depth = -100; // Render on top
-            this.roomDataList = rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room)).ToList();
-            this.segmentData = new RoomData("Segment", segment);
-            this.position = pos;
-            this.targetTime = target;
+            roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room))];
+            segmentData = new RoomData("Segment", segment);
+            position = pos;
+            targetTime = target;
             ComputeMaxValues();
             
             Tag = Tags.HUD | Tags.Global;
@@ -84,13 +78,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             maxRoomTime = 0;
             foreach (var room in roomDataList)
             {
-                if (room.Times.Any())
+                if (room.Times.Count != 0)
                     maxRoomTime = Math.Max(maxRoomTime, room.Times.Max(t => t.Ticks));
             }
             
             // Find max time for segment
             maxSegmentTime = 0;
-            if (segmentData.Times.Any())
+            if (segmentData.Times.Count != 0)
                 maxSegmentTime = segmentData.Times.Max(t => t.Ticks);
         }
 
@@ -186,11 +180,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float columnWidth = w / totalColumns;
 
             // Track dot positions and counts for size scaling
-            Dictionary<Vector2, int> dotCounts = new Dictionary<Vector2, int>();
+            Dictionary<Vector2, int> dotCounts = [];
             float snapDistance = 2f; // Distance threshold to consider dots "same position"
             
             // Collect all dot positions first
-            List<(Vector2 pos, Color color)> allDots = new List<(Vector2, Color)>();
+            List<(Vector2 pos, Color color)> allDots = [];
             
             // Draw room data
             for (int roomIndex = 0; roomIndex < roomDataList.Count; roomIndex++)
@@ -226,7 +220,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     dotCounts[snappedPos] = 1;
             }
 
-            Dictionary<Vector2, bool> drawnPositions = new Dictionary<Vector2, bool>();
+            Dictionary<Vector2, bool> drawnPositions = [];
             foreach (var dot in allDots)
             {
                 Vector2 snappedPos = SnapToGrid(dot.pos, snapDistance);
@@ -239,12 +233,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 
                 int count = dotCounts[snappedPos];
                 float radius = 3f + (count - 1) * 1.5f; // Base 3px, +1.5px per additional dot
-                
+
                 DrawDot(snappedPos, dot.color, radius);
             }
         }
 
-        private Vector2 SnapToGrid(Vector2 position, float gridSize)
+        private static Vector2 SnapToGrid(Vector2 position, float gridSize)
         {
             return new Vector2(
                 (float)Math.Round(position.X / gridSize) * gridSize,
@@ -252,7 +246,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             );
         }
 
-        private void DrawDot(Vector2 position, Color color, float radius)
+        private static void DrawDot(Vector2 position, Color color, float radius)
         {
             // Draw a filled circle
             int circleCount = (int)Math.Ceiling(radius * 2);
