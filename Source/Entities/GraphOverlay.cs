@@ -16,6 +16,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             public List<TimeTicks> Times { get; set; } = times;
         }
 
+        private List<(Vector2 pos, Color color, float radius)> cachedDots = null;
         private readonly List<RoomData> roomDataList;
         private readonly RoomData segmentData;
         private readonly TimeTicks? targetTime = null;
@@ -182,76 +183,55 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void DrawDataPoints(float x, float y, float w, float h)
         {            
-            if (maxRoomTime == 0 && maxSegmentTime == 0) return; // No data to display
+            if (maxRoomTime == 0 && maxSegmentTime == 0) return;
             
-            int totalColumns = roomDataList.Count + 1;
-            float columnWidth = w / totalColumns;
-
-            // Track dot positions and counts for size scaling
-            Dictionary<Vector2, int> dotCounts = [];
-            float snapDistance = 2f; // Distance threshold to consider dots "same position"
-            
-            // Collect all dot positions first
-            List<(Vector2 pos, Color color)> allDots = [];
-            
-            // Draw room data
-            for (int roomIndex = 0; roomIndex < roomDataList.Count; roomIndex++)
+            // Only compute positions once
+            if (cachedDots == null)
             {
-                var room = roomDataList[roomIndex];
-                float centerX = x + columnWidth * (roomIndex + 0.5f);
-                // Draw each attempt as a dot
-                foreach (var time in room.Times)
+                cachedDots = new List<(Vector2, Color, float)>();
+                
+                int totalColumns = roomDataList.Count + 1;
+                float columnWidth = w / totalColumns;
+                
+                Random random = new Random(42); // Fixed seed for consistent positions
+                float baseRadius = 2f;
+                
+                // Draw room data
+                for (int roomIndex = 0; roomIndex < roomDataList.Count; roomIndex++)
                 {
-                    float normalizedY = (float)time.Ticks / maxRoomTime;
-                    float dotY = y + h - (normalizedY * h); // Invert Y (higher time = higher on graph)
-                    Vector2 pos = new(centerX, dotY);
-                    allDots.Add((pos, dotColor));
+                    var room = roomDataList[roomIndex];
+                    float centerX = x + columnWidth * (roomIndex + 0.5f);
+                    
+                    foreach (var time in room.Times)
+                    {
+                        float normalizedY = (float)time.Ticks / maxRoomTime;
+                        float dotY = y + h - (normalizedY * h);
+                        
+                        float jitterX = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.3f);
+                        
+                        cachedDots.Add((new Vector2(jitterX, dotY), dotColor, baseRadius));
+                    }
+                }
+                
+                // Draw segment data (last column)
+                float segmentCenterX = x + columnWidth * (totalColumns - 0.5f);
+                foreach (var time in segmentData.Times)
+                {
+                    float normalizedY = (float)time.Ticks / maxSegmentTime;
+                    float dotY = y + h - (normalizedY * h);
+                    
+                    float jitterX = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.3f);
+                    
+                    cachedDots.Add((new Vector2(jitterX, dotY), segmentDotColor, baseRadius));
                 }
             }
             
-            // Draw segment data (last column)
-            float segmentCenterX = x + columnWidth * (totalColumns - 0.5f);
-            foreach (var time in segmentData.Times)
+            // Draw the cached dots every frame
+            foreach (var dot in cachedDots)
             {
-                float normalizedY = (float)time.Ticks / maxSegmentTime;
-                float dotY = y + h - (normalizedY * h);
-                Vector2 pos = new(segmentCenterX, dotY);      
-                allDots.Add((pos, segmentDotColor));          
+                DrawDot(dot.pos, dot.color, (int)dot.radius);
+                //Draw.Circle(dot.pos, dot.radius, dot.color, (int)dot.radius);
             }
-
-            foreach (var dot in allDots)
-            {
-                Vector2 snappedPos = SnapToGrid(dot.pos, snapDistance);
-                if (dotCounts.ContainsKey(snappedPos))
-                    dotCounts[snappedPos]++;
-                else
-                    dotCounts[snappedPos] = 1;
-            }
-
-            Dictionary<Vector2, bool> drawnPositions = [];
-            foreach (var dot in allDots)
-            {
-                Vector2 snappedPos = SnapToGrid(dot.pos, snapDistance);
-                
-                // Only draw once per position
-                if (drawnPositions.ContainsKey(snappedPos))
-                    continue;
-                    
-                drawnPositions[snappedPos] = true;
-                
-                int count = dotCounts[snappedPos];
-                float radius = 3f + (count - 1) * 1.5f; // Base 3px, +1.5px per additional dot
-
-                DrawDot(snappedPos, dot.color, radius);
-            }
-        }
-
-        private static Vector2 SnapToGrid(Vector2 position, float gridSize)
-        {
-            return new Vector2(
-                (float)Math.Round(position.X / gridSize) * gridSize,
-                (float)Math.Round(position.Y / gridSize) * gridSize
-            );
         }
 
         private static void DrawDot(Vector2 position, Color color, float radius)
