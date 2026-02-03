@@ -215,7 +215,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return ComputePercentile([.. deviations.Select(t => new TimeTicks(t))], 50);
         }
 
-        public static double ComputeConsistencyScore(double median, TimeTicks min, double mad, double resetRate, double q1, double q3)
+        public static double ComputeConsistencyScore_TOO_KIND(double median, TimeTicks min, double mad, double resetRate, double q1, double q3)
         {
             double IQR = q3 - q1;
 
@@ -232,6 +232,34 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 floorProximity = Math.Max(0, 1.0 - (gap * 2.0));
             }
             return (stability + (floorProximity * 50)) * reliability / 100;
+        }
+
+        public static double ComputeConsistencyScore(double median, TimeTicks min, double mad, double resetRate, double stdCV)
+        {
+            if (median <= 0) return 0;
+            
+            // 1. Stability: Use Exponential Decay so small errors hurt more.
+            // CV-like measure using MAD and IQR
+            double madCV = mad / median;
+            
+            //double stabilityScore = Math.Exp(-20 * madCV) * 0.5 + Math.Exp(-10 * iqrCV) * 0.5;
+            double stabilityScore = Math.Exp(-50 * Math.Pow(madCV * stdCV, 2));
+
+            // 2. Floor Proximity: How close is the median to the PB/Min?
+            // If the gap is 10%, this falls to 0 quickly.
+            double gap = (median - (double)min) / median;
+            //double floorProximity = Math.Max(0, 1.0 - Math.Pow(gap * 10.0, 2));
+            double floorProximity = Math.Exp(-50 * Math.Pow(gap, 2));
+
+            // 3. Reliability: Multiplicative (If you reset, the whole score dies)
+            double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
+            double reliability = completionRate * completionRate; // Penalizes high reset rates heavily
+
+            // FINAL CALCULATION: Multiplicative relationship
+            // If ANY of these are low, the whole score crashes.
+            double finalScore = stabilityScore * floorProximity * reliability;
+
+            return finalScore; // Returns 0.0 to 1.0
         }
 
         public static double CalculateBC(List<TimeTicks> values, double mean)
@@ -374,8 +402,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             
             // Consistency: 1.0 is perfect, 0.0 is high variance. 
             // We use Mean Absolute Deviation (MAD) relative to the peak.
-            double avgDev = cluster.Average(t => Math.Abs(t - peakValue));
-            double consistency = Math.Max(0, 1.0 - (avgDev / (peakValue * 0.1))); // Penalty starts if dev > 10% of time
+            // double avgDev = cluster.Average(t => Math.Abs(t - peakValue));
+            // double consistency = Math.Max(0, 1.0 - (avgDev / (peakValue * 0.1))); // Penalty starts if dev > 10% of time
+            // We use Standard Deviation instead of Average Deviation here
+            double standardDeviation = Math.Sqrt(cluster.Average(t => Math.Pow(t - peakValue, 2)));
+            double cv = standardDeviation / peakValue;
+
+            // A CV of 0.0 is perfect. A CV of 0.15 (15% variance) is usually considered 'messy'.
+            double consistency = Math.Exp(-50 * Math.Pow(cv, 2));
 
             return new PeakMetrics {
                 Value = new TimeTicks((long)Math.Round(peakValue)),

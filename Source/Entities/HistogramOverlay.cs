@@ -77,7 +77,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (bucketSize == 0) bucketSize = 1;
             
             // Initialize buckets
-            buckets = new List<(long, long, int)>();
+            buckets = [];
             for (int i = 0; i < bucketCount; i++)
             {
                 long bucketMin = minTime + i * bucketSize;
@@ -139,10 +139,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             
             for (int i = 0; i < buckets.Count; i++)
             {
-                var bucket = buckets[i];
+                var (_, _, count) = buckets[i];
                 
                 // Calculate bar height based on count
-                float barHeight = (float)bucket.count / maxCount * h;
+                float barHeight = (float)count / maxCount * h;
                 
                 // Calculate bar position
                 float barX = x + i * barWidth + barSpacing / 2;
@@ -155,7 +155,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 // Draw count on top of bar if space permits
                 if (barHeight > 20)
                 {
-                    string countText = bucket.count.ToString();
+                    string countText = count.ToString();
                     Vector2 countSize = ActiveFont.Measure(countText) * 0.3f;
                     ActiveFont.DrawOutline(
                         countText,
@@ -202,7 +202,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int yLabelCount = 5;
             for (int i = 0; i <= yLabelCount; i++)
             {
-                int countValue = maxCount / yLabelCount * i;
+                int countValue = (int)Math.Round((double)maxCount / yLabelCount * i);
                 float yPos = y + h - h / yLabelCount * i;
                 
                 string countLabel = countValue.ToString();
@@ -236,7 +236,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Vector2 xAxisSize = ActiveFont.Measure(xAxisLabel) * 0.5f;
             ActiveFont.DrawOutline(
                 xAxisLabel,
-                new Vector2(x + w / 2 - xAxisSize.X / 2, y + h + 50),
+                new Vector2(x + w / 2 - xAxisSize.X / 2, y + h + 20),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.5f,
                 Color.White,
@@ -261,7 +261,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
         
-        private void DrawBucketLabel((long minTick, long maxTick, int count) bucket, float x, float y)
+        private void DrawBucketLabel_OLD((long minTick, long maxTick, int count) bucket, float x, float y)
         {
             string label = $"{new TimeTicks(bucket.minTick)}";
             Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
@@ -270,6 +270,52 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(x - labelSize.X / 2, y),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.35f,
+                barColor,
+                2f,
+                Color.Black
+            );
+        }
+
+        private void DrawBucketLabel((long minTick, long maxTick, int count) bucket, float x, float y)
+        {
+            string label = $"{new TimeTicks(bucket.minTick)}-{new TimeTicks(bucket.maxTick)}";
+            Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
+            ActiveFont.DrawOutline(
+                label,
+                new Vector2(x - labelSize.X / 2, y),
+                new Vector2(0f, 0f),
+                Vector2.One * 0.35f,
+                barColor,
+                2f,
+                Color.Black
+            );
+        }
+
+        private void DrawBucketLabel_MULTILINES((long minTick, long maxTick, int count) bucket, float x, float y)
+        {
+            string minLabel = new TimeTicks(bucket.minTick).ToString();
+            string maxLabel = new TimeTicks(bucket.maxTick).ToString();
+            
+            Vector2 minSize = ActiveFont.Measure(minLabel) * 0.3f;
+            Vector2 maxSize = ActiveFont.Measure(maxLabel) * 0.3f;
+            
+            // Draw min time
+            ActiveFont.DrawOutline(
+                minLabel,
+                new Vector2(x - minSize.X / 2, y),
+                new Vector2(0f, 0f),
+                Vector2.One * 0.3f,
+                barColor,
+                2f,
+                Color.Black
+            );
+            
+            // Draw max time below
+            ActiveFont.DrawOutline(
+                maxLabel,
+                new Vector2(x - maxSize.X / 2, y + minSize.Y + 2),
+                new Vector2(0f, 0f),
+                Vector2.One * 0.3f,
                 barColor,
                 2f,
                 Color.Black
