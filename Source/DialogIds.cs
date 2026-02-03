@@ -10,6 +10,8 @@ public static class DialogIds {
     public const string ToggleGraphOverlayId = "TOGGLE_GRAPH_OVERLAY";
     public const string KeyClearStatsId = "KEY_CLEAR_STATS";
     public const string KeyImportTargetTimeId = "KEY_IMPORT_TARGET_TIME";
+    public const string KeyNextGraphId = "KEY_NEXT_GRAPH";
+    public const string KeyPreviousGraphId = "KEY_PREVIOUS_GRAPH";
     
     // Target Time Menu
     public const string TargetTimeId = "TARGET_TIME";

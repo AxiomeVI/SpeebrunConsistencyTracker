@@ -25,7 +25,9 @@ TEXT_ORIENTATION=                      Text orientation
 KEY_STATS_EXPORT=                      Export stats to clipboard
 KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
 TOGGLE_GRAPH_OVERLAY=                  Display/Hide data graph
-KEY_CLEAR_STATS=                       Clear current stats data
+KEY_CLEAR_STATS=                       Clear current session data
+KEY_NEXT_GRAPH=                        Switch to next graph
+KEY_PREVIOUS_GRAPH=                    Switch to previous graph
 
 # ===================== Popup message ==========================
 POPUP_TARGET_TIME_SET=                 Target time set to

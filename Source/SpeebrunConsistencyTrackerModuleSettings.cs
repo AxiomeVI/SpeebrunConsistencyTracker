@@ -51,6 +51,10 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     #region Hotkeys
 
+    [SettingName(DialogIds.KeyImportTargetTimeId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonKeyImportTargetTime { get; set; }  = new(0, Keys.None);
+
     [SettingName(DialogIds.KeyStatsExportId)]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding ButtonKeyStatsExport { get; set; } = new(0, Keys.None);
@@ -59,13 +63,17 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding ButtonToggleGraphOverlay { get; set; }  = new(0, Keys.None);
 
+    [SettingName(DialogIds.KeyNextGraphId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonNextGraph { get; set; }  = new(0, Keys.None);
+
+    [SettingName(DialogIds.KeyPreviousGraphId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonPreviousGraph { get; set; }  = new(0, Keys.None);
+
     [SettingName(DialogIds.KeyClearStatsId)]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding ButtonKeyClearStats { get; set; }  = new(0, Keys.None);
-
-    [SettingName(DialogIds.KeyImportTargetTimeId)]
-    [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonKeyImportTargetTime { get; set; }  = new(0, Keys.None);
 
     #endregion
 }

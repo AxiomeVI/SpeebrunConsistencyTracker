@@ -207,7 +207,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         float normalizedY = (float)time.Ticks / maxRoomTime;
                         float dotY = y + h - (normalizedY * h);
                         
-                        float jitterX = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.3f);
+                        float jitterX = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.4f);
                         
                         cachedDots.Add((new Vector2(jitterX, dotY), dotColor, baseRadius));
                     }
@@ -220,7 +220,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float normalizedY = (float)time.Ticks / maxSegmentTime;
                     float dotY = y + h - (normalizedY * h);
                     
-                    float jitterX = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.3f);
+                    float jitterX = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.4f);
                     
                     cachedDots.Add((new Vector2(jitterX, dotY), segmentDotColor, baseRadius));
                 }

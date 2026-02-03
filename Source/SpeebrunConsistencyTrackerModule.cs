@@ -15,6 +15,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 using Monocle;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -33,6 +34,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private object SaveLoadInstance = null;
 
     private const long ONE_FRAME = 170000;
+
+    private GraphManager graphManager;
 
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
@@ -83,9 +86,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         level.Entities.FindAll<TextOverlay>()
             .ToList()
             .ForEach(level.Entities.Remove);
-        level.Entities.FindAll<GraphOverlay>()
-            .ToList()
-            .ForEach(level.Entities.Remove);
+        // level.Entities.FindAll<GraphOverlay>()
+        //     .ToList()
+        //     .ForEach(level.Entities.Remove);
+        Instance.graphManager?.RemoveGraphs();
+        Instance.graphManager = null;
     }
 
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
@@ -114,9 +119,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         SessionManager.OnLoadState();
-        level.Entities.FindAll<GraphOverlay>()
-            .ToList()
-            .ForEach(level.Entities.Remove);
+        // level.Entities.FindAll<GraphOverlay>()
+        //     .ToList()
+        //     .ForEach(level.Entities.Remove);
+        Instance.graphManager?.RemoveGraphs();
+        Instance.graphManager = null;
     }
 
 
@@ -131,19 +138,55 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (Settings.ButtonKeyClearStats.Pressed) SessionManager.Reset();
         
         if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled && SessionManager.CurrentSession != null) {
-            List<GraphOverlay> graphs = self.Entities.FindAll<GraphOverlay>(); 
-            if (graphs.Count > 0)
-                self.Entities.Remove(graphs);
+            // List<GraphOverlay> graphs = self.Entities.FindAll<GraphOverlay>(); 
+            // if (graphs.Count > 0)
+            //     self.Entities.Remove(graphs);
+            // else
+            // {
+            //     GraphOverlay graph = new(
+            //         [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())],
+            //         [.. SessionManager.CurrentSession.GetSegmentTimes()],
+            //         null,
+            //         MetricEngine.GetTargetTimeTicks()
+            //     );
+            //     self.Entities.Add(graph);
+            // }
+            if (Instance.graphManager == null)
+            {
+                // Initialize with your data
+                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())];
+                List<TimeTicks> segment = [.. SessionManager.CurrentSession.GetSegmentTimes()];
+                TimeTicks target = MetricEngine.GetTargetTimeTicks();
+                
+                Instance.graphManager = new GraphManager(rooms, segment, target);
+                Instance.graphManager.NextGraph(self);
+            }
+            else if (Instance.graphManager.IsShowing())
+            {
+                Instance.graphManager.HideGraph();
+            }
             else
             {
-                GraphOverlay graph = new(
-                    [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())],
-                    [.. SessionManager.CurrentSession.GetSegmentTimes()],
-                    null,
-                    MetricEngine.GetTargetTimeTicks()
-                );
-                self.Entities.Add(graph);
+                Instance.graphManager.CurrentGraph(self);
             }
+        }
+
+        if (Settings.ButtonNextGraph.Pressed 
+            && Settings.OverlayEnabled 
+            && Instance.graphManager != null 
+            && Instance.graphManager.IsShowing() 
+            && SessionManager.CurrentSession != null)
+        {
+            Instance.graphManager.NextGraph(self);
+        }
+
+        if (Settings.ButtonPreviousGraph.Pressed 
+            && Settings.OverlayEnabled 
+            && Instance.graphManager != null 
+            && Instance.graphManager.IsShowing() 
+            && SessionManager.CurrentSession != null)
+        {
+            Instance.graphManager.PreviousGraph(self);
         }
 
         if (RoomTimerIntegration.RoomTimerIsCompleted())
@@ -204,14 +247,18 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         SessionManager.Reset();
         if (Engine.Scene is Level level)
         {
-            level.Entities.FindAll<TextOverlay>().ToList().ForEach(level.Entities.Remove);
+            Instance.graphManager.RemoveGraphs();
             level.Entities.FindAll<TextOverlay>().ToList().ForEach(level.Entities.Remove);
         }
+        Instance.graphManager = null;
     }
 
     public static void Init()
     {
         SessionManager.Reset();
+        if (Engine.Scene is Level)
+            Instance.graphManager.RemoveGraphs();
+        Instance.graphManager = null;
     }
 
     public static void ExportDataToCsv()

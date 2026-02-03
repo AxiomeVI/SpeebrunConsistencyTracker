@@ -61,8 +61,8 @@ public static class ModMenuOptions
         minutes.Change(v => _settings.Minutes = v);
         seconds.Change(v => _settings.Seconds = v);
         millisecondsFirstDigit.Change(v => _settings.MillisecondsFirstDigit = v);
-        millisecondsFirstDigit.Change(v => _settings.MillisecondsSecondDigit = v);
-        millisecondsFirstDigit.Change(v => _settings.MillisecondsThirdDigit = v);
+        millisecondsSecondDigit.Change(v => _settings.MillisecondsSecondDigit = v);
+        millisecondsThirdDigit.Change(v => _settings.MillisecondsThirdDigit = v);
 
         TextMenu.Button setTargetTimeButton = (TextMenu.Button)new TextMenu.Button(
             Dialog.Clean(DialogIds.KeyImportTargetTimeId))
