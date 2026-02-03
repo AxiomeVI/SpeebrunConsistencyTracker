@@ -229,10 +229,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (median > 0)
             {
                 double gap = (median - (double)min) / median;
-                // Normalizing: Skew of 0.5+ gives full points, -0.5 gives 0 points
                 floorProximity = Math.Max(0, 1.0 - (gap * 2.0));
             }
-            return (stability + (reliability * 40) + (floorProximity * 10)) / 100;
+            return (stability + (floorProximity * 50)) * reliability / 100;
         }
 
         public static double CalculateBC(List<TimeTicks> values, double mean)
@@ -273,6 +272,144 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             // A gap > 1.2 * SD usually indicates a 'valley' between two strat peaks
             return maxGap > (sd * 1.2);
+        }
+
+        public struct PeakMetrics
+        {
+            public TimeTicks Value;       // Time center of the peak
+            public double Weight;      // % of total runs in this cluster
+            public double Consistency; // How tight this cluster is (0.0 to 1.0)
+            public int RunCount;       // Number of runs in this cluster
+        }
+
+        public struct PeakReport
+        {
+            public bool IsBimodal;
+            public PeakMetrics FastPeak;
+            public PeakMetrics SlowPeak;
+            public string Summary;
+        }
+
+        public static PeakReport GetFullPeakAnalysis(List<TimeTicks> times, TimeTicks min, TimeTicks max,  bool bimodalDetected)
+        {
+            if (times == null || times.Count == 0) return new PeakReport();
+
+            double range = (double)max - (double)min;
+
+            // 1. Histogram / Peak Finding
+            int binCount = 15;
+            int[] bins = new int[binCount];
+            foreach (var t in times)
+            {
+                int binIdx = (range == 0) ? 0 : (int)(((double)t - (double)min) / range * (binCount - 1));
+                bins[binIdx]++;
+            }
+
+            var localMaxima = new List<(int index, int count)>();
+            for (int i = 0; i < binCount; i++)
+            {
+                bool left = (i == 0) || (bins[i] >= bins[i - 1]);
+                bool right = (i == binCount - 1) || (bins[i] >= bins[i + 1]);
+                if (left && right && bins[i] > 0) localMaxima.Add((i, bins[i]));
+            }
+
+            // 2. Identify the Peak Centers
+            double fastVal, slowVal;
+            bool activeBimodal = bimodalDetected && localMaxima.Count >= 2;
+
+            if (activeBimodal)
+            {
+                var topTwo = localMaxima.OrderByDescending(m => m.count).Take(2).OrderBy(m => m.index).ToList();
+                fastVal = (double)min + (topTwo[0].index * (range / (binCount - 1)));
+                slowVal = (double)min + (topTwo[1].index * (range / (binCount - 1)));
+            }
+            else
+            {
+                var (index, count) = localMaxima.OrderByDescending(m => m.count).FirstOrDefault();
+                fastVal = slowVal = (double)min + (index * (range / (binCount - 1)));
+            }
+
+            // 3. Importance Calculation (Clustering)
+            // Assign every run to the nearest peak to find Weight and Consistency
+            var fastCluster = new List<double>();
+            var slowCluster = new List<double>();
+
+            foreach (var t in times)
+            {
+                if (!activeBimodal || Math.Abs((double)t - fastVal) <= Math.Abs((double)t - slowVal))
+                    fastCluster.Add((double)t);
+                else
+                    slowCluster.Add((double)t);
+            }
+
+            // 4. Build Metrics
+            var report = new PeakReport {
+                IsBimodal = activeBimodal,
+                FastPeak = CreateMetrics(fastCluster, fastVal, times.Count),
+                SlowPeak = activeBimodal ? CreateMetrics(slowCluster, slowVal, times.Count) : CreateMetrics(fastCluster, fastVal, times.Count),
+            };
+
+            // 5. Sanity Check: If one peak is just a tiny outlier, downgrade to Unimodal
+            double weightThreshold = 0.05; // 5% minimum weight to be considered a "Strat"
+            if (report.IsBimodal)
+            {
+                if (report.FastPeak.Weight < weightThreshold || report.SlowPeak.Weight < weightThreshold)
+                {
+                    report.IsBimodal = false;
+                    // Keep the "heavier" peak as the primary
+                    var dominant = report.FastPeak.Weight >= report.SlowPeak.Weight ? report.FastPeak : report.SlowPeak;
+                    report.FastPeak = dominant;
+                    report.SlowPeak = dominant;
+                }
+            }
+
+            report.Summary = GenerateNarrative(report);
+
+            return report;
+        }
+
+        private static PeakMetrics CreateMetrics(List<double> cluster, double peakValue, int totalCount)
+        {
+            if (cluster.Count == 0) return new PeakMetrics();
+            
+            // Consistency: 1.0 is perfect, 0.0 is high variance. 
+            // We use Mean Absolute Deviation (MAD) relative to the peak.
+            double avgDev = cluster.Average(t => Math.Abs(t - peakValue));
+            double consistency = Math.Max(0, 1.0 - (avgDev / (peakValue * 0.1))); // Penalty starts if dev > 10% of time
+
+            return new PeakMetrics {
+                Value = new TimeTicks((long)Math.Round(peakValue)),
+                Weight = (double)cluster.Count / totalCount,
+                Consistency = consistency,
+                RunCount = cluster.Count
+            };
+        }
+
+        private static string GenerateNarrative(PeakReport report)
+        {
+            if (!report.IsBimodal)
+            {
+                string consistencyDesc = report.FastPeak.Consistency > 0.8 ? "tight" : "loose";
+                return $"Single execution mode at {report.FastPeak.Value}. Your playstyle is {consistencyDesc}.";
+            }
+
+            TimeTicks timeLoss = report.SlowPeak.Value - report.FastPeak.Value;
+            int fastPercent = (int)(report.FastPeak.Weight * 100);
+
+            // Logic for Interpretation
+            string interpretation;
+            if (report.FastPeak.Weight > 0.7)
+                interpretation = "You've mostly mastered the main strat with occasional falls to backup.";
+            else if (report.FastPeak.Weight < 0.3)
+                interpretation = "You are primarily using a backup; the fast strat is currently a 'fluke'.";
+            else
+                interpretation = "You are currently split between your strat and a backup.";
+
+            if (report.FastPeak.Consistency < report.SlowPeak.Consistency && report.FastPeak.Weight > 0.5)
+                interpretation += " Warning: Your fast strat is significantly messier than your backup.";
+
+            return $"Bimodal Detected. Fast: {report.FastPeak.Value} ({fastPercent}% weight {FormatPercent(report.FastPeak.Consistency)} consistency). " +
+                $"Backup: {report.SlowPeak.Value}. Time loss: +{timeLoss}. {interpretation}";
         }
     }
 }

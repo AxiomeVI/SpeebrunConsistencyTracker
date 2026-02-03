@@ -146,19 +146,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             }
         }
 
-        //TextOverlay overlay = self.Entities.FindFirst<TextOverlay>();
-        // if (RoomTimerIntegration.RoomTimerIsCompleted()) {
-        //     // if (StaticStatsManager.runCompleted) {
-        //     //     StaticStatsManager.AddSegmentTime(RoomTimerIntegration.GetRoomTime());
-        //     //     // overlay?.SetTextVisible(Settings.IngameOverlay.OverlayEnabled);
-        //     //     // if (overlay?.Visible == true) overlay?.SetText(StaticStatsManager.ToStringForOverlay());
-        //     // } else {
-        //     //     StaticStatsManager.AddRoomTime(RoomTimerIntegration.GetRoomTime());
-        //     //     StaticStatsManager.runCompleted = true;
-        //     // }
-        // } else {
-        //     // overlay?.SetTextVisible(false);
-        // }
         if (RoomTimerIntegration.RoomTimerIsCompleted())
         {
             if (SessionManager.HasActiveAttempt)
@@ -262,19 +249,23 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public void ImportTargetTimeFromClipboard() {
         if (!Settings.Enabled)
             return;
-        string input = TextInput.GetClipboardText();
+        string input = TextInput.GetClipboardText()?.Trim();
         string[] TimeFormats = [
-                "mm\\:ss\\.fff", "m\\:ss\\.fff",
-                "mm\\:ss\\.ff", "m\\:ss\\.ff",
-                "mm\\:ss\\.f", "m\\:ss\\.f",
-                "ss\\.fff", "s\\.fff",
-                "ss\\.ff", "s\\.ff",
-                "ss\\.f", "s\\.f",
-                "mm\\:ss", "m\\:ss",
-                "ss", "s",
-                "fff"
-            ];
-        bool success = TimeSpan.TryParseExact(input, TimeFormats, null, out TimeSpan result);
+            @"mm\:ss\.fff", @"m\:ss\.fff",
+            @"mm\:ss\.ff",  @"m\:ss\.ff",
+            @"mm\:ss\.f",   @"m\:ss\.f",
+            @"mm\:ss",      @"m\:ss",
+            @"ss\.fff",     @"s\.fff",
+            @"ss\.ff",      @"s\.ff",
+            @"ss\.f",       @"s\.f",
+            @"ss",          @"s"
+        ];
+        bool success = TimeSpan.TryParseExact(input, TimeFormats, System.Globalization.CultureInfo.InvariantCulture, out TimeSpan result);
+        // Fallback: If it's a pure number like "500", assume Milliseconds
+        if (!success && int.TryParse(input, out int msResult)) {
+            result = TimeSpan.FromMilliseconds(msResult);
+            success = true;
+        }
         if (success) {
             Settings.Minutes = result.Minutes;
             Settings.Seconds = result.Seconds;
