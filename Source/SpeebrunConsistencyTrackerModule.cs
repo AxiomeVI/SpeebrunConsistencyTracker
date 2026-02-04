@@ -16,6 +16,7 @@ using Monocle;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Mono.Cecil;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -36,6 +37,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private const long ONE_FRAME = 170000;
 
     private GraphManager graphManager;
+    private TextOverlay textOverlay;
 
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
@@ -76,19 +78,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         CreateModMenuSectionKeyBindings(menu, inGame, pauseSnapshot);
     }
 
-    private static void PopupMessage(string message) {
+    public static void PopupMessage(string message) {
         PopupMessageUtils.Show(message, null);
     }
 
     private static void OnBeforeSaveState(Level level) {
         if (!Settings.Enabled)
             return;
-        level.Entities.FindAll<TextOverlay>()
-            .ToList()
-            .ForEach(level.Entities.Remove);
-        // level.Entities.FindAll<GraphOverlay>()
-        //     .ToList()
-        //     .ForEach(level.Entities.Remove);
+        Instance.textOverlay?.RemoveSelf();
+        Instance.textOverlay = null;
         Instance.graphManager?.RemoveGraphs();
         Instance.graphManager = null;
     }
@@ -119,9 +117,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         SessionManager.OnLoadState();
-        // level.Entities.FindAll<GraphOverlay>()
-        //     .ToList()
-        //     .ForEach(level.Entities.Remove);
         Instance.graphManager?.RemoveGraphs();
         Instance.graphManager = null;
     }
@@ -131,34 +126,19 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         orig(self);
         if (!Settings.Enabled) return;
 
-        if (Settings.ButtonKeyStatsExport.Pressed) ExportDataToCsv();
+        if (Settings.ButtonKeyStatsExport.Pressed) ExportDataToClipboard();
 
         if (Settings.ButtonKeyImportTargetTime.Pressed) Instance.ImportTargetTimeFromClipboard();
 
         if (Settings.ButtonKeyClearStats.Pressed) SessionManager.Reset();
         
         if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled && SessionManager.CurrentSession != null) {
-            // List<GraphOverlay> graphs = self.Entities.FindAll<GraphOverlay>(); 
-            // if (graphs.Count > 0)
-            //     self.Entities.Remove(graphs);
-            // else
-            // {
-            //     GraphOverlay graph = new(
-            //         [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())],
-            //         [.. SessionManager.CurrentSession.GetSegmentTimes()],
-            //         null,
-            //         MetricEngine.GetTargetTimeTicks()
-            //     );
-            //     self.Entities.Add(graph);
-            // }
             if (Instance.graphManager == null)
             {
-                // Initialize with your data
                 List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())];
                 List<TimeTicks> segment = [.. SessionManager.CurrentSession.GetSegmentTimes()];
-                TimeTicks target = MetricEngine.GetTargetTimeTicks();
                 
-                Instance.graphManager = new GraphManager(rooms, segment, target);
+                Instance.graphManager = new GraphManager(rooms, segment, MetricHelper.IsMetricEnabled(Settings.TargetTime, Enums.MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
                 Instance.graphManager.NextGraph(self);
             }
             else if (Instance.graphManager.IsShowing())
@@ -213,13 +193,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             }
             else if (Settings.OverlayEnabled) 
             {
-                TextOverlay textOverlay = self.Entities.FindFirst<TextOverlay>(); 
-                if (textOverlay == null)
+                if (Instance.textOverlay == null)
                 {
-                    textOverlay = [];
-                    self.Entities.Add(textOverlay);
+                    Instance.textOverlay = [];
+                    self.Entities.Add(Instance.textOverlay);
                 }
-                textOverlay.SetText(MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession));
+                if (MetricsExporter.ExportSessionToOverlay(SessionManager.CurrentSession, out string result))
+                    Instance.textOverlay.SetText(result);
             }
         } else if (SessionManager.EndOfChapterCutsceneSkipCounter >= 1)
         {
@@ -245,23 +225,20 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public static void Reset()
     {
         SessionManager.Reset();
-        if (Engine.Scene is Level level)
-        {
-            Instance.graphManager.RemoveGraphs();
-            level.Entities.FindAll<TextOverlay>().ToList().ForEach(level.Entities.Remove);
-        }
+        Instance.textOverlay?.RemoveSelf();
+        Instance.textOverlay = null;
+        Instance.graphManager?.RemoveGraphs();
         Instance.graphManager = null;
     }
 
     public static void Init()
     {
         SessionManager.Reset();
-        if (Engine.Scene is Level)
-            Instance.graphManager.RemoveGraphs();
+        Instance.graphManager?.RemoveGraphs();
         Instance.graphManager = null;
     }
 
-    public static void ExportDataToCsv()
+    public static void ExportDataToClipboard()
     {
         if (!Settings.Enabled)
             return;
@@ -297,22 +274,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         string input = TextInput.GetClipboardText()?.Trim();
-        string[] TimeFormats = [
-            @"mm\:ss\.fff", @"m\:ss\.fff",
-            @"mm\:ss\.ff",  @"m\:ss\.ff",
-            @"mm\:ss\.f",   @"m\:ss\.f",
-            @"mm\:ss",      @"m\:ss",
-            @"ss\.fff",     @"s\.fff",
-            @"ss\.ff",      @"s\.ff",
-            @"ss\.f",       @"s\.f",
-            @"ss",          @"s"
-        ];
-        bool success = TimeSpan.TryParseExact(input, TimeFormats, System.Globalization.CultureInfo.InvariantCulture, out TimeSpan result);
-        // Fallback: If it's a pure number like "500", assume Milliseconds
-        if (!success && int.TryParse(input, out int msResult)) {
-            result = TimeSpan.FromMilliseconds(msResult);
-            success = true;
-        }
+        bool success = TryParseTime(input, out TimeSpan result);
         if (success) {
             Settings.Minutes = result.Minutes;
             Settings.Seconds = result.Seconds;
@@ -324,5 +286,34 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         } else {
             PopupMessage($"{Dialog.Clean(DialogIds.PopupInvalidTargetTimeid)}");
         }
+    }
+
+    public static bool TryParseTime(string input, out TimeSpan result)
+    {
+        result = TimeSpan.Zero;
+        if (string.IsNullOrWhiteSpace(input)) return false;
+
+        string[] timeFormats = [
+            @"mm\:ss\.fff", @"m\:ss\.fff",
+            @"mm\:ss\.ff",  @"m\:ss\.ff",
+            @"mm\:ss\.f",   @"m\:ss\.f",
+            @"mm\:ss",      @"m\:ss",
+            @"ss\.fff",     @"s\.fff",
+            @"ss\.ff",      @"s\.ff",
+            @"ss\.f",       @"s\.f",
+            @"ss",          @"s"
+        ];
+
+        bool success = TimeSpan.TryParseExact(input, timeFormats, 
+            System.Globalization.CultureInfo.InvariantCulture, out result);
+
+        // Fallback: If it's a pure number (e.g., "500"), treat as Milliseconds
+        if (!success && int.TryParse(input, out int msResult))
+        {
+            result = TimeSpan.FromMilliseconds(msResult);
+            success = true;
+        }
+
+        return success;
     }
 }

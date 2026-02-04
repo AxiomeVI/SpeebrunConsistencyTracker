@@ -1,12 +1,15 @@
 using System;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.UI;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
 public static class ModMenuOptions
 {
-    private static SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
-    private static SpeebrunConsistencyTrackerModule _instance = SpeebrunConsistencyTrackerModule.Instance;
+    private static readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
+    private static readonly SpeebrunConsistencyTrackerModule _instance = SpeebrunConsistencyTrackerModule.Instance;
+
+    private const string ConfirmSfx = "event:/ui/main/button_select";
 
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
@@ -17,10 +20,13 @@ public static class ModMenuOptions
 
         TextMenu.Button exportStatsButton = (TextMenu.Button)new TextMenu.Button(
             Dialog.Clean(DialogIds.KeyStatsExportId))
-            .Pressed(SpeebrunConsistencyTrackerModule.ExportDataToCsv);
-        exportStatsButton.Visible = _settings.Enabled && inGame;
+            .Pressed(() => {
+                Audio.Play(ConfirmSfx);
+                SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
+                });
+        exportStatsButton.Disabled = !_settings.Enabled || !inGame;
 
-        TextMenuExt.SubMenu targetTimeSubMenu = CreateTargetTimeSubMenu(menu);
+        TextMenuExt.SubMenu targetTimeSubMenu = CreateTargetTimeSubMenu(menu, inGame);
         TextMenuExt.SubMenu overlaySubMenu = CreateOverlaySubMenu(menu);
         TextMenuExt.SubMenu metricsSubMenu = CreateMetricsSubMenu(menu);
         
@@ -46,7 +52,7 @@ public static class ModMenuOptions
         menu.Add(exportWithSRT);
     }
 
-    private static TextMenuExt.SubMenu CreateTargetTimeSubMenu(TextMenu menu)
+    private static TextMenuExt.SubMenu CreateTargetTimeSubMenu(TextMenu menu, bool inGame)
     {
         TextMenuExt.SubMenu targetTimeSubMenu = new(
             Dialog.Clean(DialogIds.TargetTimeId), 
@@ -64,10 +70,37 @@ public static class ModMenuOptions
         millisecondsSecondDigit.Change(v => _settings.MillisecondsSecondDigit = v);
         millisecondsThirdDigit.Change(v => _settings.MillisecondsThirdDigit = v);
 
+
+        TextMenu.Button inputTimeButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.InputTargetTimeId))
+            .Pressed(() => {
+                Audio.Play(SFX.ui_main_savefile_rename_start);
+                menu.SceneAs<Overworld>().Goto<OuiModOptionString>().Init<OuiModOptions>(
+                    _settings.Minutes.ToString() + ":" + _settings.Seconds.ToString("D2") + "." + _settings.MillisecondsFirstDigit.ToString() + _settings.MillisecondsSecondDigit.ToString() + _settings.MillisecondsThirdDigit.ToString(),
+                    v => {
+                        if (SpeebrunConsistencyTrackerModule.TryParseTime(v, out TimeSpan result))
+                        {
+                            _settings.Minutes = result.Minutes;
+                            _settings.Seconds = result.Seconds;
+                            _settings.MillisecondsFirstDigit = result.Milliseconds / 100;
+                            _settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
+                            _settings.MillisecondsThirdDigit = result.Milliseconds % 10;
+                            SpeebrunConsistencyTrackerModule.PopupMessage($"{Dialog.Clean(DialogIds.PopupTargetTimeSetid)} {result:mm\\:ss\\.fff}");
+                            _instance.SaveSettings();
+                        } else
+                        {
+                            SpeebrunConsistencyTrackerModule.PopupMessage($"{Dialog.Clean(DialogIds.PopupInvalidTargetTimeid)}");
+                        }
+                    },
+                    9,
+                    3
+                );
+            });
+
         TextMenu.Button setTargetTimeButton = (TextMenu.Button)new TextMenu.Button(
             Dialog.Clean(DialogIds.KeyImportTargetTimeId))
             .Pressed(() =>
             {
+                Audio.Play(ConfirmSfx);
                 _instance.ImportTargetTimeFromClipboard();
                 minutes.Index = _settings.Minutes;
                 seconds.Index = _settings.Seconds;
@@ -80,6 +113,7 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.ResetTargetTimeId))
             .Pressed(() =>
             {
+                Audio.Play(ConfirmSfx);
                 minutes.Index = _settings.Minutes = 0;
                 seconds.Index = _settings.Seconds = 0;
                 millisecondsFirstDigit.Index = _settings.MillisecondsFirstDigit = 0;
@@ -89,12 +123,20 @@ public static class ModMenuOptions
             });
 
         targetTimeSubMenu.Add(setTargetTimeButton);
+        targetTimeSubMenu.Add(inputTimeButton);
         targetTimeSubMenu.Add(resetButton);
         targetTimeSubMenu.Add(minutes);
         targetTimeSubMenu.Add(seconds);
         targetTimeSubMenu.Add(millisecondsFirstDigit);
         targetTimeSubMenu.Add(millisecondsSecondDigit);
         targetTimeSubMenu.Add(millisecondsThirdDigit);
+
+        minutes.Visible = inGame;
+        seconds.Visible = inGame;
+        millisecondsFirstDigit.Visible = inGame;
+        millisecondsSecondDigit.Visible = inGame;
+        millisecondsThirdDigit.Visible = inGame;
+        inputTimeButton.Visible = !inGame;
 
         setTargetTimeButton.AddDescription(targetTimeSubMenu, menu, Dialog.Clean(DialogIds.TargetTimeFormatId));
         millisecondsFirstDigit.AddDescription(targetTimeSubMenu, menu, Dialog.Clean(DialogIds.MillisecondsFirst));
@@ -207,6 +249,7 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.ButtonAllOffId))
             .Pressed(() =>
             {
+                Audio.Play(ConfirmSfx);
                 History.Index = 0;
                 _settings.History = false;
                 ResetShare.Index = 0;
@@ -258,6 +301,7 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.ButtonAllOnId))
             .Pressed(() =>
             {
+                Audio.Play(ConfirmSfx);
                 History.Index = 1;
                 _settings.History = true;
                 ResetShare.Index = 1;
@@ -309,6 +353,7 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.ButtonResetId))
             .Pressed(() =>
             {
+                Audio.Play(ConfirmSfx);
                 History.Index = 1;
                 _settings.History = true;
                 ResetShare.Index = 1;

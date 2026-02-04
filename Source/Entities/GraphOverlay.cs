@@ -47,8 +47,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             ComputeMaxValues();
 
             position = pos ?? new Vector2(
-                (1920 - width) / 2,  // Center horizontally
-                (1080 - height) / 2  // Center vertically
+                (1920 - width) / 2,
+                (1080 - height) / 2
             );
             
             Tag = Tags.HUD | Tags.Global;
@@ -58,7 +58,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             base.Render();
             
-            // Draw background
             Draw.Rect(position, width, height, backgroundColor);
             
             // Calculate drawable area
@@ -80,7 +79,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void ComputeMaxValues()
         {
-            // Find max time for rooms
             maxRoomTime = 0;
             foreach (var room in roomDataList)
             {
@@ -88,10 +86,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     maxRoomTime = Math.Max(maxRoomTime, room.Times.Max(t => t.Ticks));
             }
             
-            // Find max time for segment
             maxSegmentTime = 0;
             if (segmentData.Times.Count != 0)
                 maxSegmentTime = segmentData.Times.Max(t => t.Ticks);
+
+            // Adjust segment scale to include target time if it's higher
+            if (targetTime.HasValue)
+            {
+                maxSegmentTime = Math.Max(maxSegmentTime, targetTime.Value.Ticks);
+            }
         }
 
         private void DrawAxes(float x, float y, float w, float h)
@@ -153,7 +156,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             
             float targetY = y + h - (normalizedY * h);
             
-            // Calculate X range (only in segment column)
+            // Calculate X range
             float segmentStartX = x + columnWidth * roomDataList.Count;
             float segmentEndX = x + w;
             
@@ -163,7 +166,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(segmentStartX, targetY),
                 new Vector2(segmentEndX, targetY),
                 targetColor,
-                3f  // Made thicker to be more visible
+                2f
             );
             
             // Draw small label on the line
@@ -188,12 +191,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Only compute positions once
             if (cachedDots == null)
             {
-                cachedDots = new List<(Vector2, Color, float)>();
+                cachedDots = [];
                 
                 int totalColumns = roomDataList.Count + 1;
                 float columnWidth = w / totalColumns;
                 
-                Random random = new Random(42); // Fixed seed for consistent positions
+                Random random = new(42); // Fixed seed for consistent positions, we don't really need these anymore with cache...
                 float baseRadius = 2f;
                 
                 // Draw room data
@@ -213,7 +216,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     }
                 }
                 
-                // Draw segment data (last column)
+                // Draw segment data
                 float segmentCenterX = x + columnWidth * (totalColumns - 0.5f);
                 foreach (var time in segmentData.Times)
                 {
@@ -227,10 +230,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             
             // Draw the cached dots every frame
-            foreach (var dot in cachedDots)
+            foreach (var (pos, color, radius) in cachedDots)
             {
-                DrawDot(dot.pos, dot.color, (int)dot.radius);
-                //Draw.Circle(dot.pos, dot.radius, dot.color, (int)dot.radius);
+                DrawDot(pos, color, (int)radius);
             }
         }
 
@@ -256,7 +258,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 string label = roomDataList[i].RoomName;
                 
                 if (label.Length > 10)
-                    label = label.Substring(0, 10) + "...";
+                    label = string.Concat(label.AsSpan(0, 10), "...");
                 
                 Vector2 labelSize = ActiveFont.Measure(label) * 0.5f;
                 ActiveFont.DrawOutline(

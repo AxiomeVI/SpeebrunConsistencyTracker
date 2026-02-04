@@ -15,6 +15,8 @@ public static class DialogIds {
     
     // Target Time Menu
     public const string TargetTimeId = "TARGET_TIME";
+    public const string InputTargetTimeId = "INPUT_TARGET_TIME";
+    public const string CurrentTargetTimeId = "CURRENT_TARGET";
     public const string ResetTargetTimeId = "RESET_TARGET_TIME";
     public const string TargetTimeFormatId = "TARGET_TIME_FORMAT";
     public const string Minutes = "MINUTES";
@@ -28,7 +30,7 @@ public static class DialogIds {
     public const string PopupTargetTimeSetid = "POPUP_TARGET_TIME_SET";
     public const string PopupInvalidTargetTimeid = "INVALID_TIME_IMPORT";
     public const string PopupExportToClipBoardid = "EXPORT_TO_CLIPBOARD";
-    public const string PopupInvalidExportid = "INVALID_EXPORT_CLIPBOARD";
+    public const string PopupInvalidExportid = "INVALID_EXPORT";
 
     // Ingame Overlay Menu
     public const string IngameOverlayId = "INGAME_OVERLAY";

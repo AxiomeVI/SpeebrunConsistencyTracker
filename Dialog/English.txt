@@ -5,6 +5,8 @@ EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 
 # ==================== Target Time =============================
 TARGET_TIME=                           Set Target Time
+INPUT_TARGET_TIME=                     Set target
+CURRENT_TARGET=                        Current target time:
 TARGET_TIME_FORMAT=                    Format: mm:ss.123 or ss.123
 RESET_TARGET_TIME=                     Reset target time
 MINUTES=                               Minutes
@@ -22,7 +24,7 @@ TEXT_POSITION=                         Text position
 TEXT_ORIENTATION=                      Text orientation
 
 # ======================= Hotkeys ==============================
-KEY_STATS_EXPORT=                      Export stats to clipboard
+KEY_STATS_EXPORT=                      Export stats to files or clipboard
 KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
 TOGGLE_GRAPH_OVERLAY=                  Display/Hide data graph
 KEY_CLEAR_STATS=                       Clear current session data
@@ -33,7 +35,7 @@ KEY_PREVIOUS_GRAPH=                    Switch to previous graph
 POPUP_TARGET_TIME_SET=                 Target time set to
 INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Please use m:ss.SSS or ss.SSS format
 EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
-INVALID_EXPORT_CLIPBOARD=              No data to export
+INVALID_EXPORT=                        No data to export
 
 # ======================== Stats ===============================
 STATS_SUBMENU=                         Metrics Settings
@@ -61,6 +63,7 @@ LINEAR_REGRESSION=                     Linear Regression
 LINEAR_REGRESSION_SUBTEXT=             The slope of the trend line
 SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
 CONSISTENCY_SCORE=                     Consistency Score
+MULTIMODAL_TEST=                       Multimodal Test
 ALL_METRICS_OFF_BUTTON=                Turn off all metrics
 ALL_METRICS_ON_BUTTON=                 Turn on all metrics
 RESET_METRICS_BUTTON=                  Reset to default

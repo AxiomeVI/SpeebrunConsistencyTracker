@@ -7,7 +7,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
     [Tracked]
     public class TextOverlay : Entity {
 
-        private SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
+        private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
 
         private TextComponent StatText { get; set; }
 

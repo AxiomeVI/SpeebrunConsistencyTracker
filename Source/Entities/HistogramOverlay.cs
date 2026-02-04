@@ -45,7 +45,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             
             Tag = Tags.HUD | Tags.Global;
             
-            // Compute histogram data once
             ComputeHistogram();
         }
         
@@ -53,52 +52,56 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (times.Count == 0)
             {
-                buckets = new List<(long, long, int)>();
+                buckets = [];
                 maxCount = 0;
                 return;
             }
             
-            long minTime = times.Min(t => t.Ticks);
-            long maxTime = times.Max(t => t.Ticks);
-            long range = maxTime - minTime;
+            long min = times.Min(t => t.Ticks);
+            long max = times.Max(t => t.Ticks);
+            double minTime = (double)min;
+            double maxTime = (double)max;
+            double range = maxTime - minTime;
             
-            // Determine bucket count based on data range and count
-            // Use Sturges' rule: k = ceil(log2(n)) + 1
-            int bucketCount = (int)Math.Ceiling(Math.Log(times.Count, 2)) + 1;
-            bucketCount = Math.Max(5, Math.Min(bucketCount, 20)); // Between 5 and 20 buckets
-            
-            // If range is very small, use fewer buckets
-            if (range < bucketCount * ONE_FRAME) // Less than bucketCount frames
+            // 1. Determine bin resolution - 1% of min time or 1 frame, whichever is larger
+            double targetWidth = minTime * 0.01;
+            double binWidth = Math.Max(targetWidth, ONE_FRAME);
+
+            // 2. Calculate bin count
+            int binCount;
+            if (range <= 0)
+                binCount = 1;
+            else
             {
-                bucketCount = Math.Max(3, (int)(range / ONE_FRAME) + 1);
+                binCount = (int)Math.Ceiling(range / binWidth);
+                binCount = Math.Clamp(binCount, 5, 50); // Keep reasonable amount of bins, just in case
             }
+
+            // 3. Recalculate exact bin width to perfectly divide the range
+            double finalBinWidth = (binCount > 1) ? range / binCount : binWidth;
             
-            long bucketSize = range / bucketCount;
-            if (bucketSize == 0) bucketSize = 1;
-            
-            // Initialize buckets
-            buckets = [];
-            for (int i = 0; i < bucketCount; i++)
-            {
-                long bucketMin = minTime + i * bucketSize;
-                long bucketMax = (i == bucketCount - 1) ? maxTime : bucketMin + bucketSize;
-                buckets.Add((bucketMin, bucketMax, 0));
-            }
-            
-            // Count times in each bucket
-            var bucketList = buckets.ToList();
+            int[] bins = new int[binCount];
             foreach (var time in times)
             {
-                for (int i = 0; i < bucketList.Count; i++)
-                {
-                    if (time.Ticks >= bucketList[i].minTick && time.Ticks <= bucketList[i].maxTick)
-                    {
-                        bucketList[i] = (bucketList[i].minTick, bucketList[i].maxTick, bucketList[i].count + 1);
-                        break;
-                    }
-                }
+                int binIdx = (range <= 0) 
+                    ? 0 
+                    : (int)Math.Floor((time.Ticks - min) / finalBinWidth);
+                
+                binIdx = Math.Clamp(binIdx, 0, binCount - 1);
+                bins[binIdx]++;
             }
-            buckets = bucketList;
+            
+            // 5. Convert to bucket format
+            buckets = [];
+            for (int i = 0; i < binCount; i++)
+            {
+                long bucketMin = min + (long)(i * finalBinWidth);
+                long bucketMax = (i == binCount - 1) 
+                    ? max 
+                    : min + (long)((i + 1) * finalBinWidth);
+                
+                buckets.Add((bucketMin, bucketMax, bins[i]));
+            }
             
             maxCount = buckets.Max(b => b.count);
         }
@@ -172,7 +175,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         
         private void DrawLabels(float x, float y, float w, float h)
         {
-            // Title
             string title = $"Time Distribution - {roomName}";
             Vector2 titleSize = ActiveFont.Measure(title) * 0.7f;
             ActiveFont.DrawOutline(
@@ -198,8 +200,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Color.Black
             );
             
-            // Y axis tick labels (counts)
-            int yLabelCount = 5;
+            // Y axis tick labels
+            int yLabelCount = Math.Min(5, maxCount);
+            if (yLabelCount == 0) yLabelCount = 1; // Sanity check to show at least one label
+
             for (int i = 0; i <= yLabelCount; i++)
             {
                 int countValue = (int)Math.Round((double)maxCount / yLabelCount * i);
@@ -219,101 +223,55 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 );
             }
             
-            // X axis labels (one per bar)
+            // X axis labels (bin edges)
             if (buckets.Count > 0)
             {
                 float barWidth = w / buckets.Count;
                 
-                for (int i = 0; i < buckets.Count; i++)
+                // Draw label for each bin edge
+                for (int i = 0; i <= buckets.Count; i++)
                 {
-                    float labelX = x + i * barWidth + barWidth / 2;
-                    DrawBucketLabel(buckets[i], labelX, y + h + 10);
+                    long edgeTick;
+                    if (i == 0)
+                    {
+                        edgeTick = buckets[0].minTick;
+                    }
+                    else if (i == buckets.Count)
+                    {
+                        edgeTick = buckets[^1].maxTick;
+                    }
+                    else
+                    {
+                        // Shared edge between bins
+                        edgeTick = buckets[i].minTick;
+                    }
+                    
+                    float labelX = x + i * barWidth;
+                    DrawEdgeLabel(edgeTick, labelX, y + h + 10);
                 }
             }
             
-            // X axis label (time)
-            string xAxisLabel = "Time";
-            Vector2 xAxisSize = ActiveFont.Measure(xAxisLabel) * 0.5f;
+            string stats = $"Total: {times.Count}";
+            Vector2 statsSize = ActiveFont.Measure(stats) * 0.4f;
             ActiveFont.DrawOutline(
-                xAxisLabel,
-                new Vector2(x + w / 2 - xAxisSize.X / 2, y + h + 20),
+                stats,
+                new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + 60),
                 new Vector2(0f, 0f),
-                Vector2.One * 0.5f,
-                Color.White,
+                Vector2.One * 0.4f,
+                Color.LightGray,
                 2f,
                 Color.Black
             );
-            
-            // Stats summary
-            if (times.Count > 0)
-            {
-                string stats = $"Total: {times.Count}";
-                Vector2 statsSize = ActiveFont.Measure(stats) * 0.4f;
-                ActiveFont.DrawOutline(
-                    stats,
-                    new Vector2(position.X + width / 2 - statsSize.X / 2, position.Y + height - 20),
-                    new Vector2(0f, 0f),
-                    Vector2.One * 0.4f,
-                    Color.LightGray,
-                    2f,
-                    Color.Black
-                );
-            }
         }
         
-        private void DrawBucketLabel_OLD((long minTick, long maxTick, int count) bucket, float x, float y)
+        private void DrawEdgeLabel(long tick, float x, float y)
         {
-            string label = $"{new TimeTicks(bucket.minTick)}";
-            Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
+            string label = new TimeTicks(tick).ToString();
+            Vector2 labelSize = ActiveFont.Measure(label) * 0.3f;
+            
             ActiveFont.DrawOutline(
                 label,
                 new Vector2(x - labelSize.X / 2, y),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.35f,
-                barColor,
-                2f,
-                Color.Black
-            );
-        }
-
-        private void DrawBucketLabel((long minTick, long maxTick, int count) bucket, float x, float y)
-        {
-            string label = $"{new TimeTicks(bucket.minTick)}-{new TimeTicks(bucket.maxTick)}";
-            Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
-            ActiveFont.DrawOutline(
-                label,
-                new Vector2(x - labelSize.X / 2, y),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.35f,
-                barColor,
-                2f,
-                Color.Black
-            );
-        }
-
-        private void DrawBucketLabel_MULTILINES((long minTick, long maxTick, int count) bucket, float x, float y)
-        {
-            string minLabel = new TimeTicks(bucket.minTick).ToString();
-            string maxLabel = new TimeTicks(bucket.maxTick).ToString();
-            
-            Vector2 minSize = ActiveFont.Measure(minLabel) * 0.3f;
-            Vector2 maxSize = ActiveFont.Measure(maxLabel) * 0.3f;
-            
-            // Draw min time
-            ActiveFont.DrawOutline(
-                minLabel,
-                new Vector2(x - minSize.X / 2, y),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.3f,
-                barColor,
-                2f,
-                Color.Black
-            );
-            
-            // Draw max time below
-            ActiveFont.DrawOutline(
-                maxLabel,
-                new Vector2(x - maxSize.X / 2, y + minSize.Y + 2),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.3f,
                 barColor,

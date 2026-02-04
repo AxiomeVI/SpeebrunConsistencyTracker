@@ -11,7 +11,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
 {
     public DateTime StartedAt { get; } = DateTime.UtcNow;
     public int RoomCount { get; set; }
-    private readonly List<Attempt> _attempts = new();
+    private readonly List<Attempt> _attempts = [];
     public IReadOnlyList<Attempt> Attempts => _attempts;
 
 

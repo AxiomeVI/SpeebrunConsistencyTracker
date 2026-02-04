@@ -44,28 +44,29 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             return string.Join("\n", csvLines);
         }
 
-        public static string ExportSessionToOverlay(PracticeSession session)
+        public static bool ExportSessionToOverlay(PracticeSession session, out string result)
         {
+            result = "";
             if (session == null || session.TotalCompleted == 0)
-                return "";
+                return true;
 
             if (session.Equals(lastSession) && MetricEngine.SameSettings())
-                return lastSessionString;
+                return false;
 
             StatTextOrientation orientation = SpeebrunConsistencyTrackerModule.Settings.TextOrientation;
 
-            List<string> overlayString = new();
+            List<string> overlayString = [];
 
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
 
-            foreach ((MetricDescriptor desc, MetricResult result) in computedMetrics)
+            foreach ((MetricDescriptor desc, MetricResult metricResult) in computedMetrics)
             {
-                overlayString.Add($"{desc.InGameName()}" + ": " + $"{result.SegmentValue}");
+                overlayString.Add($"{desc.InGameName()}" + ": " + $"{metricResult.SegmentValue}");
             }
             string lineSeparator = orientation == StatTextOrientation.Horizontal ? " | " : "\n";
             lastSession = session.DeepClone();
-            lastSessionString = string.Join(lineSeparator, overlayString);
-            return lastSessionString;
+            result = string.Join(lineSeparator, overlayString);
+            return true;
         }
     }
 }

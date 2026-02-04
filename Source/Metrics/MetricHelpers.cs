@@ -10,7 +10,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
     public sealed class MetricContext
     {
-        private readonly Dictionary<string, object> _cache = new();
+        private readonly Dictionary<string, object> _cache = [];
 
         public T GetOrCompute<T>(string key, Func<T> compute)
         {
@@ -318,43 +318,53 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             public string Summary;
         }
 
-        public static PeakReport GetFullPeakAnalysis(List<TimeTicks> times, TimeTicks min, TimeTicks max,  bool bimodalDetected)
+        public static PeakReport GetFullPeakAnalysis(List<TimeTicks> times, TimeTicks min, TimeTicks max, bool bimodalDetected)
         {
             if (times == null || times.Count == 0) return new PeakReport();
 
+            const double NATURAL_FLOOR = 170000; // one frame
+
+            // 1. Determine how "precise" this segment needs to be
+            // We'll use 1% of the min as a target for bin resolution
+            double targetWidth = min * 0.01;
+            // 2. Ensure we don't try to be more precise than the natural floor
+            double binWidth = Math.Max(targetWidth, NATURAL_FLOOR);
             double range = (double)max - (double)min;
+            // 3. Calculate how many bins we need to cover the range at this resolution
+            // We add a +1 and Clamp to ensure we have a valid array size
+            int binCount = (int)Math.Ceiling(range / binWidth) + 1;
+            binCount = Math.Clamp(binCount, 5, 50); // Keep it within sane limits for performance
+            // 4. Re-calculate actual binWidth to perfectly fit the clamped count
+            double finalBinWidth = (binCount > 1) ? range / (binCount - 1) : NATURAL_FLOOR;
 
             // 1. Histogram / Peak Finding
-            int binCount = 15;
             int[] bins = new int[binCount];
             foreach (var t in times)
             {
-                int binIdx = (range == 0) ? 0 : (int)(((double)t - (double)min) / range * (binCount - 1));
-                bins[binIdx]++;
+                // int binIdx = (range == 0) ? 0 : (int)(((double)t - (double)min) / range * (binCount - 1));
+                // bins[binIdx]++;
+                int binIdx = (range <= 0) ? 0 : (int)Math.Floor((t - min) / finalBinWidth);
+                bins[Math.Clamp(binIdx, 0, binCount - 1)]++;
             }
 
-            var localMaxima = new List<(int index, int count)>();
-            for (int i = 0; i < binCount; i++)
-            {
-                bool left = (i == 0) || (bins[i] >= bins[i - 1]);
-                bool right = (i == binCount - 1) || (bins[i] >= bins[i + 1]);
-                if (left && right && bins[i] > 0) localMaxima.Add((i, bins[i]));
-            }
+            var localMaxima = FindLocalMaxima(bins, times.Count);
 
             // 2. Identify the Peak Centers
             double fastVal, slowVal;
             bool activeBimodal = bimodalDetected && localMaxima.Count >= 2;
-
             if (activeBimodal)
             {
+                // Take the two most significant peaks and sort them by time (index)
                 var topTwo = localMaxima.OrderByDescending(m => m.count).Take(2).OrderBy(m => m.index).ToList();
-                fastVal = (double)min + (topTwo[0].index * (range / (binCount - 1)));
-                slowVal = (double)min + (topTwo[1].index * (range / (binCount - 1)));
+                
+                fastVal = GetRefinedPeak(topTwo[0].index, bins, min, binWidth);
+                slowVal = GetRefinedPeak(topTwo[1].index, bins, min, binWidth);
             }
             else
             {
+                // Fallback to the single highest peak
                 var (index, count) = localMaxima.OrderByDescending(m => m.count).FirstOrDefault();
-                fastVal = slowVal = (double)min + (index * (range / (binCount - 1)));
+                fastVal = slowVal = GetRefinedPeak(index, bins, min, binWidth);
             }
 
             // 3. Importance Calculation (Clustering)
@@ -374,7 +384,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             var report = new PeakReport {
                 IsBimodal = activeBimodal,
                 FastPeak = CreateMetrics(fastCluster, fastVal, times.Count),
-                SlowPeak = activeBimodal ? CreateMetrics(slowCluster, slowVal, times.Count) : CreateMetrics(fastCluster, fastVal, times.Count),
+                SlowPeak = activeBimodal ? CreateMetrics(slowCluster, slowVal, times.Count) : new PeakMetrics(),
             };
 
             // 5. Sanity Check: If one peak is just a tiny outlier, downgrade to Unimodal
@@ -394,6 +404,41 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             report.Summary = GenerateNarrative(report);
 
             return report;
+        }
+
+        private static List<(int index, int count)> FindLocalMaxima(int[] bins, int totalCount)
+        {
+            var maxima = new List<(int, int)>();
+            double noiseFloor = totalCount * 0.03;
+
+            for (int i = 1; i < bins.Length - 1; i++)
+            {
+                if (bins[i] < noiseFloor) continue;
+
+                if (bins[i] > bins[i - 1]) // Start of a hill
+                {
+                    int j = i;
+                    while (j < bins.Length - 1 && bins[j + 1] == bins[i]) j++; // Handle plateaus
+
+                    if (j < bins.Length - 1 && bins[i] > bins[j + 1]) // It drops off
+                    {
+                        maxima.Add(((i + j) / 2, bins[i]));
+                        i = j;
+                    }
+                }
+            }
+            return maxima;
+        }
+
+        private static double GetRefinedPeak(int index, int[] bins, double min, double width)
+        {
+            double weightSum = bins[index];
+            double indexSum = (double)index * bins[index];
+
+            if (index > 0) { weightSum += bins[index - 1]; indexSum += (index - 1) * bins[index - 1]; }
+            if (index < bins.Length - 1) { weightSum += bins[index + 1]; indexSum += (index + 1) * bins[index + 1]; }
+
+            return min + (indexSum / weightSum * width);
         }
 
         private static PeakMetrics CreateMetrics(List<double> cluster, double peakValue, int totalCount)
@@ -428,7 +473,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             }
 
             TimeTicks timeLoss = report.SlowPeak.Value - report.FastPeak.Value;
-            int fastPercent = (int)(report.FastPeak.Weight * 100);
 
             // Logic for Interpretation
             string interpretation;
@@ -442,8 +486,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (report.FastPeak.Consistency < report.SlowPeak.Consistency && report.FastPeak.Weight > 0.5)
                 interpretation += " Warning: Your fast strat is significantly messier than your backup.";
 
-            return $"Bimodal Detected. Fast: {report.FastPeak.Value} ({fastPercent}% weight {FormatPercent(report.FastPeak.Consistency)} consistency). " +
-                $"Backup: {report.SlowPeak.Value}. Time loss: +{timeLoss}. {interpretation}";
+            return $"Bimodal Detected. Fast: {report.FastPeak.Value} ({FormatPercent(report.FastPeak.Weight)}% weight {FormatPercent(report.FastPeak.Consistency)} consistency). " +
+                $"Backup: {report.SlowPeak.Value} ({FormatPercent(report.SlowPeak.Weight)}% weight {FormatPercent(report.SlowPeak.Consistency)} consistency). Time loss: +{timeLoss}. {interpretation}";
         }
     }
 }

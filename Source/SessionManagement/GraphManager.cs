@@ -66,9 +66,7 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
         }
         
         level.Add(currentOverlay);
-        // Move to next index
-        currentIndex++;
-        Logger.Log(LogLevel.Info, "NextGraph", currentIndex.ToString());
+        currentIndex++;;
     }
 
     public void PreviousGraph(Level level)
@@ -76,14 +74,12 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
         currentIndex -= 2;
         if (currentIndex == -2)
             currentIndex = roomTimes.Count - 1;
-        Logger.Log(LogLevel.Info, "PreviousGraph", currentIndex.ToString());
         NextGraph(level);
     }
 
     public void CurrentGraph(Level level)
     {
         currentIndex -= 1;
-        Logger.Log(LogLevel.Info, "CurrentGraph", currentIndex.ToString());
         NextGraph(level);
     }
     

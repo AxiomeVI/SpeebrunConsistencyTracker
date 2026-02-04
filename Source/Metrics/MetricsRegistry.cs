@@ -16,12 +16,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.ConsistencyScore, mode)
             ),
             new MetricDescriptor(
-                "Multimodal Test",
-                "multimodal",
-                Metrics.MultimodalTest,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.MultimodalTest, mode)
-            ),
-            new MetricDescriptor(
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Export) ? $"Success Rate (≤{MetricEngine.GetTargetTimeTicks()})" : "Success Rate",
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Overlay) ? $"success (≤{MetricEngine.GetTargetTimeTicks()})" : "success",
                 Metrics.SuccessRate,
@@ -122,6 +116,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 "trend",
                 Metrics.TrendSlope,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.LinearRegression, mode)
+            ),
+            new MetricDescriptor(
+                "Multimodal Test",
+                "multimodal",
+                Metrics.MultimodalTest,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.MultimodalTest, mode)
             )
         ];
     }
