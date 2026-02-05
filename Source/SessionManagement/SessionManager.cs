@@ -4,6 +4,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
+using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 public static class SessionManager
@@ -78,6 +79,10 @@ public static class SessionManager
         var roomIndex = new RoomIndex(_currentRoomIndex);
         TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
         _currentAttemptBuilder.CompleteRoom(roomIndex, roomTime);
+        if (!_currentSession.CheckpointAlreadySet() && _currentRoomIndex == 1 && Engine.Scene is Level level)
+        {
+            _currentSession?.SetCheckpoint(level.Session.LevelData.Name);
+        }
         _currentRoomIndex++;
     }
 
