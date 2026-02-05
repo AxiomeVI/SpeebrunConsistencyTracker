@@ -4,22 +4,45 @@ using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 
 public sealed class PracticeSession : IEquatable<PracticeSession>
 {
     public DateTime StartedAt { get; } = DateTime.UtcNow;
+    public string levelName;
+    public string checkpoint;
+    private bool lockCheckpoint;
     public int RoomCount { get; set; }
     private readonly List<Attempt> _attempts = [];
     public IReadOnlyList<Attempt> Attempts => _attempts;
 
+    public PracticeSession ()
+    {
+        if (Engine.Scene is Level level)
+        {
+            checkpoint = level.Session.LevelData.Name;
+            string[] parts = level.Session.Area.GetSID().Split('-', 2);
+            levelName = parts.Length > 1 ? parts[1] : "unknown";
+        }
+    }
 
     public void AddAttempt(Attempt attempt)
     {
         ArgumentNullException.ThrowIfNull(attempt);
-
         _attempts.Add(attempt);
+    }
+
+    public void SetCheckpoint(string checkpoint)
+    {
+        this.checkpoint = checkpoint;
+        lockCheckpoint = true;
+    }
+
+    public bool CheckpointAlreadySet()
+    {
+        return lockCheckpoint;
     }
 
     public int TotalAttempts => _attempts.Count;

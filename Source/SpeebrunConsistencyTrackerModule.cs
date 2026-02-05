@@ -221,12 +221,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             if (segmentTime > 0)
                 SessionManager.CompleteRoom(segmentTime);
         }
-
-        Logger.Log(LogLevel.Info, "level.Session.Area.GetSID()", level.Session.Area.GetSID());
-        Logger.Log(LogLevel.Info, "level.Session.LevelData.Name", level.Session.LevelData.Name);
-        Logger.Log(LogLevel.Info, "level.Session.LevelData.ToString()", level.Session.LevelData.ToString());
-        Logger.Log(LogLevel.Info, "level.Session.MapData.ToString()", level.Session.MapData.ToString());
-        Logger.Log(LogLevel.Info, "level.Session.MapData.Data.Name", level.Session.MapData.Data.Name);
     }
 
     public static void Reset()
@@ -288,31 +282,25 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (Settings.ExportWithSRT)
             RoomTimerManager.CmdExportRoomTimes();
 
-        if (Engine.Scene is Level level)
+        PracticeSession currentSession = SessionManager.CurrentSession;
+        string baseFolder = Path.Combine(
+            Everest.PathGame,
+            "SpeebrunConsistencyTracker_DataExports",
+            currentSession.levelName,
+            currentSession.checkpoint
+        );
+        Directory.CreateDirectory(baseFolder);
+        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
         {
-            PracticeSession currentSession = SessionManager.CurrentSession;
-            string checkpoint = level.Session.LevelData.Name;
-            string[] parts = level.Session.Area.GetSID().Split('-', 2);
-            string levelName = parts.Length > 1 ? parts[1] : "unknown";
-            string baseFolder = Path.Combine(
-                Everest.PathGame,
-                "SpeebrunConsistencyTracker_DataExports",
-                levelName,
-                checkpoint
-            );
-            Directory.CreateDirectory(baseFolder);
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
-            {
-                writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession));
-            }
-            using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv")))
-            {
-                writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
-            }
-
-            PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));
+            writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession));
         }
+        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv")))
+        {
+            writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
+        }
+
+        PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));
     }
 
     public void ImportTargetTimeFromClipboard() {
