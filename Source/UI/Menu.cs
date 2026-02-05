@@ -11,6 +11,10 @@ public static class ModMenuOptions
 
     private const string ConfirmSfx = "event:/ui/main/button_select";
 
+    private static string GetTargetTime()
+    {
+        return _settings.Minutes.ToString() + ":" + _settings.Seconds.ToString("D2") + "." + _settings.MillisecondsFirstDigit.ToString() + _settings.MillisecondsSecondDigit.ToString() + _settings.MillisecondsThirdDigit.ToString();
+    }
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
         TextMenu.OnOff exportWithSRT = (TextMenu.OnOff)new TextMenu.OnOff(
@@ -71,11 +75,11 @@ public static class ModMenuOptions
         millisecondsThirdDigit.Change(v => _settings.MillisecondsThirdDigit = v);
 
 
-        TextMenu.Button inputTimeButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.InputTargetTimeId))
+        TextMenu.Button inputTimeButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime())
             .Pressed(() => {
                 Audio.Play(SFX.ui_main_savefile_rename_start);
                 menu.SceneAs<Overworld>().Goto<OuiModOptionString>().Init<OuiModOptions>(
-                    _settings.Minutes.ToString() + ":" + _settings.Seconds.ToString("D2") + "." + _settings.MillisecondsFirstDigit.ToString() + _settings.MillisecondsSecondDigit.ToString() + _settings.MillisecondsThirdDigit.ToString(),
+                    GetTargetTime(),
                     v => {
                         if (SpeebrunConsistencyTrackerModule.TryParseTime(v, out TimeSpan result))
                         {
@@ -107,6 +111,7 @@ public static class ModMenuOptions
                 millisecondsFirstDigit.Index = _settings.MillisecondsFirstDigit;
                 millisecondsSecondDigit.Index = _settings.MillisecondsSecondDigit;
                 millisecondsThirdDigit.Index = _settings.MillisecondsThirdDigit;
+                inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
             });
 
         TextMenu.Button resetButton = (TextMenu.Button)new TextMenu.Button(
@@ -120,10 +125,11 @@ public static class ModMenuOptions
                 millisecondsSecondDigit.Index = _settings.MillisecondsSecondDigit = 0;
                 millisecondsThirdDigit.Index = _settings.MillisecondsThirdDigit = 0;
                 _instance.SaveSettings();
+                inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
             });
 
-        targetTimeSubMenu.Add(setTargetTimeButton);
         targetTimeSubMenu.Add(inputTimeButton);
+        targetTimeSubMenu.Add(setTargetTimeButton);
         targetTimeSubMenu.Add(resetButton);
         targetTimeSubMenu.Add(minutes);
         targetTimeSubMenu.Add(seconds);

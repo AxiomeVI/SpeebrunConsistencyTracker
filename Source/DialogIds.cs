@@ -16,7 +16,6 @@ public static class DialogIds {
     // Target Time Menu
     public const string TargetTimeId = "TARGET_TIME";
     public const string InputTargetTimeId = "INPUT_TARGET_TIME";
-    public const string CurrentTargetTimeId = "CURRENT_TARGET";
     public const string ResetTargetTimeId = "RESET_TARGET_TIME";
     public const string TargetTimeFormatId = "TARGET_TIME_FORMAT";
     public const string Minutes = "MINUTES";

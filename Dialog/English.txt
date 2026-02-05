@@ -5,8 +5,7 @@ EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 
 # ==================== Target Time =============================
 TARGET_TIME=                           Set Target Time
-INPUT_TARGET_TIME=                     Set target
-CURRENT_TARGET=                        Current target time:
+INPUT_TARGET_TIME=                     Current target time
 TARGET_TIME_FORMAT=                    Format: mm:ss.123 or ss.123
 RESET_TARGET_TIME=                     Reset target time
 MINUTES=                               Minutes
@@ -24,7 +23,7 @@ TEXT_POSITION=                         Text position
 TEXT_ORIENTATION=                      Text orientation
 
 # ======================= Hotkeys ==============================
-KEY_STATS_EXPORT=                      Export stats to files or clipboard
+KEY_STATS_EXPORT=                      Export data to files or clipboard
 KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
 TOGGLE_GRAPH_OVERLAY=                  Display/Hide data graph
 KEY_CLEAR_STATS=                       Clear current session data
