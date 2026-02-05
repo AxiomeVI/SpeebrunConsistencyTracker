@@ -17,6 +17,7 @@ using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Mono.Cecil;
+using System.IO;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -257,17 +258,33 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             sb.Append(TextInput.GetClipboardText());
             sb.Append("\n\n\n");
         }
-        Logger.Log(LogLevel.Info, "ExportDataToCsv", "Fin ExportWithSRT");
         sb.Append(MetricsExporter.ExportSessionToCsv(currentSession));
-        Logger.Log(LogLevel.Info, "ExportDataToCsv", "MetricsExporter.ExportSessionToCsv");
         if (Settings.History)
         {
             sb.Append("\n\n\n");
             sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
         }
-        Logger.Log(LogLevel.Info, "ExportDataToCsv", "SessionHistoryCsvExporter.ExportSessionToCsv");
         TextInput.SetClipboardText(sb.ToString());
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
+    }
+
+    public static void ExportDataToFiles()
+    {
+        if (!Settings.Enabled)
+            return;
+        if (Settings.ExportWithSRT)
+            RoomTimerManager.CmdExportRoomTimes();
+        
+        PracticeSession currentSession = SessionManager.CurrentSession;
+        
+        string folderPath = "SpeebrunConsistencyTracker_DataExports";
+        Directory.CreateDirectory(Path.Combine(Everest.PathGame, folderPath));
+        using StreamWriter writer = File.CreateText(Path.Combine(Everest.PathGame, folderPath, $"{DateTime.Now:yyyyMMdd_HHmmss}_Metrics.csv"));
+        writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession));
+        using StreamWriter writer2 = File.CreateText(Path.Combine(Everest.PathGame, folderPath, $"{DateTime.Now:yyyyMMdd_HHmmss}_History.csv"));
+        writer2.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
+
+        PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));
     }
 
     public void ImportTargetTimeFromClipboard() {

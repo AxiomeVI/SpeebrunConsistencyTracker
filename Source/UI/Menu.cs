@@ -15,32 +15,20 @@ public static class ModMenuOptions
     {
         return _settings.Minutes.ToString() + ":" + _settings.Seconds.ToString("D2") + "." + _settings.MillisecondsFirstDigit.ToString() + _settings.MillisecondsSecondDigit.ToString() + _settings.MillisecondsThirdDigit.ToString();
     }
+
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
-        TextMenu.OnOff exportWithSRT = (TextMenu.OnOff)new TextMenu.OnOff(
-            Dialog.Clean(DialogIds.SrtExportId),
-            _settings.ExportWithSRT).Change(b => _settings.ExportWithSRT = b);
-        exportWithSRT.Visible = _settings.Enabled;
-
-        TextMenu.Button exportStatsButton = (TextMenu.Button)new TextMenu.Button(
-            Dialog.Clean(DialogIds.KeyStatsExportId))
-            .Pressed(() => {
-                Audio.Play(ConfirmSfx);
-                SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
-                });
-        exportStatsButton.Disabled = !_settings.Enabled || !inGame;
-
         TextMenuExt.SubMenu targetTimeSubMenu = CreateTargetTimeSubMenu(menu, inGame);
         TextMenuExt.SubMenu overlaySubMenu = CreateOverlaySubMenu(menu);
         TextMenuExt.SubMenu metricsSubMenu = CreateMetricsSubMenu(menu);
+        TextMenuExt.SubMenu exportSubmenu = CreateExportSubMenu(menu, inGame);
         
         // Master switch
         menu.Add(new TextMenu.OnOff(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled).Change(
             value =>
             {
                 _settings.Enabled = value;
-                exportWithSRT.Visible = value;
-                exportStatsButton.Visible = value && inGame;
+                exportSubmenu.Visible = value;
                 targetTimeSubMenu.Visible = value;
                 overlaySubMenu.Visible = value;
                 metricsSubMenu.Visible = value;
@@ -50,10 +38,44 @@ public static class ModMenuOptions
         ));
 
         menu.Add(targetTimeSubMenu);
+        menu.Add(exportSubmenu);
         menu.Add(metricsSubMenu);
         menu.Add(overlaySubMenu);
-        menu.Add(exportStatsButton);
-        menu.Add(exportWithSRT);
+    }
+
+    private static TextMenuExt.SubMenu CreateExportSubMenu(TextMenu menu, bool inGame)
+    {
+        TextMenuExt.SubMenu exportSubMenu = new(
+            Dialog.Clean(DialogIds.ExportSubMenu), 
+            false
+        );
+
+        ExportChoice[] enumExportChoice = Enum.GetValues<ExportChoice>();
+
+        TextMenu.Slider exportMode = new(Dialog.Clean(DialogIds.ExportModeId), i => enumExportChoice[i].ToString(), 0, 1, Array.IndexOf(enumExportChoice, _settings.PercentileValue));
+        exportMode.Change(v => _settings.ExportMode = enumExportChoice[v]);
+
+        TextMenu.OnOff exportWithSRT = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.SrtExportId),
+            _settings.ExportWithSRT).Change(b => _settings.ExportWithSRT = b);
+
+        TextMenu.Button exportStatsButton = (TextMenu.Button)new TextMenu.Button(
+            Dialog.Clean(DialogIds.KeyStatsExportId))
+            .Pressed(() => {
+                Audio.Play(ConfirmSfx);
+                if (_settings.ExportMode == ExportChoice.Clipboard)
+                    SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
+                else
+                    SpeebrunConsistencyTrackerModule.ExportDataToFiles();
+            });
+        exportStatsButton.Disabled = !inGame;
+
+        exportSubMenu.Add(exportStatsButton);
+        exportSubMenu.Add(exportMode);
+        exportSubMenu.Add(exportWithSRT);
+
+        exportSubMenu.Visible = _settings.Enabled;
+        return exportSubMenu;
     }
 
     private static TextMenuExt.SubMenu CreateTargetTimeSubMenu(TextMenu menu, bool inGame)

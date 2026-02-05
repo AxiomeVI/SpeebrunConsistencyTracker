@@ -3,7 +3,11 @@ public static class DialogIds {
     // Main Menu
     public const string SpeebrunConsistencyTracker = "SPEEBRUN_CONSISTENCY_TRACKER";
     public const string EnabledId = "ENABLE_MOD";
+
+    // Export submenu
     public const string SrtExportId = "EXPORT_WITH_SRT";
+    public const string ExportSubMenu = "EXPORT_SUBMENU";
+    public const string ExportModeId = "EXPORT_MOD";
 
     // Hotkeys
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";
@@ -30,6 +34,7 @@ public static class DialogIds {
     public const string PopupInvalidTargetTimeid = "INVALID_TIME_IMPORT";
     public const string PopupExportToClipBoardid = "EXPORT_TO_CLIPBOARD";
     public const string PopupInvalidExportid = "INVALID_EXPORT";
+    public const string PopupExportToFileid = "EXPORT_TO_FILE";
 
     // Ingame Overlay Menu
     public const string IngameOverlayId = "INGAME_OVERLAY";

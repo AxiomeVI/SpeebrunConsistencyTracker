@@ -9,6 +9,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         Both
     }
 
+    public enum ExportChoice {
+        Clipboard,
+        File
+    }
+
     [Flags]
     public enum MetricOutput
     {

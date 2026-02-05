@@ -8,6 +8,10 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     public bool Enabled { get; set; } = true;
 
+    // Export 
+    public bool ExportWithSRT { get; set; } = true;
+    public ExportChoice ExportMode { get; set; } = ExportChoice.Clipboard;
+
     // Target Time menu
     public int Minutes { get; set; } = 0;
     public int Seconds { get; set; } = 0;
@@ -46,8 +50,6 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Both;
     public bool ConsistencyScore  { get; set; } = true;
     public bool MultimodalTest { get; set; } = true;
-
-    public bool ExportWithSRT { get; set; } = true;
 
     #region Hotkeys
 

@@ -1,7 +1,6 @@
 # ====================== Mod Menu ==============================
 SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker   
 ENABLE_MOD=                            Enabled   
-EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 
 # ==================== Target Time =============================
 TARGET_TIME=                           Set Target Time
@@ -14,6 +13,11 @@ MILLISECONDS=                          Milliseconds
 MILLISECONDS_FIRST=                    1st digit
 MILLISECONDS_SECOND=                   2nd digit
 MILLISECONDS_THIRD=                    3rd digit
+
+# ====================== Export Menu ===========================
+EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
+EXPORT_SUBMENU=                        Export Settings
+EXPORT_MOD=                            Export mode
 
 # ======================= Overlay ==============================
 INGAME_OVERLAY=                        In-game Overlay
@@ -35,6 +39,7 @@ POPUP_TARGET_TIME_SET=                 Target time set to
 INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Please use m:ss.SSS or ss.SSS format
 EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 INVALID_EXPORT=                        No data to export
+EXPORT_TO_FILE=                        Session data exported to file
 
 # ======================== Stats ===============================
 STATS_SUBMENU=                         Metrics Settings
