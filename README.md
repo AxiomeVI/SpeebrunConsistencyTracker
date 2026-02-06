@@ -4,7 +4,7 @@ A Celeste mod designed to help speedrunners focus on measuring and improving con
 
 ## High level Features
 
-- Toggleable HUD that shows real-time stats at the end of each completed attempts
+- HUD that shows real-time stats at the end of each completed attempts
 - Scatter Plots and Histograms: Visualize your times distribution for individual rooms and the whole segment
 - Generate data exports including metrics for segments, individual rooms, and practice session history (csv format)
 
