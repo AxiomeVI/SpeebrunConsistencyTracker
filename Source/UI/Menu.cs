@@ -248,7 +248,10 @@ public static class ModMenuOptions
         TextMenu.Slider StandardDeviation = new(Dialog.Clean(DialogIds.StandardDeviationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.StandardDeviation));
         TextMenu.Slider CoefficientOfVariation = new(Dialog.Clean(DialogIds.CoefficientOfVariationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CoefficientOfVariation));
         TextMenu.Slider Percentile = new(Dialog.Clean(DialogIds.PercentileId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Percentile));
-        TextMenu.Slider PercentileValue = new(Dialog.Clean(DialogIds.PercentileValueId), i => enumPercentileValues[i].ToString(), 0, 7, Array.IndexOf(enumPercentileValues, _settings.PercentileValue));
+        TextMenu.Slider PercentileValue = new(Dialog.Clean(DialogIds.PercentileValueId), i => enumPercentileValues[i].ToString(), 0, 7, Array.IndexOf(enumPercentileValues, _settings.PercentileValue))
+        {
+            Disabled = _settings.Percentile == MetricOutputChoice.Off
+        };
         TextMenu.Slider InterquartileRange = new(Dialog.Clean(DialogIds.InterquartileRangeId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.InterquartileRange));
         TextMenu.Slider LinearRegression = new(Dialog.Clean(DialogIds.LinearRegressionId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.LinearRegression));
         LinearRegression.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.LinearRegressionSubTextId));
@@ -267,7 +270,10 @@ public static class ModMenuOptions
         Maximum.Change(v => _settings.Maximum = enumOutputChoiceValues[v]);
         StandardDeviation.Change(v => _settings.StandardDeviation = enumOutputChoiceValues[v]);
         CoefficientOfVariation.Change(v => _settings.CoefficientOfVariation = enumOutputChoiceValues[v]);
-        Percentile.Change(v => _settings.Percentile = enumOutputChoiceValues[v]);
+        Percentile.Change(v => {
+            _settings.Percentile = enumOutputChoiceValues[v];
+            PercentileValue.Disabled = v == 0;
+        });
         PercentileValue.Change(v => _settings.PercentileValue = enumPercentileValues[v]);
         InterquartileRange.Change(v => _settings.InterquartileRange = enumOutputChoiceValues[v]);
         LinearRegression.Change(v => _settings.LinearRegression = enumOutputChoiceValues[v]);
@@ -320,8 +326,7 @@ public static class ModMenuOptions
                 _settings.LinearRegression = MetricOutputChoice.Off;
                 SoB.Index = 0;
                 _settings.SoB = MetricOutputChoice.Off;
-                PercentileValue.Index = 7;
-                _settings.PercentileValue = PercentileChoice.P90;
+                PercentileValue.Disabled = true;
                 _instance.SaveSettings();
             });
 
@@ -372,8 +377,7 @@ public static class ModMenuOptions
                 _settings.LinearRegression = MetricOutputChoice.Both;
                 SoB.Index = 3;
                 _settings.SoB = MetricOutputChoice.Both;
-                PercentileValue.Index = 7;
-                _settings.PercentileValue = PercentileChoice.P90;
+                PercentileValue.Disabled = false;
                 _instance.SaveSettings();
             });
 
@@ -426,6 +430,7 @@ public static class ModMenuOptions
                 _settings.SoB = MetricOutputChoice.Both;
                 PercentileValue.Index = 7;
                 _settings.PercentileValue = PercentileChoice.P90;
+                PercentileValue.Disabled = false;
                 _instance.SaveSettings();
             });
 
