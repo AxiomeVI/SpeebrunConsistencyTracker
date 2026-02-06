@@ -2,7 +2,6 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
-using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using Monocle;
 
@@ -16,14 +15,13 @@ public static class SessionManager
     public static int EndOfChapterCutsceneSkipCounter = 0;
     public static bool EndOfChapterCutsceneSkipCheck = false;
 
-    public static void Reset()
+    public static void Clear()
     {
         _currentSession = null;
         _currentAttemptBuilder = null;
         _currentRoomIndex = 0;
         EndOfChapterCutsceneSkipCounter = 0;
         EndOfChapterCutsceneSkipCheck = false;
-        MetricsExporter.Reset();
     }
 
 
@@ -34,12 +32,11 @@ public static class SessionManager
         _currentRoomIndex = 0;
         EndOfChapterCutsceneSkipCounter = 0;
         EndOfChapterCutsceneSkipCheck = false;
-        MetricsExporter.Reset();
     }
 
     public static void OnClearState()
     {
-        Reset();
+        Clear();
     }
 
     public static void OnBeforeLoadState()

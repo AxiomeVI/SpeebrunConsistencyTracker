@@ -104,4 +104,13 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
             graph?.RemoveSelf();
         }
     }
+
+    public void Dispose()
+    {
+        RemoveGraphs();
+        currentOverlay = null;
+        scatterGraph = null;
+        segmentHistogram = null;
+        roomHistograms.Clear();
+    }
 }

@@ -74,5 +74,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
                 StatText.Render();
             }
         }
+
+        public override void Removed(Scene scene)
+        {
+            base.Removed(scene);
+            StatText = null;
+        }
+
+        public override void SceneEnd(Scene scene)
+        {
+            base.SceneEnd(scene);
+            StatText = null;
+        }
     }
 }

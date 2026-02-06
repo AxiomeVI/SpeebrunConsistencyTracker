@@ -12,11 +12,9 @@ using Celeste.Mod.SpeedrunTool.RoomTimer;
 using System.Text;
 using FMOD.Studio;
 using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
-using Monocle;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
-using Mono.Cecil;
 using System.IO;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
@@ -64,12 +62,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         typeof(RoomTimerIntegration).ModInterop();
         On.Celeste.Level.Update += LevelOnUpdate;
         Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
+        Everest.Events.Level.OnExit += Level_OnLevelExit;
     }
 
     public override void Unload() {
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
+        Everest.Events.Level.OnExit -= Level_OnLevelExit;
+        Clear();
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
@@ -97,6 +98,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         SessionManager.OnSaveState();
+        MetricsExporter.Clear();
     }
 
     public static void OnClearState()
@@ -104,6 +106,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         SessionManager.OnClearState();
+        MetricsExporter.Clear();
     }
 
     public static void OnBeforeLoadState(Level level)
@@ -129,11 +132,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         if (Settings.ButtonKeyStatsExport.Pressed) ExportDataToClipboard();
 
-        if (Settings.ButtonKeyImportTargetTime.Pressed) Instance.ImportTargetTimeFromClipboard();
+        if (Settings.ButtonKeyImportTargetTime.Pressed) ImportTargetTimeFromClipboard();
 
-        if (Settings.ButtonKeyClearStats.Pressed) SessionManager.Reset();
+        if (Settings.ButtonKeyClearStats.Pressed) Clear();
         
-        if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled && SessionManager.CurrentSession != null) {
+        if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled && SessionManager.IsActive) {
             if (Instance.graphManager == null)
             {
                 List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, SessionManager.CurrentSession.RoomCount).Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())];
@@ -172,6 +175,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         if (RoomTimerIntegration.RoomTimerIsCompleted())
         {
+            if (!SessionManager.IsActive)
+                return;
             if (SessionManager.HasActiveAttempt)
             {
                 // Logic to take care of srt flags, and split buttons: https://gamebanana.com/mods/639197 and https://gamebanana.com/mods/619910
@@ -212,9 +217,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled) 
             return;
 
-        if (isFromLoader)
-            Init();
-        
         if (SessionManager.HasActiveAttempt && playerIntro == Player.IntroTypes.Transition)
         {
             long segmentTime = RoomTimerIntegration.GetRoomTime();
@@ -223,19 +225,17 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
     }
 
-    public static void Reset()
-    {
-        SessionManager.Reset();
-        Instance.textOverlay?.RemoveSelf();
-        Instance.textOverlay = null;
-        Instance.graphManager?.RemoveGraphs();
-        Instance.graphManager = null;
+    private static void Level_OnLevelExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow) {
+        Clear();
     }
 
-    public static void Init()
+    public static void Clear()
     {
-        SessionManager.Reset();
-        Instance.graphManager?.RemoveGraphs();
+        MetricsExporter.Clear();
+        SessionManager.Clear();
+        Instance.textOverlay?.RemoveSelf();
+        Instance.textOverlay = null;
+        Instance.graphManager?.Dispose();
         Instance.graphManager = null;
     }
 
@@ -303,7 +303,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));
     }
 
-    public void ImportTargetTimeFromClipboard() {
+    public static void ImportTargetTimeFromClipboard() {
         if (!Settings.Enabled)
             return;
         string input = TextInput.GetClipboardText()?.Trim();
@@ -315,7 +315,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             Settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
             Settings.MillisecondsThirdDigit = result.Milliseconds % 10;
             PopupMessage($"{Dialog.Clean(DialogIds.PopupTargetTimeSetid)} {result:mm\\:ss\\.fff}");
-            SaveSettings();
+            Instance.SaveSettings();
         } else {
             PopupMessage($"{Dialog.Clean(DialogIds.PopupInvalidTargetTimeid)}");
         }

@@ -32,8 +32,7 @@ public static class ModMenuOptions
                 targetTimeSubMenu.Visible = value;
                 overlaySubMenu.Visible = value;
                 metricsSubMenu.Visible = value;
-                if (value) SpeebrunConsistencyTrackerModule.Init();
-                else SpeebrunConsistencyTrackerModule.Reset();
+                if (!value) SpeebrunConsistencyTrackerModule.Clear();
             }
         ));
 
@@ -127,7 +126,7 @@ public static class ModMenuOptions
             .Pressed(() =>
             {
                 Audio.Play(ConfirmSfx);
-                _instance.ImportTargetTimeFromClipboard();
+                SpeebrunConsistencyTrackerModule.ImportTargetTimeFromClipboard();
                 minutes.Index = _settings.Minutes;
                 seconds.Index = _settings.Seconds;
                 millisecondsFirstDigit.Index = _settings.MillisecondsFirstDigit;
