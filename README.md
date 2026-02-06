@@ -29,7 +29,7 @@ A Celeste mod designed to help speedrunners focus on measuring and improving con
 - SoB: Sum of Best
 - Median Absolute Deviation: measure of how spread out the run times are around the median
 - Consistency Score: Composite metric estimating how consistent times are. Tighter distributions, times closer to the best, and fewer resets result in a higher score.
-- Multimodal Test: detects multiple peaks in the time distribution. Multiple peaks usually indicate hit-or-miss strat in the room
+- Multimodal Test: detects multiple peaks in the time distribution. Multiple peaks usually indicate an hit-or-miss strat in a room
 - Room Dependency: measures how a poor time in a room impacts the next room, ranging from -1 to 1. a value of 0 indicates no effect, while 1 means a bad time always leads to a bad time in the following room and -1 means the opposite.
 
 ## Limitations
