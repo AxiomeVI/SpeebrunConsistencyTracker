@@ -2,14 +2,9 @@ using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms
 {
-    public readonly struct RoomIndex : IEquatable<RoomIndex>
+    public readonly struct RoomIndex(int value) : IEquatable<RoomIndex>
     {
-        public int Value { get; }
-
-        public RoomIndex(int value)
-        {
-            Value = value;
-        }
+        public int Value { get; } = value;
 
         public static implicit operator int(RoomIndex index) => index.Value;
         public static explicit operator RoomIndex(int value) => new(value);

@@ -47,28 +47,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         }
     }
 
-    public sealed class MetricDescriptor : IEquatable<MetricDescriptor>
+    public sealed class MetricDescriptor(
+        Func<string> csvHeader,
+        Func<string> inGameName,
+        Func<PracticeSession, MetricContext, bool, MetricResult> compute,
+        Func<MetricOutput, bool> isEnabled) : IEquatable<MetricDescriptor>
     {
-        public Func<string> CsvHeader { get; }
+        public Func<string> CsvHeader { get; } = csvHeader ?? throw new ArgumentNullException(nameof(csvHeader));
 
-        public Func<string> InGameName { get; }
+        public Func<string> InGameName { get; } = inGameName ?? throw new ArgumentNullException(nameof(inGameName));
 
-        public Func<PracticeSession, MetricContext, bool, MetricResult> Compute { get; }
+        public Func<PracticeSession, MetricContext, bool, MetricResult> Compute { get; } = compute ?? throw new ArgumentNullException(nameof(compute));
 
-        public Func<MetricOutput, bool> IsEnabled { get; }
-
-
-        public MetricDescriptor(
-            Func<string> csvHeader,
-            Func<string> inGameName,
-            Func<PracticeSession, MetricContext, bool, MetricResult> compute,
-            Func<MetricOutput, bool> isEnabled)
-        {
-            CsvHeader = csvHeader ?? throw new ArgumentNullException(nameof(csvHeader));
-            InGameName = inGameName ?? throw new ArgumentNullException(nameof(inGameName));
-            Compute = compute ?? throw new ArgumentNullException(nameof(compute));
-            IsEnabled = isEnabled ?? throw new ArgumentNullException(nameof(isEnabled));
-        }
+        public Func<MetricOutput, bool> IsEnabled { get; } = isEnabled ?? throw new ArgumentNullException(nameof(isEnabled));
 
         public MetricDescriptor(
             string csvHeader,
@@ -96,16 +87,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             => InGameName().GetHashCode();
     }
 
-    public sealed class MetricResult
+    public sealed class MetricResult(string segmentValue, IReadOnlyList<string> roomValues)
     {
-        public string SegmentValue { get; init; }
-        public IReadOnlyList<string> RoomValues { get; init; }
-
-        public MetricResult(string segmentValue, IReadOnlyList<string> roomValues)
-        {
-            SegmentValue = segmentValue ?? throw new ArgumentNullException(nameof(segmentValue));
-            RoomValues = roomValues ?? throw new ArgumentNullException(nameof(roomValues));
-        }
+        public string SegmentValue { get; init; } = segmentValue ?? throw new ArgumentNullException(nameof(segmentValue));
+        public IReadOnlyList<string> RoomValues { get; init; } = roomValues ?? throw new ArgumentNullException(nameof(roomValues));
     }
 
     public static class MetricHelper
@@ -235,20 +220,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (median <= 0) return 0;
             
-            // 1. Stability: Use Exponential Decay so small errors hurt more.
-            // CV-like measure using MAD and IQR
+            // 1. Stability: Use a Gaussian curve to provide a 'grace zone' for stability, followed by a sharp drop-off for high variance.
             double madCV = mad / median;
-            
-            //double stabilityScore = Math.Exp(-20 * madCV) * 0.5 + Math.Exp(-10 * iqrCV) * 0.5;
             double stabilityScore = Math.Exp(-50 * Math.Pow(madCV * stdCV, 2));
 
-            // 2. Floor Proximity: How close is the median to the PB/Min?
-            // If the gap is 10%, this falls to 0 quickly.
+            // 2. Floor Proximity: How close is the median to the session pb?
             double gap = (median - (double)min) / median;
-            //double floorProximity = Math.Max(0, 1.0 - Math.Pow(gap * 10.0, 2));
             double floorProximity = Math.Exp(-50 * Math.Pow(gap, 2));
 
-            // 3. Reliability: Multiplicative (If you reset, the whole score dies)
+            // 3. Reliability: Don't reset
             double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
             double reliability = completionRate * completionRate; // Penalizes high reset rates heavily
 
@@ -256,7 +236,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             // If ANY of these are low, the whole score crashes.
             double finalScore = stabilityScore * floorProximity * reliability;
 
-            return finalScore; // Returns 0.0 to 1.0
+            return Math.Clamp(finalScore, 0, 1.0);
         }
 
         public static double CalculateBC(List<TimeTicks> values, double mean)
@@ -322,7 +302,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             const double NATURAL_FLOOR = 170000; // one frame
 
             // 1. Determine how "precise" this segment needs to be
-            // We'll use 1% of the min as a target for bin resolution
+            // Use 1% of the min as a target for bin resolution
             double targetWidth = min * 0.01;
             // 2. Ensure we don't try to be more precise than the natural floor
             double binWidth = Math.Max(targetWidth, NATURAL_FLOOR);
@@ -338,8 +318,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             int[] bins = new int[binCount];
             foreach (var t in times)
             {
-                // int binIdx = (range == 0) ? 0 : (int)(((double)t - (double)min) / range * (binCount - 1));
-                // bins[binIdx]++;
                 int binIdx = (range <= 0) ? 0 : (int)Math.Floor((t - min) / finalBinWidth);
                 bins[Math.Clamp(binIdx, 0, binCount - 1)]++;
             }
@@ -364,7 +342,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 fastVal = slowVal = GetRefinedPeak(index, bins, min, binWidth);
             }
 
-            // 3. Importance Calculation (Clustering)
+            // 3. Clustering
             // Assign every run to the nearest peak to find Weight and Consistency
             var fastCluster = new List<double>();
             var slowCluster = new List<double>();
