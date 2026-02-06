@@ -311,19 +311,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                                     .ToList()
                     );
 
-                    if (roomSorted.Count == 0)
+                    if (roomSorted.Count != 0)
                         roomValues.Add("0");
                     else
                     {
                         TimeTicks worstRoom = context.GetOrCompute($"max_room_{r}", () => roomSorted[^1]);
                         roomValues.Add(worstRoom.ToString());
                     }
-
-                    roomValues.Add(
-                        roomSorted.Count == 0
-                            ? "0"
-                            : roomSorted[^1].ToString()
-                    );
                 }
             }
 

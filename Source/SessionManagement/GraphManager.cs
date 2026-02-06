@@ -31,6 +31,9 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
         if (currentIndex > roomTimes.Count)
         {
             currentIndex = -1; // Back to scatter
+        } else if (currentIndex < -1)
+        {
+            currentIndex = roomTimes.Count; // Goes to segment histogram
         }
         
         // Show appropriate graph
@@ -72,8 +75,6 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
     public void PreviousGraph(Level level)
     {
         currentIndex -= 2;
-        if (currentIndex == -2)
-            currentIndex = roomTimes.Count - 1;
         NextGraph(level);
     }
 

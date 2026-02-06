@@ -303,7 +303,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             // 1. Determine how "precise" this segment needs to be
             // Use 1% of the min as a target for bin resolution
-            double targetWidth = min * 0.01;
+            double targetWidth = min * 0.03;
             // 2. Ensure we don't try to be more precise than the natural floor
             double binWidth = Math.Max(targetWidth, NATURAL_FLOOR);
             double range = (double)max - (double)min;
@@ -358,8 +358,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             // 4. Build Metrics
             var report = new PeakReport {
                 IsBimodal = activeBimodal,
-                FastPeak = CreateMetrics(fastCluster, fastVal, times.Count),
-                SlowPeak = activeBimodal ? CreateMetrics(slowCluster, slowVal, times.Count) : new PeakMetrics(),
+                FastPeak = CreatePeakMetrics(fastCluster, fastVal, times.Count),
+                SlowPeak = activeBimodal ? CreateMCreatePeakMetricsetrics(slowCluster, slowVal, times.Count) : new PeakMetrics(),
             };
 
             // 5. Sanity Check: If one peak is just a tiny outlier, downgrade to Unimodal
@@ -416,7 +416,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return min + (indexSum / weightSum * width);
         }
 
-        private static PeakMetrics CreateMetrics(List<double> cluster, double peakValue, int totalCount)
+        private static PeakMetrics CreatePeakMetrics(List<double> cluster, double peakValue, int totalCount)
         {
             if (cluster.Count == 0) return new PeakMetrics();
             
@@ -437,7 +437,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (!report.IsBimodal)
             {
-                return $"Single execution mode at {report.FastPeak.Value}.";
+                return $"Single peak at {report.FastPeak.Value}.";
             }
 
             TimeTicks timeLoss = report.SlowPeak.Value - report.FastPeak.Value;

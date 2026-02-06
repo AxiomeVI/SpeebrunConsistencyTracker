@@ -35,6 +35,7 @@ public static class DialogIds {
     public const string PopupExportToClipBoardid = "EXPORT_TO_CLIPBOARD";
     public const string PopupInvalidExportid = "INVALID_EXPORT";
     public const string PopupExportToFileid = "EXPORT_TO_FILE";
+    public const string PopupDataClearId = "DATA_CLEAR";
 
     // Ingame Overlay Menu
     public const string IngameOverlayId = "INGAME_OVERLAY";

@@ -63,8 +63,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             double maxTime = (double)max;
             double range = maxTime - minTime;
             
-            // 1. Determine bin resolution - 1% of min time or 1 frame, whichever is larger
-            double targetWidth = minTime * 0.01;
+            // 1. Determine bin resolution - 3% of min time or 1 frame, whichever is larger
+            double targetWidth = minTime * 0.03;
             double binWidth = Math.Max(targetWidth, ONE_FRAME);
 
             // 2. Calculate bin count
@@ -245,9 +245,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         // Shared edge between bins
                         edgeTick = buckets[i].minTick;
                     }
+                    float tickX = x + i * barWidth;
+                    // Alternate Y position for labels
+                    bool isEven = i % 2 == 0;
+                    float labelY = isEven ? y + h + 10 : y + h + 30;
                     
-                    float labelX = x + i * barWidth;
-                    DrawEdgeLabel(edgeTick, labelX, y + h + 10);
+                    // Draw tick mark - longer for labels below
+                    float tickStartY = y + h;
+                    float tickEndY = isEven ? y + h + 5 : y + h + 25; // Longer for odd (lower labels)
+                    
+                    Draw.Line(
+                        new Vector2(tickX, tickStartY),
+                        new Vector2(tickX, tickEndY),
+                        axisColor,
+                        1f
+                    );
+                    
+                    DrawEdgeLabel(edgeTick, tickX, labelY);
                 }
             }
             

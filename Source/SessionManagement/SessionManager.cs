@@ -6,40 +6,16 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
-public static class SessionManager
+public class SessionManager
 {
-    private static PracticeSession? _currentSession;
-    private static AttemptBuilder? _currentAttemptBuilder;
+    private readonly PracticeSession _currentSession = new();
+    private AttemptBuilder _currentAttemptBuilder = new();
 
-    private static int _currentRoomIndex;
-    public static int EndOfChapterCutsceneSkipCounter = 0;
-    public static bool EndOfChapterCutsceneSkipCheck = false;
+    private int _currentRoomIndex;
+    public int EndOfChapterCutsceneSkipCounter = 0;
+    public bool EndOfChapterCutsceneSkipCheck = false;
 
-    public static void Clear()
-    {
-        _currentSession = null;
-        _currentAttemptBuilder = null;
-        _currentRoomIndex = 0;
-        EndOfChapterCutsceneSkipCounter = 0;
-        EndOfChapterCutsceneSkipCheck = false;
-    }
-
-
-    public static void OnSaveState()
-    {
-        _currentSession = new PracticeSession();
-        _currentAttemptBuilder = new AttemptBuilder();
-        _currentRoomIndex = 0;
-        EndOfChapterCutsceneSkipCounter = 0;
-        EndOfChapterCutsceneSkipCheck = false;
-    }
-
-    public static void OnClearState()
-    {
-        Clear();
-    }
-
-    public static void OnBeforeLoadState()
+    public void OnBeforeLoadState()
     {
         // If the previous attempt is incomplete and some room was timed, mark as DNF
         if (HasActiveAttempt && !RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
@@ -51,25 +27,20 @@ public static class SessionManager
         }
     }
 
-    public static void OnLoadState()
+    public void OnLoadState()
     {
-        if (_currentSession == null)
-        {
-            _currentSession = new PracticeSession();
-        }
-
         _currentAttemptBuilder = new AttemptBuilder();
         _currentRoomIndex = 0;
         EndOfChapterCutsceneSkipCounter = 0;
         EndOfChapterCutsceneSkipCheck = false;
     }
 
-    public static long CurrentSplitTime()
+    public long CurrentSplitTime()
     {
         return _currentAttemptBuilder.SegmentTime.Ticks;
     }
 
-    public static void CompleteRoom(long ticks)
+    public void CompleteRoom(long ticks)
     {
         if (!HasActiveAttempt)
             return;
@@ -84,7 +55,7 @@ public static class SessionManager
     }
 
 
-    public static void EndCurrentAttempt()
+    public void EndCurrentAttempt()
     {
         if (!HasActiveAttempt)
             return;
@@ -101,7 +72,6 @@ public static class SessionManager
         EndOfChapterCutsceneSkipCheck = false;
     }
 
-    public static PracticeSession? CurrentSession => _currentSession;
-    public static bool IsActive => _currentSession != null;
-    public static bool HasActiveAttempt => _currentSession != null && _currentAttemptBuilder != null;
+    public PracticeSession CurrentSession => _currentSession;
+    public bool HasActiveAttempt => _currentAttemptBuilder != null;
 }
