@@ -293,8 +293,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         string baseFolder = Path.Combine(
             Everest.PathGame,
             "SpeebrunConsistencyTracker_DataExports",
-            currentSession.levelName,
-            currentSession.checkpoint
+            SanitizeFileName(currentSession.levelName),
+            SanitizeFileName(currentSession.checkpoint)
         );
         Directory.CreateDirectory(baseFolder);
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -308,6 +308,17 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
 
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));
+    }
+
+    public static string SanitizeFileName(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+            return string.Empty;
+        var invalidChars = Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()).Distinct().ToArray();
+        var sanitized = new string(
+            [.. input.Where(ch => !invalidChars.Contains(ch))]
+        );
+        return sanitized.TrimEnd(' ', '.');
     }
 
     public static void ImportTargetTimeFromClipboard() {
