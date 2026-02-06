@@ -29,9 +29,10 @@ A Celeste mod designed to help speedrunners focus on measuring and improving con
 - SoB: Sum of Best
 - Median Absolute Deviation: measure of how spread out the run times are around the median
 - Consistency Score: Composite metric estimating how consistent times are. Tighter distributions, times closer to the best, and fewer resets result in a higher score.
-- Multimodal Test: detects multiple peaks in the time distribution indicating an hit-or-miss strat in a room. The Bimodality Coefficient is to be compared to the critical tresholf of 0.555 which indicates an uniform distribution; higher values point towards bimodality, whereas lower values point toward unimodality.
+- Bimodal Test: detects multiple peaks in the time distribution indicating an hit-or-miss strat in a room. The Bimodality Coefficient is to be compared to the critical tresholf of 0.555 which indicates an uniform distribution; higher values point towards bimodality, whereas lower values point toward unimodality.
 - Room Dependency: measures how a poor time in a room impacts the next room, ranging from -1 to 1. A value of 0 indicates no effect, while a high positive score suggests that a mistake in a room often leads to a bad time in the following room.
 
 ## Limitations
 
 - Multiple save states are not supported
+- Summit flags are not supported
