@@ -1,32 +1,32 @@
 ﻿using Monocle;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
+// Adaptated from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/TextOverlay.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
     [Tracked]
     public class TextOverlay : Entity {
 
-        private SpeebrunConsistencyTrackerModule Mod => SpeebrunConsistencyTrackerModule.Instance;
+        private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
 
         private TextComponent StatText { get; set; }
 
         public TextOverlay() {
             Depth = -101;
-            Tag = Tags.HUD | Tags.Global | Tags.PauseUpdate | Tags.TransitionUpdate;
+            Tag = Tags.HUD | Tags.Global;
 
             StatText = new TextComponent(true, true, StatTextPosition.TopLeft);
             InitStatTextOptions();
             ApplyModSettings();
         }
 
-        private void ApplyModSettings() {
-            var settings = SpeebrunConsistencyTrackerModule.Settings.IngameOverlay;
-            Visible = settings.OverlayEnabled;
-            SetTextVisible(settings.OverlayEnabled);
-            SetTextPosition(settings.TextPosition);
-            SetTextOffsetX(settings.TextOffsetX);
-            SetTextOffsetY(settings.TextOffsetY);
-            SetTextSize(settings.TextSize);
+        public void ApplyModSettings() {
+            Visible = _settings.OverlayEnabled;
+            SetTextVisible(_settings.OverlayEnabled);
+            SetTextPosition(_settings.TextPosition);
+            SetTextOffsetX(_settings.TextOffsetX);
+            SetTextOffsetY(_settings.TextOffsetY);
+            SetTextSize(_settings.TextSize);
         }
 
         private void InitStatTextOptions() {
@@ -69,10 +69,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public override void Render() {
             base.Render();
-            if (!SpeebrunConsistencyTrackerModule.Settings.Enabled) return;
-            if (StatText.Visible) {
+            if (_settings.Enabled && StatText.Visible)
+            {
                 StatText.Render();
             }
+        }
+
+        public override void Removed(Scene scene)
+        {
+            base.Removed(scene);
+            StatText = null;
+        }
+
+        public override void SceneEnd(Scene scene)
+        {
+            base.SceneEnd(scene);
+            StatText = null;
         }
     }
 }

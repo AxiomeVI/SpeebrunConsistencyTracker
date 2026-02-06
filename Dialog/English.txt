@@ -1,39 +1,59 @@
 # ====================== Mod Menu ==============================
 SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker   
-ENABLE_MOD=                            Enable   
+ENABLE_MOD=                            Enabled   
 
 # ==================== Target Time =============================
 TARGET_TIME=                           Set Target Time
+INPUT_TARGET_TIME=                     Current target time
 TARGET_TIME_FORMAT=                    Format: mm:ss.123 or ss.123
-MINUTES=                               minutes
-SECONDS=                               seconds  
-MILLISECONDS=                          milliseconds
+RESET_TARGET_TIME=                     Reset target time
+MINUTES=                               Minutes
+SECONDS=                               Seconds  
+MILLISECONDS=                          Milliseconds
 MILLISECONDS_FIRST=                    1st digit
 MILLISECONDS_SECOND=                   2nd digit
 MILLISECONDS_THIRD=                    3rd digit
 
+# ====================== Export Menu ===========================
+EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
+EXPORT_SUBMENU=                        Export Settings
+EXPORT_MOD=                            Export mode
+
 # ======================= Overlay ==============================
 INGAME_OVERLAY=                        In-game Overlay
-SHOW_IN_PAUSE_MENU=                    Display in pause menu
-SHOW_IN_PAUSE_MENU_SUBTEXT=            Display in-game overlay in the pause menu during gameplay
 OVERLAY_ENABLED=                       Enable overlay
 TEXT_SIZE=                             Text size
 TEXT_POSITION=                         Text position
+TEXT_ORIENTATION=                      Text orientation
 
 # ======================= Hotkeys ==============================
-KEY_STATS_EXPORT=                      Export stats to clipboard
+KEY_STATS_EXPORT=                      Export data
 KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
-TOGGLE_INGAME_OVERLAY=                 Enable/Disable In-game Overlay
-KEY_CLEAR_STATS=                       Clear current stats data
+TOGGLE_GRAPH_OVERLAY=                  Display/Hide data graph
+KEY_CLEAR_STATS=                       Clear current session data
+KEY_NEXT_GRAPH=                        Switch to next graph
+KEY_PREVIOUS_GRAPH=                    Switch to previous graph
+
+# ===================== Popup message ==========================
+POPUP_TARGET_TIME_SET=                 Target time set to
+INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Please use m:ss.SSS or ss.SSS format
+EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
+INVALID_EXPORT=                        No data to export
+EXPORT_TO_FILE=                        Session data exported to file
+DATA_CLEAR=                            Session data cleared
 
 # ======================== Stats ===============================
-STATS_SUBMENU=                         Statistics Settings
-RUN_COUNT=                             Completed Run Count
+STATS_SUBMENU=                         Metrics Settings
+EXPORT_ONLY=                           Export-only metrics
+COMPLETED_RUN_COUNT=                   Completed Run Count
 SUCCESS_RATE=                          Success Rate
-COMPLETION_RATE=                       Completion Rate
-RESET_SHARE                            Share of Resets
+TOTAL_RUN_COUNT=                       Total Run Count
+DNF_COUNT=                             DNF Count
+RESET_RATE=                            Reset Rate
+RESET_SHARE=                           Share of Resets
 AVERAGE=                               Average
 MEDIAN=                                Median
+MAD=                                   Median Absolute Deviation
 MINIMUM=                               Best
 MAXIMUM=                               Worst
 STANDARD_DEVIATION=                    Standard Deviation
@@ -41,10 +61,15 @@ COEFFICIENT_OF_VARIATION=              Coefficient of Variation
 TARGET_TIME_STAT=                      Target Time
 PERCENTILE=                            Percentile
 PERCENTILE_VALUE=                      Percentile Value
+IQR=                                   Interquartile Range
 RUN_HISTORY=                           Attempts History
 SOB=                                   Sum of Bests
 LINEAR_REGRESSION=                     Linear Regression
 LINEAR_REGRESSION_SUBTEXT=             The slope of the trend line
 SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
-COMPLETE_RUN_SUBTEXT=                  A run is considered incomplete if the timer started but the endpoint was never reached
-ONLY_EXPORT=                           Only available on export
+CONSISTENCY_SCORE=                     Consistency Score
+MULTIMODAL_TEST=                       Multimodal Test
+ROOM_DEPENDENCY=                       Room Dependency
+ALL_METRICS_OFF_BUTTON=                Turn off all metrics
+ALL_METRICS_ON_BUTTON=                 Turn on all metrics
+RESET_METRICS_BUTTON=                  Reset to default

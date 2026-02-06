@@ -2,10 +2,11 @@ using Microsoft.Xna.Framework;
 using Monocle;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
+// Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/StatTextComponent.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
-    public class TextComponent : Component {
+    public class TextComponent(bool active, bool visible, StatTextPosition position) : Component(active, visible) {
 
-        public StatTextPosition Position { get; set; } = StatTextPosition.TopLeft;
+        public StatTextPosition Position { get; set; } = position;
         public string Text { get; set; } = "";
         public bool OptionVisible { get; set; }
         public float Scale { get; set; } = 1f;
@@ -30,13 +31,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public float PosX { get; set; } = 0;
         public float PosY { get; set; } = 0;
+        public float LineSpacing { get; set; } = 1.1f;
 
         private static readonly int WIDTH = 1920;
         private static readonly int HEIGHT = 1080;
-
-        public TextComponent(bool active, bool visible, StatTextPosition position) : base(active, visible) {
-            Position = position;
-        }
 
         public void SetPosition() {
             SetPosition(Position);
@@ -111,16 +109,60 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public override void Render() {
             base.Render();
             
-            Font.DrawOutline(
-                FontFaceSize,
-                Text,
-                new Vector2(PosX, PosY),
-                Justify,
-                Vector2.One * Scale,
-                TextColor,
-                StrokeSize,
-                StrokeColor
-            );
+            // Split text by newlines
+            string[] lines = Text.Split('\n');
+            
+            if (lines.Length == 1)
+            {
+                // Single line - render as before
+                Font.DrawOutline(
+                    FontFaceSize,
+                    Text,
+                    new Vector2(PosX, PosY),
+                    Justify,
+                    Vector2.One * Scale,
+                    TextColor,
+                    StrokeSize,
+                    StrokeColor
+                );
+            }
+            else
+            {
+                // Multi-line - render each line with proper spacing
+                Vector2 sampleSize = ActiveFont.Measure(lines[0]) * Scale;
+                float lineHeight = sampleSize.Y * LineSpacing;
+                
+                // Calculate total height for vertical centering
+                float totalHeight = lineHeight * lines.Length;
+                
+                // Adjust starting Y position based on justify
+                float startY = PosY;
+                if (Justify.Y == 0.5f) // Middle justify
+                {
+                    startY -= totalHeight / 2;
+                }
+                else if (Justify.Y == 1f) // Bottom justify
+                {
+                    startY -= totalHeight;
+                }
+                
+                // Render each line
+                for (int i = 0; i < lines.Length; i++)
+                {
+                    float currentY = startY + i * lineHeight;
+                    
+                    Font.DrawOutline(
+                        FontFaceSize,
+                        lines[i],
+                        new Vector2(PosX, currentY),
+                        new Vector2(Justify.X, 0), // Only horizontal justify, vertical handled by offset
+                        Vector2.One * Scale,
+                        TextColor,
+                        StrokeSize,
+                        StrokeColor
+                    );
+                }
+            }
         }
     }
 }

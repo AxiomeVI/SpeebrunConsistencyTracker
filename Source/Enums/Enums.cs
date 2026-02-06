@@ -1,10 +1,25 @@
+using System;
+
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
 
-    public enum StatOutput {
+    public enum MetricOutputChoice {
         Off,
         Overlay,
         Export,
         Both
+    }
+
+    public enum ExportChoice {
+        Clipboard,
+        File
+    }
+
+    [Flags]
+    public enum MetricOutput
+    {
+        Off = 0,
+        Overlay = 1,
+        Export = 2
     }
 
     public enum PercentileChoice {
@@ -28,5 +43,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         BottomLeft,
         BottomCenter,
         BottomRight
-    } 
+    }
+
+    public enum StatTextOrientation
+    {
+        Horizontal,
+        Vertical
+    }
 }
