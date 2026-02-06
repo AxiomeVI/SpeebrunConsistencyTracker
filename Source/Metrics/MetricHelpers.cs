@@ -359,7 +359,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             var report = new PeakReport {
                 IsBimodal = activeBimodal,
                 FastPeak = CreatePeakMetrics(fastCluster, fastVal, times.Count),
-                SlowPeak = activeBimodal ? CreateMCreatePeakMetricsetrics(slowCluster, slowVal, times.Count) : new PeakMetrics(),
+                SlowPeak = activeBimodal ? CreatePeakMetrics(slowCluster, slowVal, times.Count) : new PeakMetrics(),
             };
 
             // 5. Sanity Check: If one peak is just a tiny outlier, downgrade to Unimodal
