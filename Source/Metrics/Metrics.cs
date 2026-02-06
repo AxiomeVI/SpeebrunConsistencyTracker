@@ -4,6 +4,8 @@ using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
+using System.Globalization;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
@@ -665,6 +667,41 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             }
 
             return new MetricResult(segmentValue, roomValues);
+        }
+
+        public static MetricResult RoomDepency(PracticeSession session, MetricContext context, bool isExport)
+        {
+            if (!isExport)
+                return new MetricResult("", []);
+            int totalAttempts = session.TotalAttempts;
+            if (totalAttempts < 10)
+                return new MetricResult("Insufficent data", []);
+
+            List<Attempt> attempts = [.. session.Attempts];
+
+            var roomValues = new List<string>
+            {
+                "" // First room doesn't depend on the previous one
+            };
+            int roomCount = session.RoomCount;
+            for (int i = 0; i < roomCount; i++)
+            {
+                var x = new List<double>(); // Room i times
+                var y = new List<double>(); // Room i+1 times
+                foreach (var attempt in attempts)
+                {
+                    // Only correlate if BOTH rooms exist in this specific attempt
+                    if (attempt.CompletedRooms.TryGetValue(new RoomIndex(i), out var ticksA) &&
+                        attempt.CompletedRooms.TryGetValue(new RoomIndex(i + 1), out var ticksB))
+                    {
+                        x.Add((double)ticksA);
+                        y.Add((double)ticksB);
+                    }
+                }
+                roomValues.Add((x.Count < 5) ? "" : MetricHelper.CalculatePearson(x, y).ToString("F2", CultureInfo.InvariantCulture));
+            }
+
+            return new MetricResult("", roomValues);
         }
     }
 }

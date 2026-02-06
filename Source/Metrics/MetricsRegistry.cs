@@ -118,6 +118,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.LinearRegression, mode)
             ),
             new MetricDescriptor(
+                "Room Dependency",
+                "r dependency",
+                Metrics.RoomDepency,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.RoomDependency, mode)
+            ),
+            new MetricDescriptor(
                 "Multimodal Test",
                 "multimodal",
                 Metrics.MultimodalTest,

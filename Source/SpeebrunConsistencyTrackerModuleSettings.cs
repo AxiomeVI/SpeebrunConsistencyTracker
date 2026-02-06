@@ -50,6 +50,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Both;
     public bool ConsistencyScore  { get; set; } = true;
     public bool MultimodalTest { get; set; } = true;
+    public bool RoomDependency { get; set; } = true;
 
     #region Hotkeys
 

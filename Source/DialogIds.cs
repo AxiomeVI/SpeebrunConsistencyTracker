@@ -73,4 +73,5 @@ public static class DialogIds {
     public const string ButtonAllOnId = "ALL_METRICS_ON_BUTTON";
     public const string ButtonResetId = "RESET_METRICS_BUTTON";
     public const string MultimodalTestId = "MULTIMODAL_TEST";
+    public const string RoomDependencyId = "ROOM_DEPENDENCY";
 }

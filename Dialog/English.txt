@@ -68,6 +68,7 @@ LINEAR_REGRESSION_SUBTEXT=             The slope of the trend line
 SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
 CONSISTENCY_SCORE=                     Consistency Score
 MULTIMODAL_TEST=                       Multimodal Test
+ROOM_DEPENDENCY=                       Room Dependency
 ALL_METRICS_OFF_BUTTON=                Turn off all metrics
 ALL_METRICS_ON_BUTTON=                 Turn on all metrics
 RESET_METRICS_BUTTON=                  Reset to default

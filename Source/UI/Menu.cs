@@ -232,6 +232,7 @@ public static class ModMenuOptions
         TextMenu.OnOff ResetShare = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId), _settings.ResetShare).Change(b => _settings.ResetShare = b);
         TextMenu.OnOff ConsistencyScore = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ConsistencyScoreId), _settings.ConsistencyScore).Change(b => _settings.ConsistencyScore = b);
         TextMenu.OnOff MultimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId), _settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
+        TextMenu.OnOff RoomDependency = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RoomDependencyId), _settings.RoomDependency).Change(b => _settings.RoomDependency = b);
 
         TextMenu.Slider SuccessRate = new(Dialog.Clean(DialogIds.SuccessRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SuccessRate));
         SuccessRate.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
@@ -292,6 +293,8 @@ public static class ModMenuOptions
                 _settings.ConsistencyScore = false;
                 MultimodalTest.Index = 0;
                 _settings.MultimodalTest = false;
+                RoomDependency.Index = 0;
+                _settings.RoomDependency = false;
                 SuccessRate.Index = 0;
                 _settings.SuccessRate = MetricOutputChoice.Off;
                 TargetTime.Index = 0;
@@ -343,6 +346,8 @@ public static class ModMenuOptions
                 _settings.ConsistencyScore = true;
                 MultimodalTest.Index = 1;
                 _settings.MultimodalTest = true;
+                RoomDependency.Index = 1;
+                _settings.RoomDependency = true;
                 SuccessRate.Index = 3;
                 _settings.SuccessRate = MetricOutputChoice.Both;
                 TargetTime.Index = 3;
@@ -394,6 +399,8 @@ public static class ModMenuOptions
                 _settings.ConsistencyScore = true;
                 MultimodalTest.Index = 1;
                 _settings.MultimodalTest = true;
+                RoomDependency.Index = 1;
+                _settings.RoomDependency = true;
                 SuccessRate.Index = 3;
                 _settings.SuccessRate = MetricOutputChoice.Both;
                 TargetTime.Index = 3;
@@ -460,6 +467,7 @@ public static class ModMenuOptions
         metricsSubMenu.Add(ResetShare);
         metricsSubMenu.Add(ConsistencyScore);
         metricsSubMenu.Add(MultimodalTest);
+        metricsSubMenu.Add(RoomDependency);
 
         metricsSubMenu.Visible = _settings.Enabled;
         return metricsSubMenu;

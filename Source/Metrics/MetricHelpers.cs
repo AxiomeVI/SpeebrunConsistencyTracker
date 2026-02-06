@@ -203,15 +203,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (sortedTimes == null || sortedTimes.Count == 0) return TimeTicks.Zero;
 
-            // Use your existing percentile logic to find the median
             double median = ComputePercentile(sortedTimes, 50).Ticks;
 
-            // Calculate absolute deviations from the median
             var deviations = sortedTimes
                 .Select(t => (long)Math.Round(Math.Abs(t.Ticks - median)))
                 .OrderBy(d => d);
 
-            // The MAD is the median of those deviations
             return ComputePercentile([.. deviations.Select(t => new TimeTicks(t))], 50);
         }
 
@@ -304,7 +301,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public struct PeakMetrics
         {
-            public TimeTicks Value;       // Time center of the peak
+            public TimeTicks Value;    // Time center of the peak
             public double Weight;      // % of total runs in this cluster
             public double Consistency; // How tight this cluster is (0.0 to 1.0)
             public int RunCount;       // Number of runs in this cluster
@@ -445,15 +442,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (cluster.Count == 0) return new PeakMetrics();
             
-            // Consistency: 1.0 is perfect, 0.0 is high variance. 
-            // We use Mean Absolute Deviation (MAD) relative to the peak.
-            // double avgDev = cluster.Average(t => Math.Abs(t - peakValue));
-            // double consistency = Math.Max(0, 1.0 - (avgDev / (peakValue * 0.1))); // Penalty starts if dev > 10% of time
-            // We use Standard Deviation instead of Average Deviation here
             double standardDeviation = Math.Sqrt(cluster.Average(t => Math.Pow(t - peakValue, 2)));
             double cv = standardDeviation / peakValue;
 
-            // A CV of 0.0 is perfect. A CV of 0.15 (15% variance) is usually considered 'messy'.
             double consistency = Math.Exp(-50 * Math.Pow(cv, 2));
 
             return new PeakMetrics {
@@ -468,26 +459,34 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (!report.IsBimodal)
             {
-                string consistencyDesc = report.FastPeak.Consistency > 0.8 ? "tight" : "loose";
-                return $"Single execution mode at {report.FastPeak.Value}. Your playstyle is {consistencyDesc}.";
+                return $"Single execution mode at {report.FastPeak.Value}.";
             }
 
             TimeTicks timeLoss = report.SlowPeak.Value - report.FastPeak.Value;
 
-            // Logic for Interpretation
-            string interpretation;
-            if (report.FastPeak.Weight > 0.7)
-                interpretation = "You've mostly mastered the main strat with occasional falls to backup.";
-            else if (report.FastPeak.Weight < 0.3)
-                interpretation = "You are primarily using a backup; the fast strat is currently a 'fluke'.";
-            else
-                interpretation = "You are currently split between your strat and a backup.";
-
-            if (report.FastPeak.Consistency < report.SlowPeak.Consistency && report.FastPeak.Weight > 0.5)
-                interpretation += " Warning: Your fast strat is significantly messier than your backup.";
-
             return $"Bimodal Detected. Fast: {report.FastPeak.Value} ({FormatPercent(report.FastPeak.Weight)}% weight {FormatPercent(report.FastPeak.Consistency)} consistency). " +
-                $"Backup: {report.SlowPeak.Value} ({FormatPercent(report.SlowPeak.Weight)}% weight {FormatPercent(report.SlowPeak.Consistency)} consistency). Time loss: +{timeLoss}. {interpretation}";
+                $"Backup: {report.SlowPeak.Value} ({FormatPercent(report.SlowPeak.Weight)}% weight {FormatPercent(report.SlowPeak.Consistency)} consistency). Time loss: +{timeLoss}.";
+        }
+
+        public static double CalculatePearson(List<double> x, List<double> y)
+        {
+            int n = x.Count;
+            double avgX = x.Average();
+            double avgY = y.Average();
+
+            double sumXY = 0, sumX2 = 0, sumY2 = 0;
+
+            for (int i = 0; i < n; i++)
+            {
+                double dX = x[i] - avgX;
+                double dY = y[i] - avgY;
+                sumXY += dX * dY;
+                sumX2 += dX * dX;
+                sumY2 += dY * dY;
+            }
+
+            double denominator = Math.Sqrt(sumX2 * sumY2);
+            return (denominator == 0) ? 0 : sumXY / denominator;
         }
     }
 }
