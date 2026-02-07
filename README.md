@@ -2,11 +2,30 @@
 
 A Celeste mod designed to help speedrunners focus on measuring and improving consistency. Track segment and room times with real-time statistics to emphasize repeatability over PBs
 
-## High level Features
+## High-level Features
 
 - HUD that shows real-time stats at the end of each completed attempts
 - Scatter Plots and Histograms: Visualize your times distribution for individual rooms and the whole segment
 - Generate data exports including metrics for segments, individual rooms, and practice session history (csv format)
+
+## Usage
+
+### 1. Training Workflow
+
+* **Set a Save State:** Starting a new training session. Creating or clearing a save state will reset all current session data
+* **Run the Segment:** Play through to the end. To maintain data integrity, always runs with the proper room count (or set an endpoint)
+* **Review Performance:** Every time you complete a run, a customizable overlay appears to display your latest session statistics
+
+### 2. Real-Time Feedback & Overlays
+
+Configure the overlay to display the metrics that matter most to your current goals:
+
+* **Target Time Tracking:** Define a goal time for the segment and track your **Success Rate** in real-time
+* **Live Histograms and Scatter plot:** Cycle through times distribution charts for the **entire segment** or **individual rooms** to see where your times are clustering (hotkeys needed)
+
+### 3. Exporting
+
+* **Data Export:** Export your complete session history and statistics to CSV (exported files are saved to the /SCT_Exports directory within your Celeste's installation folder)
 
 ## Available Metrics
 
