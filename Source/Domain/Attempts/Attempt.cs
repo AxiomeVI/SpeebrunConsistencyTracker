@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
@@ -12,7 +11,7 @@ public sealed class Attempt
 
     public TimeTicks SegmentTime { get; }
 
-    public IReadOnlyDictionary<RoomIndex, TimeTicks> CompletedRooms { get; }
+    public IReadOnlyDictionary<int, TimeTicks> CompletedRooms { get; }
 
     public DnfInfo? DnfInfo { get; }
 
@@ -21,7 +20,7 @@ public sealed class Attempt
     private Attempt(
         DateTime timestamp,
         AttemptOutcome outcome,
-        Dictionary<RoomIndex, TimeTicks> completedRooms,
+        Dictionary<int, TimeTicks> completedRooms,
         TimeTicks segmentTime,
         DnfInfo? dnf)
     {
@@ -34,7 +33,7 @@ public sealed class Attempt
 
     public static Attempt Completed(
         DateTime timestamp,
-        Dictionary<RoomIndex, TimeTicks> roomTicks,
+        Dictionary<int, TimeTicks> roomTicks,
         TimeTicks segmentTime)
     {
         return new Attempt(
@@ -48,12 +47,11 @@ public sealed class Attempt
 
     public static Attempt Dnf(
         DateTime timestamp,
-        Dictionary<RoomIndex, TimeTicks> completedRooms,
+        Dictionary<int, TimeTicks> completedRooms,
         TimeTicks segmentTime,
         DnfInfo dnf)
     {
-        if (dnf is null)
-            throw new ArgumentNullException(nameof(dnf));
+        ArgumentNullException.ThrowIfNull(dnf);
 
         return new Attempt(
             timestamp,

@@ -1,7 +1,6 @@
 using System.Text;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
@@ -31,7 +30,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
 
                 for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
                 {
-                    if (attempt.CompletedRooms.TryGetValue(new RoomIndex(roomIndex), out TimeTicks roomTime))
+                    if (attempt.CompletedRooms.TryGetValue(roomIndex, out TimeTicks roomTime))
                     {
                         sb.Append($",{roomTime}");
                     }

@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using System.Globalization;
 
@@ -454,7 +453,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 for (int index = 0; index < roomCount; index++)
                 {
-                    roomValues.Add(session.CompletedRunsPerRoom.GetValueOrDefault((RoomIndex)index).ToString());
+                    roomValues.Add(session.CompletedRunsPerRoom.GetValueOrDefault(index).ToString());
                 }
             }
 
@@ -470,7 +469,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 for (int index = 0; index < roomCount; index++)
                 {
-                    roomValues.Add(session.TotalAttemptsPerRoom.GetValueOrDefault((RoomIndex)index).ToString());
+                    roomValues.Add(session.TotalAttemptsPerRoom.GetValueOrDefault(index).ToString());
                 }
             }
 
@@ -486,7 +485,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 for (int index = 0; index < roomCount; index++)
                 {
-                    roomValues.Add(session.DnfPerRoom.GetValueOrDefault((RoomIndex)index).ToString());
+                    roomValues.Add(session.DnfPerRoom.GetValueOrDefault(index).ToString());
                 }
             }
 
@@ -509,8 +508,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 for (int index = 0; index < roomCount; index++)
                 {
-                    int roomDnfCount = session.DnfPerRoom.GetValueOrDefault((RoomIndex)index);
-                    int roomRunCount = session.TotalAttemptsPerRoom.GetValueOrDefault((RoomIndex)index);
+                    int roomDnfCount = session.DnfPerRoom.GetValueOrDefault(index);
+                    int roomRunCount = session.TotalAttemptsPerRoom.GetValueOrDefault(index);
                     string roomValue = "";
                     if (roomRunCount != 0)
                     {
@@ -536,7 +535,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 for (int index = 0; index < roomCount; index++)
                 {
-                    int roomDnfCount = session.DnfPerRoom.GetValueOrDefault((RoomIndex)index);
+                    int roomDnfCount = session.DnfPerRoom.GetValueOrDefault(index);
                     roomValues.Add(dnfCount == 0 ? "0%" : MetricHelper.FormatPercent((double)roomDnfCount / dnfCount));
                 }
             }
@@ -585,7 +584,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                     );
                     double roomAvg = context.GetOrCompute($"avg_room_{r}", () => roomTimes.Average(t => t.Ticks));
                     double stdRoom = context.GetOrCompute($"std_room_{r}", () => Math.Sqrt(roomTimes.Sum(t => Math.Pow(t.Ticks - roomAvg, 2)) / (roomTimes.Count - 1)));
-                    double roomResetRate = context.GetOrCompute($"resetRate_room_{r}", () => (double)session.DnfPerRoom.GetValueOrDefault((RoomIndex)r) / session.TotalAttemptsPerRoom.GetValueOrDefault((RoomIndex)r));
+                    double roomResetRate = context.GetOrCompute($"resetRate_room_{r}", () => (double)session.DnfPerRoom.GetValueOrDefault(r) / session.TotalAttemptsPerRoom.GetValueOrDefault(r));
                     double roomMedian = context.GetOrCompute($"med_room_{r}", () => MetricHelper.ComputePercentile(roomTimes, 50)).Ticks;
                     TimeTicks roomMin = context.GetOrCompute($"min_room_{r}", () => roomTimes[0]);
                     TimeTicks roomMAD = context.GetOrCompute($"mad_room_{r}", () => MetricHelper.ComputeMAD(roomTimes));
@@ -688,8 +687,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 foreach (var attempt in attempts)
                 {
                     // Only correlate if BOTH rooms exist in this specific attempt
-                    if (attempt.CompletedRooms.TryGetValue(new RoomIndex(i), out var ticksA) &&
-                        attempt.CompletedRooms.TryGetValue(new RoomIndex(i + 1), out var ticksB))
+                    if (attempt.CompletedRooms.TryGetValue(i, out var ticksA) &&
+                        attempt.CompletedRooms.TryGetValue(i + 1, out var ticksB))
                     {
                         x.Add((double)ticksA);
                         y.Add((double)ticksB);

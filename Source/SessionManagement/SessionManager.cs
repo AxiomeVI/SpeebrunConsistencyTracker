@@ -1,9 +1,7 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
-using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 public class SessionManager
@@ -20,7 +18,7 @@ public class SessionManager
         // If the previous attempt is incomplete and some room was timed, mark as DNF
         if (HasActiveAttempt && !RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
         {
-            var dnfRoomIndex = new RoomIndex(_currentRoomIndex);
+            var dnfRoomIndex = _currentRoomIndex;
             TimeTicks ticks = new(RoomTimerIntegration.GetRoomTime());
             _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
             EndCurrentAttempt();
@@ -44,7 +42,7 @@ public class SessionManager
     {
         if (!HasActiveAttempt)
             return;
-        var roomIndex = new RoomIndex(_currentRoomIndex);
+        var roomIndex = _currentRoomIndex;
         TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
         _currentAttemptBuilder.CompleteRoom(roomIndex, roomTime);
         _currentRoomIndex++;

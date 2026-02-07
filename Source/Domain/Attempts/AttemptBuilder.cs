@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
@@ -8,9 +7,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 public sealed class AttemptBuilder
 {
     private readonly DateTime _startTime;
-    private readonly Dictionary<RoomIndex, TimeTicks> _roomTicks = [];
+    private readonly Dictionary<int, TimeTicks> _roomTicks = [];
     private TimeTicks _segmentTime = TimeTicks.Zero;
-    private RoomIndex? _dnfRoom;
+    private int? _dnfRoom;
     private TimeTicks? _dnfTicks;
 
     public AttemptBuilder()
@@ -21,10 +20,10 @@ public sealed class AttemptBuilder
     public TimeTicks SegmentTime
         => _segmentTime;
 
-    public void CompleteRoom(RoomIndex room, TimeTicks ticks)
+    public void CompleteRoom(int room, TimeTicks ticks)
     {
         if (_roomTicks.ContainsKey(room))
-            throw new InvalidOperationException($"Room {room.Value} already completed");
+            throw new InvalidOperationException($"Room {room} already completed");
 
         if (_dnfRoom != null)
             throw new InvalidOperationException("Cannot complete room after DNF");
@@ -33,7 +32,7 @@ public sealed class AttemptBuilder
         _segmentTime += ticks;
     }
 
-    public void SetDnf(RoomIndex room, TimeTicks ticks)
+    public void SetDnf(int room, TimeTicks ticks)
     {
         if (_dnfRoom != null)
             throw new InvalidOperationException("DNF already set");
@@ -47,11 +46,11 @@ public sealed class AttemptBuilder
         if (_dnfRoom != null)
         {
             var dnfInfo = new DnfInfo(_dnfRoom.Value, _dnfTicks.Value);
-            return Attempt.Dnf(_startTime, new Dictionary<RoomIndex, TimeTicks>(_roomTicks), _segmentTime, dnfInfo);
+            return Attempt.Dnf(_startTime, new Dictionary<int, TimeTicks>(_roomTicks), _segmentTime, dnfInfo);
         }
         else
         {
-            return Attempt.Completed(_startTime, new Dictionary<RoomIndex, TimeTicks>(_roomTicks), _segmentTime);
+            return Attempt.Completed(_startTime, new Dictionary<int, TimeTicks>(_roomTicks), _segmentTime);
         }
     }
 }

@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Rooms;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Monocle;
 
@@ -35,26 +34,26 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
     public int TotalDnfs => _attempts.Count(a => a.Outcome == AttemptOutcome.Dnf);
     public int TotalCompleted => _attempts.Count(a => a.Outcome == AttemptOutcome.Completed);
 
-    public IReadOnlyDictionary<RoomIndex, int> TotalAttemptsPerRoom =>
+    public IReadOnlyDictionary<int, int> TotalAttemptsPerRoom =>
     _attempts
         .SelectMany(a =>
             Enumerable.Range(0, a.TotalRoomCount)
-                      .Select(r => (RoomIndex)r))
+                      .Select(r => r))
         .GroupBy(r => r)
         .ToDictionary(g => g.Key, g => g.Count());
 
-    public IReadOnlyDictionary<RoomIndex, int> DnfPerRoom =>
+    public IReadOnlyDictionary<int, int> DnfPerRoom =>
         _attempts
             .Where(a => !a.IsCompleted)
             .GroupBy(a => a.DnfInfo.Room)
             .ToDictionary(g => g.Key, g => g.Count());
 
-    public IReadOnlyDictionary<RoomIndex, int> CompletedRunsPerRoom =>
+    public IReadOnlyDictionary<int, int> CompletedRunsPerRoom =>
         _attempts
             .Where(a => a.IsCompleted || a.CompletedRooms.Count > 0)
             .SelectMany(a =>
                 Enumerable.Range(0, a.CompletedRooms.Count)
-                        .Select(r => new RoomIndex(r)))
+                        .Select(r => r))
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
 
@@ -66,8 +65,8 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
     public IEnumerable<TimeTicks> GetRoomTimes(int roomIndex) =>
         _attempts
             .Where(a => a.Outcome == AttemptOutcome.Completed)
-            .Where(a => a.CompletedRooms.ContainsKey(new RoomIndex(roomIndex)))
-            .Select(a => a.CompletedRooms[new RoomIndex(roomIndex)]);
+            .Where(a => a.CompletedRooms.ContainsKey(roomIndex))
+            .Select(a => a.CompletedRooms[roomIndex]);
 
     public bool Equals(PracticeSession other)
     {
