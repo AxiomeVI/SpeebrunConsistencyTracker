@@ -45,8 +45,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             return choice switch
             {
-                ColorChoice.BadelineHair => new Color(197, 80, 128),
-                ColorChoice.MadelineHair => new Color(255, 89, 99),
+                ColorChoice.BadelinePurple => new Color(197, 80, 128),
+                ColorChoice.MadelineRed => new Color(255, 89, 99),
                 ColorChoice.Blue => new Color(100, 149, 237),
                 ColorChoice.Coral => new Color(255, 127, 80),
                 ColorChoice.Cyan => new Color(0, 255, 255),

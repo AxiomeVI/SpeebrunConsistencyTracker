@@ -65,7 +65,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         Pink,
         LightGreen,
         Yellow,
-        MadelineHair,
-        BadelineHair
+        MadelineRed,
+        BadelinePurple
     }
 }
