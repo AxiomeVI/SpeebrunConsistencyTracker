@@ -288,7 +288,6 @@ public static class ModMenuOptions
         };
         TextMenu.Slider InterquartileRange = new(Dialog.Clean(DialogIds.InterquartileRangeId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.InterquartileRange));
         TextMenu.Slider LinearRegression = new(Dialog.Clean(DialogIds.LinearRegressionId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.LinearRegression));
-        LinearRegression.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.LinearRegressionSubTextId));
         TextMenu.Slider SoB = new(Dialog.Clean(DialogIds.SoBId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SoB));
 
         SuccessRate.Change(v => _settings.SuccessRate = enumOutputChoiceValues[v]);

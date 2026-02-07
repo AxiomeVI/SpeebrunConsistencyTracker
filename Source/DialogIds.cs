@@ -71,7 +71,6 @@ public static class DialogIds {
     public const string SuccessRateSubTextId = "SUCCESS_RATE_SUBTEXT";
     public const string CompletedRunCountId = "COMPLETED_RUN_COUNT";
     public const string LinearRegressionId = "LINEAR_REGRESSION";
-    public const string LinearRegressionSubTextId = "LINEAR_REGRESSION_SUBTEXT";
     public const string SoBId = "SOB";
     public const string TotalRunCountId = "TOTAL_RUN_COUNT";
     public const string DnfCountId = "DNF_COUNT";
