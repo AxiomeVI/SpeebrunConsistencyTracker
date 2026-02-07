@@ -222,7 +222,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float columnWidth = w / totalColumns;
                 
                 Random random = new(42); // Fixed seed for consistent positions, we don't really need these anymore with cache...
-                float baseRadius = 3f;
+                float baseRadius = 2f;
                 
                 // Draw room data
                 for (int roomIndex = 0; roomIndex < roomDataList.Count; roomIndex++)
