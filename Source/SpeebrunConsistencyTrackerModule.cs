@@ -16,6 +16,7 @@ using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using System.IO;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -132,7 +133,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         orig(self);
         if (!Settings.Enabled) return;
 
-        if (Settings.ButtonKeyStatsExport.Pressed) ExportDataToClipboard();
+        if (Settings.ButtonKeyStatsExport.Pressed) 
+        {
+            if (Settings.ExportMode == ExportChoice.Clipboard)
+                ExportDataToClipboard();
+            else
+                ExportDataToFiles();
+        }
 
         if (Settings.ButtonKeyImportTargetTime.Pressed) ImportTargetTimeFromClipboard();
 
@@ -292,16 +299,16 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         PracticeSession currentSession = Instance.sessionManager.CurrentSession;
         string baseFolder = Path.Combine(
             Everest.PathGame,
-            "SpeebrunConsistencyTracker_DataExports",
+            "SCT_Exports",
             SanitizeFileName(currentSession.levelName)
         );
         Directory.CreateDirectory(baseFolder);
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{SanitizeFileName(currentSession.checkpoint)}_Metrics_{timestamp}.csv")))
+        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
         {
             writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession));
         }
-        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{SanitizeFileName(currentSession.checkpoint)}_History_{timestamp}.csv")))
+        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv")))
         {
             writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
         }

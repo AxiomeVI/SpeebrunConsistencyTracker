@@ -31,7 +31,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool History { get; set; } = true;
     public MetricOutputChoice SuccessRate { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice TargetTime { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice CompletedRunCount { get; set; } = MetricOutputChoice.Both;
+    public MetricOutputChoice CompletedRunCount { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice TotalRunCount { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice DnfCount { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice Average { get; set; } = MetricOutputChoice.Both;
@@ -47,7 +47,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice InterquartileRange { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice LinearRegression { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Both;
+    public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Both;
     public bool MultimodalTest { get; set; } = true;
     public bool RoomDependency { get; set; } = true;

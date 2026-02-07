@@ -51,7 +51,7 @@ public static class ModMenuOptions
 
         ExportChoice[] enumExportChoice = Enum.GetValues<ExportChoice>();
 
-        TextMenu.Slider exportMode = new(Dialog.Clean(DialogIds.ExportModeId), i => enumExportChoice[i].ToString(), 0, 1, Array.IndexOf(enumExportChoice, _settings.PercentileValue));
+        TextMenu.Slider exportMode = new(Dialog.Clean(DialogIds.ExportModeId), i => enumExportChoice[i].ToString(), 0, 1, Array.IndexOf(enumExportChoice, _settings.ExportMode));
         exportMode.Change(v => _settings.ExportMode = enumExportChoice[v]);
 
         TextMenu.OnOff exportWithSRT = (TextMenu.OnOff)new TextMenu.OnOff(
@@ -72,6 +72,8 @@ public static class ModMenuOptions
         exportSubMenu.Add(exportStatsButton);
         exportSubMenu.Add(exportMode);
         exportSubMenu.Add(exportWithSRT);
+
+        exportMode.AddDescription(exportSubMenu, menu, Dialog.Clean(DialogIds.ExportPathId));
 
         exportSubMenu.Visible = _settings.Enabled;
         return exportSubMenu;
@@ -405,8 +407,8 @@ public static class ModMenuOptions
                 _settings.SuccessRate = MetricOutputChoice.Both;
                 TargetTime.Index = 3;
                 _settings.TargetTime = MetricOutputChoice.Both;
-                CompletedRunCount.Index = 3;
-                _settings.CompletedRunCount = MetricOutputChoice.Both;
+                CompletedRunCount.Index = 2;
+                _settings.CompletedRunCount = MetricOutputChoice.Export;
                 TotalRunCount.Index = 3;
                 _settings.TotalRunCount = MetricOutputChoice.Both;
                 DnfCount.Index = 3;
@@ -415,8 +417,8 @@ public static class ModMenuOptions
                 _settings.Average = MetricOutputChoice.Both;
                 Median.Index = 3;
                 _settings.Median = MetricOutputChoice.Both;
-                MedianAbsoluteDeviation.Index = 3;
-                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Both;
+                MedianAbsoluteDeviation.Index = 2;
+                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Export;
                 ResetRate.Index = 2;
                 _settings.ResetRate = MetricOutputChoice.Export;
                 Minimum.Index = 2;

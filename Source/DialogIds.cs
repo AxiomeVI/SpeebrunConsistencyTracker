@@ -8,6 +8,7 @@ public static class DialogIds {
     public const string SrtExportId = "EXPORT_WITH_SRT";
     public const string ExportSubMenu = "EXPORT_SUBMENU";
     public const string ExportModeId = "EXPORT_MOD";
+    public const string ExportPathId = "EXPORT_PATH";
 
     // Hotkeys
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";

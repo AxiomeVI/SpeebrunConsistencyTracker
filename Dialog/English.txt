@@ -18,6 +18,7 @@ MILLISECONDS_THIRD=                    3rd digit
 EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 EXPORT_SUBMENU=                        Export Settings
 EXPORT_MOD=                            Export mode
+EXPORT_PATH=                           files are exported to gamePath/SCT_Exports
 
 # ======================= Overlay ==============================
 INGAME_OVERLAY=                        In-game Overlay
