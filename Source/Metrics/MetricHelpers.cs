@@ -295,24 +295,25 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             public string Summary;
         }
 
-        public static PeakReport GetFullPeakAnalysis(List<TimeTicks> times, TimeTicks min, TimeTicks max, bool bimodalDetected)
+        public static PeakReport GetFullPeakAnalysis(List<TimeTicks> times, TimeTicks min, TimeTicks max, TimeTicks iqr, bool bimodalDetected)
         {
             if (times == null || times.Count == 0) return new PeakReport();
 
-            const double NATURAL_FLOOR = 170000; // one frame
+            const double ONE_FRAME = 170000; // one frame
 
             // 1. Determine how "precise" this segment needs to be
-            // Use 1% of the min as a target for bin resolution
-            double targetWidth = min * 0.03;
+            // Use 10% of the min or the Freedman-Diaconis rule as a target for bin resolution
+            double FreedmanDiaconis_width = 2 * iqr * Math.Pow(times.Count, -1.0 / 3.0);
+            double heuristic_width = min * 0.1;
             // 2. Ensure we don't try to be more precise than the natural floor
-            double binWidth = Math.Max(targetWidth, NATURAL_FLOOR);
+            double binWidth = Math.Max(Math.Min(heuristic_width, FreedmanDiaconis_width), ONE_FRAME);
             double range = (double)max - (double)min;
             // 3. Calculate how many bins we need to cover the range at this resolution
             // We add a +1 and Clamp to ensure we have a valid array size
             int binCount = (int)Math.Ceiling(range / binWidth) + 1;
             binCount = Math.Clamp(binCount, 5, 50); // Keep it within sane limits for performance
             // 4. Re-calculate actual binWidth to perfectly fit the clamped count
-            double finalBinWidth = (binCount > 1) ? range / (binCount - 1) : NATURAL_FLOOR;
+            double finalBinWidth = (binCount > 1) ? range / (binCount - 1) : ONE_FRAME;
 
             // 1. Histogram / Peak Finding
             int[] bins = new int[binCount];

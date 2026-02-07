@@ -1,4 +1,5 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -29,7 +30,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         // Histogram data (cached)
         private List<(long minTick, long maxTick, int count)> buckets;
         private int maxCount;
-        
+
         public HistogramOverlay(string roomName, List<TimeTicks> times, Color barColor, Vector2? pos = null)
         {
             this.roomName = roomName;
@@ -44,7 +45,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             );
             
             Tag = Tags.HUD | Tags.Global;
-            
             ComputeHistogram();
         }
         
@@ -57,15 +57,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return;
             }
             
-            long min = times.Min(t => t.Ticks);
-            long max = times.Max(t => t.Ticks);
-            double minTime = (double)min;
-            double maxTime = (double)max;
+            TimeTicks[] sortedTicks = [.. times.OrderBy(t => t)];
+            long minTime = sortedTicks[0].Ticks;
+            long maxTime = sortedTicks[^1].Ticks;
             double range = maxTime - minTime;
             
-            // 1. Determine bin resolution - 3% of min time or 1 frame, whichever is larger
-            double targetWidth = minTime * 0.03;
-            double binWidth = Math.Max(targetWidth, ONE_FRAME);
+            // 1. Determine bin resolution - 10% of min time or Freedman-Diaconis rule, whichever is low (or one frame is both are too low)
+            double q1 = MetricHelper.ComputePercentile(sortedTicks, 25);
+            double q3 = MetricHelper.ComputePercentile(sortedTicks, 75);
+            double iqr = q3 - q1;
+            double FreedmanDiaconis_width = 2 * iqr * Math.Pow(times.Count, -1.0 / 3.0);
+            double heuristic_width = minTime * 0.1;
+            double binWidth = Math.Max(Math.Min(heuristic_width, FreedmanDiaconis_width), ONE_FRAME);
 
             // 2. Calculate bin count
             int binCount;
@@ -80,12 +83,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // 3. Recalculate exact bin width to perfectly divide the range
             double finalBinWidth = (binCount > 1) ? range / binCount : binWidth;
             
+            // 4. Assign each time to a bin
             int[] bins = new int[binCount];
             foreach (var time in times)
             {
                 int binIdx = (range <= 0) 
                     ? 0 
-                    : (int)Math.Floor((time.Ticks - min) / finalBinWidth);
+                    : (int)Math.Floor((time.Ticks - minTime) / finalBinWidth);
                 
                 binIdx = Math.Clamp(binIdx, 0, binCount - 1);
                 bins[binIdx]++;
@@ -95,10 +99,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             buckets = [];
             for (int i = 0; i < binCount; i++)
             {
-                long bucketMin = min + (long)(i * finalBinWidth);
+                long bucketMin = minTime + (long)(i * finalBinWidth);
                 long bucketMax = (i == binCount - 1) 
-                    ? max 
-                    : min + (long)((i + 1) * finalBinWidth);
+                    ? maxTime 
+                    : minTime + (long)((i + 1) * finalBinWidth);
                 
                 buckets.Add((bucketMin, bucketMax, bins[i]));
             }
@@ -118,7 +122,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float graphY = position.Y + margin;
             float graphWidth = width - margin * 2;
             float graphHeight = height - margin * 2;
-            
             DrawAxes(graphX, graphY, graphWidth, graphHeight);
             DrawBars(graphX, graphY, graphWidth, graphHeight);
             DrawLabels(graphX, graphY, graphWidth, graphHeight);

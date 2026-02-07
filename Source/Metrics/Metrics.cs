@@ -430,13 +430,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 for (int i = 0; i < roomCount; i++)
                 {
                     string roomKey = $"room_{i}_values_sorted";
-                    var times = context.GetOrCompute(
+                    var roomTimes = context.GetOrCompute(
                         roomKey,
                         () => session.GetRoomTimes(i).OrderBy(t => t).ToList()
                     );
 
-                    TimeTicks roomQ1 = context.GetOrCompute($"q1_room_{i}", () => MetricHelper.ComputePercentile(times, 25));
-                    TimeTicks roomQ3 = context.GetOrCompute($"q3_room_{i}", () => MetricHelper.ComputePercentile(times, 75));
+                    TimeTicks roomQ1 = context.GetOrCompute($"q1_room_{i}", () => MetricHelper.ComputePercentile(roomTimes, 25));
+                    TimeTicks roomQ3 = context.GetOrCompute($"q3_room_{i}", () => MetricHelper.ComputePercentile(roomTimes, 75));
                     roomValues.Add("[" + roomQ1 + "; " + roomQ3 + "]");
                 }
             }
@@ -634,11 +634,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double stdSegment = context.GetOrCompute("std_segment", () => Math.Sqrt(segmentValues.Sum(t => Math.Pow(t.Ticks - avgSegment, 2)) / (segmentValues.Count - 1)));
             TimeTicks segmentMin = context.GetOrCompute("min_segment", () => segmentValues[0]);
             TimeTicks segmentMax = context.GetOrCompute("max_segment", () => segmentValues[^1]);
+            TimeTicks segmentQ1 = context.GetOrCompute("q1_segment", () => MetricHelper.ComputePercentile(segmentValues, 25));
+            TimeTicks segmentQ3 = context.GetOrCompute("q3_segment", () => MetricHelper.ComputePercentile(segmentValues, 75));
             
             double bc = MetricHelper.CalculateBC(segmentValues, avgSegment);
             bool hasPhysicalGap = MetricHelper.DetectSignificantGap(segmentValues, stdSegment);
             bool isBimodal = bc > 0.555 && hasPhysicalGap;
-            MetricHelper.PeakReport peak = MetricHelper.GetFullPeakAnalysis(segmentValues, segmentMin, segmentMax, isBimodal);
+            MetricHelper.PeakReport peak = MetricHelper.GetFullPeakAnalysis(segmentValues, segmentMin, segmentMax, segmentQ3 - segmentQ1, isBimodal);
             string segmentValue = bc.ToString("F3")  + "; " + peak.Summary;
 
             int roomCount = session.RoomCount;
@@ -655,10 +657,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 double stdRoom = context.GetOrCompute($"std_room_{r}", () => Math.Sqrt(roomTimes.Sum(t => Math.Pow(t.Ticks - roomAvg, 2)) / (roomTimes.Count - 1)));
                 TimeTicks maxRoom = context.GetOrCompute($"max_room_{r}", () => roomTimes[^1]);
                 TimeTicks minRoom = context.GetOrCompute($"min_room_{r}", () => roomTimes[0]);
+                TimeTicks roomQ1 = context.GetOrCompute($"q1_room_{r}", () => MetricHelper.ComputePercentile(roomTimes, 25));
+                TimeTicks roomQ3 = context.GetOrCompute($"q3_room_{r}", () => MetricHelper.ComputePercentile(roomTimes, 75));
                 double bcRoom = MetricHelper.CalculateBC(roomTimes, roomAvg);
                 bool hasPhysicalGapRoom = MetricHelper.DetectSignificantGap(roomTimes, stdRoom);
                 bool isBimodalRoom = bcRoom > 0.555 && hasPhysicalGapRoom;
-                MetricHelper.PeakReport peakRoom = MetricHelper.GetFullPeakAnalysis(roomTimes, minRoom, maxRoom, isBimodalRoom);
+                MetricHelper.PeakReport peakRoom = MetricHelper.GetFullPeakAnalysis(roomTimes, minRoom, maxRoom, roomQ3 - roomQ1, isBimodalRoom);
                 roomValues.Add(bcRoom.ToString("F3") + "; " + peakRoom.Summary);
             }
 
