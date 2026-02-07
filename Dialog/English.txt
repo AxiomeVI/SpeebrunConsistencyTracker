@@ -23,9 +23,14 @@ EXPORT_PATH=                           files are exported to gamePath/SCT_Export
 # ======================= Overlay ==============================
 INGAME_OVERLAY=                        In-game Overlay
 OVERLAY_ENABLED=                       Enable overlay
-TEXT_SIZE=                             Text size
-TEXT_POSITION=                         Text position
-TEXT_ORIENTATION=                      Text orientation
+TEXT_SIZE=                             Size
+TEXT_POSITION=                         Position
+TEXT_ORIENTATION=                      Orientation
+TEXT_ALPHA=                            Alpha
+TEXT_OVERLAY=                          Text Overlay
+GRAPH_OVERLAY=                         Graphs Overlay
+ROOM_COLOR=                            Room graph color
+SEGMENT_COLOR=                         Segment graph color
 
 # ======================= Hotkeys ==============================
 KEY_STATS_EXPORT=                      Export data

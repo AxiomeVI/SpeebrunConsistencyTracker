@@ -36,8 +36,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private const long ONE_FRAME = 170000;
 
-    private GraphManager graphManager;
-    private TextOverlay textOverlay;
+    public GraphManager graphManager;
+    public TextOverlay textOverlay;
     private SessionManager sessionManager;
 
     public SpeebrunConsistencyTrackerModule() {
@@ -216,7 +216,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                     Instance.textOverlay = [];
                     self.Entities.Add(Instance.textOverlay);
                 }
-                if (MetricsExporter.ExportSessionToOverlay(Instance.sessionManager.CurrentSession, out string result))
+                if (MetricsExporter.ExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
                 {
                     Instance.textOverlay.SetText(result); 
                 }

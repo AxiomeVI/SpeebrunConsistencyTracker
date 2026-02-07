@@ -1,5 +1,6 @@
 ﻿using Monocle;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using System.Collections.Generic;
 
 // Adaptated from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/TextOverlay.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
@@ -15,7 +16,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             Depth = -101;
             Tag = Tags.HUD | Tags.Global;
 
-            StatText = new TextComponent(true, true, StatTextPosition.TopLeft);
+            StatText = new TextComponent(true, true, StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f);
             InitStatTextOptions();
             ApplyModSettings();
         }
@@ -27,6 +28,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             SetTextOffsetX(_settings.TextOffsetX);
             SetTextOffsetY(_settings.TextOffsetY);
             SetTextSize(_settings.TextSize);
+            SetTextAlpha(_settings.TextAlpha);
+            SetTextOrientation(_settings.TextOrientation);
         }
 
         private void InitStatTextOptions() {
@@ -34,12 +37,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             StatText.FontFaceSize = Dialog.Language.FontFaceSize;
         }
 
+        public void SetTextOrientation(StatTextOrientation orientation)
+        {
+            StatText.Orientation = orientation;
+        }
+
+        public void SetTextAlpha(float alpha) {
+            StatText.Alpha = alpha;
+        }
+
         public void SetTextVisible(bool visible) {
             StatText.OptionVisible = visible;
             UpdateTextVisibility();
         }
-        public void SetText(string text) {
-            StatText.Text = text.Replace("\\n", "\n");
+        public void SetText(List<string> text) {
+            StatText.Text = text;
         }
         public void SetTextPosition(StatTextPosition pos) {
             StatText.SetPosition(pos);

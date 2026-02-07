@@ -8,6 +8,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
 public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, TimeTicks? target = null)
 {
+    private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
+
     private readonly List<List<TimeTicks>> roomTimes = rooms;
     private readonly List<TimeTicks> segmentTimes = segment;
     private readonly TimeTicks? targetTime = target;
@@ -51,7 +53,7 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
                 value = new HistogramOverlay(
                     $"Room {currentIndex + 1}",
                     roomTimes[currentIndex],
-                    Color.Cyan
+                    GraphOverlay.ToColor(_settings.RoomColor)
                 );
                 roomHistograms[currentIndex] = value;
             }
@@ -63,7 +65,7 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
             segmentHistogram ??= new HistogramOverlay(
                     "Segment",
                     segmentTimes,
-                    Color.Orange
+                    GraphOverlay.ToColor(_settings.SegmentColor)
                 );
             currentOverlay = segmentHistogram;
         }
@@ -113,5 +115,16 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
         scatterGraph = null;
         segmentHistogram = null;
         roomHistograms.Clear();
+    }
+
+    public void ClearScatterGraph()
+    {
+        scatterGraph = null;
+    }
+
+    public void ClearHistrogram()
+    {
+        roomHistograms.Clear();
+        segmentHistogram = null;
     }
 }

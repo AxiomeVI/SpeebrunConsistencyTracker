@@ -1,4 +1,5 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -15,6 +16,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             public string RoomName { get; set; } = roomName;
             public List<TimeTicks> Times { get; set; } = times;
         }
+
+        private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
 
         private List<(Vector2 pos, Color color, float radius)> cachedDots = null;
         private readonly List<RoomData> roomDataList;
@@ -37,6 +40,28 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private Color axisColor = Color.White;
         private Color dotColor = Color.Cyan;
         private Color segmentDotColor = Color.Orange;
+
+        public static Color ToColor(ColorChoice choice)
+        {
+            return choice switch
+            {
+                ColorChoice.BadelineHair => new Color(197, 80, 128),
+                ColorChoice.MadelineHair => new Color(255, 89, 99),
+                ColorChoice.Blue => new Color(100, 149, 237),
+                ColorChoice.Coral => new Color(255, 127, 80),
+                ColorChoice.Cyan => new Color(0, 255, 255),
+                ColorChoice.Gold => new Color(255, 215, 0),
+                ColorChoice.Green => new Color(50, 205, 50),
+                ColorChoice.Indigo => new Color(75, 0, 130),
+                ColorChoice.LightGreen => new Color(124, 252, 0),
+                ColorChoice.Orange => new Color(255, 165, 0),
+                ColorChoice.Pink => new Color(255, 105, 180),
+                ColorChoice.Purple => new Color(147, 112, 219),
+                ColorChoice.Turquoise => new Color(72, 209, 204),
+                ColorChoice.Yellow => new Color(240, 228, 66),
+                _ => Color.White,
+            };
+        }
         
         public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
         {
@@ -44,13 +69,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room))];
             segmentData = new RoomData("Segment", segment);
             targetTime = target;
-            ComputeMaxValues();
-
             position = pos ?? new Vector2(
                 (1920 - width) / 2,
                 (1080 - height) / 2
             );
-            
+            dotColor = ToColor(_settings.RoomColor);
+            segmentDotColor = ToColor(_settings.SegmentColor);
+            ComputeMaxValues();
             Tag = Tags.HUD | Tags.Global;
         }
 

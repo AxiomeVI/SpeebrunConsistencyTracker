@@ -44,6 +44,11 @@ public static class DialogIds {
     public const string TextSizeId = "TEXT_SIZE";
     public const string TextPositionId = "TEXT_POSITION";
     public const string TextOrientationId = "TEXT_ORIENTATION";
+    public const string TextOverlayId = "TEXT_OVERLAY";
+    public const string GraphOverlayId = "GRAPH_OVERLAY";
+    public const string TextAlphaId = "TEXT_ALPHA";
+    public const string RoomColorId = "ROOM_COLOR";
+    public const string SegmentColorId = "SEGMENT_COLOR";
     
     // Stats Menu
     public const string StatsSubMenuId = "STATS_SUBMENU";

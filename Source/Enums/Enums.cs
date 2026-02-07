@@ -50,4 +50,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         Horizontal,
         Vertical
     }
+
+    public enum ColorChoice
+    {
+        Cyan,
+        Orange,
+        Blue,
+        Gold,
+        Purple,
+        Green,
+        Turquoise,
+        Coral,
+        Indigo,
+        Pink,
+        LightGreen,
+        Yellow,
+        MadelineHair,
+        BadelineHair
+    }
 }

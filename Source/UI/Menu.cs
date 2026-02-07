@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.UI;
 
@@ -180,6 +181,7 @@ public static class ModMenuOptions
     {
         StatTextPosition[] enumPositionValues = Enum.GetValues<StatTextPosition>();
         StatTextOrientation[] enumOrientationValues = Enum.GetValues<StatTextOrientation>();
+        ColorChoice[] enumColorValues = Enum.GetValues<ColorChoice>();
 
         TextMenuExt.SubMenu overlaySubMenu = new(
             Dialog.Clean(DialogIds.IngameOverlayId), 
@@ -189,15 +191,35 @@ public static class ModMenuOptions
         TextMenu.Slider textSize = new(Dialog.Clean(DialogIds.TextSizeId), i => i.ToString(), 0, 100, _settings.TextSize);
         TextMenu.Slider textPosition = new(Dialog.Clean(DialogIds.TextPositionId), i => enumPositionValues[i].ToString(), 0, 8, Array.IndexOf(enumPositionValues, _settings.TextPosition));
         TextMenu.Slider textOrientation = new(Dialog.Clean(DialogIds.TextOrientationId), i => enumOrientationValues[i].ToString(), 0, 1, Array.IndexOf(enumOrientationValues, _settings.TextOrientation));
+        TextMenu.Slider textAlpha = new(Dialog.Clean(DialogIds.TextAlphaId), i => (i/100f).ToString("0.00"), 0, 100, _settings._textAlpha);
+        TextMenu.Slider roomColor = new(Dialog.Clean(DialogIds.RoomColorId), i => enumColorValues[i].ToString(), 0, enumColorValues.Length - 1, Array.IndexOf(enumColorValues, _settings.RoomColor));
+        TextMenu.Slider segmentColor = new(Dialog.Clean(DialogIds.SegmentColorId), i => enumColorValues[i].ToString(), 0, enumColorValues.Length - 1, Array.IndexOf(enumColorValues, _settings.SegmentColor));
 
+        textAlpha.Change(v => {
+            _settings._textAlpha = v;
+            _instance?.textOverlay.SetTextAlpha(_settings.TextAlpha);
+        });
         textSize.Change(v => {
             _settings.TextSize = v;
+            _instance?.textOverlay.SetTextSize(v);
         });
         textPosition.Change(v => {
             _settings.TextPosition = enumPositionValues[v];
+            _instance?.textOverlay.SetTextPosition(enumPositionValues[v]);
         });
         textOrientation.Change(v => {
             _settings.TextOrientation = enumOrientationValues[v];
+            _instance?.textOverlay.SetTextOrientation(enumOrientationValues[v]);
+        });
+        roomColor.Change(v => {
+            _settings.RoomColor = enumColorValues[v];
+            _instance?.graphManager.ClearHistrogram();
+            _instance?.graphManager.ClearScatterGraph();
+        });
+        segmentColor.Change(v => {
+            _settings.SegmentColor = enumColorValues[v];
+            _instance?.graphManager.ClearScatterGraph();
+            _instance?.graphManager.ClearHistrogram();
         });
 
         TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled).Change(
@@ -205,15 +227,25 @@ public static class ModMenuOptions
             {
                 _settings.OverlayEnabled = value;
                 textSize.Visible = value;
+                textAlpha.Visible = value;
                 textPosition.Visible = value;
                 textOrientation.Visible = value;
+                roomColor.Visible = value;
+                segmentColor.Visible = value;
             }
         );
 
         overlaySubMenu.Add(overlayEnabled);
+        overlaySubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.TextOverlayId), false));
         overlaySubMenu.Add(textSize);
+        overlaySubMenu.Add(textAlpha);
         overlaySubMenu.Add(textPosition);
         overlaySubMenu.Add(textOrientation);
+        overlaySubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphOverlayId), false));
+        overlaySubMenu.Add(roomColor);
+        overlaySubMenu.Add(segmentColor);
+
+        textAlpha.Disabled = true; // TODO: debug
 
         overlaySubMenu.Visible = _settings.Enabled;
         return overlaySubMenu;

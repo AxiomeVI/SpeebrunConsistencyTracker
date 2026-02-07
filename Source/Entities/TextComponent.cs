@@ -1,13 +1,16 @@
 using Microsoft.Xna.Framework;
 using Monocle;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using System.Collections.Generic;
+using System.Linq;
 
 // Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/StatTextComponent.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
-    public class TextComponent(bool active, bool visible, StatTextPosition position) : Component(active, visible) {
+    public class TextComponent(bool active, bool visible, StatTextPosition position, StatTextOrientation orientation, float alpha) : Component(active, visible) {
 
         public StatTextPosition Position { get; set; } = position;
-        public string Text { get; set; } = "";
+        public StatTextOrientation Orientation { get; set; } = orientation;
+        public List<string> Text { get; set; }
         public bool OptionVisible { get; set; }
         public float Scale { get; set; } = 1f;
         public float Alpha {
@@ -17,7 +20,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
                 UpdateColor();
             }
         }
-        private float _Alpha { get; set; } = 1f;
+        private float _Alpha { get; set; } = alpha;
         public PixelFont Font { get; set; }
         public float FontFaceSize { get; set; }
         public Color TextColor { get; set; } = Color.White;
@@ -109,15 +112,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public override void Render() {
             base.Render();
             
-            // Split text by newlines
-            string[] lines = Text.Split('\n');
-            
-            if (lines.Length == 1)
+            if (Orientation == StatTextOrientation.Horizontal)
             {
                 // Single line - render as before
                 Font.DrawOutline(
                     FontFaceSize,
-                    Text,
+                    string.Join(" | ", Text),
                     new Vector2(PosX, PosY),
                     Justify,
                     Vector2.One * Scale,
@@ -129,11 +129,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             else
             {
                 // Multi-line - render each line with proper spacing
-                Vector2 sampleSize = ActiveFont.Measure(lines[0]) * Scale;
+                Vector2 sampleSize = ActiveFont.Measure(Text[0]) * Scale;
                 float lineHeight = sampleSize.Y * LineSpacing;
                 
                 // Calculate total height for vertical centering
-                float totalHeight = lineHeight * lines.Length;
+                float totalHeight = lineHeight * Text.Count;
                 
                 // Adjust starting Y position based on justify
                 float startY = PosY;
@@ -147,13 +147,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
                 }
                 
                 // Render each line
-                for (int i = 0; i < lines.Length; i++)
+                for (int i = 0; i < Text.Count; i++)
                 {
                     float currentY = startY + i * lineHeight;
                     
                     Font.DrawOutline(
                         FontFaceSize,
-                        lines[i],
+                        Text[i],
                         new Vector2(PosX, currentY),
                         new Vector2(Justify.X, 0), // Only horizontal justify, vertical handled by offset
                         Vector2.One * Scale,

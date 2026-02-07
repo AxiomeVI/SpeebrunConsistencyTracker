@@ -1,5 +1,6 @@
 using Microsoft.Xna.Framework.Input;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -24,8 +25,12 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public int TextSize { get; set; } = 65;
     public int TextOffsetX { get; set; } = 5;
     public int TextOffsetY { get; set; } = 0;
+    public int _textAlpha = 100;
+    public float TextAlpha => _textAlpha / 100f;
     public StatTextPosition TextPosition { get; set; } = StatTextPosition.TopLeft;
     public StatTextOrientation TextOrientation { get; set; } = StatTextOrientation.Horizontal;
+    public ColorChoice RoomColor { get; set; } = ColorChoice.Cyan;
+    public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
 
     // Metrics menu
     public bool History { get; set; } = true;

@@ -42,28 +42,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             return string.Join("\n", csvLines);
         }
 
-        public static bool ExportSessionToOverlay(PracticeSession session, out string result)
+        public static bool ExportSessionToOverlay(PracticeSession session, out List<string> result)
         {
-            result = "";
+            result = [];
             if (session == null || session.TotalCompleted == 0)
                 return true;
 
             if (session.Equals(lastSession) && MetricEngine.SameSettings())
                 return false;
 
-            StatTextOrientation orientation = SpeebrunConsistencyTrackerModule.Settings.TextOrientation;
-
-            List<string> overlayString = [];
-
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
-
             foreach ((MetricDescriptor desc, MetricResult metricResult) in computedMetrics)
             {
-                overlayString.Add($"{desc.InGameName()}" + ": " + $"{metricResult.SegmentValue}");
+                result.Add($"{desc.InGameName()}" + ": " + $"{metricResult.SegmentValue}");
             }
-            string lineSeparator = orientation == StatTextOrientation.Horizontal ? " | " : "\n";
             lastSession = session.DeepClone();
-            result = string.Join(lineSeparator, overlayString);
             return true;
         }
     }
