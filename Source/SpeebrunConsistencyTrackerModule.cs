@@ -155,16 +155,22 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes()];
                 
                 Instance.graphManager = new GraphManager(rooms, segment, MetricHelper.IsMetricEnabled(Settings.TargetTime, Enums.MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
-                Instance.graphManager.NextGraph(self);
+                if (!self.Paused)
+                    Instance.graphManager.NextGraph(self);
             }
             else if (Instance.graphManager.IsShowing())
             {
                 Instance.graphManager.HideGraph();
             }
-            else
+            else if (!self.Paused)
             {
                 Instance.graphManager.CurrentGraph(self);
             }
+        }
+
+        if (self.Paused || self.wasPaused)
+        {
+            Instance.graphManager?.HideGraph();
         }
 
         if (Settings.ButtonNextGraph.Pressed 
