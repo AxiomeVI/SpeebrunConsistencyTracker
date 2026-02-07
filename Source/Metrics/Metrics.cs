@@ -566,30 +566,34 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static MetricResult ConsistencyScore(PracticeSession session, MetricContext context, bool isExport)
         {
             int attempts = session.TotalCompleted;
-            if (!isExport || attempts < 2)
-                return new MetricResult("", []);
+            if (attempts < 2)
+                return new MetricResult("100%", []);
 
             int roomCount = session.RoomCount;
             var roomValues = new List<string>(roomCount);
-            for (int r = 0; r < roomCount; r++)
+            
+            if (isExport)
             {
-                string roomKey = $"room_{r}_values_sorted";
-                var roomTimes = context.GetOrCompute(
-                    roomKey,
-                    () => session.GetRoomTimes(r)
-                                .OrderBy(t => t)
-                                .ToList()
-                );
-                double roomAvg = context.GetOrCompute($"avg_room_{r}", () => roomTimes.Average(t => t.Ticks));
-                double stdRoom = context.GetOrCompute($"std_room_{r}", () => Math.Sqrt(roomTimes.Sum(t => Math.Pow(t.Ticks - roomAvg, 2)) / (roomTimes.Count - 1)));
-                double roomResetRate = context.GetOrCompute($"resetRate_room_{r}", () => (double)session.DnfPerRoom.GetValueOrDefault((RoomIndex)r) / session.TotalAttemptsPerRoom.GetValueOrDefault((RoomIndex)r));
-                double roomMedian = context.GetOrCompute($"med_room_{r}", () => MetricHelper.ComputePercentile(roomTimes, 50)).Ticks;
-                TimeTicks roomMin = context.GetOrCompute($"min_room_{r}", () => roomTimes[0]);
-                TimeTicks roomMAD = context.GetOrCompute($"mad_room_{r}", () => MetricHelper.ComputeMAD(roomTimes));
-                double roomCV = context.GetOrCompute($"cv_room_{r}", () => stdRoom / roomAvg);
+                for (int r = 0; r < roomCount; r++)
+                {
+                    string roomKey = $"room_{r}_values_sorted";
+                    var roomTimes = context.GetOrCompute(
+                        roomKey,
+                        () => session.GetRoomTimes(r)
+                                    .OrderBy(t => t)
+                                    .ToList()
+                    );
+                    double roomAvg = context.GetOrCompute($"avg_room_{r}", () => roomTimes.Average(t => t.Ticks));
+                    double stdRoom = context.GetOrCompute($"std_room_{r}", () => Math.Sqrt(roomTimes.Sum(t => Math.Pow(t.Ticks - roomAvg, 2)) / (roomTimes.Count - 1)));
+                    double roomResetRate = context.GetOrCompute($"resetRate_room_{r}", () => (double)session.DnfPerRoom.GetValueOrDefault((RoomIndex)r) / session.TotalAttemptsPerRoom.GetValueOrDefault((RoomIndex)r));
+                    double roomMedian = context.GetOrCompute($"med_room_{r}", () => MetricHelper.ComputePercentile(roomTimes, 50)).Ticks;
+                    TimeTicks roomMin = context.GetOrCompute($"min_room_{r}", () => roomTimes[0]);
+                    TimeTicks roomMAD = context.GetOrCompute($"mad_room_{r}", () => MetricHelper.ComputeMAD(roomTimes));
+                    double roomCV = context.GetOrCompute($"cv_room_{r}", () => stdRoom / roomAvg);
 
-                double finalScore = MetricHelper.ComputeConsistencyScore(roomMedian, roomMin, roomMAD, roomResetRate, roomCV);
-                roomValues.Add(MetricHelper.FormatPercent(finalScore));
+                    double finalScore = MetricHelper.ComputeConsistencyScore(roomMedian, roomMin, roomMAD, roomResetRate, roomCV);
+                    roomValues.Add(MetricHelper.FormatPercent(finalScore));
+                }
             }
 
             var segmentTimes = context.GetOrCompute(
@@ -609,8 +613,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double cvSegment = context.GetOrCompute("cv_segment", () => stdSegment / segmentAvg);
 
             double segmentFinalScore = MetricHelper.ComputeConsistencyScore(segmentMedian, segmentMin, segmentMad, segmentResetRate, cvSegment);
-            string segmentValue = MetricHelper.FormatPercent(segmentFinalScore);
-            return new MetricResult(segmentValue, roomValues);
+            return new MetricResult(MetricHelper.FormatPercent(segmentFinalScore), roomValues);
         }
 
         public static MetricResult MultimodalTest(PracticeSession session, MetricContext context, bool isExport)
