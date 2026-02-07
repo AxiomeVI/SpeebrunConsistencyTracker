@@ -361,7 +361,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             @"ss",          @"s"
         ];
 
-        bool success = TimeSpan.TryParseExact(input, timeFormats, 
+        bool success = TimeSpan.TryParseExact(input.TrimStart('0', ':'), timeFormats, 
             System.Globalization.CultureInfo.InvariantCulture, out result);
 
         // Fallback: If it's a pure number (e.g., "500"), treat as Milliseconds
