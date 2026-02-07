@@ -293,16 +293,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         string baseFolder = Path.Combine(
             Everest.PathGame,
             "SpeebrunConsistencyTracker_DataExports",
-            SanitizeFileName(currentSession.levelName),
-            SanitizeFileName(currentSession.checkpoint)
+            SanitizeFileName(currentSession.levelName)
         );
         Directory.CreateDirectory(baseFolder);
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
+        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{SanitizeFileName(currentSession.checkpoint)}_Metrics_{timestamp}.csv")))
         {
             writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession));
         }
-        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv")))
+        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{SanitizeFileName(currentSession.checkpoint)}_History_{timestamp}.csv")))
         {
             writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
         }
