@@ -197,29 +197,29 @@ public static class ModMenuOptions
 
         textAlpha.Change(v => {
             _settings._textAlpha = v;
-            _instance?.textOverlay.SetTextAlpha(_settings.TextAlpha);
+            _instance?.textOverlay?.SetTextAlpha(_settings.TextAlpha);
         });
         textSize.Change(v => {
             _settings.TextSize = v;
-            _instance?.textOverlay.SetTextSize(v);
+            _instance?.textOverlay?.SetTextSize(v);
         });
         textPosition.Change(v => {
             _settings.TextPosition = enumPositionValues[v];
-            _instance?.textOverlay.SetTextPosition(enumPositionValues[v]);
+            _instance?.textOverlay?.SetTextPosition(enumPositionValues[v]);
         });
         textOrientation.Change(v => {
             _settings.TextOrientation = enumOrientationValues[v];
-            _instance?.textOverlay.SetTextOrientation(enumOrientationValues[v]);
+            _instance?.textOverlay?.SetTextOrientation(enumOrientationValues[v]);
         });
         roomColor.Change(v => {
             _settings.RoomColor = enumColorValues[v];
-            _instance?.graphManager.ClearHistrogram();
-            _instance?.graphManager.ClearScatterGraph();
+            _instance?.graphManager?.ClearHistrogram();
+            _instance?.graphManager?.ClearScatterGraph();
         });
         segmentColor.Change(v => {
             _settings.SegmentColor = enumColorValues[v];
-            _instance?.graphManager.ClearScatterGraph();
-            _instance?.graphManager.ClearHistrogram();
+            _instance?.graphManager?.ClearScatterGraph();
+            _instance?.graphManager?.ClearHistrogram();
         });
 
         TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled).Change(
