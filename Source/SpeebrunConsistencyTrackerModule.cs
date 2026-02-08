@@ -166,29 +166,25 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             {
                 Instance.graphManager.CurrentGraph(self);
             }
-        }
-
-        if (self.Paused || self.wasPaused)
-        {
-            Instance.graphManager?.HideGraph();
-        }
-
-        if (Settings.ButtonNextGraph.Pressed 
+        } else if (Settings.ButtonNextGraph.Pressed 
             && Settings.OverlayEnabled 
             && Instance.graphManager != null 
             && Instance.graphManager.IsShowing() 
             && Instance.sessionManager != null)
         {
             Instance.graphManager.NextGraph(self);
-        }
-
-        if (Settings.ButtonPreviousGraph.Pressed 
+        } else if (Settings.ButtonPreviousGraph.Pressed 
             && Settings.OverlayEnabled 
             && Instance.graphManager != null 
             && Instance.graphManager.IsShowing() 
             && Instance.sessionManager != null)
         {
             Instance.graphManager.PreviousGraph(self);
+        }
+
+        if (self.Paused || self.wasPaused)
+        {
+            Instance.graphManager?.HideGraph();
         }
 
         if (RoomTimerIntegration.RoomTimerIsCompleted())
