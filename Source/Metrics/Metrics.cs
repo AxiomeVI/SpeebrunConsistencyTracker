@@ -270,8 +270,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                     }
                     else
                     {
-                        TimeTicks best = context.GetOrCompute($"min_room_{r}", () => roomSorted[0]);
-                        roomValues.Add(best.ToString());
+                        TimeTicks bestRoom = context.GetOrCompute($"min_room_{r}", () => roomSorted[0]);
+                        roomValues.Add(bestRoom.ToString());
                     }
                 }
             }
@@ -310,8 +310,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                                     .ToList()
                     );
 
-                    if (roomSorted.Count != 0)
+                    if (roomSorted.Count == 0)
+                    {
                         roomValues.Add("0");
+                    }
                     else
                     {
                         TimeTicks worstRoom = context.GetOrCompute($"max_room_{r}", () => roomSorted[^1]);
