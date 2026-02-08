@@ -19,7 +19,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Export) ? $"Success Rate (≤{MetricEngine.GetTargetTimeTicks()})" : "Success Rate",
                 () => MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Overlay) ? $"success (≤{MetricEngine.GetTargetTimeTicks()})" : "success",
                 Metrics.SuccessRate,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.SuccessRate, mode)
+                (mode) => MetricEngine.GetTargetTimeTicks() > 0 && MetricHelper.IsMetricEnabled(_settings.SuccessRate, mode)
             ),
             new MetricDescriptor(
                 "Average",

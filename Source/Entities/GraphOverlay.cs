@@ -166,7 +166,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void DrawTargetLine(float x, float y, float w, float h)
         {
-            if (!targetTime.HasValue) return;
+            if (!targetTime.HasValue || targetTime.Value <= 0) return;
             
             if (maxSegmentTime == 0) return;
             
