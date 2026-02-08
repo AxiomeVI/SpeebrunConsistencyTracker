@@ -1,6 +1,7 @@
 using Microsoft.Xna.Framework.Input;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using System;
+using static Monocle.VirtualButton;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -72,11 +73,11 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public ButtonBinding ButtonToggleGraphOverlay { get; set; }  = new(0, Keys.None);
 
     [SettingName(DialogIds.KeyNextGraphId)]
-    [DefaultButtonBinding(0, Keys.None)]
+    [DefaultButtonBinding(Buttons.DPadRight, Keys.Right)]
     public ButtonBinding ButtonNextGraph { get; set; }  = new(0, Keys.None);
 
     [SettingName(DialogIds.KeyPreviousGraphId)]
-    [DefaultButtonBinding(0, Keys.None)]
+    [DefaultButtonBinding(Buttons.DPadLeft, Keys.Left)]
     public ButtonBinding ButtonPreviousGraph { get; set; }  = new(0, Keys.None);
 
     [SettingName(DialogIds.KeyClearStatsId)]
