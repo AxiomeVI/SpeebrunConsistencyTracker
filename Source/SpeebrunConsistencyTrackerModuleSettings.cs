@@ -70,15 +70,15 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     [SettingName(DialogIds.ToggleGraphOverlayId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonToggleGraphOverlay { get; set; }  = new(0, Keys.None);
+    public ButtonBinding ButtonToggleGraphOverlay { get; set; }  = new(0, Keys.Up);
 
     [SettingName(DialogIds.KeyNextGraphId)]
-    [DefaultButtonBinding(Buttons.DPadRight, Keys.Right)]
-    public ButtonBinding ButtonNextGraph { get; set; }  = new(0, Keys.None);
+    [DefaultButtonBinding(0, Keys.Right)]
+    public ButtonBinding ButtonNextGraph { get; set; }  = new(0, Keys.Right);
 
     [SettingName(DialogIds.KeyPreviousGraphId)]
-    [DefaultButtonBinding(Buttons.DPadLeft, Keys.Left)]
-    public ButtonBinding ButtonPreviousGraph { get; set; }  = new(0, Keys.None);
+    [DefaultButtonBinding(0, Keys.Left)]
+    public ButtonBinding ButtonPreviousGraph { get; set; }  = new(0, Keys.Left);
 
     [SettingName(DialogIds.KeyClearStatsId)]
     [DefaultButtonBinding(0, Keys.None)]
