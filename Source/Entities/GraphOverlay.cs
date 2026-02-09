@@ -328,7 +328,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int totalColumns = roomDataList.Count + 1;
             float columnWidth = w / totalColumns;
             
-            // X axis labels (room index)
+            // X axis labels (room index) - staggered
             for (int i = 0; i < roomDataList.Count; i++)
             {
                 float centerX = x + columnWidth * (i + 0.5f);
@@ -337,10 +337,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (label.Length > 10)
                     label = string.Concat(label.AsSpan(0, 10), "...");
                 
+                // Alternate Y position for staggered effect
+                float labelY = (i % 2 == 0) ? y + h + 8 : y + h + 28;
+                
                 Vector2 labelSize = ActiveFont.Measure(label) * 0.5f;
                 ActiveFont.DrawOutline(
                     label,
-                    new Vector2(centerX - labelSize.X / 2, y + h + 10),
+                    new Vector2(centerX - labelSize.X / 2, labelY),
                     new Vector2(0f, 0f),
                     Vector2.One * 0.5f,
                     dotColor,
@@ -349,12 +352,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 );
             }
             
-            // Segment label
+            // Segment label - determine position based on room count
             float segmentX = x + columnWidth * (totalColumns - 0.5f);
+            // Continue the alternating pattern
+            float segmentLabelY = (roomDataList.Count % 2 == 0) ? y + h + 8 : y + h + 28;
+            
             Vector2 segmentLabelSize = ActiveFont.Measure("Segment") * 0.5f;
             ActiveFont.DrawOutline(
                 "Segment",
-                new Vector2(segmentX - segmentLabelSize.X / 2, y + h + 10),
+                new Vector2(segmentX - segmentLabelSize.X / 2, segmentLabelY),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.5f,
                 segmentDotColor,
@@ -433,9 +439,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             long totalFrames = (long)Math.Ceiling((double)range / ONE_FRAME);
-            long framesPerTick = (long)Math.Ceiling((double)totalFrames / 10); // Max 10 tick marks           
+            long framesPerTick = (long)Math.Ceiling((double)totalFrames / 11); // Max 11 tick marks
+            
+            if (framesPerTick <= 0) framesPerTick = 1; // Safety check
+            
             step = framesPerTick * ONE_FRAME;
-            count = (int)Math.Ceiling((double)range / step);
+            
+            count = (int)(range / step);
         }
     }
 }

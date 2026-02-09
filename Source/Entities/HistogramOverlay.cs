@@ -272,7 +272,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Vector2 statsSize = ActiveFont.Measure(stats) * 0.4f;
             ActiveFont.DrawOutline(
                 stats,
-                new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + 60),
+                new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + 58),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.4f,
                 Color.LightGray,
