@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
@@ -9,7 +11,6 @@ public class SessionManager
     private readonly PracticeSession _currentSession = new();
     private AttemptBuilder _currentAttemptBuilder = new();
 
-    private int _currentRoomIndex;
     public int EndOfChapterCutsceneSkipCounter = 0;
     public bool EndOfChapterCutsceneSkipCheck = false;
 
@@ -18,7 +19,7 @@ public class SessionManager
         // If the previous attempt is incomplete and some room was timed, mark as DNF
         if (HasActiveAttempt && !RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
         {
-            var dnfRoomIndex = _currentRoomIndex;
+            var dnfRoomIndex = _currentAttemptBuilder.Count;
             TimeTicks ticks = new(RoomTimerIntegration.GetRoomTime());
             _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
             EndCurrentAttempt();
@@ -28,7 +29,6 @@ public class SessionManager
     public void OnLoadState()
     {
         _currentAttemptBuilder = new AttemptBuilder();
-        _currentRoomIndex = 0;
         EndOfChapterCutsceneSkipCounter = 0;
         EndOfChapterCutsceneSkipCheck = false;
     }
@@ -42,10 +42,8 @@ public class SessionManager
     {
         if (!HasActiveAttempt)
             return;
-        var roomIndex = _currentRoomIndex;
         TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
-        _currentAttemptBuilder.CompleteRoom(roomIndex, roomTime);
-        _currentRoomIndex++;
+        _currentAttemptBuilder.CompleteRoom(roomTime);
     }
 
 
@@ -67,5 +65,16 @@ public class SessionManager
     }
 
     public PracticeSession CurrentSession => _currentSession;
+    public AttemptBuilder CurrentAttempt => _currentAttemptBuilder;
     public bool HasActiveAttempt => _currentAttemptBuilder != null;
+    public int DynamicRoomCount()
+    {
+        if (_currentSession.RoomCount == 0) {
+            return Math.Max(CurrentSession.Attempts.Select(a => a.CompletedRooms.Count).DefaultIfEmpty(0).Max(), _currentAttemptBuilder.Count);
+        }
+        else
+        {
+            return _currentSession.RoomCount;
+        }
+    }
 }

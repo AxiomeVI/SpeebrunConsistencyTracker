@@ -64,7 +64,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
 
     public IEnumerable<TimeTicks> GetRoomTimes(int roomIndex) =>
         _attempts
-            .Where(a => a.CompletedRooms.ContainsKey(roomIndex))
+            .Where(a => roomIndex < a.CompletedRooms.Count)
             .Select(a => a.CompletedRooms[roomIndex]);
 
     public bool Equals(PracticeSession other)

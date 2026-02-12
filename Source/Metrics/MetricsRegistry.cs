@@ -120,7 +120,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             new MetricDescriptor(
                 "Room Dependency",
                 "r dependency",
-                Metrics.RoomDepency,
+                Metrics.RoomDependency,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.RoomDependency, mode)
             ),
             new MetricDescriptor(

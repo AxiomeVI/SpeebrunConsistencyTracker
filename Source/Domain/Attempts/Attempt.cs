@@ -11,7 +11,7 @@ public sealed class Attempt
 
     public TimeTicks SegmentTime { get; }
 
-    public IReadOnlyDictionary<int, TimeTicks> CompletedRooms { get; }
+    public List<TimeTicks> CompletedRooms { get; }
 
     public DnfInfo? DnfInfo { get; }
 
@@ -20,7 +20,7 @@ public sealed class Attempt
     private Attempt(
         DateTime timestamp,
         AttemptOutcome outcome,
-        Dictionary<int, TimeTicks> completedRooms,
+        List<TimeTicks> completedRooms,
         TimeTicks segmentTime,
         DnfInfo? dnf)
     {
@@ -33,7 +33,7 @@ public sealed class Attempt
 
     public static Attempt Completed(
         DateTime timestamp,
-        Dictionary<int, TimeTicks> roomTicks,
+        List<TimeTicks> roomTicks,
         TimeTicks segmentTime)
     {
         return new Attempt(
@@ -47,7 +47,7 @@ public sealed class Attempt
 
     public static Attempt Dnf(
         DateTime timestamp,
-        Dictionary<int, TimeTicks> completedRooms,
+        List<TimeTicks> completedRooms,
         TimeTicks segmentTime,
         DnfInfo dnf)
     {

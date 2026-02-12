@@ -1,6 +1,5 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
-using Microsoft.Xna.Framework;
 using Monocle;
 using System.Collections.Generic;
 
