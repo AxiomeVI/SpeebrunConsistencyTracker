@@ -7,7 +7,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 public sealed class AttemptBuilder
 {
     private readonly DateTime _startTime;
-    private readonly Dictionary<int, TimeTicks> _roomTicks = [];
+    private readonly List<TimeTicks> _roomTicks = [];
     private TimeTicks _segmentTime = TimeTicks.Zero;
     private int? _dnfRoom;
     private TimeTicks? _dnfTicks;
@@ -20,15 +20,9 @@ public sealed class AttemptBuilder
     public TimeTicks SegmentTime
         => _segmentTime;
 
-    public void CompleteRoom(int room, TimeTicks ticks)
+    public void CompleteRoom(TimeTicks ticks)
     {
-        if (_roomTicks.ContainsKey(room))
-            throw new InvalidOperationException($"Room {room} already completed");
-
-        if (_dnfRoom != null)
-            throw new InvalidOperationException("Cannot complete room after DNF");
-
-        _roomTicks[room] = ticks;
+        _roomTicks.Add(ticks);
         _segmentTime += ticks;
     }
 
@@ -46,11 +40,19 @@ public sealed class AttemptBuilder
         if (_dnfRoom != null)
         {
             var dnfInfo = new DnfInfo(_dnfRoom.Value, _dnfTicks.Value);
-            return Attempt.Dnf(_startTime, new Dictionary<int, TimeTicks>(_roomTicks), _segmentTime, dnfInfo);
+            return Attempt.Dnf(_startTime, _roomTicks, _segmentTime, dnfInfo);
         }
         else
         {
-            return Attempt.Completed(_startTime, new Dictionary<int, TimeTicks>(_roomTicks), _segmentTime);
+            return Attempt.Completed(_startTime, _roomTicks, _segmentTime);
         }
+    }
+
+    public int Count 
+        => _roomTicks.Count;
+
+    public TimeTicks GetRoomTimeAt(int index)
+    {
+        return _roomTicks[index];
     }
 }

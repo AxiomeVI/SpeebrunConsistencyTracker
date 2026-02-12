@@ -30,9 +30,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
 
                 for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
                 {
-                    if (attempt.CompletedRooms.TryGetValue(roomIndex, out TimeTicks roomTime))
+                    if (roomIndex >= 0 && roomIndex < attempt.CompletedRooms.Count)
                     {
-                        sb.Append($",{roomTime}");
+                        sb.Append($",{attempt.CompletedRooms[roomIndex]}");
                     }
                     else
                     {

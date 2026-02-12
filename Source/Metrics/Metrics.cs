@@ -666,7 +666,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(segmentValue, roomValues);
         }
 
-        public static MetricResult RoomDepency(PracticeSession session, MetricContext context, bool isExport)
+        public static MetricResult RoomDependency(PracticeSession session, MetricContext context, bool isExport)
         {
             if (!isExport)
                 return new MetricResult("", []);
@@ -687,10 +687,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 var y = new List<double>(); // Room i+1 times
                 foreach (var attempt in attempts)
                 {
-                    // Only correlate if BOTH rooms exist in this specific attempt
-                    if (attempt.CompletedRooms.TryGetValue(i, out var ticksA) &&
-                        attempt.CompletedRooms.TryGetValue(i + 1, out var ticksB))
+                    if (i >= 0 && i + 1 < attempt.CompletedRooms.Count)
                     {
+                        var ticksA = attempt.CompletedRooms[i];
+                        var ticksB = attempt.CompletedRooms[i + 1];
+                        
                         x.Add((double)ticksA);
                         y.Add((double)ticksB);
                     }

@@ -17,6 +17,8 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using System.IO;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using MonoMod.RuntimeDetour;
+using System.Reflection;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -39,6 +41,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public GraphManager graphManager;
     public TextOverlay textOverlay;
     private SessionManager sessionManager;
+    private static Hook numberOfRoomsHook;
 
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
@@ -65,6 +68,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         On.Celeste.Level.Update += LevelOnUpdate;
         Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
         Everest.Events.Level.OnExit += Level_OnLevelExit;
+
+        PropertyInfo prop = typeof(SpeedrunTool.SpeedrunToolSettings).GetProperty("NumberOfRooms");
+        MethodInfo setter = prop?.GetSetMethod();
+        if (setter != null) {
+            numberOfRoomsHook = new Hook(
+                setter, 
+                typeof(SpeebrunConsistencyTrackerModule).GetMethod("OnSetNumberOfRooms", BindingFlags.NonPublic | BindingFlags.Static)
+            );
+        }
     }
 
     public override void Unload() {
@@ -73,7 +85,18 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
         Everest.Events.Level.OnExit -= Level_OnLevelExit;
         Clear();
+        numberOfRoomsHook?.Dispose();
+        numberOfRoomsHook = null;
     }
+
+    private delegate void orig_SetNumberOfRooms(object self, int value);
+    private static void OnSetNumberOfRooms(orig_SetNumberOfRooms orig, object self, int value) {
+        orig(self, value);
+
+        if (Settings.Enabled)
+            Instance.sessionManager?.OnBeforeLoadState(); // changing the number of rooms is considered as dnf
+    }
+        
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
     {
@@ -151,7 +174,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled && Instance.sessionManager != null) {
             if (Instance.graphManager == null)
             {
-                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, Instance.sessionManager.CurrentSession.RoomCount).Select(i => Instance.sessionManager.CurrentSession.GetRoomTimes(i).ToList())];
+                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, Instance.sessionManager.DynamicRoomCount()).Select(i => {
+                    List<TimeTicks> roomTimes = [.. Instance.sessionManager.CurrentSession.GetRoomTimes(i)];
+                    if (Instance.sessionManager.CurrentAttempt != null && i < Instance.sessionManager.CurrentAttempt.Count)
+                    {
+                        roomTimes.Add(Instance.sessionManager.CurrentAttempt.GetRoomTimeAt(i));
+                    }
+                    return roomTimes;
+                })];
                 List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes()];
                 
                 Instance.graphManager = new GraphManager(rooms, segment, MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);

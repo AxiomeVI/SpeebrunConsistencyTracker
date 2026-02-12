@@ -258,9 +258,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         }
 
         private void DrawDataPoints(float x, float y, float w, float h)
-        {            
-            if (maxRoomTime == minRoomTime && maxSegmentTime == minSegmentTime) return;
-            
+        {                     
             // Only compute positions once
             if (cachedDots == null)
             {
