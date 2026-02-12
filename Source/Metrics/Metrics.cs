@@ -329,27 +329,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             int roomCount = session.RoomCount;
             var roomValues = new List<string>(roomCount);
-            long sumTicks = 0;
-
+            TimeTicks sumTicks = TimeTicks.Zero;
+            
+            // No need to check for isExport since we need to find the min of every room anyway
             for (int r = 0; r < roomCount; r++)
             {
-                // Retrieve best per-room TimeTicks from cache
-                if (context.TryGet<TimeTicks>($"min_room_{r}", out var bestRoom))
-                {
-                    sumTicks += bestRoom.Ticks;
-                    roomValues.Add(new TimeTicks(sumTicks).ToString());
-                }
-                else
-                {
-                    // fallback if Best metric not computed
-                    var roomTimes = session.GetRoomTimes(r).ToList();
-                    var minRoom = roomTimes.Count != 0 ? roomTimes.Min() : TimeTicks.Zero;
-                    sumTicks += minRoom.Ticks;
-                    roomValues.Add(new TimeTicks(sumTicks).ToString());
-                }
+                TimeTicks bestRoom = context.GetOrCompute($"min_room_{r}", () => context.GetOrCompute(
+                        $"room_{r}_values_sorted",
+                        () => session.GetRoomTimes(r)
+                                    .OrderBy(t => t)
+                                    .ToList()
+                    )[0]);
+                sumTicks += bestRoom;
+                roomValues.Add(sumTicks.ToString());
             }
 
-            var segmentValue = new TimeTicks(sumTicks).ToString();
+            var segmentValue = sumTicks.ToString();
             return new MetricResult(segmentValue, roomValues);
         }
 
