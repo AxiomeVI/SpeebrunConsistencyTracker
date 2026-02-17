@@ -41,7 +41,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public GraphManager graphManager;
     public TextOverlay textOverlay;
     private SessionManager sessionManager;
-    private static Hook numberOfRoomsHook;
+    private static Hook _numberOfRoomsHook;
+    private static Hook _updateTimerStateHook;
 
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
@@ -66,15 +67,22 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         );
         typeof(RoomTimerIntegration).ModInterop();
         On.Celeste.Level.Update += LevelOnUpdate;
-        Everest.Events.Level.OnLoadLevel += Level_OnLoadLevel;
         Everest.Events.Level.OnExit += Level_OnLevelExit;
 
         PropertyInfo prop = typeof(SpeedrunTool.SpeedrunToolSettings).GetProperty("NumberOfRooms");
         MethodInfo setter = prop?.GetSetMethod();
         if (setter != null) {
-            numberOfRoomsHook = new Hook(
+            _numberOfRoomsHook = new Hook(
                 setter, 
                 typeof(SpeebrunConsistencyTrackerModule).GetMethod("OnSetNumberOfRooms", BindingFlags.NonPublic | BindingFlags.Static)
+            );
+        }
+
+        var updateTimerStateMethod = typeof(RoomTimerManager).GetMethod("UpdateTimerState", BindingFlags.Public | BindingFlags.Static);
+        if (updateTimerStateMethod != null) {
+            _updateTimerStateHook = new Hook(
+                updateTimerStateMethod,
+                typeof(SpeebrunConsistencyTrackerModule).GetMethod("OnUpdateTimerState", BindingFlags.NonPublic | BindingFlags.Static)
             );
         }
     }
@@ -82,11 +90,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public override void Unload() {
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
-        Everest.Events.Level.OnLoadLevel -= Level_OnLoadLevel;
         Everest.Events.Level.OnExit -= Level_OnLevelExit;
         Clear();
-        numberOfRoomsHook?.Dispose();
-        numberOfRoomsHook = null;
+        _numberOfRoomsHook?.Dispose();
+        _numberOfRoomsHook = null;
+        _updateTimerStateHook?.Dispose();
+        _updateTimerStateHook = null;
     }
 
     private delegate void orig_SetNumberOfRooms(object self, int value);
@@ -224,22 +233,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             if (Instance.sessionManager.HasActiveAttempt)
             {
                 // Logic to take care of srt flags, and split buttons: https://gamebanana.com/mods/639197 and https://gamebanana.com/mods/619910
-                if (Instance.sessionManager.EndOfChapterCutsceneSkipCounter >= 2)
-                {
-                    if (Instance.sessionManager.EndOfChapterCutsceneSkipCheck)
-                        Instance.sessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
-                    Instance.sessionManager.EndCurrentAttempt();
-                }
-                else
-                {
-                    if (Instance.sessionManager.EndOfChapterCutsceneSkipCounter == 0)
-                    {
-                        long currentTime = RoomTimerIntegration.GetRoomTime();
-                        if (currentTime > Instance.sessionManager.CurrentSplitTime() + ONE_FRAME) 
-                            Instance.sessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
-                    }
-                    Instance.sessionManager.EndOfChapterCutsceneSkipCounter ++;
-                }
+                long currentTime = RoomTimerIntegration.GetRoomTime();
+                if (currentTime > Instance.sessionManager.CurrentSplitTime() + ONE_FRAME) 
+                    Instance.sessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
+                Instance.sessionManager.EndCurrentAttempt();
             }
             else if (Settings.OverlayEnabled) 
             {
@@ -253,22 +250,16 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                     Instance.textOverlay.SetText(result); 
                 }
             }
-        } else if (Instance.sessionManager?.EndOfChapterCutsceneSkipCounter >= 1)
-        {
-            Instance.sessionManager.EndOfChapterCutsceneSkipCheck = true;
         }
     }
 
-    private void Level_OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
-        if (!Settings.Enabled) 
-            return;
-
-        if (Instance.sessionManager != null && Instance.sessionManager.HasActiveAttempt && playerIntro == Player.IntroTypes.Transition)
-        {
+    private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
+        if (Settings.Enabled && Instance.sessionManager != null && Instance.sessionManager.HasActiveAttempt) {
             long segmentTime = RoomTimerIntegration.GetRoomTime();
             if (segmentTime > 0)
                 Instance.sessionManager.CompleteRoom(segmentTime);
         }
+        orig(endPoint);
     }
 
     private static void Level_OnLevelExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow) {

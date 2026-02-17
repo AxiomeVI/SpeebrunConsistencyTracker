@@ -11,9 +11,6 @@ public class SessionManager
     private readonly PracticeSession _currentSession = new();
     private AttemptBuilder _currentAttemptBuilder = new();
 
-    public int EndOfChapterCutsceneSkipCounter = 0;
-    public bool EndOfChapterCutsceneSkipCheck = false;
-
     public void OnBeforeLoadState()
     {
         // If the previous attempt is incomplete and some room was timed, mark as DNF
@@ -29,8 +26,6 @@ public class SessionManager
     public void OnLoadState()
     {
         _currentAttemptBuilder = new AttemptBuilder();
-        EndOfChapterCutsceneSkipCounter = 0;
-        EndOfChapterCutsceneSkipCheck = false;
     }
 
     public long CurrentSplitTime()
@@ -60,8 +55,6 @@ public class SessionManager
             _currentSession.RoomCount = attempt.CompletedRooms.Count;
 
         _currentAttemptBuilder = null;
-        EndOfChapterCutsceneSkipCounter = 0;
-        EndOfChapterCutsceneSkipCheck = false;
     }
 
     public PracticeSession CurrentSession => _currentSession;

@@ -54,4 +54,3 @@ Configure the overlay to display the metrics that matter most to your current go
 ## Limitations
 
 - Multiple save states are not supported
-- Summit flags are not supported
