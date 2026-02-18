@@ -36,8 +36,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private object SaveLoadInstance = null;
 
-    private const long ONE_FRAME = 170000;
-
     public GraphManager graphManager;
     public TextOverlay textOverlay;
     private SessionManager sessionManager;
@@ -162,8 +160,40 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self){
-        orig(self);
-        if (!Settings.Enabled) return;
+        if (!Settings.Enabled) {
+            orig(self);
+            return;
+        }
+
+        if (Settings.ButtonKeyImportTargetTime.Pressed) ImportTargetTimeFromClipboard();
+
+        if (Instance.sessionManager == null)
+        {
+            orig(self);
+            return;
+        }
+
+        if (RoomTimerIntegration.RoomTimerIsCompleted())
+        {
+            if (Instance.sessionManager.HasActiveAttempt)
+            {
+                Instance.sessionManager.EndCurrentAttempt();
+            }
+            else if (Settings.OverlayEnabled) 
+            {
+                if (Instance.textOverlay == null)
+                {
+                    Instance.textOverlay = [];
+                    self.Entities.Add(Instance.textOverlay);
+                }
+                if (MetricsExporter.ExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
+                {
+                    Instance.textOverlay.SetText(result); 
+                }
+            }
+        }
+
+        orig(self);        
 
         if (Settings.ButtonKeyStatsExport.Pressed) 
         {
@@ -173,14 +203,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 ExportDataToFiles();
         }
 
-        if (Settings.ButtonKeyImportTargetTime.Pressed) ImportTargetTimeFromClipboard();
 
         if (Settings.ButtonKeyClearStats.Pressed) {
             Clear();
             PopupMessage(Dialog.Clean(DialogIds.PopupDataClearId));
         }
         
-        if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled && Instance.sessionManager != null) {
+        if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled) {
             if (Instance.graphManager == null)
             {
                 List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, Instance.sessionManager.DynamicRoomCount()).Select(i => {
@@ -208,15 +237,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         } else if (Settings.ButtonNextGraph.Pressed 
             && Settings.OverlayEnabled 
             && Instance.graphManager != null 
-            && Instance.graphManager.IsShowing() 
-            && Instance.sessionManager != null)
+            && Instance.graphManager.IsShowing())
         {
             Instance.graphManager.NextGraph(self);
         } else if (Settings.ButtonPreviousGraph.Pressed 
             && Settings.OverlayEnabled 
             && Instance.graphManager != null 
-            && Instance.graphManager.IsShowing() 
-            && Instance.sessionManager != null)
+            && Instance.graphManager.IsShowing())
         {
             Instance.graphManager.PreviousGraph(self);
         }
@@ -224,32 +251,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (self.Paused || self.wasPaused)
         {
             Instance.graphManager?.HideGraph();
-        }
-
-        if (RoomTimerIntegration.RoomTimerIsCompleted())
-        {
-            if (Instance.sessionManager == null)
-                return;
-            if (Instance.sessionManager.HasActiveAttempt)
-            {
-                // Logic to take care of srt flags, and split buttons: https://gamebanana.com/mods/639197 and https://gamebanana.com/mods/619910
-                long currentTime = RoomTimerIntegration.GetRoomTime();
-                if (currentTime > Instance.sessionManager.CurrentSplitTime() + ONE_FRAME) 
-                    Instance.sessionManager.CompleteRoom(RoomTimerIntegration.GetRoomTime());
-                Instance.sessionManager.EndCurrentAttempt();
-            }
-            else if (Settings.OverlayEnabled) 
-            {
-                if (Instance.textOverlay == null)
-                {
-                    Instance.textOverlay = [];
-                    self.Entities.Add(Instance.textOverlay);
-                }
-                if (MetricsExporter.ExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
-                {
-                    Instance.textOverlay.SetText(result); 
-                }
-            }
         }
     }
 
@@ -310,7 +311,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
 
-        if (Instance.sessionManager.CurrentSession?.TotalAttempts == 0)
+        if (Instance.sessionManager == null || Instance.sessionManager.CurrentSession?.TotalAttempts == 0)
         {
             PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
