@@ -38,7 +38,8 @@ public class SessionManager
         if (!HasActiveAttempt)
             return;
         TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
-        _currentAttemptBuilder.CompleteRoom(roomTime);
+        if (roomTime > 0)
+            _currentAttemptBuilder.CompleteRoom(roomTime);
     }
 
 
