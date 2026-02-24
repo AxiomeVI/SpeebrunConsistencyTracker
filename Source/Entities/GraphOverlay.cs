@@ -325,6 +325,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             int totalColumns = roomDataList.Count + 1;
             float columnWidth = w / totalColumns;
+            float baseLabelY = y + h + 10;
             
             // X axis labels (room index) - staggered
             for (int i = 0; i < roomDataList.Count; i++)
@@ -336,14 +337,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     label = string.Concat(label.AsSpan(0, 10), "...");
                 
                 // Alternate Y position for staggered effect
-                float labelY = (i % 2 == 0) ? y + h + 8 : y + h + 28;
+                float labelY = totalColumns > 25 ? i % 2 == 0 ? baseLabelY : baseLabelY + 20 : baseLabelY;
                 
-                Vector2 labelSize = ActiveFont.Measure(label) * 0.5f;
+                Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
                 ActiveFont.DrawOutline(
                     label,
                     new Vector2(centerX - labelSize.X / 2, labelY),
                     new Vector2(0f, 0f),
-                    Vector2.One * 0.5f,
+                    Vector2.One * 0.35f,
                     dotColor,
                     2f,
                     Color.Black
@@ -353,14 +354,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Segment label - determine position based on room count
             float segmentX = x + columnWidth * (totalColumns - 0.5f);
             // Continue the alternating pattern
-            float segmentLabelY = (roomDataList.Count % 2 == 0) ? y + h + 8 : y + h + 28;
+            float segmentLabelY = totalColumns >= 25 ? (roomDataList.Count % 2 == 0) ? baseLabelY : baseLabelY + 20 : baseLabelY;
             
-            Vector2 segmentLabelSize = ActiveFont.Measure("Segment") * 0.5f;
+            Vector2 segmentLabelSize = ActiveFont.Measure("Segment") * 0.35f;
             ActiveFont.DrawOutline(
                 "Segment",
                 new Vector2(segmentX - segmentLabelSize.X / 2, segmentLabelY),
                 new Vector2(0f, 0f),
-                Vector2.One * 0.5f,
+                Vector2.One * 0.35f,
                 segmentDotColor,
                 2f,
                 Color.Black
