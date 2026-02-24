@@ -222,7 +222,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 })];
                 List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes()];
                 
-                Instance.graphManager = new GraphManager(rooms, segment, Instance.sessionManager.CurrentSession.DnfPerRoom, Instance.sessionManager.DynamicRoomCount(), MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
+                Instance.graphManager = new GraphManager(rooms, segment, Instance.sessionManager.CurrentSession.DnfPerRoom, Instance.sessionManager.CurrentSession.TotalAttemptsPerRoom, Instance.sessionManager.DynamicRoomCount(), MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
                 if (!self.Paused)
                     Instance.graphManager.NextGraph(self);
             }

@@ -32,6 +32,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public StatTextOrientation TextOrientation { get; set; } = StatTextOrientation.Horizontal;
     public ColorChoice RoomColor { get; set; } = ColorChoice.Cyan;
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
+    public int TimeLossThresholdMs { get; set; } = 500;
 
     // Metrics menu
     public bool History { get; set; } = true;

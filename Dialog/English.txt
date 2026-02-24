@@ -31,6 +31,7 @@ TEXT_OVERLAY=                          Text Overlay
 GRAPH_OVERLAY=                         Graphs Overlay
 ROOM_COLOR=                            Room graph color
 SEGMENT_COLOR=                         Segment graph color
+TIME_LOSS_THRESHOLD=                   Time loss threshold (ms)
 
 # ======================= Hotkeys ==============================
 KEY_STATS_EXPORT=                      Export data

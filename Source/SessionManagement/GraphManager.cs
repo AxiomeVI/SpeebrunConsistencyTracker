@@ -7,13 +7,14 @@ using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
-public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, IReadOnlyDictionary<int, int> dnfPerRoom, int roomCount, TimeTicks? target = null)
+public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, IReadOnlyDictionary<int, int> dnfPerRoom, IReadOnlyDictionary<int, int> totalAttemptsPerRoom, int roomCount, TimeTicks? target = null)
 {
     private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
 
     private readonly List<List<TimeTicks>> roomTimes = rooms;
     private readonly List<TimeTicks> segmentTimes = segment;
     private readonly IReadOnlyDictionary<int, int> dnfData = dnfPerRoom;
+    private readonly IReadOnlyDictionary<int, int> attemptsByRoom = totalAttemptsPerRoom;
     private readonly int totalRooms = roomCount;
     private readonly TimeTicks? targetTime = target;
     
@@ -21,10 +22,11 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
     private GraphOverlay scatterGraph;
     private readonly Dictionary<int, HistogramOverlay> roomHistograms = [];
     private HistogramOverlay segmentHistogram;
-    private BarChartOverlay dnfChart;
+    private PercentBarChartOverlay dnfPctChart;
+    private PercentBarChartOverlay problemRoomsChart;
     
     // Current state
-    // -1 = scatter, 0..N-1 = room histogram, N = segment histogram, N+1 = DNF chart
+    // -1 = scatter, 0..N-1 = room histogram, N = segment, N+1 = DNF%, N+2 = problem rooms
     private int currentIndex = -1;
     private Entity currentOverlay;
 
@@ -34,13 +36,13 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
         currentOverlay?.RemoveSelf();
         currentOverlay = null;
         
-        // Cycle: scatter -> room1 -> room2 -> ... -> segment -> dnf chart -> scatter
-        if (currentIndex > roomTimes.Count + 1)
+        // Cycle: scatter -> rooms -> segment -> dnf% -> problem rooms -> scatter
+        if (currentIndex > roomTimes.Count + 2)
         {
             currentIndex = -1; // Back to scatter
         } else if (currentIndex < -1)
         {
-            currentIndex = roomTimes.Count + 1; // Goes to DNF chart
+            currentIndex = roomTimes.Count + 2; // Goes to last chart
         }
         
         // Show appropriate graph
@@ -74,20 +76,60 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
                 );
             currentOverlay = segmentHistogram;
         }
-        else
+        else if (currentIndex == roomTimes.Count + 1)
         {
-            // Show DNF bar chart
-            if (dnfChart == null)
+            // Show DNF percentage chart
+            if (dnfPctChart == null)
             {
                 var labels = Enumerable.Range(1, totalRooms).Select(i => $"R{i}").ToList();
-                var values = Enumerable.Range(0, totalRooms).Select(i => dnfData.GetValueOrDefault(i)).ToList();
-                dnfChart = new BarChartOverlay("DNF Count by Room", labels, values, Color.IndianRed);
+                var dnfPcts = Enumerable.Range(0, totalRooms).Select(i =>
+                {
+                    int reached = attemptsByRoom.GetValueOrDefault(i);
+                    if (reached == 0) return 0.0;
+                    return (double)dnfData.GetValueOrDefault(i) / reached * 100;
+                }).ToList();
+                dnfPctChart = new PercentBarChartOverlay("DNF % by Room", labels, dnfPcts, Color.CornflowerBlue, "DNF %");
             }
-            currentOverlay = dnfChart;
+            currentOverlay = dnfPctChart;
+        }
+        else
+        {
+            // Show stacked problem rooms chart (DNF% + time loss%)
+            if (problemRoomsChart == null)
+            {
+                var labels = Enumerable.Range(1, totalRooms).Select(i => $"R{i}").ToList();
+                long thresholdTicks = _settings.TimeLossThresholdMs * 10000L;
+                
+                var dnfPcts = Enumerable.Range(0, totalRooms).Select(i =>
+                {
+                    int reached = attemptsByRoom.GetValueOrDefault(i);
+                    if (reached == 0) return 0.0;
+                    return (double)dnfData.GetValueOrDefault(i) / reached * 100;
+                }).ToList();
+                
+                var timeLossPcts = Enumerable.Range(0, totalRooms).Select(i =>
+                {
+                    int reached = attemptsByRoom.GetValueOrDefault(i);
+                    if (reached == 0) return 0.0;
+                    var times = i < roomTimes.Count ? roomTimes[i] : [];
+                    if (times.Count == 0) return 0.0;
+                    long bestTicks = times.Min(t => t.Ticks);
+                    int slowCount = times.Count(t => t.Ticks > bestTicks + thresholdTicks);
+                    return (double)slowCount / reached * 100;
+                }).ToList();
+                
+                problemRoomsChart = new PercentBarChartOverlay(
+                    $"Problem Rooms (threshold: {_settings.TimeLossThresholdMs}ms)",
+                    labels, dnfPcts, timeLossPcts,
+                    Color.CornflowerBlue, Color.IndianRed,
+                    "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold"
+                );
+            }
+            currentOverlay = problemRoomsChart;
         }
         
         level.Add(currentOverlay);
-        currentIndex++;;
+        currentIndex++;
     }
 
     public void PreviousGraph(Level level)
@@ -118,7 +160,8 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
         currentOverlay?.RemoveSelf();
         scatterGraph?.RemoveSelf();
         segmentHistogram?.RemoveSelf();
-        dnfChart?.RemoveSelf();
+        dnfPctChart?.RemoveSelf();
+        problemRoomsChart?.RemoveSelf();
         foreach(HistogramOverlay graph in roomHistograms.Values)
         {
             graph?.RemoveSelf();
@@ -131,7 +174,8 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
         currentOverlay = null;
         scatterGraph = null;
         segmentHistogram = null;
-        dnfChart = null;
+        dnfPctChart = null;
+        problemRoomsChart = null;
         roomHistograms.Clear();
     }
 

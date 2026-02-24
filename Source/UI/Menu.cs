@@ -194,6 +194,7 @@ public static class ModMenuOptions
         TextMenu.Slider textAlpha = new(Dialog.Clean(DialogIds.TextAlphaId), i => (i/100f).ToString("0.00"), 0, 100, _settings._textAlpha);
         TextMenu.Slider roomColor = new(Dialog.Clean(DialogIds.RoomColorId), i => enumColorValues[i].ToString(), 0, enumColorValues.Length - 1, Array.IndexOf(enumColorValues, _settings.RoomColor));
         TextMenu.Slider segmentColor = new(Dialog.Clean(DialogIds.SegmentColorId), i => enumColorValues[i].ToString(), 0, enumColorValues.Length - 1, Array.IndexOf(enumColorValues, _settings.SegmentColor));
+        TextMenuExt.IntSlider timeLossThreshold = new(Dialog.Clean(DialogIds.TimeLossThresholdId), 100, 2000, _settings.TimeLossThresholdMs);
 
         textAlpha.Change(v => {
             _settings._textAlpha = v;
@@ -221,6 +222,7 @@ public static class ModMenuOptions
             _instance.graphManager?.ClearScatterGraph();
             _instance.graphManager?.ClearHistrogram();
         });
+        timeLossThreshold.Change(v => _settings.TimeLossThresholdMs = v);
 
         TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled).Change(
             value =>
@@ -232,6 +234,7 @@ public static class ModMenuOptions
                 textOrientation.Visible = value;
                 roomColor.Visible = value;
                 segmentColor.Visible = value;
+                timeLossThreshold.Visible = value;
             }
         );
 
@@ -244,6 +247,7 @@ public static class ModMenuOptions
         overlaySubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphOverlayId), false));
         overlaySubMenu.Add(roomColor);
         overlaySubMenu.Add(segmentColor);
+        overlaySubMenu.Add(timeLossThreshold);
 
         textAlpha.Disabled = true; // TODO: debug
 

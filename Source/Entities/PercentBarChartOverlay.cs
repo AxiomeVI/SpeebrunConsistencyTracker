@@ -1,0 +1,269 @@
+using Microsoft.Xna.Framework;
+using Monocle;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
+{
+    /// <summary>
+    /// Bar chart showing percentage values per room, with optional stacked second layer.
+    /// Used for DNF% and the combined DNF% + time-loss% chart.
+    /// </summary>
+    public class PercentBarChartOverlay : Entity
+    {
+        private readonly string title;
+        private readonly List<string> labels;
+        private readonly List<double> primaryValues;   // bottom portion (e.g. DNF %)
+        private readonly List<double> secondaryValues;  // stacked on top (e.g. time loss %)
+        private readonly Color primaryColor;
+        private readonly Color secondaryColor;
+        private readonly string primaryLabel;
+        private readonly string secondaryLabel;
+        
+        // Graph settings
+        private readonly Vector2 position;
+        private readonly float width = 1800f;
+        private readonly float height = 900f;
+        private readonly float margin = 80f;
+        
+        // Colors
+        private readonly Color backgroundColor = Color.Black * 0.8f;
+        private readonly Color axisColor = Color.White;
+        
+        private readonly int maxValue;
+
+        /// <summary>
+        /// Single-layer percentage bar chart (e.g. DNF % only).
+        /// </summary>
+        public PercentBarChartOverlay(
+            string title,
+            List<string> labels,
+            List<double> values,
+            Color barColor,
+            string legendLabel = null,
+            Vector2? pos = null)
+            : this(title, labels, values, null, barColor, Color.Transparent, legendLabel, null, pos) { }
+
+        /// <summary>
+        /// Stacked percentage bar chart with primary + secondary layers.
+        /// </summary>
+        public PercentBarChartOverlay(
+            string title,
+            List<string> labels,
+            List<double> primaryValues,
+            List<double> secondaryValues,
+            Color primaryColor,
+            Color secondaryColor,
+            string primaryLabel,
+            string secondaryLabel,
+            Vector2? pos = null)
+        {
+            this.title = title;
+            this.labels = labels;
+            this.primaryValues = primaryValues;
+            this.secondaryValues = secondaryValues;
+            this.primaryColor = primaryColor;
+            this.secondaryColor = secondaryColor;
+            this.primaryLabel = primaryLabel;
+            this.secondaryLabel = secondaryLabel;
+            
+            Depth = -100;
+            
+            position = pos ?? new Vector2(
+                (1920 - width) / 2,
+                (1080 - height) / 2
+            );
+            
+            Tag = Tags.HUD | Tags.Global;
+            
+            maxValue = 100;
+        }
+        
+        public override void Render()
+        {
+            base.Render();
+            
+            Draw.Rect(position, width, height, backgroundColor);
+            
+            float graphX = position.X + margin;
+            float graphY = position.Y + margin;
+            float graphWidth = width - margin * 2;
+            float graphHeight = height - margin * 2;
+            
+            DrawAxes(graphX, graphY, graphWidth, graphHeight);
+            DrawBars(graphX, graphY, graphWidth, graphHeight);
+            DrawLabels(graphX, graphY, graphWidth, graphHeight);
+        }
+        
+        private void DrawAxes(float x, float y, float w, float h)
+        {
+            Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, 2f);
+            Draw.Line(new Vector2(x, y), new Vector2(x, y + h), axisColor, 2f);
+        }
+        
+        private void DrawBars(float x, float y, float w, float h)
+        {
+            if (primaryValues.Count == 0) return;
+            
+            float barWidth = w / primaryValues.Count;
+            float barSpacing = barWidth * 0.15f;
+            float actualBarWidth = barWidth - barSpacing;
+            
+            for (int i = 0; i < primaryValues.Count; i++)
+            {
+                float barX = x + i * barWidth + barSpacing / 2;
+                
+                // Primary (bottom) bar
+                double pct = primaryValues[i];
+                float primaryHeight = (float)(pct / maxValue) * h;
+                float primaryY = y + h - primaryHeight;
+                
+                if (primaryHeight > 0)
+                    Draw.Rect(barX, primaryY, actualBarWidth, primaryHeight, primaryColor);
+                
+                // Secondary (stacked on top) bar
+                float secondaryHeight = 0;
+                if (secondaryValues != null && i < secondaryValues.Count)
+                {
+                    double secPct = secondaryValues[i];
+                    secondaryHeight = (float)(secPct / maxValue) * h;
+                    float secondaryY = primaryY - secondaryHeight;
+                    
+                    if (secondaryHeight > 0)
+                        Draw.Rect(barX, secondaryY, actualBarWidth, secondaryHeight, secondaryColor);
+                }
+                
+                // Draw percentage label on top
+                float totalHeight = primaryHeight + secondaryHeight;
+                if (totalHeight > 15)
+                {
+                    double totalPct = pct + (secondaryValues != null && i < secondaryValues.Count ? secondaryValues[i] : 0);
+                    string pctText = $"{totalPct:F0}%";
+                    Vector2 textSize = ActiveFont.Measure(pctText) * 0.3f;
+                    float labelY = y + h - totalHeight - textSize.Y - 3;
+                    
+                    ActiveFont.DrawOutline(
+                        pctText,
+                        new Vector2(barX + actualBarWidth / 2 - textSize.X / 2, labelY),
+                        new Vector2(0f, 0f),
+                        Vector2.One * 0.3f,
+                        Color.White,
+                        2f,
+                        Color.Black
+                    );
+                }
+            }
+        }
+        
+        private void DrawLabels(float x, float y, float w, float h)
+        {
+            // Title
+            Vector2 titleSize = ActiveFont.Measure(title) * 0.7f;
+            ActiveFont.DrawOutline(
+                title,
+                new Vector2(position.X + width / 2 - titleSize.X / 2, position.Y + 10),
+                new Vector2(0f, 0f),
+                Vector2.One * 0.7f,
+                Color.White,
+                2f,
+                Color.Black
+            );
+            
+            // Y axis label
+            string yAxisLabel = "%";
+            Vector2 yAxisSize = ActiveFont.Measure(yAxisLabel) * 0.5f;
+            ActiveFont.DrawOutline(
+                yAxisLabel,
+                new Vector2(x - yAxisSize.X - 25, y + h / 2 - yAxisSize.Y / 2),
+                new Vector2(0f, 0f),
+                Vector2.One * 0.5f,
+                Color.White,
+                2f,
+                Color.Black
+            );
+            
+            // Y axis ticks (0% to 100%)
+            int yLabelCount = 5;
+            for (int i = 0; i <= yLabelCount; i++)
+            {
+                double pctValue = (double)maxValue / yLabelCount * i;
+                float yPos = y + h - h / yLabelCount * i;
+                
+                string countLabel = $"{pctValue:F0}%";
+                Vector2 labelSize = ActiveFont.Measure(countLabel) * 0.35f;
+                
+                ActiveFont.DrawOutline(
+                    countLabel,
+                    new Vector2(x - labelSize.X - 10, yPos - labelSize.Y / 2),
+                    new Vector2(0f, 0f),
+                    Vector2.One * 0.35f,
+                    Color.White,
+                    2f,
+                    Color.Black
+                );
+                
+                // Grid line
+                if (i > 0)
+                    Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.3f, 1f);
+            }
+            
+            // X axis labels
+            if (labels.Count > 0)
+            {
+                float barWidth = w / labels.Count;
+                float baseLabelY = y + h + 10;
+                
+                for (int i = 0; i < labels.Count; i++)
+                {
+                    float labelX = x + i * barWidth + barWidth / 2;
+                    string label = labels[i];
+                    Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
+                    float labelY = labels.Count > 25 ? i % 2 == 0 ? baseLabelY : baseLabelY + 20 : baseLabelY;
+
+                    ActiveFont.DrawOutline(
+                        label,
+                        new Vector2(labelX - labelSize.X / 2, labelY),
+                        new Vector2(0f, 0f),
+                        Vector2.One * 0.35f,
+                        Color.LightGray,
+                        2f,
+                        Color.Black
+                    );
+                }
+            }
+            
+            // Legend (bottom right) — only if we have labels for the colors
+            float legendY = y + h + 55;
+            float legendX = x + w;
+            
+            if (primaryLabel != null)
+            {
+                DrawLegendEntry(legendX, legendY, primaryLabel, primaryColor, 0.35f, right: true);
+            }
+            if (secondaryLabel != null && secondaryValues != null)
+            {
+                float offset = primaryLabel != null ? ActiveFont.Measure(primaryLabel).X * 0.35f + 40 : 0;
+                DrawLegendEntry(legendX - offset, legendY, secondaryLabel, secondaryColor, 0.35f, right: true);
+            }
+        }
+        
+        private void DrawLegendEntry(float x, float y, string text, Color color, float scale, bool right = false)
+        {
+            Vector2 textSize = ActiveFont.Measure(text) * scale;
+            float totalWidth = textSize.X + 20; // 15 for color box + 5 spacing
+            float startX = right ? x - totalWidth : x;
+            
+            Draw.Rect(startX, y + 2, 12, 12, color);
+            ActiveFont.DrawOutline(
+                text,
+                new Vector2(startX + 17, y),
+                new Vector2(0f, 0f),
+                Vector2.One * scale,
+                Color.White,
+                2f,
+                Color.Black
+            );
+        }
+    }
+}
