@@ -129,6 +129,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             }
             else
             {
+                if (Text.Count == 0) return;
+
                 // Multi-line - render each line with proper spacing
                 Vector2 sampleSize = ActiveFont.Measure(Text[0]) * Scale;
                 float lineHeight = sampleSize.Y * LineSpacing;
