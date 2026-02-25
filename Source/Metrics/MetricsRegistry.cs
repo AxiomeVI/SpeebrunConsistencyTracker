@@ -58,8 +58,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.StandardDeviation, mode)
             ),
             new MetricDescriptor(
-                "Coef of Variation",
-                "cv",
+                "Relative StdDev",
+                "rsd",
                 Metrics.CoefVariation,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.CoefficientOfVariation, mode)
             ),

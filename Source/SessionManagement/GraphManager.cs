@@ -1,7 +1,9 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
+using Microsoft.Xna.Framework;
 using Monocle;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
@@ -11,6 +13,8 @@ public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks
 
     private readonly List<List<TimeTicks>> roomTimes = rooms;
     private readonly List<TimeTicks> segmentTimes = segment;
+    private readonly IReadOnlyDictionary<int, int> dnfData = dnfPerRoom;
+    private readonly int totalRooms = rooms.Count;
     private readonly TimeTicks? targetTime = target;
     private readonly int segmentLength = rooms.Count;
     
@@ -18,6 +22,7 @@ public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks
     private GraphOverlay scatterGraph;
     private readonly Dictionary<int, HistogramOverlay> roomHistograms = [];
     private HistogramOverlay segmentHistogram;
+    private BarChartOverlay dnfChart;
     
     // Current state
     private int currentIndex = index; // -1 = scatter, 0+ = room histogram, Count = segment histogram
@@ -44,13 +49,13 @@ public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks
         currentOverlay?.RemoveSelf();
         currentOverlay = null;
         
-        // Cycle: scatter -> room1 -> room2 -> ... -> segment -> scatter
-        if (currentIndex > roomTimes.Count)
+        // Cycle: scatter -> room1 -> room2 -> ... -> segment -> dnf chart -> scatter
+        if (currentIndex > roomTimes.Count + 1)
         {
             currentIndex = -1; // Back to scatter
         } else if (currentIndex < -1)
         {
-            currentIndex = roomTimes.Count; // Goes to segment histogram
+            currentIndex = roomTimes.Count + 1; // Goes to DNF chart
         }
         
         // Show appropriate graph
@@ -74,7 +79,7 @@ public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks
             }
             currentOverlay = value;
         }
-        else
+        else if (currentIndex == roomTimes.Count)
         {
             // Show segment histogram
             segmentHistogram ??= new HistogramOverlay(
@@ -83,6 +88,17 @@ public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks
                     GraphOverlay.ToColor(_settings.SegmentColor)
                 );
             currentOverlay = segmentHistogram;
+        }
+        else
+        {
+            // Show DNF bar chart
+            if (dnfChart == null)
+            {
+                var labels = Enumerable.Range(1, totalRooms).Select(i => $"R{i}").ToList();
+                var values = Enumerable.Range(0, totalRooms).Select(i => dnfData.GetValueOrDefault(i)).ToList();
+                dnfChart = new BarChartOverlay("DNF Count by Room", labels, values, Color.IndianRed);
+            }
+            currentOverlay = dnfChart;
         }
         
         level.Add(currentOverlay);
@@ -117,6 +133,7 @@ public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks
         currentOverlay?.RemoveSelf();
         scatterGraph?.RemoveSelf();
         segmentHistogram?.RemoveSelf();
+        dnfChart?.RemoveSelf();
         foreach(HistogramOverlay graph in roomHistograms.Values)
         {
             graph?.RemoveSelf();
@@ -129,6 +146,7 @@ public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks
         currentOverlay = null;
         scatterGraph = null;
         segmentHistogram = null;
+        dnfChart = null;
         roomHistograms.Clear();
     }
 

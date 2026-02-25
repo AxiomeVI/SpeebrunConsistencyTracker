@@ -41,7 +41,7 @@ Configure the overlay to display the metrics that matter most to your current go
 - Best: fastest recorded time
 - Worst: slowest recorded time
 - Standard Deviation: measure of how spread out the run times are around the average
-- Coefficient Of Variation: Standard Deviation as a percentage of the average, allowing easier comparison across different segments / rooms
+- Relative Standard Deviation: Standard Deviation as a percentage of the average, allowing easier comparison across different segments / rooms
 - Percentile: n% of your runs were faster than the selected value for n
 - Interquartile Range: the lower and upper bound of the middle 50% of your runs (first and third quarter basically)
 - Trend Slope: measures how session duration affects performance. Values closer to zero indicate little effect, while negative values indicate that your times tend to improve as the session progresses, whereas positive values indicate the opposite
