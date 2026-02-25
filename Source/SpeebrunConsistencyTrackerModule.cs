@@ -99,10 +99,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private delegate void orig_SetNumberOfRooms(object self, int value);
     private static void OnSetNumberOfRooms(orig_SetNumberOfRooms orig, object self, int value) {
         orig(self, value);
-
-        if (Settings.Enabled && Instance.sessionManager != null) {
-            Instance.sessionManager.SetRoomCount(value);
-        }
     }
         
 
@@ -132,6 +128,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             return;
         Instance.sessionManager = new();
         MetricsExporter.Clear();
+        MetricEngine.Clear();
     }
 
     public static void OnClearState()
@@ -145,7 +142,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled)
             return;
-        Instance.sessionManager?.OnBeforeLoadState();
         Instance.graphManager?.RemoveGraphs();
         Instance.graphManager = null;
         Instance.textOverlay?.RemoveSelf();
@@ -181,7 +177,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 Instance.textOverlay = [];
                 self.Entities.Add(Instance.textOverlay);
             }
-            if (MetricsExporter.ExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
+            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, Instance.sessionManager.DynamicRoomCount(), out List<string> result))
             {
                 Instance.textOverlay.SetText(result); 
             }
@@ -208,43 +204,44 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             PopupMessage(Dialog.Clean(DialogIds.PopupDataClearId));
         }
         
-        if (Settings.ButtonToggleGraphOverlay.Pressed && Settings.OverlayEnabled) {
-            if (Instance.graphManager == null)
+        if (Settings.OverlayEnabled)
+        {
+            int segmentLength = Instance.sessionManager.DynamicRoomCount();
+            if (Settings.ButtonToggleGraphOverlay.Pressed) {
+                if (Instance.graphManager == null)
+                {
+                    List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength).Select<int, List<TimeTicks>>(i => [.. Instance.sessionManager.CurrentSession.GetRoomTimes(i)]).Where(roomList => roomList.Count > 0)];
+                    List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
+                    Instance.graphManager = new GraphManager(rooms, segment, MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
+                    if (!self.Paused)
+                        Instance.graphManager.NextGraph(self);
+                }
+                else if (Instance.graphManager.IsShowing())
+                {
+                    Instance.graphManager.HideGraph();
+                }
+                else if (!self.Paused)
+                {
+                    Instance.graphManager.CurrentGraph(self);
+                }
+            } else if (Instance.graphManager != null && Instance.graphManager.IsShowing())
             {
-                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, Instance.sessionManager.DynamicRoomCount()).Select(i => {
-                    List<TimeTicks> roomTimes = [.. Instance.sessionManager.CurrentSession.GetRoomTimes(i)];
-                    if (Instance.sessionManager.CurrentAttempt != null && i < Instance.sessionManager.CurrentAttempt.Count)
-                    {
-                        roomTimes.Add(Instance.sessionManager.CurrentAttempt.GetRoomTimeAt(i));
-                    }
-                    return roomTimes;
-                })];
-                List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes()];
-                
-                Instance.graphManager = new GraphManager(rooms, segment, MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
-                if (!self.Paused)
+                if (Settings.ButtonNextGraph.Pressed)
+                {
                     Instance.graphManager.NextGraph(self);
+                } else if (Settings.ButtonPreviousGraph.Pressed)
+                {
+                    Instance.graphManager.PreviousGraph(self);
+                } else if (!Instance.graphManager.SameSettings(segmentLength))
+                {
+                    List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength).Select<int, List<TimeTicks>>(i => [.. Instance.sessionManager.CurrentSession.GetRoomTimes(i)]).Where(roomList => roomList.Count > 0)];
+                    List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
+                    int graphIndex = Instance.graphManager.CurrentIndex(out int index) ? index : rooms.Count + index;
+                    Instance.graphManager.RemoveGraphs();
+                    Instance.graphManager = new GraphManager(graphIndex, rooms, segment, MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
+                    if (!self.Paused) Instance.graphManager.NextGraph(self);
+                }
             }
-            else if (Instance.graphManager.IsShowing())
-            {
-                Instance.graphManager.HideGraph();
-            }
-            else if (!self.Paused)
-            {
-                Instance.graphManager.CurrentGraph(self);
-            }
-        } else if (Settings.ButtonNextGraph.Pressed 
-            && Settings.OverlayEnabled 
-            && Instance.graphManager != null 
-            && Instance.graphManager.IsShowing())
-        {
-            Instance.graphManager.NextGraph(self);
-        } else if (Settings.ButtonPreviousGraph.Pressed 
-            && Settings.OverlayEnabled 
-            && Instance.graphManager != null 
-            && Instance.graphManager.IsShowing())
-        {
-            Instance.graphManager.PreviousGraph(self);
         }
 
         if (self.Paused || self.wasPaused)
@@ -269,6 +266,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public static void Clear()
     {
         MetricsExporter.Clear();
+        MetricEngine.Clear();
         Instance.sessionManager = null;
         Instance.textOverlay?.RemoveSelf();
         Instance.textOverlay = null;
@@ -295,11 +293,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             sb.Append(TextInput.GetClipboardText());
             sb.Append("\n\n\n");
         }
-        sb.Append(MetricsExporter.ExportSessionToCsv(currentSession));
+        sb.Append(MetricsExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
         if (Settings.History)
         {
             sb.Append("\n\n\n");
-            sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
+            sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
         }
         TextInput.SetClipboardText(sb.ToString());
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
@@ -329,11 +327,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
         {
-            writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession));
+            writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
         }
         using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv")))
         {
-            writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession));
+            writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
         }
 
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));

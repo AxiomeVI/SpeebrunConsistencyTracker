@@ -5,13 +5,14 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
-public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, TimeTicks? target = null)
+public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks> segment, TimeTicks? target = null)
 {
     private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
 
     private readonly List<List<TimeTicks>> roomTimes = rooms;
     private readonly List<TimeTicks> segmentTimes = segment;
     private readonly TimeTicks? targetTime = target;
+    private readonly int segmentLength = rooms.Count;
     
     // Cache for overlays
     private GraphOverlay scatterGraph;
@@ -19,8 +20,23 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
     private HistogramOverlay segmentHistogram;
     
     // Current state
-    private int currentIndex = -1; // -1 = scatter, 0+ = room histogram, Count = segment histogram
+    private int currentIndex = index; // -1 = scatter, 0+ = room histogram, Count = segment histogram
+    public bool CurrentIndex(out int index)
+    {
+        index = currentIndex - 1;
+        if (index < roomTimes.Count)
+            return true;
+        else
+        {
+            index -= roomTimes.Count;
+            return false;
+        }
+    }
     private Entity currentOverlay;
+
+    public GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, TimeTicks? target = null) : this(-1, rooms, segment, target) {}
+
+    public bool SameSettings(int segmentLength) => this.segmentLength == segmentLength;
 
     public void NextGraph(Level level)
     {

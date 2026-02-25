@@ -4,64 +4,50 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 
-public sealed class Attempt
+public sealed class Attempt() : IEquatable<Attempt>
 {
-    public DateTime Timestamp { get; }
-    public AttemptOutcome Outcome { get; }
+    public TimeTicks TotalSegmentTime = TimeTicks.Zero;
+    public List<TimeTicks> CompletedRooms = [];
 
-    public TimeTicks SegmentTime { get; }
-
-    public List<TimeTicks> CompletedRooms { get; }
-
-    public DnfInfo? DnfInfo { get; }
-
-    public bool IsCompleted => Outcome == AttemptOutcome.Completed;
-
-    private Attempt(
-        DateTime timestamp,
-        AttemptOutcome outcome,
-        List<TimeTicks> completedRooms,
-        TimeTicks segmentTime,
-        DnfInfo? dnf)
+    public void CompleteRoom(TimeTicks ticks)
     {
-        Timestamp = timestamp;
-        Outcome = outcome;
-        CompletedRooms = completedRooms;
-        SegmentTime = segmentTime;
-        DnfInfo = dnf;
+        CompletedRooms.Add(ticks);
+        TotalSegmentTime += ticks;
     }
 
-    public static Attempt Completed(
-        DateTime timestamp,
-        List<TimeTicks> roomTicks,
-        TimeTicks segmentTime)
+    public bool IsCompleted(int segmentLength) => CompletedRooms.Count >= segmentLength;
+
+    public int TotalRoomCount => CompletedRooms.Count + 1; // Completed room + dnf room
+
+    public int Count => CompletedRooms.Count;
+
+    public TimeTicks SegmentTime(int segmentLength)
     {
-        return new Attempt(
-            timestamp,
-            AttemptOutcome.Completed,
-            roomTicks,
-            segmentTime,
-            null
-        );
+        int countToSum = Math.Min(segmentLength, CompletedRooms.Count);
+        if (countToSum <= 0) return TimeTicks.Zero;
+
+        TimeTicks totalTicks = TimeTicks.Zero;
+        foreach (var room in CompletedRooms[..countToSum])
+        {
+            totalTicks += room;
+        }
+
+        return totalTicks;
     }
 
-    public static Attempt Dnf(
-        DateTime timestamp,
-        List<TimeTicks> completedRooms,
-        TimeTicks segmentTime,
-        DnfInfo dnf)
+    public bool Equals(Attempt other)
     {
-        ArgumentNullException.ThrowIfNull(dnf);
+        if (other is null)
+            return false;
 
-        return new Attempt(
-            timestamp,
-            AttemptOutcome.Dnf,
-            completedRooms,
-            segmentTime,
-            dnf
-        );
+        if (ReferenceEquals(this, other))
+            return true;
+
+        return TotalSegmentTime == other.TotalSegmentTime && CompletedRooms.Count == other.CompletedRooms.Count;
     }
 
-    public int TotalRoomCount 
-        => CompletedRooms.Count + (DnfInfo != null ? 1 : 0);
+    public override bool Equals(object obj)
+        => Equals(obj as Attempt);
+
+    public override int GetHashCode() => HashCode.Combine(TotalSegmentTime.Ticks, CompletedRooms.Count);
 }
