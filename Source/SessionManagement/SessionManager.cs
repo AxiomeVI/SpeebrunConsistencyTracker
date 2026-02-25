@@ -16,6 +16,7 @@ public class SessionManager
 
     public void OnLoadState()
     {
+        _currentSession.MaxRoomCount = Math.Max(_currentSession.MaxRoomCount, _currentAttempt?.TotalRoomCount ?? 0);
         _currentAttempt = new Attempt();
         _currentSession.AddAttempt(_currentAttempt);
     }

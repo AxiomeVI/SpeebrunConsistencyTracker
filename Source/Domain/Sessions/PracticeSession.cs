@@ -10,7 +10,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 public sealed class PracticeSession : IEquatable<PracticeSession>
 {
     public string levelName;
-    public int MaxRoomCount { get; set; }
+    public int MaxRoomCount { get; set; } = 0;
     private readonly List<Attempt> _attempts = [];
     public IReadOnlyList<Attempt> Attempts => _attempts;
 
@@ -55,7 +55,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
 
-    public IEnumerable<TimeTicks> GetSegmentTimes(int segmentLength) => _attempts.Select(a => a.SegmentTime(segmentLength));
+    public IEnumerable<TimeTicks> GetSegmentTimes(int segmentLength) => _attempts.Where(a => a.Count >= segmentLength).Select(a => a.SegmentTime(segmentLength));
 
     public IEnumerable<TimeTicks> GetRoomTimes(int roomIndex) =>
         _attempts
