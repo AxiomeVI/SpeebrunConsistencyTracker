@@ -13,8 +13,8 @@ A Celeste mod designed to help speedrunners focus on measuring and improving con
 ### 1. Training Workflow
 
 * **Set a Save State:** Starting a new training session. Creating or clearing a save state will reset all current session data
-* **Run the Segment:** Play through to the end. To maintain data integrity, always runs with the proper room count (or set an endpoint)
-* **Review Performance:** Every time you complete a run, a customizable overlay appears to display your latest session statistics
+* **Run the Segment:** Practice the segment as you usually do. To maintain data integrity, **make sure that the "current room / next room" SpeedrunTool setting is properly configured**
+* **Review Performance:** After every completed run, a customizable overlay displays your session statistics. You can also view various performance charts in-game via your configured keybinds (my personal recommendation is to use the default menu directions to cycle through them)
 
 ### 2. Real-Time Feedback & Overlays
 
@@ -54,3 +54,4 @@ Configure the overlay to display the metrics that matter most to your current go
 ## Limitations
 
 - Multiple save states are not supported
+- Updating current room / next room during an active session will cause inconsistencies in the data
