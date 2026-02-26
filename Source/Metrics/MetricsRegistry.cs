@@ -34,12 +34,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.Median, mode)
             ),
             new MetricDescriptor(
-                "Median Absolute Deviation",
-                "mad",
-                Metrics.MedianAbsoluteDeviation,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.MedianAbsoluteDeviation, mode)
-            ),
-            new MetricDescriptor(
                 "Best",
                 "best",
                 Metrics.Best,
@@ -59,9 +53,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             ),
             new MetricDescriptor(
                 "Relative StdDev",
-                "rsd",
+                "RelSD",
                 Metrics.CoefVariation,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.CoefficientOfVariation, mode)
+            ),
+            new MetricDescriptor(
+                "Median Absolute Deviation",
+                "mad",
+                Metrics.MedianAbsoluteDeviation,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.MedianAbsoluteDeviation, mode)
+            ),
+            new MetricDescriptor(
+                "Relative Median Absolute Deviation",
+                "RelMAD",
+                Metrics.RelativeMAD,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.RelativeMAD, mode)
             ),
             new MetricDescriptor(
                 () => $"{_settings.PercentileValue}",

@@ -1,7 +1,5 @@
 using Microsoft.Xna.Framework.Input;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
-using System;
-using static Monocle.VirtualButton;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -21,7 +19,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public int MillisecondsSecondDigit { get; set; } = 0;
     public int MillisecondsThirdDigit { get; set; } = 0;
 
-    // Overlay menu
+    // Text Overlay menu
     public bool OverlayEnabled { get; set; } = true;
     public int TextSize { get; set; } = 65;
     public int TextOffsetX { get; set; } = 5;
@@ -30,17 +28,25 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public float TextAlpha => _textAlpha / 100f;
     public StatTextPosition TextPosition { get; set; } = StatTextPosition.TopLeft;
     public StatTextOrientation TextOrientation { get; set; } = StatTextOrientation.Horizontal;
+
+    // Graph Overlay menu
     public ColorChoice RoomColor { get; set; } = ColorChoice.Cyan;
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
     public int TimeLossThresholdMs { get; set; } = 493;
+    public bool GraphScatter { get; set; } = true;
+    public bool GraphRoomHistogram { get; set; } = false;
+    public bool GraphSegmentHistogram { get; set; } = true;
+    public bool GraphDnfPercent { get; set; } = true;
+    public bool GraphProblemRooms { get; set; } = false;
+    public bool GraphInconsistentRooms { get; set; } = false;
 
     // Metrics menu
     public bool History { get; set; } = true;
     public MetricOutputChoice SuccessRate { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice TargetTime { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice CompletedRunCount { get; set; } = MetricOutputChoice.Export;
+    public MetricOutputChoice TargetTime { get; set; } = MetricOutputChoice.Export;
+    public MetricOutputChoice CompletedRunCount { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice TotalRunCount { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice DnfCount { get; set; } = MetricOutputChoice.Both;
+    public MetricOutputChoice DnfCount { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice Average { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice Median { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice ResetRate { get; set; } = MetricOutputChoice.Export;
@@ -55,7 +61,8 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice LinearRegression { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Both;
+    public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Export;
+    public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Export;
     public bool MultimodalTest { get; set; } = true;
     public bool RoomDependency { get; set; } = true;
 
@@ -71,15 +78,15 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     [SettingName(DialogIds.ToggleGraphOverlayId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonToggleGraphOverlay { get; set; }  = new(0, Keys.Up);
+    public ButtonBinding ButtonToggleGraphOverlay { get; set; }  = new(0, Keys.None);
 
     [SettingName(DialogIds.KeyNextGraphId)]
     [DefaultButtonBinding(0, Keys.Right)]
-    public ButtonBinding ButtonNextGraph { get; set; }  = new(0, Keys.Right);
+    public ButtonBinding ButtonNextGraph { get; set; }  = new(0, Keys.None);
 
     [SettingName(DialogIds.KeyPreviousGraphId)]
     [DefaultButtonBinding(0, Keys.Left)]
-    public ButtonBinding ButtonPreviousGraph { get; set; }  = new(0, Keys.Left);
+    public ButtonBinding ButtonPreviousGraph { get; set; }  = new(0, Keys.None);
 
     [SettingName(DialogIds.KeyClearStatsId)]
     [DefaultButtonBinding(0, Keys.None)]

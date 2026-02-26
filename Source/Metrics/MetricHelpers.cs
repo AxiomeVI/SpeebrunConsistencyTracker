@@ -197,32 +197,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return ComputePercentile([.. deviations.Select(t => new TimeTicks(t))], 50);
         }
 
-        public static double ComputeConsistencyScore_TOO_KIND(double median, TimeTicks min, double mad, double resetRate, double q1, double q3)
-        {
-            double IQR = q3 - q1;
-
-            double relMad = median != 0 ? Math.Max(0, 1.0 - (mad / median)) : 0;
-            double relIqr = median != 0 ? Math.Max(0, 1.0 - (IQR / median)) : 0;
-
-            double stability = (relMad * 25) + (relIqr * 25);
-            double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
-            double reliability = completionRate * completionRate;
-            double floorProximity = 1;
-            if (median > 0)
-            {
-                double gap = (median - (double)min) / median;
-                floorProximity = Math.Max(0, 1.0 - (gap * 2.0));
-            }
-            return (stability + (floorProximity * 50)) * reliability / 100;
-        }
-
-        public static double ComputeConsistencyScore(double median, TimeTicks min, double mad, double resetRate, double stdCV)
+        public static double ComputeConsistencyScore(double median, TimeTicks min, double relMAD, double resetRate, double stdCV)
         {
             if (median <= 0) return 0;
             
             // 1. Stability: Use a Gaussian curve to provide a 'grace zone' for stability, followed by a sharp drop-off for high variance.
-            double madCV = mad / median;
-            double stabilityScore = Math.Exp(-50 * Math.Pow(madCV * stdCV, 2));
+            double stabilityScore = Math.Exp(-50 * Math.Pow(relMAD * stdCV, 2));
 
             // 2. Floor Proximity: How close is the median to the session pb?
             double gap = (median - (double)min) / median;

@@ -20,7 +20,7 @@ EXPORT_SUBMENU=                        Export Settings
 EXPORT_MOD=                            Export mode
 EXPORT_PATH=                           files are exported to gamePath/SCT_Exports
 
-# ======================= Overlay ==============================
+# ====================== Text Overlay ==========================
 INGAME_OVERLAY=                        In-game Overlay
 OVERLAY_ENABLED=                       Enable overlay
 TEXT_SIZE=                             Size
@@ -28,10 +28,19 @@ TEXT_POSITION=                         Position
 TEXT_ORIENTATION=                      Orientation
 TEXT_ALPHA=                            Alpha
 TEXT_OVERLAY=                          Text Overlay
+
+# ====================== Text Overlay ==========================
 GRAPH_OVERLAY=                         Graphs Overlay
 ROOM_COLOR=                            Room graph color
 SEGMENT_COLOR=                         Segment graph color
 TIME_LOSS_THRESHOLD=                   Time loss threshold
+GRAPH_ENABLED=                         Enabled charts
+SCATTER=                               Scatter Plot
+ROOM_HISTOGRAM=                        Room Histograms
+SEGMENT_HISTOGRAM=                     Segment Histogram
+DNF_PERCENT_BAR_CHART=                 DNF % per Room
+PROBLEM_ROOM_BAR_CHART=                Problem Rooms
+INCONSISTENT_ROOM_BAR_CHART=           Inconsistent Rooms
 
 # ======================= Hotkeys ==============================
 KEY_STATS_EXPORT=                      Export data
@@ -48,6 +57,7 @@ EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 INVALID_EXPORT=                        No data to export
 EXPORT_TO_FILE=                        Session data exported to file
 DATA_CLEAR=                            Session data cleared
+NO_GRAPH_ERROR=                        No graphs enabled
 
 # ======================== Stats ===============================
 STATS_SUBMENU=                         Metrics Settings
@@ -61,6 +71,7 @@ RESET_SHARE=                           Share of Resets
 AVERAGE=                               Average
 MEDIAN=                                Median
 MAD=                                   Median Absolute Deviation
+RELATIVE_MAD=                          Relative Median Absolute Deviation
 MINIMUM=                               Best
 MAXIMUM=                               Worst
 STANDARD_DEVIATION=                    Standard Deviation

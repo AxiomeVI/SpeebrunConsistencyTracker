@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.UI;
 using Microsoft.Xna.Framework;
@@ -13,56 +14,490 @@ public static class ModMenuOptions
 
     private const string ConfirmSfx = "event:/ui/main/button_select";
 
-    private static string GetTargetTime()
+    private static readonly MetricOutputChoice[] AllChoices = Enum.GetValues<MetricOutputChoice>();
+
+    // ---------------------------------------------------------------------------
+    // Metric definitions — drives sliders AND the Turn All Off / On / Reset buttons
+    // ---------------------------------------------------------------------------
+
+    private record MetricDef(
+        string LabelKey,
+        MetricOutputChoice[] Choices,
+        Func<MetricOutputChoice> Get,
+        Action<MetricOutputChoice> Set,
+        MetricOutputChoice DefaultValue);
+
+    private static List<MetricDef> BuildMetricDefs() =>
+    [
+        new(DialogIds.ConsistencyScoreId,       AllChoices, () => _settings.ConsistencyScore,        v => _settings.ConsistencyScore = v,        MetricOutputChoice.Export),
+        new(DialogIds.SuccessRateId,            AllChoices, () => _settings.SuccessRate,             v => _settings.SuccessRate = v,             MetricOutputChoice.Both),
+        new(DialogIds.TargetTimeStatId,         AllChoices, () => _settings.TargetTime,              v => _settings.TargetTime = v,              MetricOutputChoice.Export),
+        new(DialogIds.CompletedRunCountId,      AllChoices, () => _settings.CompletedRunCount,       v => _settings.CompletedRunCount = v,       MetricOutputChoice.Both),
+        new(DialogIds.TotalRunCountId,          AllChoices, () => _settings.TotalRunCount,           v => _settings.TotalRunCount = v,           MetricOutputChoice.Both),
+        new(DialogIds.DnfCountId,               AllChoices, () => _settings.DnfCount,                v => _settings.DnfCount = v,                MetricOutputChoice.Export),
+        new(DialogIds.AverageId,                AllChoices, () => _settings.Average,                 v => _settings.Average = v,                 MetricOutputChoice.Both),
+        new(DialogIds.MedianId,                 AllChoices, () => _settings.Median,                  v => _settings.Median = v,                  MetricOutputChoice.Both),
+        new(DialogIds.MadID,                    AllChoices, () => _settings.MedianAbsoluteDeviation, v => _settings.MedianAbsoluteDeviation = v, MetricOutputChoice.Export),
+        new(DialogIds.RelMadID,                 AllChoices, () => _settings.RelativeMAD,             v => _settings.RelativeMAD = v,             MetricOutputChoice.Export),
+        new(DialogIds.ResetRateId,              AllChoices, () => _settings.ResetRate,               v => _settings.ResetRate = v,               MetricOutputChoice.Export),
+        new(DialogIds.MinimumId,                AllChoices, () => _settings.Minimum,                 v => _settings.Minimum = v,                 MetricOutputChoice.Export),
+        new(DialogIds.MaximumId,                AllChoices, () => _settings.Maximum,                 v => _settings.Maximum = v,                 MetricOutputChoice.Export),
+        new(DialogIds.StandardDeviationId,      AllChoices, () => _settings.StandardDeviation,       v => _settings.StandardDeviation = v,       MetricOutputChoice.Both),
+        new(DialogIds.CoefficientOfVariationId, AllChoices, () => _settings.CoefficientOfVariation,  v => _settings.CoefficientOfVariation = v,  MetricOutputChoice.Export),
+        new(DialogIds.PercentileId,             AllChoices, () => _settings.Percentile,              v => _settings.Percentile = v,              MetricOutputChoice.Export),
+        new(DialogIds.InterquartileRangeId,     AllChoices, () => _settings.InterquartileRange,      v => _settings.InterquartileRange = v,      MetricOutputChoice.Export),
+        new(DialogIds.LinearRegressionId,       AllChoices, () => _settings.LinearRegression,        v => _settings.LinearRegression = v,        MetricOutputChoice.Export),
+        new(DialogIds.SoBId,                    AllChoices, () => _settings.SoB,                     v => _settings.SoB = v,                     MetricOutputChoice.Both),
+    ];
+
+    // ---------------------------------------------------------------------------
+    // Helpers
+    // ---------------------------------------------------------------------------
+
+    private static TextMenu.Slider MetricSlider(MetricDef def)
     {
-        return _settings.Minutes.ToString() + ":" + _settings.Seconds.ToString("D2") + "." + _settings.MillisecondsFirstDigit.ToString() + _settings.MillisecondsSecondDigit.ToString() + _settings.MillisecondsThirdDigit.ToString();
+        var slider = new TextMenu.Slider(
+            Dialog.Clean(def.LabelKey),
+            i => def.Choices[i].ToString(),
+            0,
+            def.Choices.Length - 1,
+            Array.IndexOf(def.Choices, def.Get()));
+        slider.Change(v => def.Set(def.Choices[v]));
+        return slider;
     }
+
+    private static string GetTargetTime() =>
+        $"{_settings.Minutes}:{_settings.Seconds:D2}.{_settings.MillisecondsFirstDigit}{_settings.MillisecondsSecondDigit}{_settings.MillisecondsThirdDigit}";
+
+    // ---------------------------------------------------------------------------
+    // Public entry point
+    // ---------------------------------------------------------------------------
 
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
-        TextMenuExt.SubMenu targetTimeSubMenu = CreateTargetTimeSubMenu(menu, inGame);
-        TextMenuExt.SubMenu overlaySubMenu = CreateOverlaySubMenu(menu);
-        TextMenuExt.SubMenu metricsSubMenu = CreateMetricsSubMenu(menu);
-        TextMenuExt.SubMenu exportSubmenu = CreateExportSubMenu(menu, inGame);
-        
-        // Master switch
-        menu.Add(new TextMenu.OnOff(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled).Change(
-            value =>
-            {
-                _settings.Enabled = value;
-                exportSubmenu.Visible = value;
-                targetTimeSubMenu.Visible = value;
-                overlaySubMenu.Visible = value;
-                metricsSubMenu.Visible = value;
-                if (!value) SpeebrunConsistencyTrackerModule.Clear();
-            }
-        ));
+        TextMenuExt.SubMenu targetTimeSubMenu  = CreateTargetTimeSubMenu(menu, inGame);
+        TextMenuExt.SubMenu textOverlaySubMenu  = CreateTextOverlaySubMenu(menu);
+        TextMenuExt.SubMenu graphOverlaySubMenu = CreateGraphOverlaySubMenu(menu);
+        TextMenuExt.SubMenu metricsSubMenu      = CreateMetricsSubMenu(menu);
+        TextMenuExt.SubMenu exportSubMenu       = CreateExportSubMenu(menu, inGame);
+
+        menu.Add(new TextMenu.OnOff(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled).Change(value =>
+        {
+            _settings.Enabled = value;
+            exportSubMenu.Visible      = value;
+            targetTimeSubMenu.Visible  = value;
+            textOverlaySubMenu.Visible = value;
+            graphOverlaySubMenu.Visible = value;
+            metricsSubMenu.Visible     = value;
+            if (!value) SpeebrunConsistencyTrackerModule.Clear();
+        }));
 
         menu.Add(targetTimeSubMenu);
-        menu.Add(exportSubmenu);
+        menu.Add(exportSubMenu);
         menu.Add(metricsSubMenu);
-        menu.Add(overlaySubMenu);
+        menu.Add(textOverlaySubMenu);
+        menu.Add(graphOverlaySubMenu);
     }
+
+    // ---------------------------------------------------------------------------
+    // Target Time
+    // ---------------------------------------------------------------------------
+
+    private static TextMenuExt.SubMenu CreateTargetTimeSubMenu(TextMenu menu, bool inGame)
+    {
+        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.TargetTimeId), false);
+
+        // Sliders
+        TextMenu.Slider minutes = new(
+            Dialog.Clean(DialogIds.Minutes),
+            i => i.ToString(),
+            0, 30,
+            _settings.Minutes);
+
+        FormattedIntSlider seconds = new(
+            Dialog.Clean(DialogIds.Seconds),
+            0, 59,
+            _settings.Seconds,
+            v => v.ToString("D2"));
+
+        TextMenu.Slider ms1 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsFirstDigit);
+        TextMenu.Slider ms2 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsSecondDigit);
+        TextMenu.Slider ms3 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsThirdDigit);
+
+        minutes.Change(v => _settings.Minutes = v);
+        seconds.Change(v => _settings.Seconds = v);
+        ms1.Change(v => _settings.MillisecondsFirstDigit = v);
+        ms2.Change(v => _settings.MillisecondsSecondDigit = v);
+        ms3.Change(v => _settings.MillisecondsThirdDigit = v);
+
+        // Buttons — declare first so SyncSlidersFromSettings can close over it
+        TextMenu.Button inputTimeButton = new(Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime());
+
+        void SyncSlidersFromSettings()
+        {
+            minutes.Index = _settings.Minutes;
+            seconds.Index = _settings.Seconds;
+            ms1.Index     = _settings.MillisecondsFirstDigit;
+            ms2.Index     = _settings.MillisecondsSecondDigit;
+            ms3.Index     = _settings.MillisecondsThirdDigit;
+            inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
+        }
+
+        inputTimeButton.Pressed(() =>
+        {
+            Audio.Play(SFX.ui_main_savefile_rename_start);
+            menu.SceneAs<Overworld>().Goto<OuiModOptionString>().Init<OuiModOptions>(
+                GetTargetTime(),
+                v =>
+                {
+                    if (SpeebrunConsistencyTrackerModule.TryParseTime(v, out TimeSpan result))
+                    {
+                        _settings.Minutes                 = result.Minutes;
+                        _settings.Seconds                 = result.Seconds;
+                        _settings.MillisecondsFirstDigit  = result.Milliseconds / 100;
+                        _settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
+                        _settings.MillisecondsThirdDigit  = result.Milliseconds % 10;
+                        SyncSlidersFromSettings();
+                        SpeebrunConsistencyTrackerModule.PopupMessage(
+                            $"{Dialog.Clean(DialogIds.PopupTargetTimeSetid)} {result:mm\\:ss\\.fff}");
+                        _instance.SaveSettings();
+                    }
+                    else
+                    {
+                        SpeebrunConsistencyTrackerModule.PopupMessage(
+                            Dialog.Clean(DialogIds.PopupInvalidTargetTimeid));
+                    }
+                },
+                9, 3);
+        });
+
+        TextMenu.Button importButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.KeyImportTargetTimeId))
+            .Pressed(() =>
+            {
+                Audio.Play(ConfirmSfx);
+                SpeebrunConsistencyTrackerModule.ImportTargetTimeFromClipboard();
+                SyncSlidersFromSettings();
+            });
+
+        TextMenu.Button resetButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ResetTargetTimeId))
+            .Pressed(() =>
+            {
+                Audio.Play(ConfirmSfx);
+                _settings.Minutes = _settings.Seconds = 0;
+                _settings.MillisecondsFirstDigit = _settings.MillisecondsSecondDigit = _settings.MillisecondsThirdDigit = 0;
+                SyncSlidersFromSettings();
+                _instance.SaveSettings();
+            });
+
+        sub.Add(inputTimeButton);
+        sub.Add(importButton);
+        sub.Add(resetButton);
+        sub.Add(minutes);
+        sub.Add(seconds);
+        sub.Add(ms1);
+        sub.Add(ms2);
+        sub.Add(ms3);
+
+        minutes.Visible = inGame;
+        seconds.Visible = inGame;
+        ms1.Visible     = inGame;
+        ms2.Visible     = inGame;
+        ms3.Visible     = inGame;
+        inputTimeButton.Visible = !inGame;
+
+        importButton.AddDescription(sub, menu, Dialog.Clean(DialogIds.TargetTimeFormatId));
+        ms1.AddDescription(sub, menu, Dialog.Clean(DialogIds.MillisecondsFirst));
+        ms2.AddDescription(sub, menu, Dialog.Clean(DialogIds.MillisecondsSecond));
+        ms3.AddDescription(sub, menu, Dialog.Clean(DialogIds.MillisecondsThird));
+
+        sub.Visible = _settings.Enabled;
+        return sub;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Overlay
+    // ---------------------------------------------------------------------------
+
+    private static TextMenuExt.SubMenu CreateTextOverlaySubMenu(TextMenu menu)
+    {
+        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.TextOverlayId), false);
+
+        StatTextPosition[]    enumPositions    = Enum.GetValues<StatTextPosition>();
+        StatTextOrientation[] enumOrientations = Enum.GetValues<StatTextOrientation>();
+
+        TextMenu.Slider textSize = new(
+            Dialog.Clean(DialogIds.TextSizeId),
+            i => i.ToString(), 0, 100, _settings.TextSize);
+
+        TextMenu.Slider textAlpha = new(
+            Dialog.Clean(DialogIds.TextAlphaId),
+            i => (i / 100f).ToString("0.00"), 0, 100, _settings._textAlpha);
+
+        TextMenu.Slider textPosition = new(
+            Dialog.Clean(DialogIds.TextPositionId),
+            i => enumPositions[i].ToString(), 0, enumPositions.Length - 1,
+            Array.IndexOf(enumPositions, _settings.TextPosition));
+
+        TextMenu.Slider textOrientation = new(
+            Dialog.Clean(DialogIds.TextOrientationId),
+            i => enumOrientations[i].ToString(), 0, enumOrientations.Length - 1,
+            Array.IndexOf(enumOrientations, _settings.TextOrientation));
+
+        textSize.Change(v => { _settings.TextSize = v; _instance.textOverlay?.SetTextSize(v); });
+        textAlpha.Change(v => { _settings._textAlpha = v; _instance.textOverlay?.SetTextAlpha(_settings.TextAlpha); });
+        textPosition.Change(v => { _settings.TextPosition = enumPositions[v]; _instance.textOverlay?.SetTextPosition(enumPositions[v]); });
+        textOrientation.Change(v => { _settings.TextOrientation = enumOrientations[v]; _instance.textOverlay?.SetTextOrientation(enumOrientations[v]); });
+
+        textAlpha.Disabled = true; // TODO: debug
+
+        TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled)
+            .Change(value =>
+            {
+                _settings.OverlayEnabled = value;
+                textSize.Visible        = value;
+                textAlpha.Visible       = value;
+                textPosition.Visible    = value;
+                textOrientation.Visible = value;
+            });
+
+        sub.Add(overlayEnabled);
+        sub.Add(textSize);
+        sub.Add(textAlpha);
+        sub.Add(textPosition);
+        sub.Add(textOrientation);
+
+        sub.Visible = _settings.Enabled;
+        return sub;
+    }
+
+    private static TextMenuExt.SubMenu CreateGraphOverlaySubMenu(TextMenu menu)
+    {
+        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.GraphOverlayId), false);
+
+        ColorChoice[] enumColors = Enum.GetValues<ColorChoice>();
+
+        TextMenu.Slider roomColor = new(
+            Dialog.Clean(DialogIds.RoomColorId),
+            i => enumColors[i].ToString(), 0, enumColors.Length - 1,
+            Array.IndexOf(enumColors, _settings.RoomColor));
+
+        TextMenu.Slider segmentColor = new(
+            Dialog.Clean(DialogIds.SegmentColorId),
+            i => enumColors[i].ToString(), 0, enumColors.Length - 1,
+            Array.IndexOf(enumColors, _settings.SegmentColor));
+
+        FormattedIntSlider timeLossThreshold = new(
+            Dialog.Clean(DialogIds.TimeLossThresholdId),
+            1, 118,
+            (int)Math.Round(_settings.TimeLossThresholdMs / 17.0),
+            v => $"{v * 17}ms");
+
+        roomColor.Change(v =>
+        {
+            _settings.RoomColor = enumColors[v];
+            _instance.graphManager?.ClearHistogram();
+            _instance.graphManager?.ClearScatterGraph();
+        });
+        segmentColor.Change(v =>
+        {
+            _settings.SegmentColor = enumColors[v];
+            _instance.graphManager?.ClearScatterGraph();
+            _instance.graphManager?.ClearHistogram();
+        });
+        timeLossThreshold.Change(v => _settings.TimeLossThresholdMs = v * 17);
+
+        // Per-graph enable/disable toggles
+        TextMenu.OnOff graphScatter = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.GraphScatterId), _settings.GraphScatter)
+            .Change(v => { _settings.GraphScatter = v; RebuildGraphSlots(); });
+
+        TextMenu.OnOff graphRoomHistogram = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.GraphRoomHistogramId), _settings.GraphRoomHistogram)
+            .Change(v => { _settings.GraphRoomHistogram = v; RebuildGraphSlots(); });
+
+        TextMenu.OnOff graphSegmentHistogram = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.GraphSegmentHistogramId), _settings.GraphSegmentHistogram)
+            .Change(v => { _settings.GraphSegmentHistogram = v; RebuildGraphSlots(); });
+
+        TextMenu.OnOff graphDnfPercent = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.GraphDnfPercentId), _settings.GraphDnfPercent)
+            .Change(v => { _settings.GraphDnfPercent = v; RebuildGraphSlots(); });
+
+        TextMenu.OnOff graphProblemRooms = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.GraphProblemRoomsId), _settings.GraphProblemRooms)
+            .Change(v => { _settings.GraphProblemRooms = v; RebuildGraphSlots(); });
+        
+        TextMenu.OnOff graphInconsistentRooms = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.GraphInconsistentRoomsId), _settings.GraphInconsistentRooms)
+            .Change(v => { _settings.GraphInconsistentRooms = v; RebuildGraphSlots(); });
+
+        sub.Add(roomColor);
+        sub.Add(segmentColor);
+        sub.Add(timeLossThreshold);
+        sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphEnabledId), false));
+        sub.Add(graphScatter);
+        sub.Add(graphRoomHistogram);
+        sub.Add(graphSegmentHistogram);
+        sub.Add(graphDnfPercent);
+        sub.Add(graphProblemRooms);
+        sub.Add(graphInconsistentRooms);
+
+        sub.Visible = _settings.Enabled;
+        return sub;
+    }
+
+    private static void RebuildGraphSlots()
+    {
+        if (_instance.graphManager == null) return;
+        Level level = Engine.Scene as Level;
+        _instance.graphManager.RebuildEnabledSlots(level);
+    }
+
+    // ---------------------------------------------------------------------------
+    // Metrics
+    // ---------------------------------------------------------------------------
+
+    private static TextMenuExt.SubMenu CreateMetricsSubMenu(TextMenu menu)
+    {
+        PercentileChoice[] enumPercentileValues = Enum.GetValues<PercentileChoice>();
+
+        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.StatsSubMenuId), false);
+
+        // Boolean options
+        TextMenu.OnOff history        = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RunHistoryId),    _settings.History).Change(b => _settings.History = b);
+        TextMenu.OnOff resetShare     = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId),    _settings.ResetShare).Change(b => _settings.ResetShare = b);
+        TextMenu.OnOff multimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId),_settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
+        TextMenu.OnOff roomDependency = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RoomDependencyId),_settings.RoomDependency).Change(b => _settings.RoomDependency = b);
+
+        // Percentile value (special: depends on Percentile slider)
+        TextMenu.Slider percentileValue = new(
+            Dialog.Clean(DialogIds.PercentileValueId),
+            i => enumPercentileValues[i].ToString(),
+            0, enumPercentileValues.Length - 1,
+            Array.IndexOf(enumPercentileValues, _settings.PercentileValue))
+        {
+            Disabled = _settings.Percentile == MetricOutputChoice.Off
+        };
+        percentileValue.Change(v => _settings.PercentileValue = enumPercentileValues[v]);
+
+        // Build all metric sliders from definitions
+        List<MetricDef> defs = BuildMetricDefs();
+        var sliders = new Dictionary<string, TextMenu.Slider>();
+        foreach (MetricDef def in defs)
+        {
+            TextMenu.Slider slider = MetricSlider(def);
+            // Wire percentile enable/disable
+            if (def.LabelKey == DialogIds.PercentileId)
+                slider.Change(v => percentileValue.Disabled = def.Choices[v] == MetricOutputChoice.Off);
+            sliders[def.LabelKey] = slider;
+        }
+
+        // --- Bulk action buttons ---
+
+        TextMenu.Button turnAllOff = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonAllOffId))
+            .Pressed(() =>
+            {
+                Audio.Play(ConfirmSfx);
+                history.Index        = 0; _settings.History        = false;
+                resetShare.Index     = 0; _settings.ResetShare     = false;
+                multimodalTest.Index = 0; _settings.MultimodalTest = false;
+                roomDependency.Index = 0; _settings.RoomDependency = false;
+                foreach (MetricDef def in defs)
+                {
+                    def.Set(MetricOutputChoice.Off);
+                    sliders[def.LabelKey].Index = 0;
+                }
+                percentileValue.Disabled = true;
+                _instance.SaveSettings();
+            });
+
+        TextMenu.Button turnAllOn = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonAllOnId))
+            .Pressed(() =>
+            {
+                Audio.Play(ConfirmSfx);
+                history.Index        = 1; _settings.History        = true;
+                resetShare.Index     = 1; _settings.ResetShare     = true;
+                multimodalTest.Index = 1; _settings.MultimodalTest = true;
+                roomDependency.Index = 1; _settings.RoomDependency = true;
+                foreach (MetricDef def in defs)
+                {
+                    // Pick the highest available choice (Both if available, else Export)
+                    MetricOutputChoice best = def.Choices[def.Choices.Length - 1];
+                    def.Set(best);
+                    sliders[def.LabelKey].Index = def.Choices.Length - 1;
+                }
+                percentileValue.Disabled = false;
+                _instance.SaveSettings();
+            });
+
+        TextMenu.Button resetAll = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonResetId))
+            .Pressed(() =>
+            {
+                Audio.Play(ConfirmSfx);
+                history.Index        = 1; _settings.History        = true;
+                resetShare.Index     = 1; _settings.ResetShare     = true;
+                multimodalTest.Index = 1; _settings.MultimodalTest = true;
+                roomDependency.Index = 1; _settings.RoomDependency = true;
+                foreach (MetricDef def in defs)
+                {
+                    def.Set(def.DefaultValue);
+                    sliders[def.LabelKey].Index = Array.IndexOf(def.Choices, def.DefaultValue);
+                }
+                percentileValue.Index    = Array.IndexOf(enumPercentileValues, PercentileChoice.P90);
+                percentileValue.Disabled = _settings.Percentile == MetricOutputChoice.Off;
+                _instance.SaveSettings();
+            });
+
+        sub.Add(turnAllOff);
+        sub.Add(turnAllOn);
+        sub.Add(resetAll);
+        sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.MetricsSubHeaderId), false));
+
+        foreach (MetricDef def in defs)
+        {
+            sub.Add(sliders[def.LabelKey]);
+            if (def.LabelKey == DialogIds.PercentileId)
+                sub.Add(percentileValue);
+        }
+
+        // Success rate description
+        sliders[DialogIds.SuccessRateId].AddDescription(sub, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
+
+        sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ExportOnlyId), false));
+        sub.Add(history);
+        sub.Add(resetShare);
+        sub.Add(multimodalTest);
+        sub.Add(roomDependency);
+
+        sub.Visible = _settings.Enabled;
+        return sub;
+    }
+
+    // ---------------------------------------------------------------------------
+    // Export
+    // ---------------------------------------------------------------------------
 
     private static TextMenuExt.SubMenu CreateExportSubMenu(TextMenu menu, bool inGame)
     {
-        TextMenuExt.SubMenu exportSubMenu = new(
-            Dialog.Clean(DialogIds.ExportSubMenu), 
-            false
-        );
+        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.ExportSubMenu), false);
 
-        ExportChoice[] enumExportChoice = Enum.GetValues<ExportChoice>();
+        ExportChoice[] enumExportChoices = Enum.GetValues<ExportChoice>();
 
-        TextMenu.Slider exportMode = new(Dialog.Clean(DialogIds.ExportModeId), i => enumExportChoice[i].ToString(), 0, 1, Array.IndexOf(enumExportChoice, _settings.ExportMode));
-        exportMode.Change(v => _settings.ExportMode = enumExportChoice[v]);
+        TextMenu.Slider exportMode = new(
+            Dialog.Clean(DialogIds.ExportModeId),
+            i => enumExportChoices[i].ToString(),
+            0, enumExportChoices.Length - 1,
+            Array.IndexOf(enumExportChoices, _settings.ExportMode));
+        exportMode.Change(v => _settings.ExportMode = enumExportChoices[v]);
 
         TextMenu.OnOff exportWithSRT = (TextMenu.OnOff)new TextMenu.OnOff(
-            Dialog.Clean(DialogIds.SrtExportId),
-            _settings.ExportWithSRT).Change(b => _settings.ExportWithSRT = b);
+            Dialog.Clean(DialogIds.SrtExportId), _settings.ExportWithSRT)
+            .Change(b => _settings.ExportWithSRT = b);
 
-        TextMenu.Button exportStatsButton = (TextMenu.Button)new TextMenu.Button(
-            Dialog.Clean(DialogIds.KeyStatsExportId))
-            .Pressed(() => {
+        TextMenu.Button exportStatsButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.KeyStatsExportId))
+            .Pressed(() =>
+            {
                 Audio.Play(ConfirmSfx);
                 if (_settings.ExportMode == ExportChoice.Clipboard)
                     SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
@@ -71,468 +506,19 @@ public static class ModMenuOptions
             });
         exportStatsButton.Disabled = !inGame;
 
-        exportSubMenu.Add(exportStatsButton);
-        exportSubMenu.Add(exportMode);
-        exportSubMenu.Add(exportWithSRT);
+        sub.Add(exportStatsButton);
+        sub.Add(exportMode);
+        sub.Add(exportWithSRT);
 
-        exportMode.AddDescription(exportSubMenu, menu, Dialog.Clean(DialogIds.ExportPathId));
+        exportMode.AddDescription(sub, menu, Dialog.Clean(DialogIds.ExportPathId));
 
-        exportSubMenu.Visible = _settings.Enabled;
-        return exportSubMenu;
+        sub.Visible = _settings.Enabled;
+        return sub;
     }
 
-    private static TextMenuExt.SubMenu CreateTargetTimeSubMenu(TextMenu menu, bool inGame)
-    {
-        TextMenuExt.SubMenu targetTimeSubMenu = new(
-            Dialog.Clean(DialogIds.TargetTimeId), 
-            false
-        );
-
-        TextMenu.Slider minutes = new(Dialog.Clean(DialogIds.Minutes), i => i.ToString(), 0, 30, _settings.Minutes);
-        FormattedIntSlider seconds = new(
-            Dialog.Clean(DialogIds.Seconds),
-            0,
-            59,
-            _settings.Seconds,
-            v => v.ToString("D2")
-        );
-        TextMenu.Slider millisecondsFirstDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsFirstDigit);
-        TextMenu.Slider millisecondsSecondDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsSecondDigit);
-        TextMenu.Slider millisecondsThirdDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsThirdDigit);
-        minutes.Change(v => _settings.Minutes = v);
-        seconds.Change(v => _settings.Seconds = v);
-        millisecondsFirstDigit.Change(v => _settings.MillisecondsFirstDigit = v);
-        millisecondsSecondDigit.Change(v => _settings.MillisecondsSecondDigit = v);
-        millisecondsThirdDigit.Change(v => _settings.MillisecondsThirdDigit = v);
-
-
-        TextMenu.Button inputTimeButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime())
-            .Pressed(() => {
-                Audio.Play(SFX.ui_main_savefile_rename_start);
-                menu.SceneAs<Overworld>().Goto<OuiModOptionString>().Init<OuiModOptions>(
-                    GetTargetTime(),
-                    v => {
-                        if (SpeebrunConsistencyTrackerModule.TryParseTime(v, out TimeSpan result))
-                        {
-                            _settings.Minutes = result.Minutes;
-                            _settings.Seconds = result.Seconds;
-                            _settings.MillisecondsFirstDigit = result.Milliseconds / 100;
-                            _settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
-                            _settings.MillisecondsThirdDigit = result.Milliseconds % 10;
-                            SpeebrunConsistencyTrackerModule.PopupMessage($"{Dialog.Clean(DialogIds.PopupTargetTimeSetid)} {result:mm\\:ss\\.fff}");
-                            _instance.SaveSettings();
-                        } else
-                        {
-                            SpeebrunConsistencyTrackerModule.PopupMessage($"{Dialog.Clean(DialogIds.PopupInvalidTargetTimeid)}");
-                        }
-                    },
-                    9,
-                    3
-                );
-            });
-
-        TextMenu.Button setTargetTimeButton = (TextMenu.Button)new TextMenu.Button(
-            Dialog.Clean(DialogIds.KeyImportTargetTimeId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                SpeebrunConsistencyTrackerModule.ImportTargetTimeFromClipboard();
-                minutes.Index = _settings.Minutes;
-                seconds.Index = _settings.Seconds;
-                millisecondsFirstDigit.Index = _settings.MillisecondsFirstDigit;
-                millisecondsSecondDigit.Index = _settings.MillisecondsSecondDigit;
-                millisecondsThirdDigit.Index = _settings.MillisecondsThirdDigit;
-                inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
-            });
-
-        TextMenu.Button resetButton = (TextMenu.Button)new TextMenu.Button(
-            Dialog.Clean(DialogIds.ResetTargetTimeId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                minutes.Index = _settings.Minutes = 0;
-                seconds.Index = _settings.Seconds = 0;
-                millisecondsFirstDigit.Index = _settings.MillisecondsFirstDigit = 0;
-                millisecondsSecondDigit.Index = _settings.MillisecondsSecondDigit = 0;
-                millisecondsThirdDigit.Index = _settings.MillisecondsThirdDigit = 0;
-                _instance.SaveSettings();
-                inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
-            });
-
-        targetTimeSubMenu.Add(inputTimeButton);
-        targetTimeSubMenu.Add(setTargetTimeButton);
-        targetTimeSubMenu.Add(resetButton);
-        targetTimeSubMenu.Add(minutes);
-        targetTimeSubMenu.Add(seconds);
-        targetTimeSubMenu.Add(millisecondsFirstDigit);
-        targetTimeSubMenu.Add(millisecondsSecondDigit);
-        targetTimeSubMenu.Add(millisecondsThirdDigit);
-
-        minutes.Visible = inGame;
-        seconds.Visible = inGame;
-        millisecondsFirstDigit.Visible = inGame;
-        millisecondsSecondDigit.Visible = inGame;
-        millisecondsThirdDigit.Visible = inGame;
-        inputTimeButton.Visible = !inGame;
-
-        setTargetTimeButton.AddDescription(targetTimeSubMenu, menu, Dialog.Clean(DialogIds.TargetTimeFormatId));
-        millisecondsFirstDigit.AddDescription(targetTimeSubMenu, menu, Dialog.Clean(DialogIds.MillisecondsFirst));
-        millisecondsSecondDigit.AddDescription(targetTimeSubMenu, menu, Dialog.Clean(DialogIds.MillisecondsSecond));
-        millisecondsThirdDigit.AddDescription(targetTimeSubMenu, menu, Dialog.Clean(DialogIds.MillisecondsThird));
-
-        targetTimeSubMenu.Visible = _settings.Enabled;
-        return targetTimeSubMenu;
-    }
-
-    private static TextMenuExt.SubMenu CreateOverlaySubMenu(TextMenu menu)
-    {
-        StatTextPosition[] enumPositionValues = Enum.GetValues<StatTextPosition>();
-        StatTextOrientation[] enumOrientationValues = Enum.GetValues<StatTextOrientation>();
-        ColorChoice[] enumColorValues = Enum.GetValues<ColorChoice>();
-
-        TextMenuExt.SubMenu overlaySubMenu = new(
-            Dialog.Clean(DialogIds.IngameOverlayId), 
-            false
-        );
-
-        TextMenu.Slider textSize = new(Dialog.Clean(DialogIds.TextSizeId), i => i.ToString(), 0, 100, _settings.TextSize);
-        TextMenu.Slider textPosition = new(Dialog.Clean(DialogIds.TextPositionId), i => enumPositionValues[i].ToString(), 0, 8, Array.IndexOf(enumPositionValues, _settings.TextPosition));
-        TextMenu.Slider textOrientation = new(Dialog.Clean(DialogIds.TextOrientationId), i => enumOrientationValues[i].ToString(), 0, 1, Array.IndexOf(enumOrientationValues, _settings.TextOrientation));
-        TextMenu.Slider textAlpha = new(Dialog.Clean(DialogIds.TextAlphaId), i => (i/100f).ToString("0.00"), 0, 100, _settings._textAlpha);
-        TextMenu.Slider roomColor = new(Dialog.Clean(DialogIds.RoomColorId), i => enumColorValues[i].ToString(), 0, enumColorValues.Length - 1, Array.IndexOf(enumColorValues, _settings.RoomColor));
-        TextMenu.Slider segmentColor = new(Dialog.Clean(DialogIds.SegmentColorId), i => enumColorValues[i].ToString(), 0, enumColorValues.Length - 1, Array.IndexOf(enumColorValues, _settings.SegmentColor));
-        
-        FormattedIntSlider timeLossThreshold = new(
-            Dialog.Clean(DialogIds.TimeLossThresholdId),
-            1,
-            118,
-            (int)Math.Round(_settings.TimeLossThresholdMs / 17.0),
-            v => {
-                int snapped = v * 17;
-                return snapped + "ms";
-            }
-        );
-
-        timeLossThreshold.Change(v => 
-        {
-            // Snap to step of 17
-            _settings.TimeLossThresholdMs = (int)Math.Round(v / 17.0) * 17;
-        });
-
-        textAlpha.Change(v => {
-            _settings._textAlpha = v;
-            _instance.textOverlay?.SetTextAlpha(_settings.TextAlpha);
-        });
-        textSize.Change(v => {
-            _settings.TextSize = v;
-            _instance.textOverlay?.SetTextSize(v);
-        });
-        textPosition.Change(v => {
-            _settings.TextPosition = enumPositionValues[v];
-            _instance.textOverlay?.SetTextPosition(enumPositionValues[v]);
-        });
-        textOrientation.Change(v => {
-            _settings.TextOrientation = enumOrientationValues[v];
-            _instance.textOverlay?.SetTextOrientation(enumOrientationValues[v]);
-        });
-        roomColor.Change(v => {
-            _settings.RoomColor = enumColorValues[v];
-            _instance.graphManager?.ClearHistrogram();
-            _instance.graphManager?.ClearScatterGraph();
-        });
-        segmentColor.Change(v => {
-            _settings.SegmentColor = enumColorValues[v];
-            _instance.graphManager?.ClearScatterGraph();
-            _instance.graphManager?.ClearHistrogram();
-        });
-        timeLossThreshold.Change(v => _settings.TimeLossThresholdMs = v * 17);
-
-        TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled).Change(
-            value =>
-            {
-                _settings.OverlayEnabled = value;
-                textSize.Visible = value;
-                textAlpha.Visible = value;
-                textPosition.Visible = value;
-                textOrientation.Visible = value;
-                roomColor.Visible = value;
-                segmentColor.Visible = value;
-                timeLossThreshold.Visible = value;
-            }
-        );
-
-        overlaySubMenu.Add(overlayEnabled);
-        overlaySubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.TextOverlayId), false));
-        overlaySubMenu.Add(textSize);
-        overlaySubMenu.Add(textAlpha);
-        overlaySubMenu.Add(textPosition);
-        overlaySubMenu.Add(textOrientation);
-        overlaySubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphOverlayId), false));
-        overlaySubMenu.Add(roomColor);
-        overlaySubMenu.Add(segmentColor);
-        overlaySubMenu.Add(timeLossThreshold);
-
-        textAlpha.Disabled = true; // TODO: debug
-
-        overlaySubMenu.Visible = _settings.Enabled;
-        return overlaySubMenu;
-    }
-
-    private static TextMenuExt.SubMenu CreateMetricsSubMenu(TextMenu menu)
-    {
-        MetricOutputChoice[] enumOutputChoiceValues = Enum.GetValues<MetricOutputChoice>();
-        PercentileChoice[] enumPercentileValues = Enum.GetValues<PercentileChoice>();
-
-        TextMenuExt.SubMenu metricsSubMenu = new(
-            Dialog.Clean(DialogIds.StatsSubMenuId), 
-            false
-        );
-
-        TextMenu.OnOff History = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RunHistoryId), _settings.History).Change(b => _settings.History = b);
-        TextMenu.OnOff ResetShare = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId), _settings.ResetShare).Change(b => _settings.ResetShare = b);
-        TextMenu.OnOff MultimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId), _settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
-        TextMenu.OnOff RoomDependency = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RoomDependencyId), _settings.RoomDependency).Change(b => _settings.RoomDependency = b);
-
-        TextMenu.Slider ConsistencyScore = new (Dialog.Clean(DialogIds.ConsistencyScoreId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.ConsistencyScore));
-        TextMenu.Slider SuccessRate = new(Dialog.Clean(DialogIds.SuccessRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SuccessRate));
-        SuccessRate.AddDescription(metricsSubMenu, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
-        TextMenu.Slider TargetTime = new(Dialog.Clean(DialogIds.TargetTimeStatId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.TargetTime));
-        TextMenu.Slider CompletedRunCount = new(Dialog.Clean(DialogIds.CompletedRunCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CompletedRunCount));
-        TextMenu.Slider TotalRunCount = new(Dialog.Clean(DialogIds.TotalRunCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.TotalRunCount));
-        TextMenu.Slider DnfCount = new(Dialog.Clean(DialogIds.DnfCountId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.DnfCount));
-        TextMenu.Slider Average = new(Dialog.Clean(DialogIds.AverageId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Average));
-        TextMenu.Slider Median = new(Dialog.Clean(DialogIds.MedianId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Median));
-        TextMenu.Slider MedianAbsoluteDeviation = new(Dialog.Clean(DialogIds.MadID), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.MedianAbsoluteDeviation));
-        TextMenu.Slider ResetRate = new(Dialog.Clean(DialogIds.ResetRateId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.ResetRate));
-        TextMenu.Slider Minimum = new(Dialog.Clean(DialogIds.MinimumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Minimum));
-        TextMenu.Slider Maximum = new(Dialog.Clean(DialogIds.MaximumId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Maximum));
-        TextMenu.Slider StandardDeviation = new(Dialog.Clean(DialogIds.StandardDeviationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.StandardDeviation));
-        TextMenu.Slider CoefficientOfVariation = new(Dialog.Clean(DialogIds.CoefficientOfVariationId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.CoefficientOfVariation));
-        TextMenu.Slider Percentile = new(Dialog.Clean(DialogIds.PercentileId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.Percentile));
-        TextMenu.Slider PercentileValue = new(Dialog.Clean(DialogIds.PercentileValueId), i => enumPercentileValues[i].ToString(), 0, 7, Array.IndexOf(enumPercentileValues, _settings.PercentileValue))
-        {
-            Disabled = _settings.Percentile == MetricOutputChoice.Off
-        };
-        TextMenu.Slider InterquartileRange = new(Dialog.Clean(DialogIds.InterquartileRangeId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.InterquartileRange));
-        TextMenu.Slider LinearRegression = new(Dialog.Clean(DialogIds.LinearRegressionId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.LinearRegression));
-        TextMenu.Slider SoB = new(Dialog.Clean(DialogIds.SoBId), i => enumOutputChoiceValues[i].ToString(), 0, 3, Array.IndexOf(enumOutputChoiceValues, _settings.SoB));
-
-        SuccessRate.Change(v => _settings.SuccessRate = enumOutputChoiceValues[v]);
-        ConsistencyScore.Change(v => _settings.ConsistencyScore = enumOutputChoiceValues[v]);
-        TargetTime.Change(v => _settings.TargetTime = enumOutputChoiceValues[v]);
-        CompletedRunCount.Change(v => _settings.CompletedRunCount = enumOutputChoiceValues[v]);
-        TotalRunCount.Change(v => _settings.TotalRunCount = enumOutputChoiceValues[v]);
-        DnfCount.Change(v => _settings.DnfCount = enumOutputChoiceValues[v]);
-        Average.Change(v => _settings.Average = enumOutputChoiceValues[v]);
-        Median.Change(v => _settings.Median = enumOutputChoiceValues[v]);
-        MedianAbsoluteDeviation.Change(v => _settings.MedianAbsoluteDeviation = enumOutputChoiceValues[v]);
-        ResetRate.Change(v => _settings.ResetRate = enumOutputChoiceValues[v]);
-        Minimum.Change(v => _settings.Minimum = enumOutputChoiceValues[v]);
-        Maximum.Change(v => _settings.Maximum = enumOutputChoiceValues[v]);
-        StandardDeviation.Change(v => _settings.StandardDeviation = enumOutputChoiceValues[v]);
-        CoefficientOfVariation.Change(v => _settings.CoefficientOfVariation = enumOutputChoiceValues[v]);
-        Percentile.Change(v => {
-            _settings.Percentile = enumOutputChoiceValues[v];
-            PercentileValue.Disabled = v == 0;
-        });
-        PercentileValue.Change(v => _settings.PercentileValue = enumPercentileValues[v]);
-        InterquartileRange.Change(v => _settings.InterquartileRange = enumOutputChoiceValues[v]);
-        LinearRegression.Change(v => _settings.LinearRegression = enumOutputChoiceValues[v]);
-        SoB.Change(v => _settings.SoB = enumOutputChoiceValues[v]);
-
-        TextMenu.Button turnAllOff = (TextMenu.Button)new TextMenu.Button(
-            Dialog.Clean(DialogIds.ButtonAllOffId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                History.Index = 0;
-                _settings.History = false;
-                ResetShare.Index = 0;
-                _settings.ResetShare = false;
-                MultimodalTest.Index = 0;
-                _settings.MultimodalTest = false;
-                RoomDependency.Index = 0;
-                _settings.RoomDependency = false;
-                ConsistencyScore.Index = 0;
-                _settings.ConsistencyScore = MetricOutputChoice.Off;
-                SuccessRate.Index = 0;
-                _settings.SuccessRate = MetricOutputChoice.Off;
-                TargetTime.Index = 0;
-                _settings.TargetTime = MetricOutputChoice.Off;
-                CompletedRunCount.Index = 0;
-                _settings.CompletedRunCount = MetricOutputChoice.Off;
-                TotalRunCount.Index = 0;
-                _settings.TotalRunCount = MetricOutputChoice.Off;
-                DnfCount.Index = 0;
-                _settings.DnfCount = MetricOutputChoice.Off;
-                Average.Index = 0;
-                _settings.Average = MetricOutputChoice.Off;
-                Median.Index = 0;
-                _settings.Median = MetricOutputChoice.Off;
-                MedianAbsoluteDeviation.Index = 0;
-                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Off;
-                ResetRate.Index = 0;
-                _settings.ResetRate = MetricOutputChoice.Off;
-                Minimum.Index = 0;
-                _settings.Minimum = MetricOutputChoice.Off;
-                Maximum.Index = 0;
-                _settings.Maximum = MetricOutputChoice.Off;
-                StandardDeviation.Index = 0;
-                _settings.StandardDeviation = MetricOutputChoice.Off;
-                CoefficientOfVariation.Index = 0;
-                _settings.CoefficientOfVariation = MetricOutputChoice.Off;
-                Percentile.Index = 0;
-                _settings.Percentile = MetricOutputChoice.Off;
-                InterquartileRange.Index = 0;
-                _settings.InterquartileRange = MetricOutputChoice.Off;
-                LinearRegression.Index = 0;
-                _settings.LinearRegression = MetricOutputChoice.Off;
-                SoB.Index = 0;
-                _settings.SoB = MetricOutputChoice.Off;
-                PercentileValue.Disabled = true;
-                _instance.SaveSettings();
-            });
-
-        TextMenu.Button turnAllOn = (TextMenu.Button)new TextMenu.Button(
-            Dialog.Clean(DialogIds.ButtonAllOnId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                History.Index = 1;
-                _settings.History = true;
-                ResetShare.Index = 1;
-                _settings.ResetShare = true;
-                MultimodalTest.Index = 1;
-                _settings.MultimodalTest = true;
-                RoomDependency.Index = 1;
-                _settings.RoomDependency = true;
-                ConsistencyScore.Index = 3;
-                _settings.ConsistencyScore = MetricOutputChoice.Both;
-                SuccessRate.Index = 3;
-                _settings.SuccessRate = MetricOutputChoice.Both;
-                TargetTime.Index = 3;
-                _settings.TargetTime = MetricOutputChoice.Both;
-                CompletedRunCount.Index = 3;
-                _settings.CompletedRunCount = MetricOutputChoice.Both;
-                TotalRunCount.Index = 3;
-                _settings.TotalRunCount = MetricOutputChoice.Both;
-                DnfCount.Index = 3;
-                _settings.DnfCount = MetricOutputChoice.Both;
-                Average.Index = 3;
-                _settings.Average = MetricOutputChoice.Both;
-                Median.Index = 3;
-                _settings.Median = MetricOutputChoice.Both;
-                MedianAbsoluteDeviation.Index = 3;
-                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Both;
-                ResetRate.Index = 3;
-                _settings.ResetRate = MetricOutputChoice.Both;
-                Minimum.Index = 3;
-                _settings.Minimum = MetricOutputChoice.Both;
-                Maximum.Index = 3;
-                _settings.Maximum = MetricOutputChoice.Both;
-                StandardDeviation.Index = 3;
-                _settings.StandardDeviation = MetricOutputChoice.Both;
-                CoefficientOfVariation.Index = 3;
-                _settings.CoefficientOfVariation = MetricOutputChoice.Both;
-                Percentile.Index = 3;
-                _settings.Percentile = MetricOutputChoice.Both;
-                InterquartileRange.Index = 3;
-                _settings.InterquartileRange = MetricOutputChoice.Both;
-                LinearRegression.Index = 3;
-                _settings.LinearRegression = MetricOutputChoice.Both;
-                SoB.Index = 3;
-                _settings.SoB = MetricOutputChoice.Both;
-                PercentileValue.Disabled = false;
-                _instance.SaveSettings();
-            });
-
-        TextMenu.Button resetAll = (TextMenu.Button)new TextMenu.Button(
-            Dialog.Clean(DialogIds.ButtonResetId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                History.Index = 1;
-                _settings.History = true;
-                ResetShare.Index = 1;
-                _settings.ResetShare = true;
-                MultimodalTest.Index = 1;
-                _settings.MultimodalTest = true;
-                RoomDependency.Index = 1;
-                _settings.RoomDependency = true;
-                ConsistencyScore.Index = 3;
-                _settings.ConsistencyScore = MetricOutputChoice.Both;
-                SuccessRate.Index = 3;
-                _settings.SuccessRate = MetricOutputChoice.Both;
-                TargetTime.Index = 3;
-                _settings.TargetTime = MetricOutputChoice.Both;
-                CompletedRunCount.Index = 2;
-                _settings.CompletedRunCount = MetricOutputChoice.Export;
-                TotalRunCount.Index = 3;
-                _settings.TotalRunCount = MetricOutputChoice.Both;
-                DnfCount.Index = 3;
-                _settings.DnfCount = MetricOutputChoice.Both;
-                Average.Index = 3;
-                _settings.Average = MetricOutputChoice.Both;
-                Median.Index = 3;
-                _settings.Median = MetricOutputChoice.Both;
-                MedianAbsoluteDeviation.Index = 2;
-                _settings.MedianAbsoluteDeviation = MetricOutputChoice.Export;
-                ResetRate.Index = 2;
-                _settings.ResetRate = MetricOutputChoice.Export;
-                Minimum.Index = 2;
-                _settings.Minimum = MetricOutputChoice.Export;
-                Maximum.Index = 2;
-                _settings.Maximum = MetricOutputChoice.Export;
-                StandardDeviation.Index = 3;
-                _settings.StandardDeviation = MetricOutputChoice.Both;
-                CoefficientOfVariation.Index = 2;
-                _settings.CoefficientOfVariation = MetricOutputChoice.Export;
-                Percentile.Index = 2;
-                _settings.Percentile = MetricOutputChoice.Export;
-                InterquartileRange.Index = 2;
-                _settings.InterquartileRange = MetricOutputChoice.Export;
-                LinearRegression.Index = 2;
-                _settings.LinearRegression = MetricOutputChoice.Export;
-                SoB.Index = 3;
-                _settings.SoB = MetricOutputChoice.Both;
-                PercentileValue.Index = 7;
-                _settings.PercentileValue = PercentileChoice.P90;
-                PercentileValue.Disabled = false;
-                _instance.SaveSettings();
-            });
-
-        metricsSubMenu.Add(turnAllOff);
-        metricsSubMenu.Add(turnAllOn);
-        metricsSubMenu.Add(resetAll);
-        metricsSubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.MetricsSubHeaderId), false));
-        metricsSubMenu.Add(SuccessRate);
-        metricsSubMenu.Add(TargetTime);
-        metricsSubMenu.Add(CompletedRunCount);
-        metricsSubMenu.Add(TotalRunCount);
-        metricsSubMenu.Add(DnfCount);
-        metricsSubMenu.Add(Average);
-        metricsSubMenu.Add(Median);
-        metricsSubMenu.Add(MedianAbsoluteDeviation);
-        metricsSubMenu.Add(ResetRate);
-        metricsSubMenu.Add(Minimum);
-        metricsSubMenu.Add(Maximum);
-        metricsSubMenu.Add(StandardDeviation);
-        metricsSubMenu.Add(CoefficientOfVariation);
-        metricsSubMenu.Add(Percentile);
-        metricsSubMenu.Add(PercentileValue);
-        metricsSubMenu.Add(InterquartileRange);
-        metricsSubMenu.Add(LinearRegression);
-        metricsSubMenu.Add(SoB);
-        metricsSubMenu.Add(ConsistencyScore);
-        metricsSubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ExportOnlyId), false));
-        metricsSubMenu.Add(History);
-        metricsSubMenu.Add(ResetShare);
-        metricsSubMenu.Add(MultimodalTest);
-        metricsSubMenu.Add(RoomDependency);
-
-        metricsSubMenu.Visible = _settings.Enabled;
-        return metricsSubMenu;
-    }
+    // ---------------------------------------------------------------------------
+    // FormattedIntSlider
+    // ---------------------------------------------------------------------------
 
     public class FormattedIntSlider(
         string label,
@@ -552,93 +538,71 @@ public static class ModMenuOptions
             base.Update();
             sine += Engine.RawDeltaTime;
         }
-        
+
         public override void LeftPressed()
         {
-            int prevIndex = Index;
+            int prev = Index;
             base.LeftPressed();
-            if (Index != prevIndex) lastDir = -1;
+            if (Index != prev) lastDir = -1;
         }
-        
+
         public override void RightPressed()
         {
-            int prevIndex = Index;
+            int prev = Index;
             base.RightPressed();
-            if (Index != prevIndex) lastDir = 1;
+            if (Index != prev) lastDir = 1;
         }
 
         public override float RightWidth()
         {
-            if (valueFormatter == null)
-                return base.RightWidth();
+            if (valueFormatter == null) return base.RightWidth();
 
             float maxValueWidth = Calc.Max(
                 0f,
                 ActiveFont.Measure(valueFormatter(min)).X,
                 ActiveFont.Measure(valueFormatter(max)).X,
-                ActiveFont.Measure(valueFormatter(Index)).X
-            );
+                ActiveFont.Measure(valueFormatter(Index)).X);
 
             return maxValueWidth * 0.8f + 120f;
         }
-        
+
         public override void Render(Vector2 position, bool highlighted)
         {
-            if (valueFormatter == null)
-            {
-                base.Render(position, highlighted);
-                return;
-            }
-            
-            float alpha = Container.Alpha;
+            if (valueFormatter == null) { base.Render(position, highlighted); return; }
+
+            float alpha       = Container.Alpha;
             Color strokeColor = Color.Black * (alpha * alpha * alpha);
-            Color color = Disabled 
-                ? Color.DarkSlateGray 
+            Color color       = Disabled
+                ? Color.DarkSlateGray
                 : ((highlighted ? Container.HighlightColor : Color.White) * alpha);
-            
+
             ActiveFont.DrawOutline(Label, position, new Vector2(0f, 0.5f), Vector2.One, color, 2f, strokeColor);
-            
+
             if (max - min > 0)
             {
-                float rightWidth = RightWidth();
+                float rightWidth   = RightWidth();
                 string displayValue = valueFormatter(Index);
-                
+
                 ActiveFont.DrawOutline(
-                    displayValue, 
-                    position + new Vector2(Container.Width - rightWidth * 0.5f + lastDir * ValueWiggler.Value * 8f, 0f), 
-                    new Vector2(0.5f, 0.5f), 
-                    Vector2.One * 0.8f, 
-                    color, 
-                    2f, 
-                    strokeColor);
-                
+                    displayValue,
+                    position + new Vector2(Container.Width - rightWidth * 0.5f + lastDir * ValueWiggler.Value * 8f, 0f),
+                    new Vector2(0.5f, 0.5f), Vector2.One * 0.8f, color, 2f, strokeColor);
+
                 Vector2 arrowOffset = Vector2.UnitX * (highlighted ? (float)(Math.Sin(sine * 4.0) * 4.0) : 0f);
-                
+
                 Vector2 leftArrowPos = position + new Vector2(
-                    Container.Width - rightWidth + 40f + ((lastDir < 0) ? (-ValueWiggler.Value * 8f) : 0f), 
-                    0f) - ((Index > min) ? arrowOffset : Vector2.Zero);
-                
-                ActiveFont.DrawOutline(
-                    "<", 
-                    leftArrowPos, 
-                    new Vector2(0.5f, 0.5f), 
-                    Vector2.One, 
-                    (Index > min) ? color : (Color.DarkSlateGray * alpha), 
-                    2f, 
-                    strokeColor);
-                
+                    Container.Width - rightWidth + 40f + ((lastDir < 0) ? (-ValueWiggler.Value * 8f) : 0f), 0f)
+                    - ((Index > min) ? arrowOffset : Vector2.Zero);
+
+                ActiveFont.DrawOutline("<", leftArrowPos, new Vector2(0.5f, 0.5f), Vector2.One,
+                    (Index > min) ? color : (Color.DarkSlateGray * alpha), 2f, strokeColor);
+
                 Vector2 rightArrowPos = position + new Vector2(
-                    Container.Width - 40f + ((lastDir > 0) ? (ValueWiggler.Value * 8f) : 0f), 
-                    0f) + ((Index < max) ? arrowOffset : Vector2.Zero);
-                
-                ActiveFont.DrawOutline(
-                    ">", 
-                    rightArrowPos, 
-                    new Vector2(0.5f, 0.5f), 
-                    Vector2.One, 
-                    (Index < max) ? color : (Color.DarkSlateGray * alpha), 
-                    2f, 
-                    strokeColor);
+                    Container.Width - 40f + ((lastDir > 0) ? (ValueWiggler.Value * 8f) : 0f), 0f)
+                    + ((Index < max) ? arrowOffset : Vector2.Zero);
+
+                ActiveFont.DrawOutline(">", rightArrowPos, new Vector2(0.5f, 0.5f), Vector2.One,
+                    (Index < max) ? color : (Color.DarkSlateGray * alpha), 2f, strokeColor);
             }
         }
     }

@@ -37,8 +37,9 @@ public static class DialogIds {
     public const string PopupInvalidExportid = "INVALID_EXPORT";
     public const string PopupExportToFileid = "EXPORT_TO_FILE";
     public const string PopupDataClearId = "DATA_CLEAR";
+    public const string PopupNoGraphid = "NO_GRAPH_ERROR";
 
-    // Ingame Overlay Menu
+    // Text Overlay Menu
     public const string IngameOverlayId = "INGAME_OVERLAY";
     public const string OverlayEnabledId = "OVERLAY_ENABLED";
     public const string TextSizeId = "TEXT_SIZE";
@@ -47,6 +48,15 @@ public static class DialogIds {
     public const string TextOverlayId = "TEXT_OVERLAY";
     public const string GraphOverlayId = "GRAPH_OVERLAY";
     public const string TextAlphaId = "TEXT_ALPHA";
+
+    // Graph Overlay Menu
+    public const string GraphEnabledId = "GRAPH_ENABLED";
+    public const string GraphScatterId = "SCATTER";
+    public const string GraphRoomHistogramId = "ROOM_HISTOGRAM";
+    public const string GraphSegmentHistogramId = "SEGMENT_HISTOGRAM";
+    public const string GraphDnfPercentId = "DNF_PERCENT_BAR_CHART";
+    public const string GraphProblemRoomsId = "PROBLEM_ROOM_BAR_CHART";
+    public const string GraphInconsistentRoomsId = "INCONSISTENT_ROOM_BAR_CHART";
     public const string RoomColorId = "ROOM_COLOR";
     public const string SegmentColorId = "SEGMENT_COLOR";
     public const string TimeLossThresholdId = "TIME_LOSS_THRESHOLD";
@@ -82,4 +92,5 @@ public static class DialogIds {
     public const string MultimodalTestId = "MULTIMODAL_TEST";
     public const string RoomDependencyId = "ROOM_DEPENDENCY";
     public const string MetricsSubHeaderId = "METRICS_SUBHEADER";
+    public const string RelMadID = "RELATIVE_MAD";
 }
