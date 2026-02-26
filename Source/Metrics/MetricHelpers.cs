@@ -50,21 +50,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
     public sealed class MetricDescriptor(
         Func<string> csvHeader,
         Func<string> inGameName,
-        Func<PracticeSession, MetricContext, bool, MetricResult> compute,
+        Func<PracticeSession, int, MetricContext, bool, MetricResult> compute,
         Func<MetricOutput, bool> isEnabled) : IEquatable<MetricDescriptor>
     {
         public Func<string> CsvHeader { get; } = csvHeader ?? throw new ArgumentNullException(nameof(csvHeader));
 
         public Func<string> InGameName { get; } = inGameName ?? throw new ArgumentNullException(nameof(inGameName));
 
-        public Func<PracticeSession, MetricContext, bool, MetricResult> Compute { get; } = compute ?? throw new ArgumentNullException(nameof(compute));
+        public Func<PracticeSession, int, MetricContext, bool, MetricResult> Compute { get; } = compute ?? throw new ArgumentNullException(nameof(compute));
 
         public Func<MetricOutput, bool> IsEnabled { get; } = isEnabled ?? throw new ArgumentNullException(nameof(isEnabled));
 
         public MetricDescriptor(
             string csvHeader,
             string inGameName,
-            Func<PracticeSession, MetricContext, bool, MetricResult> compute,
+            Func<PracticeSession, int , MetricContext, bool, MetricResult> compute,
             Func<MetricOutput, bool> isEnabled)
             : this(() => csvHeader, () => inGameName, compute, isEnabled)
         { }

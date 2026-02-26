@@ -481,6 +481,7 @@ public static class ModMenuOptions
         metricsSubMenu.Add(turnAllOff);
         metricsSubMenu.Add(turnAllOn);
         metricsSubMenu.Add(resetAll);
+        metricsSubMenu.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.MetricsSubHeaderId), false));
         metricsSubMenu.Add(SuccessRate);
         metricsSubMenu.Add(TargetTime);
         metricsSubMenu.Add(CompletedRunCount);

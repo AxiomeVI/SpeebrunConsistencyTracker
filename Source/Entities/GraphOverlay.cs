@@ -70,7 +70,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
         {
             Depth = -100; // Render on top
-            roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room))];
+
+            // Filter out rooms with no times
+            roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room)).Where(r => r.Times.Count > 0)];
             segmentData = new RoomData("Segment", segment);
             targetTime = target;
             position = pos ?? new Vector2(

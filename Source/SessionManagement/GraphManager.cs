@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
-public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, IReadOnlyDictionary<int, int> dnfPerRoom, IReadOnlyDictionary<int, int> totalAttemptsPerRoom, int roomCount, TimeTicks? target = null)
+public class GraphManager(int index, List<List<TimeTicks>> rooms, List<TimeTicks> segment, IReadOnlyDictionary<int, int> dnfPerRoom, TimeTicks? target = null)
 {
     private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
 
@@ -17,6 +17,7 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
     private readonly IReadOnlyDictionary<int, int> attemptsByRoom = totalAttemptsPerRoom;
     private readonly int totalRooms = roomCount;
     private readonly TimeTicks? targetTime = target;
+    private readonly int segmentLength = rooms.Count;
     
     // Cache for overlays
     private GraphOverlay scatterGraph;
@@ -26,9 +27,23 @@ public class GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, 
     private PercentBarChartOverlay problemRoomsChart;
     
     // Current state
-    // -1 = scatter, 0..N-1 = room histogram, N = segment, N+1 = DNF%, N+2 = problem rooms
-    private int currentIndex = -1;
+    private int currentIndex = index; // -1 = scatter, 0+ = room histogram, Count = segment histogram
+    public bool CurrentIndex(out int index)
+    {
+        index = currentIndex - 1;
+        if (index < roomTimes.Count)
+            return true;
+        else
+        {
+            index -= roomTimes.Count;
+            return false;
+        }
+    }
     private Entity currentOverlay;
+
+    public GraphManager(List<List<TimeTicks>> rooms, List<TimeTicks> segment, IReadOnlyDictionary<int, int> dnfPerRoom, TimeTicks? target = null) : this(-1, rooms, segment, dnfPerRoom, target) {}
+
+    public bool SameSettings(int segmentLength) => this.segmentLength == segmentLength;
 
     public void NextGraph(Level level)
     {

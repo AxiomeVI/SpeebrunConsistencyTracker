@@ -11,7 +11,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
     {
         private static List<string> lastFilter = null;
 
-        public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
+        public static void Clear()
+        {
+            lastFilter = null;
+        }
+
+        public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, int roomCount, MetricOutput mode)
         {
             MetricContext context = new();
             List<(MetricDescriptor, MetricResult)> result = [];
@@ -21,7 +26,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             foreach (MetricDescriptor metric in FilterMetrics(mode))
             {
-                result.Add((metric, metric.Compute(session, context, mode == MetricOutput.Export)));
+                result.Add((metric, metric.Compute(session, roomCount, context, mode == MetricOutput.Export)));
             }
 
             return result;

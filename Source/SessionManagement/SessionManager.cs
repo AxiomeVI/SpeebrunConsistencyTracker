@@ -1,74 +1,39 @@
 using System;
-using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
-using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 public class SessionManager
 {
     private readonly PracticeSession _currentSession = new();
-    private AttemptBuilder _currentAttemptBuilder = new();
+    private Attempt _currentAttempt = new();
 
-    public void OnBeforeLoadState()
+    public SessionManager()
     {
-        // If the previous attempt is incomplete and some room was timed, mark as DNF
-        if (HasActiveAttempt && !RoomTimerIntegration.RoomTimerIsCompleted() && RoomTimerIntegration.GetRoomTime() > 0)
-        {
-            var dnfRoomIndex = _currentAttemptBuilder.Count;
-            TimeTicks ticks = new(RoomTimerIntegration.GetRoomTime());
-            _currentAttemptBuilder.SetDnf(dnfRoomIndex, ticks);
-            EndCurrentAttempt();
-        }
+        _currentSession.AddAttempt(_currentAttempt);
     }
 
     public void OnLoadState()
     {
-        _currentAttemptBuilder = new AttemptBuilder();
-    }
-
-    public long CurrentSplitTime()
-    {
-        return _currentAttemptBuilder.SegmentTime.Ticks;
+        _currentSession.MaxRoomCount = Math.Max(_currentSession.MaxRoomCount, _currentAttempt?.TotalRoomCount ?? 0);
+        _currentAttempt = new Attempt();
+        _currentSession.AddAttempt(_currentAttempt);
     }
 
     public void CompleteRoom(long ticks)
     {
-        if (!HasActiveAttempt)
-            return;
-        TimeTicks roomTime = new TimeTicks(ticks) - _currentAttemptBuilder.SegmentTime;
+        TimeTicks roomTime = new TimeTicks(ticks) - _currentAttempt.TotalSegmentTime;
         if (roomTime > 0)
-            _currentAttemptBuilder.CompleteRoom(roomTime);
-    }
-
-
-    public void EndCurrentAttempt()
-    {
-        if (!HasActiveAttempt)
-            return;
-
-        var attempt = _currentAttemptBuilder.Build();
-        _currentSession.AddAttempt(attempt);
-
-        // Define room count dynamically if first completed attempt
-        if (_currentSession.RoomCount == 0 && attempt.Outcome == AttemptOutcome.Completed)
-            _currentSession.RoomCount = attempt.CompletedRooms.Count;
-
-        _currentAttemptBuilder = null;
+            _currentAttempt.CompleteRoom(roomTime);
     }
 
     public PracticeSession CurrentSession => _currentSession;
-    public AttemptBuilder CurrentAttempt => _currentAttemptBuilder;
-    public bool HasActiveAttempt => _currentAttemptBuilder != null;
+    public bool HasActiveAttempt => _currentAttempt != null;
+
     public int DynamicRoomCount()
     {
-        if (_currentSession.RoomCount == 0) {
-            return Math.Max(CurrentSession.Attempts.Select(a => a.CompletedRooms.Count).DefaultIfEmpty(0).Max(), _currentAttemptBuilder.Count);
-        }
-        else
-        {
-            return _currentSession.RoomCount;
-        }
+        _currentSession.MaxRoomCount = Math.Max(_currentSession.MaxRoomCount, _currentAttempt?.TotalRoomCount ?? 0);
+        return Math.Min(_currentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
     }
 }

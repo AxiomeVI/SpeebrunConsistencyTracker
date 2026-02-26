@@ -51,7 +51,7 @@ DATA_CLEAR=                            Session data cleared
 
 # ======================== Stats ===============================
 STATS_SUBMENU=                         Metrics Settings
-EXPORT_ONLY=                           Export-only metrics
+EXPORT_ONLY=                           Export only
 COMPLETED_RUN_COUNT=                   Completed Run Count
 SUCCESS_RATE=                          Success Rate
 TOTAL_RUN_COUNT=                       Total Run Count
@@ -64,7 +64,7 @@ MAD=                                   Median Absolute Deviation
 MINIMUM=                               Best
 MAXIMUM=                               Worst
 STANDARD_DEVIATION=                    Standard Deviation
-COEFFICIENT_OF_VARIATION=              Coefficient of Variation
+COEFFICIENT_OF_VARIATION=              Relative Standard Deviation
 TARGET_TIME_STAT=                      Target Time
 PERCENTILE=                            Percentile
 PERCENTILE_VALUE=                      Percentile Value
@@ -79,3 +79,4 @@ ROOM_DEPENDENCY=                       Room Dependency
 ALL_METRICS_OFF_BUTTON=                Turn off all metrics
 ALL_METRICS_ON_BUTTON=                 Turn on all metrics
 RESET_METRICS_BUTTON=                  Reset to default
+METRICS_SUBHEADER=                     Text overlay or Export

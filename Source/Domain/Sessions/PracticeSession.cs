@@ -9,9 +9,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 
 public sealed class PracticeSession : IEquatable<PracticeSession>
 {
-    public DateTime StartedAt { get; } = DateTime.UtcNow;
     public string levelName;
-    public int RoomCount { get; set; }
+    public int MaxRoomCount { get; set; } = 0;
     private readonly List<Attempt> _attempts = [];
     public IReadOnlyList<Attempt> Attempts => _attempts;
 
@@ -31,40 +30,36 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
     }
 
     public int TotalAttempts => _attempts.Count;
-    public int TotalDnfs => _attempts.Count(a => a.Outcome == AttemptOutcome.Dnf);
-    public int TotalCompleted => _attempts.Count(a => a.Outcome == AttemptOutcome.Completed);
+    public int TotalDnfs(int segmentLength) => _attempts.Count(a => !a.IsCompleted(segmentLength));
+    public int TotalCompleted(int segmentLength) => _attempts.Count(a => a.IsCompleted(segmentLength));
 
     public IReadOnlyDictionary<int, int> TotalAttemptsPerRoom =>
-    _attempts
-        .SelectMany(a =>
-            Enumerable.Range(0, a.TotalRoomCount)
-                      .Select(r => r))
-        .GroupBy(r => r)
-        .ToDictionary(g => g.Key, g => g.Count());
-
-    public IReadOnlyDictionary<int, int> DnfPerRoom =>
         _attempts
-            .Where(a => !a.IsCompleted)
-            .GroupBy(a => a.DnfInfo.Room)
-            .ToDictionary(g => g.Key, g => g.Count());
-
-    public IReadOnlyDictionary<int, int> CompletedRunsPerRoom =>
-        _attempts
-            .Where(a => a.IsCompleted || a.CompletedRooms.Count > 0)
             .SelectMany(a =>
-                Enumerable.Range(0, a.CompletedRooms.Count)
+                Enumerable.Range(0, a.TotalRoomCount)
                         .Select(r => r))
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
 
-    public IEnumerable<TimeTicks> GetSegmentTimes() =>
+    public IReadOnlyDictionary<int, int> DnfPerRoom =>
         _attempts
-            .Where(a => a.Outcome == AttemptOutcome.Completed)
-            .Select(a => a.SegmentTime);
+            .GroupBy(a => a.Count) // The dnf room index is Attempt.CompletedRooms.Count
+            .ToDictionary(g => g.Key, g => g.Count());
+
+    public IReadOnlyDictionary<int, int> CompletedRunsPerRoom =>
+        _attempts
+            .Where(a => a.Count > 0)
+            .SelectMany(a =>
+                Enumerable.Range(0, a.Count)
+                        .Select(r => r))
+            .GroupBy(r => r)
+            .ToDictionary(g => g.Key, g => g.Count());
+
+    public IEnumerable<TimeTicks> GetSegmentTimes(int segmentLength) => _attempts.Where(a => a.Count >= segmentLength).Select(a => a.SegmentTime(segmentLength));
 
     public IEnumerable<TimeTicks> GetRoomTimes(int roomIndex) =>
         _attempts
-            .Where(a => roomIndex < a.CompletedRooms.Count)
+            .Where(a => roomIndex < a.Count)
             .Select(a => a.CompletedRooms[roomIndex]);
 
     public bool Equals(PracticeSession other)
@@ -75,14 +70,11 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
         if (ReferenceEquals(this, other))
             return true;
 
-        return StartedAt == other.StartedAt
-            && RoomCount == other.RoomCount
-            && _attempts.Count == other._attempts.Count;
+        return _attempts.Count == other._attempts.Count && (_attempts.Count == 0 || _attempts[^1].Equals(other._attempts[^1]));
     }
 
     public override bool Equals(object obj)
         => Equals(obj as PracticeSession);
 
-    public override int GetHashCode()
-        => HashCode.Combine(StartedAt, RoomCount, _attempts.Count);
+    public override int GetHashCode() => HashCode.Combine(MaxRoomCount, _attempts.Count);
 }
