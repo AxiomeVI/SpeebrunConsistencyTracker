@@ -39,44 +39,44 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public void SetTextOrientation(StatTextOrientation orientation)
         {
-            StatText?.Orientation = orientation;
+            if (StatText != null) StatText.Orientation = orientation;
         }
 
         public void SetTextAlpha(float alpha) {
-            StatText?.Alpha = alpha;
+            if (StatText != null) StatText.Alpha = alpha;
         }
 
         public void SetTextVisible(bool visible) {
-            StatText?.OptionVisible = visible;
+            if (StatText != null) StatText.OptionVisible = visible;
             UpdateTextVisibility();
         }
         public void SetText(List<string> text) {
-            StatText?.Text = text;
+            if (StatText != null) StatText.Text = text;
         }
         public void SetTextPosition(StatTextPosition pos) {
             StatText?.SetPosition(pos);
         }
         public void SetTextOffsetX(int offset) {
-            StatText?.OffsetX = offset;
+            if (StatText != null) StatText.OffsetX = offset;
             StatText?.SetPosition();
         }
         public void SetTextOffsetY(int offset)
         {
-            StatText?.OffsetY = offset;
+            if (StatText != null) StatText.OffsetY = offset;
             StatText?.SetPosition();
         }
         //size in percent as int
         public void SetTextSize(int size) {
-            StatText?.Scale = (float)size / 100;
+            if (StatText != null) StatText.Scale = (float)size / 100;
         }
         
         //size in percent as int
         public void SetTextAlpha(int alpha) {
-            StatText?.Alpha = (float)alpha / 100;
+            if (StatText != null) StatText.Alpha = (float)alpha / 100;
         }
 
         private void UpdateTextVisibility() {
-            StatText?.Visible = StatText?.OptionVisible ?? false;
+            if (StatText != null) StatText.Visible = StatText.OptionVisible;
         }
 
         public override void Render() {
