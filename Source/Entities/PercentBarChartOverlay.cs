@@ -42,8 +42,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<double> values,
             Color barColor,
             string legendLabel = null,
+            float opacity = 1f,
             Vector2? pos = null)
-            : this(title, labels, values, null, barColor, Color.Transparent, legendLabel, null, pos) { }
+            : this(title, labels, values, null, barColor, Color.Transparent, legendLabel, null, opacity, pos) { }
 
         /// <summary>
         /// Stacked percentage bar chart with primary + secondary layers.
@@ -57,14 +58,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Color secondaryColor,
             string primaryLabel,
             string secondaryLabel,
+            float opacity = 1f,
             Vector2? pos = null)
         {
             this.title = title;
             this.labels = labels;
             this.primaryValues = primaryValues;
             this.secondaryValues = secondaryValues;
-            this.primaryColor = primaryColor;
-            this.secondaryColor = secondaryColor;
+            this.primaryColor = primaryColor * (opacity/100);
+            this.secondaryColor = secondaryColor * (opacity/100);
             this.primaryLabel = primaryLabel;
             this.secondaryLabel = secondaryLabel;
             

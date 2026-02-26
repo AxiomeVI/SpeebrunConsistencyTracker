@@ -1,5 +1,6 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
+using Force.DeepCloner;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -31,11 +32,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private List<(long minTick, long maxTick, int count)> buckets;
         private int maxCount;
 
-        public HistogramOverlay(string roomName, List<TimeTicks> times, Color barColor, Vector2? pos = null)
+        public HistogramOverlay(string roomName, List<TimeTicks> times, Color barColor, float opacity = 1f, Vector2? pos = null)
         {
             this.roomName = roomName;
             this.times = times;
-            this.barColor = barColor;
+            this.barColor = barColor * (opacity/100);
             
             Depth = -100;
             
@@ -263,7 +264,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         axisColor,
                         1f
                     );
-                    
+
                     DrawEdgeLabel(edgeTick, tickX, labelY);
                 }
             }
@@ -281,7 +282,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             );
         }
         
-        private void DrawEdgeLabel(long tick, float x, float y)
+        private static void DrawEdgeLabel(long tick, float x, float y)
         {
             string label = new TimeTicks(tick).ToString();
             Vector2 labelSize = ActiveFont.Measure(label) * 0.3f;
@@ -291,7 +292,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(x - labelSize.X / 2, y),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.3f,
-                barColor,
+                Color.White,
                 2f,
                 Color.Black
             );

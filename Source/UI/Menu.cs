@@ -228,10 +228,12 @@ public static class ModMenuOptions
         TextMenu.Slider textSize = new(
             Dialog.Clean(DialogIds.TextSizeId),
             i => i.ToString(), 0, 100, _settings.TextSize);
-
-        TextMenu.Slider textAlpha = new(
+        
+        FormattedIntSlider textAlpha = new(
             Dialog.Clean(DialogIds.TextAlphaId),
-            i => (i / 100f).ToString("0.00"), 0, 100, _settings._textAlpha);
+            0, 100,
+            _settings.TextAlpha,
+            v => (v / 100f).ToString("0.00"));
 
         TextMenu.Slider textPosition = new(
             Dialog.Clean(DialogIds.TextPositionId),
@@ -244,11 +246,9 @@ public static class ModMenuOptions
             Array.IndexOf(enumOrientations, _settings.TextOrientation));
 
         textSize.Change(v => { _settings.TextSize = v; _instance.textOverlay?.SetTextSize(v); });
-        textAlpha.Change(v => { _settings._textAlpha = v; _instance.textOverlay?.SetTextAlpha(_settings.TextAlpha); });
+        textAlpha.Change(v => { _settings.TextAlpha = v; _instance.textOverlay?.SetTextAlpha(_settings.TextAlpha); });
         textPosition.Change(v => { _settings.TextPosition = enumPositions[v]; _instance.textOverlay?.SetTextPosition(enumPositions[v]); });
         textOrientation.Change(v => { _settings.TextOrientation = enumOrientations[v]; _instance.textOverlay?.SetTextOrientation(enumOrientations[v]); });
-
-        textAlpha.Disabled = true; // TODO: debug
 
         TextMenu.OnOff overlayEnabled = (TextMenu.OnOff)new TextMenu.OnOff(
             Dialog.Clean(DialogIds.OverlayEnabledId), _settings.OverlayEnabled)
@@ -287,6 +287,12 @@ public static class ModMenuOptions
             i => enumColors[i].ToString(), 0, enumColors.Length - 1,
             Array.IndexOf(enumColors, _settings.SegmentColor));
 
+        FormattedIntSlider graphOpacity = new(
+            Dialog.Clean(DialogIds.ChartOpacityId),
+            0, 100,
+            _settings.ChartOpacity,
+            v => (v / 100f).ToString("0.00"));
+
         FormattedIntSlider timeLossThreshold = new(
             Dialog.Clean(DialogIds.TimeLossThresholdId),
             1, 118,
@@ -305,7 +311,17 @@ public static class ModMenuOptions
             _instance.graphManager?.ClearScatterGraph();
             _instance.graphManager?.ClearHistogram();
         });
-        timeLossThreshold.Change(v => _settings.TimeLossThresholdMs = v * 17);
+        timeLossThreshold.Change(v => 
+        {
+            _settings.TimeLossThresholdMs = v * 17;
+            _instance.graphManager?.ClearProblemChart();
+        });
+        graphOpacity.Change(v =>
+        {
+            _settings.ChartOpacity = v;
+            _instance.graphManager?.ClearHistogram();
+            _instance.graphManager?.ClearBarCharts();
+        });
 
         // Per-graph enable/disable toggles
         TextMenu.OnOff graphScatter = (TextMenu.OnOff)new TextMenu.OnOff(
@@ -334,6 +350,7 @@ public static class ModMenuOptions
 
         sub.Add(roomColor);
         sub.Add(segmentColor);
+        sub.Add(graphOpacity);
         sub.Add(timeLossThreshold);
         sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphEnabledId), false));
         sub.Add(graphScatter);

@@ -291,7 +291,8 @@ public class GraphManager
             value = new HistogramOverlay(
                 $"Room {roomIndex + 1}",
                 _roomTimes[roomIndex],
-                GraphOverlay.ToColor(_settings.RoomColor));
+                GraphOverlay.ToColor(_settings.RoomColor),
+                _settings.ChartOpacity);
             _roomHistograms[roomIndex] = value;
         }
         return value;
@@ -302,7 +303,8 @@ public class GraphManager
         return _segmentHistogram ??= new HistogramOverlay(
             "Segment",
             _segmentTimes,
-            GraphOverlay.ToColor(_settings.SegmentColor));
+            GraphOverlay.ToColor(_settings.SegmentColor),
+            _settings.ChartOpacity);
     }
 
     private PercentBarChartOverlay GetOrCreateDnfPctChart()
@@ -316,7 +318,8 @@ public class GraphManager
             "DNF % per Room",
             labels, dnfPcts,
             Color.CornflowerBlue,
-            "DNF %");
+            "DNF %",
+            _settings.ChartOpacity);
 
         return _dnfPctChart;
     }
@@ -343,7 +346,8 @@ public class GraphManager
             $"Problem Rooms (threshold: {_settings.TimeLossThresholdMs}ms)",
             labels, dnfPcts, timeLossPcts,
             Color.CornflowerBlue, Color.IndianRed,
-            "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold");
+            "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold",
+            _settings.ChartOpacity);
 
         return _problemRoomsChart;
     }
@@ -380,7 +384,8 @@ public class GraphManager
             "Inconsistent Rooms",
             labels, rmadPcts, rstddevPcts,
             Color.CornflowerBlue, Color.IndianRed,
-            "RMAD %", "RStdDev %");
+            "RMAD %", "RStdDev %",
+            _settings.ChartOpacity);
 
         return _inconsistentRoomsChart;
     }
@@ -411,6 +416,19 @@ public class GraphManager
         _roomHistograms.Clear();
         _segmentHistogram = null;
     }
+
+    public void ClearBarCharts()
+    {
+        _dnfPctChart = null;
+        _problemRoomsChart = null;
+        _inconsistentRoomsChart = null;
+    }
+
+    public void ClearProblemChart()
+    {
+        _problemRoomsChart = null;
+    }
+
 
     // -------------------------------------------------------------------------
     // Lifecycle

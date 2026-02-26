@@ -24,8 +24,8 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public int TextSize { get; set; } = 65;
     public int TextOffsetX { get; set; } = 5;
     public int TextOffsetY { get; set; } = 0;
-    public int _textAlpha = 100;
-    public float TextAlpha => _textAlpha / 100f;
+    public int TextAlpha { get; set; } = 90;
+
     public StatTextPosition TextPosition { get; set; } = StatTextPosition.TopLeft;
     public StatTextOrientation TextOrientation { get; set; } = StatTextOrientation.Horizontal;
 
@@ -34,6 +34,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
     public bool ShowRoomTimeDistributionPlots { get; set; } = false;
     public int TimeLossThresholdMs { get; set; } = 493;
+    public int ChartOpacity { get; set; } = 75;
     public bool GraphScatter { get; set; } = true;
     public bool GraphRoomHistogram { get; set; } = false;
     public bool GraphSegmentHistogram { get; set; } = true;

@@ -43,7 +43,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         public void SetTextAlpha(float alpha) {
-            if (StatText != null) StatText.Alpha = alpha;
+            if (StatText != null) StatText.SetAlpha((float)alpha/100);
         }
 
         public void SetTextVisible(bool visible) {
@@ -68,11 +68,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         //size in percent as int
         public void SetTextSize(int size) {
             if (StatText != null) StatText.Scale = (float)size / 100;
-        }
-        
-        //size in percent as int
-        public void SetTextAlpha(int alpha) {
-            if (StatText != null) StatText.Alpha = (float)alpha / 100;
         }
 
         private void UpdateTextVisibility() {

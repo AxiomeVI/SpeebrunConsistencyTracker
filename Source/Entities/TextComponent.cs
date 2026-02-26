@@ -2,7 +2,6 @@ using Microsoft.Xna.Framework;
 using Monocle;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using System.Collections.Generic;
-using System.Linq;
 
 // Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/StatTextComponent.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
@@ -13,14 +12,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public List<string> Text { get; set; }
         public bool OptionVisible { get; set; }
         public float Scale { get; set; } = 1f;
-        public float Alpha {
-            get => _Alpha;
-            set {
-                _Alpha = value;
-                UpdateColor();
-            }
-        }
-        private float _Alpha { get; set; } = alpha;
+        private float Alpha { get; set; } = alpha;
         public PixelFont Font { get; set; }
         public float FontFaceSize { get; set; }
         public Color TextColor { get; set; } = Color.White;
@@ -42,6 +34,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public void SetPosition() {
             SetPosition(Position);
         }
+
+        public void SetAlpha(float value)
+        {
+            Alpha = value;
+            UpdateColor();
+        }
+
         public void SetPosition(StatTextPosition pos) {
             Position = pos;
 
@@ -105,8 +104,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         private void UpdateColor() {
-            TextColor = new Color(1f, 1f, 1f, Alpha);
-            StrokeColor = new Color(0f, 0f, 0f, Alpha);
+            TextColor = Color.White * Alpha;
+            StrokeColor = Color.Black * Alpha;
         }
 
         public override void Render() {
