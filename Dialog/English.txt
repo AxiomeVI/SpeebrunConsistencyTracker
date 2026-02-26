@@ -26,13 +26,14 @@ OVERLAY_ENABLED=                       Enable overlay
 TEXT_SIZE=                             Size
 TEXT_POSITION=                         Position
 TEXT_ORIENTATION=                      Orientation
-TEXT_ALPHA=                            Alpha
+TEXT_ALPHA=                            Opacity
 TEXT_OVERLAY=                          Text Overlay
 
-# ====================== Text Overlay ==========================
-GRAPH_OVERLAY=                         Graphs Overlay
-ROOM_COLOR=                            Room graph color
-SEGMENT_COLOR=                         Segment graph color
+# ====================== Chart Overlay ==========================
+GRAPH_OVERLAY=                         Charts Overlay
+ROOM_COLOR=                            Room chart color
+SEGMENT_COLOR=                         Segment chart color
+CHART_OPACITY=                         Bar chart opacity
 ROOM_TIME_DISTRIBUTION_PLOTS=          Room time distribution plots
 TIME_LOSS_THRESHOLD=                   Time loss threshold
 GRAPH_ENABLED=                         Enabled charts
@@ -46,10 +47,10 @@ INCONSISTENT_ROOM_BAR_CHART=           Inconsistent Rooms
 # ======================= Hotkeys ==============================
 KEY_STATS_EXPORT=                      Export data
 KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
-TOGGLE_GRAPH_OVERLAY=                  Display/Hide data graph
+TOGGLE_GRAPH_OVERLAY=                  Display/Hide data chart
 KEY_CLEAR_STATS=                       Clear current session data
-KEY_NEXT_GRAPH=                        Switch to next graph
-KEY_PREVIOUS_GRAPH=                    Switch to previous graph
+KEY_NEXT_GRAPH=                        Switch to next chart
+KEY_PREVIOUS_GRAPH=                    Switch to previous chart
 
 # ===================== Popup message ==========================
 POPUP_TARGET_TIME_SET=                 Target time set to
@@ -58,7 +59,7 @@ EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 INVALID_EXPORT=                        No data to export
 EXPORT_TO_FILE=                        Session data exported to file
 DATA_CLEAR=                            Session data cleared
-NO_GRAPH_ERROR=                        No graphs enabled
+NO_GRAPH_ERROR=                        No charts enabled
 
 # ======================== Stats ===============================
 STATS_SUBMENU=                         Metrics Settings
