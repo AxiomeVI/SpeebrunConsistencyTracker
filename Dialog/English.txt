@@ -92,4 +92,4 @@ ROOM_DEPENDENCY=                       Room Dependency
 ALL_METRICS_OFF_BUTTON=                Turn off all metrics
 ALL_METRICS_ON_BUTTON=                 Turn on all metrics
 RESET_METRICS_BUTTON=                  Reset to default
-METRICS_SUBHEADER=                     Text overlay or Export
+METRICS_SUBHEADER=                     Configure Stats Output: Off, Overlay, Export, or Both
