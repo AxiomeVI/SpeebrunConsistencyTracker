@@ -22,7 +22,6 @@ public enum GraphType
 public class GraphManager
 {
     private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
-    private readonly bool showRoomTimeDistributionPlots = SpeebrunConsistencyTrackerModule.Settings.ShowRoomTimeDistributionPlots;
 
     private readonly List<List<TimeTicks>> _roomTimes;
     private readonly List<TimeTicks> _segmentTimes;
@@ -125,9 +124,6 @@ public class GraphManager
         {
             _currentSlotIndex = -1;
         }
-
-        index = showRoomTimeDistributionPlots ? displayedGraphIndex - roomTimes.Count : displayedGraphIndex;
-        return false;
     }
 
     /// <summary>
