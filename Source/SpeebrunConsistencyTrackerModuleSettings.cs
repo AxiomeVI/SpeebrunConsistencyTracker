@@ -32,6 +32,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     // Graph Overlay menu
     public ColorChoice RoomColor { get; set; } = ColorChoice.Cyan;
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
+    public bool ShowRoomTimeDistributionPlots { get; set; } = false;
     public int TimeLossThresholdMs { get; set; } = 493;
     public bool GraphScatter { get; set; } = true;
     public bool GraphRoomHistogram { get; set; } = false;

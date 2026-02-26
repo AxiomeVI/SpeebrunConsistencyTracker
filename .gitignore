@@ -358,3 +358,6 @@ MigrationBackup/
 # JetBrains Rider
 .idea
 
+# VS Code workspace settings
+.vscode/
+

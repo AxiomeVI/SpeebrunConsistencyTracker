@@ -204,13 +204,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             PopupMessage(Dialog.Clean(DialogIds.PopupDataClearId));
         }
         
-        int segmentLength = Instance.sessionManager.DynamicRoomCount();
+        SessionManager activeSessionManager = Instance.sessionManager;
+        int segmentLength = activeSessionManager.DynamicRoomCount();
         if (Settings.ButtonToggleGraphOverlay.Pressed) {
             if (Instance.graphManager == null)
             {
-                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength).Select<int, List<TimeTicks>>(i => [.. Instance.sessionManager.CurrentSession.GetRoomTimes(i)]).Where(roomList => roomList.Count > 0)];
-                List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
-                Instance.graphManager = new GraphManager(rooms, segment, Instance.sessionManager.CurrentSession.DnfPerRoom, Instance.sessionManager.CurrentSession.TotalAttemptsPerRoom, MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
+                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength).Select<int, List<TimeTicks>>(i => [.. activeSessionManager.CurrentSession.GetRoomTimes(i)]).Where(roomList => roomList.Count > 0)];
+                List<TimeTicks> segment = [.. activeSessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
+                Instance.graphManager = new GraphManager(rooms, segment, activeSessionManager.CurrentSession.DnfPerRoom, activeSessionManager.CurrentSession.TotalAttemptsPerRoom, MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
                 if (!self.Paused)
                     Instance.graphManager.CurrentGraph(self);
             }
@@ -233,9 +234,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             } else if (!Instance.graphManager.SameSettings(segmentLength))
             {
                 List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength)
-                    .Select<int, List<TimeTicks>>(i => [.. Instance.sessionManager.CurrentSession.GetRoomTimes(i)])
+                    .Select<int, List<TimeTicks>>(i => [.. activeSessionManager.CurrentSession.GetRoomTimes(i)])
                     .Where(roomList => roomList.Count > 0)];
-                List<TimeTicks> segment = [.. Instance.sessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
+                List<TimeTicks> segment = [.. activeSessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
 
                 var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
                 bool wasShowing = Instance.graphManager.IsShowing();
@@ -243,8 +244,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 Instance.graphManager.RemoveGraphs();
                 Instance.graphManager = new GraphManager(
                     rooms, segment,
-                    Instance.sessionManager.CurrentSession.DnfPerRoom,
-                    Instance.sessionManager.CurrentSession.TotalAttemptsPerRoom,
+                    activeSessionManager.CurrentSession.DnfPerRoom,
+                    activeSessionManager.CurrentSession.TotalAttemptsPerRoom,
                     MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
 
                 Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
@@ -288,12 +289,16 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled)
             return;
-        if (Instance.sessionManager == null || Instance.sessionManager.CurrentSession?.TotalAttempts == 0)
+
+        SessionManager activeSessionManager = Instance.sessionManager;
+        if (activeSessionManager == null || activeSessionManager.CurrentSession?.TotalAttempts == 0)
         {
             PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
         }
-        PracticeSession currentSession = Instance.sessionManager.CurrentSession;
+
+        PracticeSession currentSession = activeSessionManager.CurrentSession;
+        int roomCount = activeSessionManager.DynamicRoomCount();
         StringBuilder sb = new();
         if (Settings.ExportWithSRT)
         {
@@ -303,11 +308,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             sb.Append(TextInput.GetClipboardText());
             sb.Append("\n\n\n");
         }
-        sb.Append(MetricsExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
+        sb.Append(MetricsExporter.ExportSessionToCsv(currentSession, roomCount));
         if (Settings.History)
         {
             sb.Append("\n\n\n");
-            sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
+            sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, roomCount));
         }
         TextInput.SetClipboardText(sb.ToString());
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
@@ -318,16 +323,19 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
 
-        if (Instance.sessionManager == null || Instance.sessionManager.CurrentSession?.TotalAttempts == 0)
+        SessionManager activeSessionManager = Instance.sessionManager;
+        if (activeSessionManager == null || activeSessionManager.CurrentSession?.TotalAttempts == 0)
         {
             PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
         }
 
+        PracticeSession currentSession = activeSessionManager.CurrentSession;
+        int roomCount = activeSessionManager.DynamicRoomCount();
+
         if (Settings.ExportWithSRT)
             RoomTimerManager.CmdExportRoomTimes();
 
-        PracticeSession currentSession = Instance.sessionManager.CurrentSession;
         string baseFolder = Path.Combine(
             Everest.PathGame,
             "SCT_Exports",
@@ -337,11 +345,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
         {
-            writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
+            writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession, roomCount));
         }
         using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv")))
         {
-            writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, Instance.sessionManager.DynamicRoomCount()));
+            writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, roomCount));
         }
 
         PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));

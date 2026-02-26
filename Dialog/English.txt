@@ -33,6 +33,7 @@ TEXT_OVERLAY=                          Text Overlay
 GRAPH_OVERLAY=                         Graphs Overlay
 ROOM_COLOR=                            Room graph color
 SEGMENT_COLOR=                         Segment graph color
+ROOM_TIME_DISTRIBUTION_PLOTS=          Room time distribution plots
 TIME_LOSS_THRESHOLD=                   Time loss threshold
 GRAPH_ENABLED=                         Enabled charts
 SCATTER=                               Scatter Plot
