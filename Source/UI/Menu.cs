@@ -89,7 +89,13 @@ public static class ModMenuOptions
         );
 
         TextMenu.Slider minutes = new(Dialog.Clean(DialogIds.Minutes), i => i.ToString(), 0, 30, _settings.Minutes);
-        TextMenuExt.IntSlider seconds = new(Dialog.Clean(DialogIds.Seconds), 0, 59, _settings.Seconds);
+        FormattedIntSlider seconds = new(
+            Dialog.Clean(DialogIds.Seconds),
+            0,
+            59,
+            _settings.Seconds,
+            v => v.ToString("D2")
+        );
         TextMenu.Slider millisecondsFirstDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsFirstDigit);
         TextMenu.Slider millisecondsSecondDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsSecondDigit);
         TextMenu.Slider millisecondsThirdDigit = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsThirdDigit);
