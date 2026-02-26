@@ -1,6 +1,6 @@
 # SpeebrunConsistencyTracker
 
-A Celeste mod designed to help speedrunners focus on measuring and improving consistency. Track segment and room times with real-time statistics to emphasize repeatability over PBs
+A Celeste mod built for speedrunners to analyze consistency and pinpoint specific rooms or segments that require further practice. Track segment and room times with real-time statistics to emphasize repeatability over PBs
 
 ## High-level Features
 
@@ -14,7 +14,7 @@ A Celeste mod designed to help speedrunners focus on measuring and improving con
 
 * **Set a Save State:** Starting a new training session. Creating or clearing a save state will reset all current session data
 * **Run the Segment:** Practice the segment as you usually do. To maintain data integrity, **make sure that the "current room / next room" SpeedrunTool setting is properly configured**
-* **Review Performance:** After every completed run, a customizable overlay displays your session statistics. You can also view various performance charts in-game via your configured keybinds (my personal recommendation is to use the default menu directions to cycle through them)
+* **Review Performance:** After every completed run, a customizable text overlay displays your session statistics. You can also view various performance charts in-game via your configured keybinds (my personal recommendation is to use the default menu directions to cycle through them)
 
 ### 2. Real-Time Feedback & Overlays
 
@@ -47,6 +47,7 @@ Configure the overlay to display the metrics that matter most to your current go
 - Trend Slope: measures how session duration affects performance. Values closer to zero indicate little effect, while negative values indicate that your times tend to improve as the session progresses, whereas positive values indicate the opposite
 - SoB: Sum of Best
 - Median Absolute Deviation: measure of how spread out the run times are around the median
+- Relative Median Absolute Deviation: Median Absolute Deviation as a percentage of the median, allowing easier comparison across different segments / rooms
 - Consistency Score: Composite metric estimating how consistent times are. Tighter distributions, times closer to the best, and fewer resets result in a higher score.
 - Bimodal Test: detects multiple peaks in the time distribution indicating an hit-or-miss strat in a room. The Bimodality Coefficient is to be compared to the critical tresholf of 0.555 which indicates an uniform distribution; higher values point towards bimodality, whereas lower values point toward unimodality.
 - Room Dependency: measures how a poor time in a room impacts the next room, ranging from -1 to 1. A value of 0 indicates no effect, while a high positive score suggests that a mistake in a room often leads to a bad time in the following room.
