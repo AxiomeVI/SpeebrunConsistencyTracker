@@ -300,8 +300,10 @@ public class GraphManager
 
     private HistogramOverlay GetOrCreateSegmentHistogram()
     {
+        int roomCount = SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms;
+        string roomLabel = roomCount == 1 ? "1 room" : $"{roomCount} rooms";
         return _segmentHistogram ??= new HistogramOverlay(
-            $"Segment ({SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms} rooms)",
+            $"Segment ({roomLabel})",
             _segmentTimes,
             GraphOverlay.ToColor(_settings.SegmentColor),
             _settings.ChartOpacity);
