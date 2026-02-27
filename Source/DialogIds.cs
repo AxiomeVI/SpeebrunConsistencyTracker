@@ -60,8 +60,8 @@ public static class DialogIds {
     public const string RoomColorId = "ROOM_COLOR";
     public const string SegmentColorId = "SEGMENT_COLOR";
     public const string ChartOpacityId = "CHART_OPACITY";
-    public const string RoomTimeDistributionPlotsId = "ROOM_TIME_DISTRIBUTION_PLOTS";
     public const string TimeLossThresholdId = "TIME_LOSS_THRESHOLD";
+    public const string TimeLossThresholdDescId = "TIME_LOSS_THRESHOLD_DESC";
     
     // Stats Menu
     public const string StatsSubMenuId = "STATS_SUBMENU";
@@ -90,6 +90,7 @@ public static class DialogIds {
     public const string ConsistencyScoreId = "CONSISTENCY_SCORE";
     public const string ButtonAllOffId = "ALL_METRICS_OFF_BUTTON";
     public const string ButtonAllOnId = "ALL_METRICS_ON_BUTTON";
+    public const string AllOnDescId = "ALL_ON_DESC";
     public const string ButtonResetId = "RESET_METRICS_BUTTON";
     public const string MultimodalTestId = "MULTIMODAL_TEST";
     public const string RoomDependencyId = "ROOM_DEPENDENCY";

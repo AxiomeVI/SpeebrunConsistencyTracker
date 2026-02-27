@@ -386,8 +386,18 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     public static bool TryParseTime(string input, out TimeSpan result)
     {
-        result = TimeSpan.Zero;
-        if (string.IsNullOrWhiteSpace(input)) return false;
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            result = TimeSpan.Zero;
+            return true;
+        }
+
+        // Handle pure zero inputs before any trimming
+        if (input.Trim() == "0" || input.Trim() == "00")
+        {
+            result = TimeSpan.Zero;
+            return true;
+        }
 
         string[] timeFormats = [
             @"mm\:ss\.fff", @"m\:ss\.fff",
@@ -397,13 +407,23 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             @"ss\.fff",     @"s\.fff",
             @"ss\.ff",      @"s\.ff",
             @"ss\.f",       @"s\.f",
-            @"ss",          @"s"
+            @"ss",          @"s",
+            @"\.fff",       @"\.ff",       @"\.f"
         ];
 
-        bool success = TimeSpan.TryParseExact(input.TrimStart('0', ':'), timeFormats, 
-            System.Globalization.CultureInfo.InvariantCulture, out result);
+        string trimmed = input.TrimStart('0', ':');
+        if (string.IsNullOrEmpty(trimmed)) 
+        {
+            result = TimeSpan.Zero;
+            return true;
+        }
 
-        // Fallback: If it's a pure number (e.g., "500"), treat as Milliseconds
+        bool success = TimeSpan.TryParseExact(
+            trimmed, timeFormats,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out result);
+
+        // Fallback: pure number treated as milliseconds
         if (!success && int.TryParse(input, out int msResult))
         {
             result = TimeSpan.FromMilliseconds(msResult);

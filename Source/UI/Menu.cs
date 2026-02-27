@@ -75,7 +75,7 @@ public static class ModMenuOptions
 
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
-        TextMenuExt.SubMenu targetTimeSubMenu  = CreateTargetTimeSubMenu(menu, inGame);
+        TextMenuExt.SubMenu targetTimeSubMenu   = CreateTargetTimeSubMenu(menu, inGame);
         TextMenuExt.SubMenu textOverlaySubMenu  = CreateTextOverlaySubMenu(menu);
         TextMenuExt.SubMenu graphOverlaySubMenu = CreateGraphOverlaySubMenu(menu);
         TextMenuExt.SubMenu metricsSubMenu      = CreateMetricsSubMenu(menu);
@@ -146,11 +146,14 @@ public static class ModMenuOptions
         inputTimeButton.Pressed(() =>
         {
             Audio.Play(SFX.ui_main_savefile_rename_start);
+            string pendingValue = GetTargetTime();
             menu.SceneAs<Overworld>().Goto<OuiModOptionString>().Init<OuiModOptions>(
                 GetTargetTime(),
-                v =>
+                v => pendingValue = v, // capture latest value on each keystroke, but don't apply yet
+                confirmed =>
                 {
-                    if (SpeebrunConsistencyTrackerModule.TryParseTime(v, out TimeSpan result))
+                    if (!confirmed) return; // escape — discard
+                    if (SpeebrunConsistencyTrackerModule.TryParseTime(pendingValue, out TimeSpan result))
                     {
                         _settings.Minutes                 = result.Minutes;
                         _settings.Seconds                 = result.Seconds;
@@ -168,7 +171,7 @@ public static class ModMenuOptions
                             Dialog.Clean(DialogIds.PopupInvalidTargetTimeid));
                     }
                 },
-                9, 3);
+                9, 0);
         });
 
         TextMenu.Button importButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.KeyImportTargetTimeId))
@@ -360,6 +363,8 @@ public static class ModMenuOptions
         sub.Add(graphProblemRooms);
         sub.Add(graphInconsistentRooms);
 
+        timeLossThreshold.AddDescription(sub, menu, Dialog.Clean(DialogIds.TimeLossThresholdDescId));
+
         sub.Visible = _settings.Enabled;
         return sub;
     }
@@ -478,8 +483,9 @@ public static class ModMenuOptions
                 sub.Add(percentileValue);
         }
 
-        // Success rate description
+        // Add descriptions
         sliders[DialogIds.SuccessRateId].AddDescription(sub, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
+        turnAllOn.AddDescription(sub, menu, Dialog.Clean(DialogIds.AllOnDescId));
 
         sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ExportOnlyId), false));
         sub.Add(history);
