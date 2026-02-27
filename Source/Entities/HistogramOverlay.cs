@@ -140,26 +140,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private void DrawBars(float x, float y, float w, float h)
         {
             if (buckets.Count == 0 || maxCount == 0) return;
-            
-            float barWidth = w / buckets.Count;
-            float barSpacing = barWidth * 0.1f; // 10% spacing between bars
-            
+
+            float barWidth = Math.Min(w / buckets.Count, 100f);
+            float totalBarsWidth = barWidth * buckets.Count;
+            float startX = x + (w - totalBarsWidth) / 2f;
+            float barSpacing = barWidth * 0.1f;
+
             for (int i = 0; i < buckets.Count; i++)
             {
                 var (_, _, count) = buckets[i];
-                
-                // Calculate bar height based on count
                 float barHeight = (float)count / maxCount * h;
-                
-                // Calculate bar position
-                float barX = x + i * barWidth + barSpacing / 2;
+                float barX = startX + i * barWidth + barSpacing / 2;
                 float barY = y + h - barHeight;
                 float actualBarWidth = barWidth - barSpacing;
-                
-                // Draw bar
+
                 Draw.Rect(barX, barY, actualBarWidth, barHeight, barColor);
-                
-                // Draw count on top of bar if space permits
+
                 if (barHeight > 20)
                 {
                     string countText = count.ToString();
@@ -169,16 +165,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         new Vector2(barX + actualBarWidth / 2 - countSize.X / 2, barY - countSize.Y - 5),
                         new Vector2(0f, 0f),
                         Vector2.One * 0.3f,
-                        Color.White,
-                        2f,
-                        Color.Black
-                    );
+                        Color.White, 2f, Color.Black);
                 }
             }
         }
         
         private void DrawLabels(float x, float y, float w, float h)
         {
+            float barWidth = Math.Min(w / buckets.Count, 100f);
+            float totalBarsWidth = barWidth * buckets.Count;
+            float tickStartX = x + (w - totalBarsWidth) / 2f;
+
+            // Title
             string title = $"Time Distribution - {roomName}";
             Vector2 titleSize = ActiveFont.Measure(title) * 0.7f;
             ActiveFont.DrawOutline(
@@ -186,12 +184,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(position.X + width / 2 - titleSize.X / 2, position.Y + 10),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.7f,
-                Color.White,
-                2f,
-                Color.Black
-            );
-            
-            // Y axis label (count)
+                Color.White, 2f, Color.Black);
+
+            // Y axis label
             string yAxisLabel = "Count";
             Vector2 yAxisSize = ActiveFont.Measure(yAxisLabel) * 0.5f;
             ActiveFont.DrawOutline(
@@ -199,11 +194,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(x - yAxisSize.X - 25, y + h / 2 - yAxisSize.Y / 2),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.5f,
-                Color.White,
-                2f,
-                Color.Black
-            );
-            
+                Color.White, 2f, Color.Black);
+
             // Y axis tick labels
             int yLabelCount = Math.Min(5, maxCount);
             if (yLabelCount == 0) yLabelCount = 1; // Sanity check to show at least one label
@@ -212,63 +204,43 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 int countValue = (int)Math.Round((double)maxCount / yLabelCount * i);
                 float yPos = y + h - h / yLabelCount * i;
-                
+
                 string countLabel = countValue.ToString();
                 Vector2 labelSize = ActiveFont.Measure(countLabel) * 0.4f;
-                
                 ActiveFont.DrawOutline(
                     countLabel,
                     new Vector2(x - labelSize.X - 10, yPos - labelSize.Y / 2),
                     new Vector2(0f, 0f),
                     Vector2.One * 0.4f,
-                    Color.White,
-                    2f,
-                    Color.Black
-                );
+                    Color.White, 2f, Color.Black);
             }
-            
-            // X axis labels (bin edges)
+
+            // X axis tick labels
             if (buckets.Count > 0)
             {
-                float barWidth = w / buckets.Count;
-                
-                // Draw label for each bin edge
                 for (int i = 0; i <= buckets.Count; i++)
                 {
-                    long edgeTick;
-                    if (i == 0)
-                    {
-                        edgeTick = buckets[0].minTick;
-                    }
-                    else if (i == buckets.Count)
-                    {
-                        edgeTick = buckets[^1].maxTick;
-                    }
-                    else
-                    {
-                        // Shared edge between bins
-                        edgeTick = buckets[i].minTick;
-                    }
-                    float tickX = x + i * barWidth;
-                    // Alternate Y position for labels
+                    long edgeTick = i == 0
+                        ? buckets[0].minTick
+                        : i == buckets.Count
+                            ? buckets[^1].maxTick
+                            : buckets[i].minTick;
+
+                    float tickX = tickStartX + i * barWidth;
                     bool isEven = i % 2 == 0;
                     float labelY = isEven ? y + h + 10 : y + h + 30;
-                    
-                    // Draw tick mark - longer for labels below
-                    float tickStartY = y + h;
-                    float tickEndY = isEven ? y + h + 5 : y + h + 25; // Longer for odd (lower labels)
-                    
+                    float tickEndY = isEven ? y + h + 5 : y + h + 25;
+
                     Draw.Line(
-                        new Vector2(tickX, tickStartY),
+                        new Vector2(tickX, y + h),
                         new Vector2(tickX, tickEndY),
-                        axisColor,
-                        1f
-                    );
+                        axisColor, 1f);
 
                     DrawEdgeLabel(edgeTick, tickX, labelY);
                 }
             }
-            
+
+            // Stats
             string stats = $"Total: {times.Count}";
             Vector2 statsSize = ActiveFont.Measure(stats) * 0.4f;
             ActiveFont.DrawOutline(
@@ -276,10 +248,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + 58),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.4f,
-                Color.LightGray,
-                2f,
-                Color.Black
-            );
+                Color.LightGray, 2f, Color.Black);
         }
         
         private static void DrawEdgeLabel(long tick, float x, float y)
