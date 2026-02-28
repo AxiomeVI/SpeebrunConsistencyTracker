@@ -348,8 +348,8 @@ public class GraphManager
             $"Problem Rooms (threshold: {_settings.TimeLossThresholdMs}ms)",
             labels, dnfPcts, timeLossPcts,
             Color.CornflowerBlue, Color.IndianRed,
-            "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold",
-            _settings.ChartOpacity);
+            "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold", 
+            null, _settings.ChartOpacity);
 
         return _problemRoomsChart;
     }
@@ -358,8 +358,7 @@ public class GraphManager
     {
         if (_inconsistentRoomsChart != null) return _inconsistentRoomsChart;
 
-        var labels = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
-
+        // Compute raw RMAD, RStdDev, and avg time above gold per room
         var rmadPcts = Enumerable.Range(0, _totalRooms).Select(i =>
         {
             var sorted = (i < _roomTimes.Count ? _roomTimes[i] : [])
@@ -378,15 +377,58 @@ public class GraphManager
             double mean = times.Average(t => (double)t.Ticks);
             if (mean == 0) return 0.0;
             double variance = times.Sum(t => Math.Pow(t.Ticks - mean, 2)) / times.Count;
-            double stddev = Math.Sqrt(variance);
-            return stddev / mean * 100;
+            return Math.Sqrt(variance) / mean * 100;
         }).ToList();
 
+        var medTimeLost = Enumerable.Range(0, _totalRooms).Select(i =>
+        {
+            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
+            if (times.Count == 0) return 0.0;
+            long gold = times.Min(t => t.Ticks);
+            var losses = times.Select(t => t.Ticks - gold).OrderBy(t => t).ToList();
+            int mid = losses.Count / 2;
+            return losses.Count % 2 == 0
+                ? (losses[mid - 1] + losses[mid]) / 2.0
+                : losses[mid];
+        }).ToList();
+
+        // Sort rooms by total inconsistency descending
+        var ranked = Enumerable.Range(0, _totalRooms)
+            .OrderByDescending(i => rmadPcts[i] + rstddevPcts[i])
+            .ToList();
+
+        var rankedLabels    = ranked.Select(i => $"R{i + 1}").ToList();
+        var rankedRmad      = ranked.Select(i => rmadPcts[i]).ToList();
+        var rankedRstddev   = ranked.Select(i => rstddevPcts[i]).ToList();
+        var rankedTopLabels = ranked.Select(i =>
+        {
+            double ticks = medTimeLost[i];
+            if (ticks <= 0) return "";
+            return $"+{new TimeTicks((long)ticks)}";
+        }).ToList();
+
+        // Normalize relative to worst room (first after sort)
+        double maxTotal = rankedRmad[0] + rankedRstddev[0];
+
+        List<double> scaledRmad;
+        List<double> scaledRstddev;
+        if (maxTotal == 0)
+        {
+            scaledRmad    = [.. rankedRmad.Select(_ => 0.0)];
+            scaledRstddev = [.. rankedRstddev.Select(_ => 0.0)];
+        }
+        else
+        {
+            scaledRmad    = [.. rankedRmad.Select(v => v / maxTotal * 100)];
+            scaledRstddev = [.. rankedRstddev.Select(v => v / maxTotal * 100)];
+        }
+
         _inconsistentRoomsChart = new PercentBarChartOverlay(
-            "Inconsistent Rooms",
-            labels, rmadPcts, rstddevPcts,
+            "Room Inconsistency (ranked)",
+            rankedLabels, scaledRmad, scaledRstddev,
             Color.CornflowerBlue, Color.IndianRed,
-            "RMAD %", "RStdDev %",
+            "RMAD", "RStdDev",
+            rankedTopLabels,
             _settings.ChartOpacity);
 
         return _inconsistentRoomsChart;

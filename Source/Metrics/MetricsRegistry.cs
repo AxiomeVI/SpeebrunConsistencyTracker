@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {

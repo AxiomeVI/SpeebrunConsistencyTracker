@@ -2,7 +2,6 @@ using Microsoft.Xna.Framework;
 using Monocle;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
@@ -14,8 +13,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     {
         private readonly string title;
         private readonly List<string> labels;
-        private readonly List<double> primaryValues;   // bottom portion (e.g. DNF %)
-        private readonly List<double> secondaryValues;  // stacked on top (e.g. time loss %)
+        private readonly List<double> primaryValues;
+        private readonly List<double> secondaryValues;
+        private readonly List<string> topLabels; // optional label above each bar (e.g. avg time lost)
         private readonly Color primaryColor;
         private readonly Color secondaryColor;
         private readonly string primaryLabel;
@@ -44,7 +44,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             string legendLabel = null,
             float opacity = 1f,
             Vector2? pos = null)
-            : this(title, labels, values, null, barColor, Color.Transparent, legendLabel, null, opacity, pos) { }
+            : this(title, labels, values, null, barColor, Color.Transparent, legendLabel, null, null, opacity, pos) { }
 
         /// <summary>
         /// Stacked percentage bar chart with primary + secondary layers.
@@ -58,6 +58,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Color secondaryColor,
             string primaryLabel,
             string secondaryLabel,
+            List<string> topLabels = null,
             float opacity = 1f,
             Vector2? pos = null)
         {
@@ -65,10 +66,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             this.labels = labels;
             this.primaryValues = primaryValues;
             this.secondaryValues = secondaryValues;
-            this.primaryColor = primaryColor * (opacity/100);
-            this.secondaryColor = secondaryColor * (opacity/100);
+            this.primaryColor = primaryColor * (opacity / 100);
+            this.secondaryColor = secondaryColor * (opacity / 100);
             this.primaryLabel = primaryLabel;
             this.secondaryLabel = secondaryLabel;
+            this.topLabels = topLabels;
             
             Depth = -100;
             
@@ -109,14 +111,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (primaryValues.Count == 0) return;
 
             float barWidth = Math.Min(w / primaryValues.Count, 100f);
-            float totalBarsWidth = barWidth * primaryValues.Count;
-            float startX = x + (w - totalBarsWidth) / 2f;
             float barSpacing = barWidth * 0.15f;
             float actualBarWidth = barWidth - barSpacing;
 
             for (int i = 0; i < primaryValues.Count; i++)
             {
-                float barX = startX + i * barWidth + barSpacing / 2;
+                float barX = x + i * barWidth + barSpacing / 2;
 
                 // Primary (bottom) bar
                 double pct = primaryValues[i];
@@ -138,18 +138,32 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         Draw.Rect(barX, secondaryY, actualBarWidth, secondaryHeight, secondaryColor);
                 }
 
-                // Draw percentage label on top
                 float totalHeight = primaryHeight + secondaryHeight;
-                if (totalHeight > 15)
+                float topOfBar = y + h - totalHeight;
+
+                // Top label: use topLabels if provided, otherwise show percentage
+                if (topLabels != null)
+                {
+                    if (i < topLabels.Count && !string.IsNullOrEmpty(topLabels[i]))
+                    {
+                        string topLabel = topLabels[i];
+                        Vector2 textSize = ActiveFont.Measure(topLabel) * 0.3f;
+                        ActiveFont.DrawOutline(
+                            topLabel,
+                            new Vector2(barX + actualBarWidth / 2 - textSize.X / 2, topOfBar - textSize.Y - 3),
+                            new Vector2(0f, 0f),
+                            Vector2.One * 0.3f,
+                            Color.Yellow, 2f, Color.Black);
+                    }
+                }
+                else if (totalHeight > 15)
                 {
                     double totalPct = pct + (secondaryValues != null && i < secondaryValues.Count ? secondaryValues[i] : 0);
                     string pctText = $"{totalPct:F0}%";
                     Vector2 textSize = ActiveFont.Measure(pctText) * 0.3f;
-                    float labelY = y + h - totalHeight - textSize.Y - 3;
-
                     ActiveFont.DrawOutline(
                         pctText,
-                        new Vector2(barX + actualBarWidth / 2 - textSize.X / 2, labelY),
+                        new Vector2(barX + actualBarWidth / 2 - textSize.X / 2, topOfBar - textSize.Y - 3),
                         new Vector2(0f, 0f),
                         Vector2.One * 0.3f,
                         Color.White, 2f, Color.Black);
@@ -160,8 +174,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private void DrawLabels(float x, float y, float w, float h)
         {
             float barWidth = Math.Min(w / Math.Max(labels.Count, 1), 100f);
-            float totalBarsWidth = barWidth * labels.Count;
-            float startX = x + (w - totalBarsWidth) / 2f;
 
             // Title
             Vector2 titleSize = ActiveFont.Measure(title) * 0.7f;
@@ -193,14 +205,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.3f, 1f);
             }
 
-            // X axis labels — centered under each bar
+            // X axis labels
             if (labels.Count > 0)
             {
                 float baseLabelY = y + h + 10;
 
                 for (int i = 0; i < labels.Count; i++)
                 {
-                    float labelX = startX + i * barWidth + barWidth / 2;
+                    float labelX = x + i * barWidth + barWidth / 2;
                     string label = labels[i];
                     Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
                     float labelY = labels.Count > 25 ? i % 2 == 0 ? baseLabelY : baseLabelY + 20 : baseLabelY;
@@ -226,6 +238,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float offset = primaryLabel != null ? ActiveFont.Measure(primaryLabel).X * 0.35f + 40 : 0;
                 DrawLegendEntry(legendX - offset, legendY, secondaryLabel, secondaryColor, 0.35f, right: true);
             }
+
+            // Top labels legend entry
+            if (topLabels != null)
+            {
+                float offset = 0;
+                if (primaryLabel != null)   offset += ActiveFont.Measure(primaryLabel).X * 0.35f + 40;
+                if (secondaryLabel != null) offset += ActiveFont.Measure(secondaryLabel).X * 0.35f + 40;
+                DrawLegendEntry(legendX - offset, legendY, "Median time lost", Color.Yellow, 0.35f, right: true);
+            }
         }
         
         private static void DrawLegendEntry(float x, float y, string text, Color color, float scale, bool right = false)
@@ -236,24 +257,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float totalWidth = textSize.X + boxSize + spacing;
             
             float startX = right ? x - totalWidth : x;
-
-            // Center the box vertically relative to the text height
-            // (textSize.Y / 2) is the middle of the text line
             float boxY = y + (textSize.Y / 2f) - (boxSize / 2f);
 
-            // Draw the color box
             Draw.Rect(startX, boxY, boxSize, boxSize, color);
 
-            // Draw the text
             ActiveFont.DrawOutline(
                 text,
                 new Vector2(startX + boxSize + spacing, y),
                 new Vector2(0f, 0f),
                 Vector2.One * scale,
-                Color.White,
-                2f,
-                Color.Black
-            );
+                Color.White, 2f, Color.Black);
         }
     }
 }

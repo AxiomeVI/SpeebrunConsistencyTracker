@@ -39,7 +39,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public GraphManager graphManager;
     public TextOverlay textOverlay;
     private SessionManager sessionManager;
-    private static Hook _numberOfRoomsHook;
     private static Hook _updateTimerStateHook;
 
     public SpeebrunConsistencyTrackerModule() {
@@ -67,15 +66,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         On.Celeste.Level.Update += LevelOnUpdate;
         Everest.Events.Level.OnExit += Level_OnLevelExit;
 
-        PropertyInfo prop = typeof(SpeedrunTool.SpeedrunToolSettings).GetProperty("NumberOfRooms");
-        MethodInfo setter = prop?.GetSetMethod();
-        if (setter != null) {
-            _numberOfRoomsHook = new Hook(
-                setter, 
-                typeof(SpeebrunConsistencyTrackerModule).GetMethod("OnSetNumberOfRooms", BindingFlags.NonPublic | BindingFlags.Static)
-            );
-        }
-
         var updateTimerStateMethod = typeof(RoomTimerManager).GetMethod("UpdateTimerState", BindingFlags.Public | BindingFlags.Static);
         if (updateTimerStateMethod != null) {
             _updateTimerStateHook = new Hook(
@@ -90,17 +80,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         On.Celeste.Level.Update -= LevelOnUpdate;
         Everest.Events.Level.OnExit -= Level_OnLevelExit;
         Clear();
-        _numberOfRoomsHook?.Dispose();
-        _numberOfRoomsHook = null;
         _updateTimerStateHook?.Dispose();
         _updateTimerStateHook = null;
     }
-
-    private delegate void orig_SetNumberOfRooms(object self, int value);
-    private static void OnSetNumberOfRooms(orig_SetNumberOfRooms orig, object self, int value) {
-        orig(self, value);
-    }
-        
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
     {
@@ -182,13 +164,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 Instance.textOverlay.SetText(result); 
             }
         }
-        else if (Instance.textOverlay != null)
+        else
         {
-            Instance.textOverlay.RemoveSelf();
+            Instance.textOverlay?.RemoveSelf();
             Instance.textOverlay = null;
         }
 
-        orig(self);        
+        orig(self);
+        // Need to check again because orig(self) can destroy the sessionManager
+        if (Instance.sessionManager == null) return;
 
         if (Settings.ButtonKeyStatsExport.Pressed) 
         {

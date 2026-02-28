@@ -1,6 +1,5 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
-using Force.DeepCloner;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -142,15 +141,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (buckets.Count == 0 || maxCount == 0) return;
 
             float barWidth = Math.Min(w / buckets.Count, 100f);
-            float totalBarsWidth = barWidth * buckets.Count;
-            float startX = x + (w - totalBarsWidth) / 2f;
             float barSpacing = barWidth * 0.1f;
 
             for (int i = 0; i < buckets.Count; i++)
             {
                 var (_, _, count) = buckets[i];
                 float barHeight = (float)count / maxCount * h;
-                float barX = startX + i * barWidth + barSpacing / 2;
+                float barX = x + i * barWidth + barSpacing / 2;
                 float barY = y + h - barHeight;
                 float actualBarWidth = barWidth - barSpacing;
 
@@ -173,8 +170,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private void DrawLabels(float x, float y, float w, float h)
         {
             float barWidth = Math.Min(w / buckets.Count, 100f);
-            float totalBarsWidth = barWidth * buckets.Count;
-            float tickStartX = x + (w - totalBarsWidth) / 2f;
 
             // Title
             string title = $"Time Distribution - {roomName}";
@@ -226,7 +221,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                             ? buckets[^1].maxTick
                             : buckets[i].minTick;
 
-                    float tickX = tickStartX + i * barWidth;
+                    float tickX = x + i * barWidth;
                     bool isEven = i % 2 == 0;
                     float labelY = isEven ? y + h + 10 : y + h + 30;
                     float tickEndY = isEven ? y + h + 5 : y + h + 25;
