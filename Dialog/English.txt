@@ -43,6 +43,7 @@ SEGMENT_HISTOGRAM=                     Segment Histogram
 DNF_PERCENT_BAR_CHART=                 DNF % per Room
 PROBLEM_ROOM_BAR_CHART=                Problem Rooms
 INCONSISTENT_ROOM_BAR_CHART=           Inconsistent Rooms
+TIME_LOSS_CHART=                       Time loss per Room
 
 # ======================= Hotkeys ==============================
 KEY_STATS_EXPORT=                      Export data

@@ -8,46 +8,25 @@ using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    public class HistogramOverlay : Entity
+    public class HistogramOverlay : BaseChartOverlay
     {
         private const long ONE_FRAME = 170000;
 
-        private readonly string roomName;
         private readonly List<TimeTicks> times;
         private readonly Color barColor;
-        
-        // Graph settings
-        private readonly Vector2 position;
-        private readonly float width = 1800f;
-        private readonly float height = 900f;
-        private readonly float margin = 80f;
-        
-        // Colors
-        private readonly Color backgroundColor = Color.Black * 0.8f;
-        private readonly Color gridColor = Color.Gray * 0.5f;
-        private readonly Color axisColor = Color.White;
-        
+
         // Histogram data (cached)
         private List<(long minTick, long maxTick, int count)> buckets;
         private int maxCount;
 
         public HistogramOverlay(string roomName, List<TimeTicks> times, Color barColor, float opacity = 1f, Vector2? pos = null)
+            : base($"Time Distribution - {roomName}", pos)
         {
-            this.roomName = roomName;
             this.times = times;
-            this.barColor = barColor * (opacity/100);
-            
-            Depth = -100;
-            
-            position = pos ?? new Vector2(
-                (1920 - width) / 2,
-                (1080 - height) / 2
-            );
-            
-            Tag = Tags.HUD | Tags.Global;
+            this.barColor = barColor * (opacity / 100);
             ComputeHistogram();
         }
-        
+
         private void ComputeHistogram()
         {
             if (times.Count == 0)
@@ -56,19 +35,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 maxCount = 0;
                 return;
             }
-            
+
             TimeTicks[] sortedTicks = [.. times.OrderBy(t => t)];
             long minTime = sortedTicks[0].Ticks;
             long maxTime = sortedTicks[^1].Ticks;
             double range = maxTime - minTime;
-            
-            // 1. Determine bin resolution - 10% of min time or Freedman-Diaconis rule, whichever is low (or one frame is both are too low)
+
+            // 1. Determine bin resolution — Freedman-Diaconis or 10% heuristic, min 1 frame
             double q1 = MetricHelper.ComputePercentile(sortedTicks, 25);
             double q3 = MetricHelper.ComputePercentile(sortedTicks, 75);
             double iqr = q3 - q1;
-            double FreedmanDiaconis_width = 2 * iqr * Math.Pow(times.Count, -1.0 / 3.0);
-            double heuristic_width = minTime * 0.1;
-            double binWidth = Math.Max(Math.Min(heuristic_width, FreedmanDiaconis_width), ONE_FRAME);
+            double freedmanDiaconisWidth = 2 * iqr * Math.Pow(times.Count, -1.0 / 3.0);
+            double heuristicWidth = minTime * 0.1;
+            double binWidth = Math.Max(Math.Min(heuristicWidth, freedmanDiaconisWidth), ONE_FRAME);
 
             // 2. Calculate bin count
             int binCount;
@@ -77,70 +56,42 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             else
             {
                 binCount = (int)Math.Ceiling(range / binWidth);
-                binCount = Math.Clamp(binCount, 5, 50); // Keep reasonable amount of bins, just in case
+                binCount = Math.Clamp(binCount, 5, 50);
             }
 
             // 3. Recalculate exact bin width to perfectly divide the range
-            double finalBinWidth = (binCount > 1) ? range / binCount : binWidth;
-            
+            double finalBinWidth = binCount > 1 ? range / binCount : binWidth;
+
             // 4. Assign each time to a bin
             int[] bins = new int[binCount];
             foreach (var time in times)
             {
-                int binIdx = (range <= 0) 
-                    ? 0 
+                int binIdx = range <= 0
+                    ? 0
                     : (int)Math.Floor((time.Ticks - minTime) / finalBinWidth);
-                
                 binIdx = Math.Clamp(binIdx, 0, binCount - 1);
                 bins[binIdx]++;
             }
-            
+
             // 5. Convert to bucket format
             buckets = [];
             for (int i = 0; i < binCount; i++)
             {
                 long bucketMin = minTime + (long)(i * finalBinWidth);
-                long bucketMax = (i == binCount - 1) 
-                    ? maxTime 
+                long bucketMax = i == binCount - 1
+                    ? maxTime
                     : minTime + (long)((i + 1) * finalBinWidth);
-                
                 buckets.Add((bucketMin, bucketMax, bins[i]));
             }
-            
+
             maxCount = buckets.Max(b => b.count);
         }
-        
-        public override void Render()
-        {
-            base.Render();
-            
-            // Draw background
-            Draw.Rect(position, width, height, backgroundColor);
-            
-            // Calculate drawable area
-            float graphX = position.X + margin;
-            float graphY = position.Y + margin;
-            float graphWidth = width - margin * 2;
-            float graphHeight = height - margin * 2;
-            DrawAxes(graphX, graphY, graphWidth, graphHeight);
-            DrawBars(graphX, graphY, graphWidth, graphHeight);
-            DrawLabels(graphX, graphY, graphWidth, graphHeight);
-        }
-        
-        private void DrawAxes(float x, float y, float w, float h)
-        {
-            // X axis
-            Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, 2f);
-            
-            // Y axis
-            Draw.Line(new Vector2(x, y), new Vector2(x, y + h), axisColor, 2f);
-        }
-        
-        private void DrawBars(float x, float y, float w, float h)
+
+        protected override void DrawBars(float x, float y, float w, float h)
         {
             if (buckets.Count == 0 || maxCount == 0) return;
 
-            float barWidth = Math.Min(w / buckets.Count, 100f);
+            float barWidth = Math.Min(w / buckets.Count, MAX_BAR_WIDTH);
             float barSpacing = barWidth * 0.1f;
 
             for (int i = 0; i < buckets.Count; i++)
@@ -166,20 +117,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
         }
-        
-        private void DrawLabels(float x, float y, float w, float h)
-        {
-            float barWidth = Math.Min(w / buckets.Count, 100f);
 
-            // Title
-            string title = $"Time Distribution - {roomName}";
-            Vector2 titleSize = ActiveFont.Measure(title) * 0.7f;
-            ActiveFont.DrawOutline(
-                title,
-                new Vector2(position.X + width / 2 - titleSize.X / 2, position.Y + 10),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.7f,
-                Color.White, 2f, Color.Black);
+        protected override void DrawLabels(float x, float y, float w, float h)
+        {
+            float barWidth = Math.Min(w / buckets.Count, MAX_BAR_WIDTH);
+
+            DrawTitle();
 
             // Y axis label
             string yAxisLabel = "Count";
@@ -192,9 +135,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Color.White, 2f, Color.Black);
 
             // Y axis tick labels
-            int yLabelCount = Math.Min(5, maxCount);
-            if (yLabelCount == 0) yLabelCount = 1; // Sanity check to show at least one label
-
+            int yLabelCount = Math.Max(1, Math.Min(5, maxCount));
             for (int i = 0; i <= yLabelCount; i++)
             {
                 int countValue = (int)Math.Round((double)maxCount / yLabelCount * i);
@@ -226,11 +167,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float labelY = isEven ? y + h + 10 : y + h + 30;
                     float tickEndY = isEven ? y + h + 5 : y + h + 25;
 
-                    Draw.Line(
-                        new Vector2(tickX, y + h),
-                        new Vector2(tickX, tickEndY),
-                        axisColor, 1f);
-
+                    Draw.Line(new Vector2(tickX, y + h), new Vector2(tickX, tickEndY), axisColor, 1f);
                     DrawEdgeLabel(edgeTick, tickX, labelY);
                 }
             }
@@ -245,21 +182,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Vector2.One * 0.4f,
                 Color.LightGray, 2f, Color.Black);
         }
-        
+
         private static void DrawEdgeLabel(long tick, float x, float y)
         {
             string label = new TimeTicks(tick).ToString();
             Vector2 labelSize = ActiveFont.Measure(label) * 0.3f;
-            
             ActiveFont.DrawOutline(
                 label,
                 new Vector2(x - labelSize.X / 2, y),
                 new Vector2(0f, 0f),
                 Vector2.One * 0.3f,
-                Color.White,
-                2f,
-                Color.Black
-            );
+                Color.White, 2f, Color.Black);
         }
     }
 }

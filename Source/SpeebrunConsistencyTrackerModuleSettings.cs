@@ -41,6 +41,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool GraphDnfPercent { get; set; } = true;
     public bool GraphProblemRooms { get; set; } = false;
     public bool GraphInconsistentRooms { get; set; } = false;
+    public bool GraphTimeLoss { get; set; } = false;
 
     // Metrics menu
     public bool History { get; set; } = true;

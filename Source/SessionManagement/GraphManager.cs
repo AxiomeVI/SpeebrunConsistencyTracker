@@ -16,7 +16,8 @@ public enum GraphType
     SegmentHistogram,
     DnfPercent,
     ProblemRooms,
-    InconsistentRooms
+    InconsistentRooms,
+    TimeLoss
 }
 
 public class GraphManager
@@ -31,12 +32,13 @@ public class GraphManager
     private readonly TimeTicks? _targetTime;
 
     // Graph cache
-    private GraphOverlay _scatterGraph;
+    private ScatterPlotOverlay _scatterGraph;
     private readonly Dictionary<int, HistogramOverlay> _roomHistograms = [];
     private HistogramOverlay _segmentHistogram;
     private PercentBarChartOverlay _dnfPctChart;
     private PercentBarChartOverlay _problemRoomsChart;
     private PercentBarChartOverlay _inconsistentRoomsChart;
+    private GroupedBarChartOverlay _timeLossChart;
 
     // Cycling state
     // A slot is (GraphType, roomIndex) where roomIndex is only meaningful for RoomHistogram
@@ -60,12 +62,12 @@ public class GraphManager
         IReadOnlyDictionary<int, int> totalAttemptsPerRoom,
         TimeTicks? target = null)
     {
-        _roomTimes       = rooms;
-        _segmentTimes    = segment;
-        _dnfData         = dnfPerRoom;
-        _attemptsByRoom  = totalAttemptsPerRoom;
-        _totalRooms      = rooms.Count;
-        _targetTime      = target;
+        _roomTimes      = rooms;
+        _segmentTimes   = segment;
+        _dnfData        = dnfPerRoom;
+        _attemptsByRoom = totalAttemptsPerRoom;
+        _totalRooms     = rooms.Count;
+        _targetTime     = target;
 
         RebuildEnabledSlots();
         // Restore last shown type — on very first run _lastShownType is Scatter,
@@ -107,16 +109,13 @@ public class GraphManager
 
         _enabledSlots = BuildSlots();
 
-        // Try to stay on the same slot
         int restored = FindBestSlot(prevType, prevRoom);
         if (restored >= 0)
         {
             _currentSlotIndex = restored;
-            // No need to re-render — same graph is still valid
         }
         else if (wasShowing && level != null)
         {
-            // Current graph was disabled — advance to next enabled one
             _currentSlotIndex = -1;
             NextGraph(level);
         }
@@ -159,6 +158,9 @@ public class GraphManager
         if (_settings.GraphInconsistentRooms)
             slots.Add(new GraphSlot(GraphType.InconsistentRooms));
 
+        if (_settings.GraphTimeLoss)
+            slots.Add(new GraphSlot(GraphType.TimeLoss));
+
         return slots;
     }
 
@@ -172,21 +174,18 @@ public class GraphManager
     {
         if (type == GraphType.RoomHistogram)
         {
-            // Exact match
             int exact = _enabledSlots.FindIndex(s => s.Type == GraphType.RoomHistogram && s.RoomIndex == roomIndex);
             if (exact >= 0) return exact;
 
-            // Nearest valid room
             int nearest = _enabledSlots
                 .Select((s, i) => (s, i))
                 .Where(x => x.s.Type == GraphType.RoomHistogram)
-                .OrderBy(x => System.Math.Abs(x.s.RoomIndex - roomIndex))
+                .OrderBy(x => Math.Abs(x.s.RoomIndex - roomIndex))
                 .Select(x => x.i)
                 .FirstOrDefault(-1);
             if (nearest >= 0) return nearest;
         }
 
-        // Any other type — find first slot of that type
         return _enabledSlots.FindIndex(s => s.Type == type);
     }
 
@@ -263,6 +262,7 @@ public class GraphManager
             GraphType.DnfPercent        => GetOrCreateDnfPctChart(),
             GraphType.ProblemRooms      => GetOrCreateProblemRoomsChart(),
             GraphType.InconsistentRooms => GetOrCreateInconsistentRoomsChart(),
+            GraphType.TimeLoss           => GetOrCreateTimeLossChart(),
             _                           => null
         };
 
@@ -279,9 +279,9 @@ public class GraphManager
     // Graph factories
     // -------------------------------------------------------------------------
 
-    private GraphOverlay GetOrCreateScatter()
+    private ScatterPlotOverlay GetOrCreateScatter()
     {
-        return _scatterGraph ??= new GraphOverlay(_roomTimes, _segmentTimes, null, _targetTime);
+        return _scatterGraph ??= new ScatterPlotOverlay(_roomTimes, _segmentTimes, null, _targetTime);
     }
 
     private HistogramOverlay GetOrCreateRoomHistogram(int roomIndex)
@@ -291,7 +291,7 @@ public class GraphManager
             value = new HistogramOverlay(
                 $"Room {roomIndex + 1}",
                 _roomTimes[roomIndex],
-                GraphOverlay.ToColor(_settings.RoomColor),
+                ScatterPlotOverlay.ToColor(_settings.RoomColor),
                 _settings.ChartOpacity);
             _roomHistograms[roomIndex] = value;
         }
@@ -305,7 +305,7 @@ public class GraphManager
         return _segmentHistogram ??= new HistogramOverlay(
             $"Segment ({roomLabel})",
             _segmentTimes,
-            GraphOverlay.ToColor(_settings.SegmentColor),
+            ScatterPlotOverlay.ToColor(_settings.SegmentColor),
             _settings.ChartOpacity);
     }
 
@@ -330,9 +330,9 @@ public class GraphManager
     {
         if (_problemRoomsChart != null) return _problemRoomsChart;
 
-        var labels       = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
-        long threshold   = _settings.TimeLossThresholdMs * 10000L;
-        var dnfPcts      = ComputeDnfPcts();
+        var labels     = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
+        long threshold = _settings.TimeLossThresholdMs * 10000L;
+        var dnfPcts    = ComputeDnfPcts();
         var timeLossPcts = Enumerable.Range(0, _totalRooms).Select(i =>
         {
             int reached = _attemptsByRoom.GetValueOrDefault(i);
@@ -348,8 +348,8 @@ public class GraphManager
             $"Problem Rooms (threshold: {_settings.TimeLossThresholdMs}ms)",
             labels, dnfPcts, timeLossPcts,
             Color.CornflowerBlue, Color.IndianRed,
-            "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold", 
-            null, _settings.ChartOpacity);
+            "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold",
+            _settings.ChartOpacity);
 
         return _problemRoomsChart;
     }
@@ -358,7 +358,6 @@ public class GraphManager
     {
         if (_inconsistentRoomsChart != null) return _inconsistentRoomsChart;
 
-        // Compute raw RMAD, RStdDev, and avg time above gold per room
         var rmadPcts = Enumerable.Range(0, _totalRooms).Select(i =>
         {
             var sorted = (i < _roomTimes.Count ? _roomTimes[i] : [])
@@ -380,32 +379,14 @@ public class GraphManager
             return Math.Sqrt(variance) / mean * 100;
         }).ToList();
 
-        var medTimeLost = Enumerable.Range(0, _totalRooms).Select(i =>
-        {
-            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
-            if (times.Count == 0) return 0.0;
-            long gold = times.Min(t => t.Ticks);
-            var losses = times.Select(t => t.Ticks - gold).OrderBy(t => t).ToList();
-            int mid = losses.Count / 2;
-            return losses.Count % 2 == 0
-                ? (losses[mid - 1] + losses[mid]) / 2.0
-                : losses[mid];
-        }).ToList();
-
         // Sort rooms by total inconsistency descending
         var ranked = Enumerable.Range(0, _totalRooms)
             .OrderByDescending(i => rmadPcts[i] + rstddevPcts[i])
             .ToList();
 
-        var rankedLabels    = ranked.Select(i => $"R{i + 1}").ToList();
-        var rankedRmad      = ranked.Select(i => rmadPcts[i]).ToList();
-        var rankedRstddev   = ranked.Select(i => rstddevPcts[i]).ToList();
-        var rankedTopLabels = ranked.Select(i =>
-        {
-            double ticks = medTimeLost[i];
-            if (ticks <= 0) return "";
-            return $"+{new TimeTicks((long)ticks)}";
-        }).ToList();
+        var rankedLabels  = ranked.Select(i => $"R{i + 1}").ToList();
+        var rankedRmad    = ranked.Select(i => rmadPcts[i]).ToList();
+        var rankedRstddev = ranked.Select(i => rstddevPcts[i]).ToList();
 
         // Normalize relative to worst room (first after sort)
         double maxTotal = rankedRmad[0] + rankedRstddev[0];
@@ -428,13 +409,48 @@ public class GraphManager
             rankedLabels, scaledRmad, scaledRstddev,
             Color.CornflowerBlue, Color.IndianRed,
             "RMAD", "RStdDev",
-            rankedTopLabels,
             _settings.ChartOpacity);
 
         return _inconsistentRoomsChart;
     }
 
-    // -------------------------------------------------------------------------
+    private GroupedBarChartOverlay GetOrCreateTimeLossChart()
+    {
+        if (_timeLossChart != null) return _timeLossChart;
+
+        var labels = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
+
+        var medianTicks = Enumerable.Range(0, _totalRooms).Select(i =>
+        {
+            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
+            if (times.Count == 0) return 0L;
+            long gold = times.Min(t => t.Ticks);
+            var losses = times.Select(t => t.Ticks - gold).OrderBy(t => t).ToList();
+            int mid = losses.Count / 2;
+            return losses.Count % 2 == 0
+                ? (losses[mid - 1] + losses[mid]) / 2
+                : losses[mid];
+        }).ToList();
+
+        var averageTicks = Enumerable.Range(0, _totalRooms).Select(i =>
+        {
+            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
+            if (times.Count == 0) return 0L;
+            long gold = times.Min(t => t.Ticks);
+            return (long)times.Average(t => (double)(t.Ticks - gold));
+        }).ToList();
+
+        _timeLossChart = new GroupedBarChartOverlay(
+            "Time Loss per Room",
+            labels, medianTicks, averageTicks,
+            Color.CornflowerBlue, Color.IndianRed,
+            "Median loss", "Avg loss",
+            _settings.ChartOpacity);
+
+        return _timeLossChart;
+    }
+
+        // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -450,10 +466,7 @@ public class GraphManager
     // Cache invalidation
     // -------------------------------------------------------------------------
 
-    public void ClearScatterGraph()
-    {
-        _scatterGraph = null;
-    }
+    public void ClearScatterGraph() => _scatterGraph = null;
 
     public void ClearHistogram()
     {
@@ -463,16 +476,13 @@ public class GraphManager
 
     public void ClearBarCharts()
     {
-        _dnfPctChart = null;
-        _problemRoomsChart = null;
+        _dnfPctChart        = null;
+        _problemRoomsChart  = null;
         _inconsistentRoomsChart = null;
+        _timeLossChart          = null;
     }
 
-    public void ClearProblemChart()
-    {
-        _problemRoomsChart = null;
-    }
-
+    public void ClearProblemChart() => _problemRoomsChart = null;
 
     // -------------------------------------------------------------------------
     // Lifecycle
@@ -492,6 +502,7 @@ public class GraphManager
         _dnfPctChart?.RemoveSelf();
         _problemRoomsChart?.RemoveSelf();
         _inconsistentRoomsChart?.RemoveSelf();
+        _timeLossChart?.RemoveSelf();
         foreach (HistogramOverlay graph in _roomHistograms.Values)
             graph?.RemoveSelf();
     }
@@ -499,12 +510,13 @@ public class GraphManager
     public void Dispose()
     {
         RemoveGraphs();
-        _currentOverlay    = null;
-        _scatterGraph      = null;
-        _segmentHistogram  = null;
-        _dnfPctChart       = null;
-        _problemRoomsChart       = null;
-        _inconsistentRoomsChart  = null;
+        _currentOverlay         = null;
+        _scatterGraph           = null;
+        _segmentHistogram       = null;
+        _dnfPctChart            = null;
+        _problemRoomsChart      = null;
+        _inconsistentRoomsChart = null;
+        _timeLossChart          = null;
         _roomHistograms.Clear();
         _enabledSlots.Clear();
     }

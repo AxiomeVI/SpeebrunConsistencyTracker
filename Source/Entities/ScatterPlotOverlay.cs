@@ -9,7 +9,7 @@ using System.Linq;
 // Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/GraphOverlay.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    public class GraphOverlay : Entity
+    public class ScatterPlotOverlay : Entity
     {
         private const long ONE_FRAME = 170000;
 
@@ -67,7 +67,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             };
         }
         
-        public GraphOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
+        public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
         {
             Depth = -100; // Render on top
 
