@@ -46,7 +46,7 @@ A bar chart showing the percentage of resets that happened in each room. Higher 
 ### Problem Rooms
 A stacked bar chart combining DNF % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your gold, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.
 
-### Room Inconsistency (ranked)
+### Room Inconsistency
 A normalized stacked bar chart ranking rooms by inconsistency from worst to best. Uses two complementary metrics: Relative Median Absolute Deviation (RMAD) and Relative Standard Deviation (RStdDev) to capture overall spread (with some resistance to outliers). The worst room fills the full bar height, all the others are shown proportionally. Disabled by default.
 
 ### Time Loss per Room
@@ -55,7 +55,7 @@ A grouped bar chart showing median and average time lost per room relative to yo
 ### Run Trajectory
 A line chart where each attempt is drawn as a line showing cumulative deviation from the per-room average. Lines go up when a room is faster than average and down when slower. The X axis represents the cumulative sum of per-room averages (a run that matches the average in every room follows it exactly). Older attempts are drawn in dark grey and fade toward white as they approach the most recent run, making it easy to see how your trajectory has evolved over the session. Your best attempt, your most recent attempt, and the Sum of Best are highlighted. Disabled by default.
 
-## Available Metrics
+## Metrics
 
 - **History:** chronological history of session times
 - **Success Rate:** (segment only) percentage of runs finishing within the target time
@@ -70,7 +70,7 @@ A line chart where each attempt is drawn as a line showing cumulative deviation 
 - **Worst:** slowest recorded time
 - **Standard Deviation:** measure of how spread out run times are around the average
 - **Relative Standard Deviation:** standard deviation as a percentage of the average, allowing easier comparison across rooms
-- **Percentile:** n% of your runs were faster than the selected value for n
+- **Percentile:** the threshold where n% of runs are faster than this value (default: 90%, adjustable in mod options)
 - **Interquartile Range:** lower and upper bounds of the middle 50% of your runs
 - **Trend Slope:** measures how session duration affects performance. Values near zero indicate little effect; negative values indicate improving times as the session progresses
 - **SoB:** Sum of Best
