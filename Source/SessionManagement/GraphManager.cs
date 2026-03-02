@@ -498,7 +498,6 @@ public class GraphManager
         _problemRoomsChart      = null;
         _inconsistentRoomsChart = null;
         _timeLossChart          = null;
-        _runTrajectoryChart     = null;
     }
 
     public void ClearProblemChart() => _problemRoomsChart = null;
