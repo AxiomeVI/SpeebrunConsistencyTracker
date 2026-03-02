@@ -188,7 +188,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Color.White, 2f, Color.Black);
 
                 if (i > 0)
-                    Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.3f, 1f);
+                    Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.5f, 1f);
             }
 
             // X axis labels — centered under each group

@@ -355,6 +355,10 @@ public static class ModMenuOptions
             Dialog.Clean(DialogIds.GraphTimeLossId), _settings.GraphTimeLoss)
             .Change(v => { _settings.GraphTimeLoss = v; RebuildGraphSlots(); });
 
+        TextMenu.OnOff graphRunTrajectory = (TextMenu.OnOff)new TextMenu.OnOff(
+            Dialog.Clean(DialogIds.GraphRunTrajectoryId), _settings.GraphRunTrajectory)
+            .Change(v => { _settings.GraphRunTrajectory = v; RebuildGraphSlots(); });
+
         sub.Add(roomColor);
         sub.Add(segmentColor);
         sub.Add(graphOpacity);
@@ -367,6 +371,7 @@ public static class ModMenuOptions
         sub.Add(graphProblemRooms);
         sub.Add(graphInconsistentRooms);
         sub.Add(graphTimeLoss);
+        sub.Add(graphRunTrajectory);
 
         timeLossThreshold.AddDescription(sub, menu, Dialog.Clean(DialogIds.TimeLossThresholdDescId));
 

@@ -1,3 +1,4 @@
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
@@ -17,7 +18,8 @@ public enum GraphType
     DnfPercent,
     ProblemRooms,
     InconsistentRooms,
-    TimeLoss
+    TimeLoss,
+    RunTrajectory
 }
 
 public class GraphManager
@@ -28,6 +30,7 @@ public class GraphManager
     private readonly List<TimeTicks> _segmentTimes;
     private readonly IReadOnlyDictionary<int, int> _dnfData;
     private readonly IReadOnlyDictionary<int, int> _attemptsByRoom;
+    private readonly IReadOnlyList<Attempt> _attempts;
     private readonly int _totalRooms;
     private readonly TimeTicks? _targetTime;
 
@@ -39,6 +42,7 @@ public class GraphManager
     private PercentBarChartOverlay _problemRoomsChart;
     private PercentBarChartOverlay _inconsistentRoomsChart;
     private GroupedBarChartOverlay _timeLossChart;
+    private RunTrajectoryOverlay _runTrajectoryChart;
 
     // Cycling state
     // A slot is (GraphType, roomIndex) where roomIndex is only meaningful for RoomHistogram
@@ -60,12 +64,14 @@ public class GraphManager
         List<TimeTicks> segment,
         IReadOnlyDictionary<int, int> dnfPerRoom,
         IReadOnlyDictionary<int, int> totalAttemptsPerRoom,
+        IReadOnlyList<Attempt> attempts = null,
         TimeTicks? target = null)
     {
         _roomTimes      = rooms;
         _segmentTimes   = segment;
         _dnfData        = dnfPerRoom;
         _attemptsByRoom = totalAttemptsPerRoom;
+        _attempts       = attempts ?? (IReadOnlyList<Attempt>)[];
         _totalRooms     = rooms.Count;
         _targetTime     = target;
 
@@ -160,6 +166,9 @@ public class GraphManager
 
         if (_settings.GraphTimeLoss)
             slots.Add(new GraphSlot(GraphType.TimeLoss));
+
+        if (_settings.GraphRunTrajectory)
+            slots.Add(new GraphSlot(GraphType.RunTrajectory));
 
         return slots;
     }
@@ -262,7 +271,8 @@ public class GraphManager
             GraphType.DnfPercent        => GetOrCreateDnfPctChart(),
             GraphType.ProblemRooms      => GetOrCreateProblemRoomsChart(),
             GraphType.InconsistentRooms => GetOrCreateInconsistentRoomsChart(),
-            GraphType.TimeLoss           => GetOrCreateTimeLossChart(),
+            GraphType.TimeLoss          => GetOrCreateTimeLossChart(),
+            GraphType.RunTrajectory     => GetOrCreateRunTrajectoryChart(),
             _                           => null
         };
 
@@ -450,7 +460,15 @@ public class GraphManager
         return _timeLossChart;
     }
 
-        // -------------------------------------------------------------------------
+    private RunTrajectoryOverlay GetOrCreateRunTrajectoryChart()
+    {
+        return _runTrajectoryChart ??= new RunTrajectoryOverlay(
+            _attempts,
+            _roomTimes,
+            _totalRooms);
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -476,10 +494,11 @@ public class GraphManager
 
     public void ClearBarCharts()
     {
-        _dnfPctChart        = null;
-        _problemRoomsChart  = null;
+        _dnfPctChart            = null;
+        _problemRoomsChart      = null;
         _inconsistentRoomsChart = null;
         _timeLossChart          = null;
+        _runTrajectoryChart     = null;
     }
 
     public void ClearProblemChart() => _problemRoomsChart = null;
@@ -503,6 +522,7 @@ public class GraphManager
         _problemRoomsChart?.RemoveSelf();
         _inconsistentRoomsChart?.RemoveSelf();
         _timeLossChart?.RemoveSelf();
+        _runTrajectoryChart?.RemoveSelf();
         foreach (HistogramOverlay graph in _roomHistograms.Values)
             graph?.RemoveSelf();
     }
@@ -517,6 +537,7 @@ public class GraphManager
         _problemRoomsChart      = null;
         _inconsistentRoomsChart = null;
         _timeLossChart          = null;
+        _runTrajectoryChart     = null;
         _roomHistograms.Clear();
         _enabledSlots.Clear();
     }

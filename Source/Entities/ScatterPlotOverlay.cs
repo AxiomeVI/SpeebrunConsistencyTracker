@@ -37,6 +37,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly float width = 1800f;
         private readonly float height = 900f;
         private readonly float margin = 80f;
+        private const int MAX_TICK_MARKS = 12;
         
         // Colors
         private Color backgroundColor = Color.Black * 0.8f;
@@ -98,13 +99,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float graphHeight = height - margin * 2;
             
             DrawAxes(graphX, graphY, graphWidth, graphHeight);
-            
             DrawGrid(graphX, graphY, graphWidth, graphHeight);
-            
             DrawDataPoints(graphX, graphY, graphWidth, graphHeight);
-
             DrawTargetLine(graphX, graphY, graphWidth, graphHeight);
-            
             DrawLabels(graphX, graphY, graphWidth, graphHeight);
         }
 
@@ -167,11 +164,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float columnWidth = w / totalColumns;
             float roomAreaWidth = columnWidth * roomDataList.Count;
 
-            // Vertical grid lines
+            // Vertical grid lines — separator between rooms and segment is thicker and more opaque
             for (int i = 0; i <= totalColumns; i++)
             {
                 float xPos = x + columnWidth * i;
-                Draw.Line(new Vector2(xPos, y), new Vector2(xPos, y + h), gridColor, 1f);
+                bool isSeparator = i == roomDataList.Count;
+                Draw.Line(new Vector2(xPos, y), new Vector2(xPos, y + h),
+                    isSeparator ? Color.Gray * 0.85f : gridColor,
+                    isSeparator ? 1.5f : 1f);
             }
 
             // Horizontal lines for rooms (Left Axis)
@@ -184,12 +184,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float normalizedY = (float)(i * roomStep) / roomRange;
                     float yPos = y + h - (normalizedY * h);
                     // Draw only across the room columns
-                    Draw.Line(
-                        new Vector2(x, yPos), 
-                        new Vector2(x + roomAreaWidth, yPos), 
-                        gridColor, 
-                        1f
-                    );
+                    Draw.Line(new Vector2(x, yPos), new Vector2(x + roomAreaWidth, yPos), gridColor, 1f);
                 }
             }
 
@@ -202,13 +197,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 {
                     float normalizedY = (float)(i * segmentStep) / segmentRange;
                     float yPos = y + h - (normalizedY * h);
-                    // Draw only across the final (segment) column
-                    Draw.Line(
-                        new Vector2(x + roomAreaWidth, yPos), 
-                        new Vector2(x + w, yPos), 
-                        gridColor, 
-                        1f
-                    );
+                    Draw.Line(new Vector2(x + roomAreaWidth, yPos), new Vector2(x + w, yPos), gridColor, 1f);
                 }
             }
         }
@@ -440,7 +429,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             long totalFrames = (long)Math.Ceiling((double)range / ONE_FRAME);
-            long framesPerTick = (long)Math.Ceiling((double)totalFrames / 11); // Max 11 tick marks
+            long framesPerTick = (long)Math.Ceiling((double)totalFrames / MAX_TICK_MARKS);
             
             if (framesPerTick <= 0) framesPerTick = 1; // Safety check
             

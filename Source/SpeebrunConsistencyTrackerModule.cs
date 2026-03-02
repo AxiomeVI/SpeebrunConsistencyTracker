@@ -195,7 +195,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             {
                 List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength).Select<int, List<TimeTicks>>(i => [.. activeSessionManager.CurrentSession.GetRoomTimes(i)]).Where(roomList => roomList.Count > 0)];
                 List<TimeTicks> segment = [.. activeSessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
-                Instance.graphManager = new GraphManager(rooms, segment, activeSessionManager.CurrentSession.DnfPerRoom, activeSessionManager.CurrentSession.TotalAttemptsPerRoom, MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
+                Instance.graphManager = new GraphManager(
+                    rooms, segment, 
+                    activeSessionManager.CurrentSession.DnfPerRoom, 
+                    activeSessionManager.CurrentSession.TotalAttemptsPerRoom, 
+                    activeSessionManager.CurrentSession.Attempts,
+                    MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
                 if (!self.Paused)
                     Instance.graphManager.CurrentGraph(self);
             }
@@ -230,6 +235,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                     rooms, segment,
                     activeSessionManager.CurrentSession.DnfPerRoom,
                     activeSessionManager.CurrentSession.TotalAttemptsPerRoom,
+                    activeSessionManager.CurrentSession.Attempts,
                     MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
 
                 Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);

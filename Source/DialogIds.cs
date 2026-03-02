@@ -63,6 +63,7 @@ public static class DialogIds {
     public const string TimeLossThresholdId = "TIME_LOSS_THRESHOLD";
     public const string TimeLossThresholdDescId = "TIME_LOSS_THRESHOLD_DESC";
     public const string GraphTimeLossId = "TIME_LOSS_CHART";
+    public const string GraphRunTrajectoryId = "TRAJECTORY_GRAPH";
     
     // Stats Menu
     public const string StatsSubMenuId = "STATS_SUBMENU";
