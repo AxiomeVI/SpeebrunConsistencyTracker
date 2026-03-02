@@ -12,26 +12,24 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     /// Line chart showing each attempt as a trajectory relative to the room average baseline.
     /// Lines go up when a room is faster than average, down when slower.
     /// Deviation is cumulative across rooms.
-    /// Gradient from oldest (faded) to newest (bright).
-    /// Best attempt shown in gold, most recent in white.
+    /// Attempts are ordered: regulars (chronological) -> best (if not last) -> last.
+    /// If best == last, it appears only once at the end in gold.
     /// </summary>
     public class RunTrajectoryOverlay : BaseChartOverlay
     {
         private readonly int _totalRooms;
 
-        // Precomputed attempt data
         private record AttemptLine(
             long[] CumulativeDeviations,
-            int RoomsCompleted,
-            long FinalDeviation,
-            bool IsBest,
-            bool IsLast);
+            int RoomsCompleted);
 
+        // Ordered: regulars (chronological) -> best (if not last) -> last
         private readonly List<AttemptLine> _attempts;
-        private readonly long _maxPositiveDeviation; // max above baseline (faster)
-        private readonly long _maxNegativeDeviation; // max below baseline (slower, stored as positive)
+        private readonly AttemptLine _sobLine;
+        private readonly bool _lastIsBest;
+        private readonly long _maxPositiveDeviation;
+        private readonly long _maxNegativeDeviation;
         private readonly long _totalRange;
-        private readonly long[] _sobDeviations;
 
         public RunTrajectoryOverlay(
             IReadOnlyList<Attempt> attempts,
@@ -45,6 +43,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (attempts.Count == 0)
             {
                 _attempts = [];
+                _sobLine = new AttemptLine([], 0);
                 _maxPositiveDeviation = 1;
                 _maxNegativeDeviation = 1;
                 _totalRange = 2;
@@ -61,55 +60,59 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return times.Count == 0 ? 0L : (long)times.Average();
             })];
 
-            // Build attempt lines
-            var rawAttempts = attempts.Select(a =>
+            // Build raw attempt lines in chronological order
+            var raw = attempts.Select(a =>
             {
                 long cumulative = 0;
                 var deviations = new List<long>();
-
                 for (int r = 0; r < a.CompletedRooms.Count && r < _totalRooms; r++)
                 {
                     cumulative += roomAverages[r] - a.CompletedRooms[r].Ticks; // positive = faster
                     deviations.Add(cumulative);
                 }
-
-                return (deviations, roomsCompleted: deviations.Count);
+                return (line: new AttemptLine([.. deviations], deviations.Count), finalDeviation: deviations.Count > 0 ? deviations[^1] : 0L);
             }).ToList();
 
-            // Best attempt — full runs first, then most positive final deviation
-            int bestIdx = Enumerable.Range(0, rawAttempts.Count)
-                .Where(i => rawAttempts[i].roomsCompleted == _totalRooms)
-                .OrderByDescending(i => rawAttempts[i].deviations.LastOrDefault())
+            // Find best: full runs first, then most positive final deviation
+            int bestIdx = Enumerable.Range(0, raw.Count)
+                .Where(i => raw[i].line.RoomsCompleted == _totalRooms)
+                .OrderByDescending(i => raw[i].finalDeviation)
                 .FirstOrDefault(-1);
 
+            // If no runs are completed, default back to uncompleted ones
             if (bestIdx < 0)
-                bestIdx = Enumerable.Range(0, rawAttempts.Count)
-                    .OrderByDescending(i => rawAttempts[i].roomsCompleted)
-                    .ThenByDescending(i => rawAttempts[i].deviations.LastOrDefault())
+                bestIdx = Enumerable.Range(0, raw.Count)
+                    .OrderByDescending(i => raw[i].line.RoomsCompleted)
+                    .ThenByDescending(i => raw[i].finalDeviation)
                     .First();
 
-            int lastIdx = rawAttempts.Count - 1;
+            int lastIdx = raw.Count - 1;
+            _lastIsBest = bestIdx == lastIdx;
 
-            _attempts = [.. rawAttempts.Select((a, i) => new AttemptLine(
-                [.. a.deviations],
-                a.roomsCompleted,
-                a.deviations.Count > 0 ? a.deviations[^1] : 0,
-                i == bestIdx,
-                i == lastIdx))];
+            // Arrange: regulars -> best (if not last) -> last
+            var regulars = Enumerable.Range(0, raw.Count)
+                .Where(i => i != bestIdx && i != lastIdx)
+                .Select(i => raw[i].line);
 
-            // Compute SOB cumulative deviations
+            _attempts = [.. regulars];
+            if (!_lastIsBest)
+                _attempts.Add(raw[bestIdx].line);
+            _attempts.Add(raw[lastIdx].line);
+
+            // Compute SoB cumulative deviations
             long sobCumulative = 0;
-            _sobDeviations = new long[_totalRooms];
+            var sobDeviations = new long[_totalRooms];
             for (int r = 0; r < _totalRooms; r++)
             {
                 var times = r < roomTimes.Count ? roomTimes[r] : [];
                 long sob = times.Count > 0 ? times.Min(t => t.Ticks) : roomAverages[r];
                 sobCumulative += roomAverages[r] - sob;
-                _sobDeviations[r] = sobCumulative;
+                sobDeviations[r] = sobCumulative;
             }
+            _sobLine = new AttemptLine(sobDeviations, _totalRooms);
 
-            // SOB is always the most positive deviation by definition
-            _maxPositiveDeviation = Math.Max(_sobDeviations[^1], 1);
+            // SoB is always the most positive deviation by definition
+            _maxPositiveDeviation = Math.Max(sobDeviations[^1], 1);
 
             // Max negative only needs to come from attempts
             _maxNegativeDeviation = Math.Max(
@@ -141,79 +144,44 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float columnWidth = w / _totalRooms;
             float baselineY = y + (float)_maxPositiveDeviation / _totalRange * h;
             float scale = h / _totalRange;
-
             int total = _attempts.Count;
 
-            // Draw normal attempts first, then best, then last on top
-            var drawOrder = Enumerable.Range(0, total)
-                .Where(i => !_attempts[i].IsBest && !_attempts[i].IsLast)
-                .Concat(Enumerable.Range(0, total).Where(i => _attempts[i].IsBest && !_attempts[i].IsLast))
-                .Concat(Enumerable.Range(0, total).Where(i => _attempts[i].IsLast));
-
-            foreach (int i in drawOrder)
+            int regularCount = _lastIsBest ? total - 1 : total - 2;
+            for (int i = 0; i < regularCount; i++)
             {
-                AttemptLine attempt = _attempts[i];
-                if (attempt.RoomsCompleted == 0) continue;
-
-                // Age factor: 0 = oldest, 1 = newest
-                float ageFactor = total <= 1 ? 1f : (float)i / (total - 1);
-
-                Color lineColor;
-                float thickness;
-
-                if (attempt.IsBest)
-                {
-                    lineColor = Color.Gold;
-                    thickness = 2f;
-                }
-                else if (attempt.IsLast)
-                {
-                    lineColor = Color.Red;
-                    thickness = 2f;
-                }
-                else
-                {
-                    // Grey gradient — oldest dark, newest bright
-                    float brightness = MathHelper.Lerp(0.1f, 0.8f, ageFactor);
-                    lineColor = Color.White * brightness;
-                    thickness = 1.5f;
-                }
-
-                // Draw line segments
-                for (int r = 0; r < attempt.RoomsCompleted; r++)
-                {
-                    float x1 = x + r * columnWidth;
-                    float y1 = r == 0
-                        ? baselineY
-                        : baselineY - attempt.CumulativeDeviations[r - 1] * scale;
-                    float x2 = x + (r + 1) * columnWidth;
-                    float y2 = baselineY - attempt.CumulativeDeviations[r] * scale;
-
-                    // Clamp to graph bounds
-                    y1 = MathHelper.Clamp(y1, y, y + h);
-                    y2 = MathHelper.Clamp(y2, y, y + h);
-
-                    Draw.Line(new Vector2(x1, y1), new Vector2(x2, y2), lineColor, thickness);
-                }
+                float brightness = total <= 1 ? 0.8f : MathHelper.Lerp(0.1f, 0.8f, (float)i / (total - 1));
+                DrawAttemptLine(_attempts[i], x, baselineY, columnWidth, scale, h, Color.White * brightness, 1.5f);
             }
 
-            // Draw SOB line — above normal lines, below last and best
-            if (_sobDeviations.Length > 0)
+            // SoB line
+            DrawAttemptLine(_sobLine, x, baselineY, columnWidth, scale, h, Color.LightBlue, 2f);
+
+            if (!_lastIsBest)
             {
-                for (int r = 0; r < _sobDeviations.Length; r++)
-                {
-                    float x1 = x + r * columnWidth;
-                    float y1 = r == 0
-                        ? baselineY
-                        : baselineY - _sobDeviations[r - 1] * scale;
-                    float x2 = x + (r + 1) * columnWidth;
-                    float y2 = baselineY - _sobDeviations[r] * scale;
+                DrawAttemptLine(_attempts[^2], x, baselineY, columnWidth, scale, h, Color.Gold, 2f);
+                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, scale, h, Color.Red, 2f);
+            }
+            else
+            {
+                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, scale, h, Color.Gold, 2f);
+            }
+        }
 
-                    y1 = MathHelper.Clamp(y1, y, y + h);
-                    y2 = MathHelper.Clamp(y2, y, y + h);
+        private static void DrawAttemptLine(AttemptLine attempt, float x, float baselineY, float columnWidth, float scale, float h, Color color, float thickness)
+        {
+            for (int r = 0; r < attempt.RoomsCompleted; r++)
+            {
+                float x1 = x + r * columnWidth;
+                float y1 = r == 0
+                    ? baselineY
+                    : baselineY - attempt.CumulativeDeviations[r - 1] * scale;
+                float x2 = x + (r + 1) * columnWidth;
+                float y2 = baselineY - attempt.CumulativeDeviations[r] * scale;
 
-                    Draw.Line(new Vector2(x1, y1), new Vector2(x2, y2), Color.Turquoise, 2f);
-                }
+                y1 = MathHelper.Clamp(y1, baselineY - h, baselineY + h);
+                y2 = MathHelper.Clamp(y2, baselineY - h, baselineY + h);
+
+                Draw.Line(new Vector2(x1, y1), new Vector2(x2, y2), color, thickness);
             }
         }
 
@@ -224,7 +192,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float columnWidth = w / _totalRooms;
             float baselineY = y + (float)_maxPositiveDeviation / _totalRange * h;
 
-            // X axis room labels
+            // X axis room labels + vertical grid lines
             float baseLabelY = y + h + 10;
             for (int r = 0; r < _totalRooms; r++)
             {
@@ -233,62 +201,27 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
                 float labelY = _totalRooms > 25 ? r % 2 == 0 ? baseLabelY : baseLabelY + 20 : baseLabelY;
 
-                ActiveFont.DrawOutline(
-                    label,
+                ActiveFont.DrawOutline(label,
                     new Vector2(labelX - labelSize.X / 2, labelY),
-                    new Vector2(0f, 0f),
-                    Vector2.One * 0.35f,
+                    Vector2.Zero, Vector2.One * 0.35f,
                     Color.LightGray, 2f, Color.Black);
 
-                // Vertical grid line per room
                 Draw.Line(
                     new Vector2(x + r * columnWidth, y),
                     new Vector2(x + r * columnWidth, y + h),
                     Color.Gray * 0.5f, 1f);
             }
 
-            // Y axis labels — tick count proportional to space above/below baseline
+            // Y axis tick labels — proportional above/below baseline
             float aboveHeight = (float)_maxPositiveDeviation / _totalRange * h;
             float belowHeight = (float)_maxNegativeDeviation / _totalRange * h;
             int totalTicks = 12;
             int ticksAbove = Math.Max(1, (int)Math.Round((double)aboveHeight / h * totalTicks));
             int ticksBelow = Math.Max(1, totalTicks - ticksAbove);
 
-            // Above baseline (faster = negative time)
-            for (int i = 1; i <= ticksAbove; i++)
-            {
-                long tickDeviation = _maxPositiveDeviation / ticksAbove * i;
-                float yPos = baselineY - (float)i / ticksAbove * aboveHeight;
-                if (yPos < y) continue;
-
-                string timeLabel = "-" + new TimeTicks(tickDeviation).ToString();
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.3f;
-                ActiveFont.DrawOutline(timeLabel, new Vector2(x - labelSize.X - 10, yPos - labelSize.Y / 2),
-                    Vector2.Zero, Vector2.One * 0.3f, Color.White, 2f, Color.Black);
-                Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.5f, 1f);
-            }
-
-            // Baseline label
-            {
-                string timeLabel = "±0";
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.3f;
-                ActiveFont.DrawOutline(timeLabel, new Vector2(x - labelSize.X - 10, baselineY - labelSize.Y / 2),
-                    Vector2.Zero, Vector2.One * 0.3f, Color.Gray, 2f, Color.Black);
-            }
-
-            // Below baseline (slower = positive time)
-            for (int i = 1; i <= ticksBelow; i++)
-            {
-                long tickDeviation = _maxNegativeDeviation / ticksBelow * i;
-                float yPos = baselineY + (float)i / ticksBelow * belowHeight;
-                if (yPos > y + h) continue;
-
-                string timeLabel = "+" + new TimeTicks(tickDeviation).ToString();
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.3f;
-                ActiveFont.DrawOutline(timeLabel, new Vector2(x - labelSize.X - 10, yPos - labelSize.Y / 2),
-                    Vector2.Zero, Vector2.One * 0.3f, Color.White, 2f, Color.Black);
-                Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.5f, 1f);
-            }
+            DrawYTicks(x, y, w, baselineY, aboveHeight, _maxPositiveDeviation, ticksAbove, upward: true);
+            DrawYBaseline(x, baselineY);
+            DrawYTicks(x, y, w, baselineY, belowHeight, _maxNegativeDeviation, ticksBelow, upward: false);
 
             // Legend
             float legendY = y + h + 55;
@@ -297,17 +230,43 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float offset = ActiveFont.Measure("Last run").X * 0.35f + 40;
             DrawLegendEntry(legendX - offset, legendY, "Best run", Color.Gold, 0.35f, right: true);
             offset += ActiveFont.Measure("Best run").X * 0.35f + 40;
-            DrawLegendEntry(legendX - offset, legendY, "SOB", Color.LightBlue, 0.35f, right: true);
+            DrawLegendEntry(legendX - offset, legendY, "SoB", Color.LightBlue, 0.35f, right: true);
 
             // Attempt count
             string stats = $"Attempts: {_attempts.Count}";
             Vector2 statsSize = ActiveFont.Measure(stats) * 0.4f;
-            ActiveFont.DrawOutline(
-                stats,
+            ActiveFont.DrawOutline(stats,
                 new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + 55),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.4f,
+                Vector2.Zero, Vector2.One * 0.4f,
                 Color.LightGray, 2f, Color.Black);
+        }
+
+        private static void DrawYTicks(float x, float y, float w, float baselineY, float sideHeight, long maxDeviation, int tickCount, bool upward)
+        {
+            string prefix = upward ? "-" : "+";
+            for (int i = 1; i <= tickCount; i++)
+            {
+                long tickDeviation = maxDeviation / tickCount * i;
+                float yPos = upward
+                    ? baselineY - (float)i / tickCount * sideHeight
+                    : baselineY + (float)i / tickCount * sideHeight;
+
+                if (upward ? yPos < y : yPos > y + sideHeight + (baselineY - y)) continue;
+
+                string timeLabel = prefix + new TimeTicks(tickDeviation).ToString();
+                Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.3f;
+                ActiveFont.DrawOutline(timeLabel, new Vector2(x - labelSize.X - 10, yPos - labelSize.Y / 2),
+                    Vector2.Zero, Vector2.One * 0.3f, Color.White, 2f, Color.Black);
+                Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.5f, 1f);
+            }
+        }
+
+        private static void DrawYBaseline(float x, float baselineY)
+        {
+            string timeLabel = "±0";
+            Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.3f;
+            ActiveFont.DrawOutline(timeLabel, new Vector2(x - labelSize.X - 10, baselineY - labelSize.Y / 2),
+                Vector2.Zero, Vector2.One * 0.3f, Color.Gray, 2f, Color.Black);
         }
     }
 }
