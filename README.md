@@ -1,12 +1,12 @@
 # SpeebrunConsistencyTracker
 
-A Celeste mod built for speedrunners to analyze consistency and pinpoint specific rooms or segments that require further practice. Track segment and room times with real-time statistics to emphasize repeatability over PBs
+A Celeste mod built for speedrunners to analyze consistency and pinpoint specific rooms or segments that require further practice. Track segment and room times with real-time statistics to emphasize repeatability over PBs.
 
 ## High-level Features
 
-- HUD that shows real-time stats at the end of each completed attempts
-- Scatter Plots and Histograms: Visualize your times distribution for individual rooms and the whole segment
-- Generate data exports including metrics for segments, individual rooms, and practice session history (csv format)
+- HUD that shows real-time stats at the end of each completed attempt
+- Multiple chart types to visualize time distributions, DNF patterns, inconsistency, time loss, and run trajectories
+- Generate data exports including metrics for segments, individual rooms, and practice session history (CSV format)
 
 ## Usage
 
@@ -21,36 +21,64 @@ A Celeste mod built for speedrunners to analyze consistency and pinpoint specifi
 Configure the overlay to display the metrics that matter most to your current goals:
 
 * **Target Time Tracking:** Define a goal time for the segment and track your **Success Rate** in real-time
-* **Live Histograms and Scatter plot:** Cycle through times distribution charts for the **entire segment** or **individual rooms** to see where your times are clustering (hotkeys needed)
+* **Live Charts:** Cycle through performance charts for the entire segment or individual rooms using your configured keybinds
 
 ### 3. Exporting
 
-* **Data Export:** Export your complete session history and statistics to CSV (exported files are saved to the /SCT_Exports directory within your Celeste's installation folder)
+* **Data Export:** Export your complete session history and statistics to CSV (exported files are saved to the `/SCT_Exports` directory within your Celeste installation folder)
+
+## Charts
+
+All charts are accessible in-game via keybinds and can be individually toggled in the settings menu.
+
+### Scatter Plot
+Displays all room times and segment times as individual dots, organized by room column. Useful for spotting outliers and seeing how times cluster within each room. Enabled by default.
+
+### Room Histogram
+A time distribution histogram for a single room. Shows how frequently each time range occurs, making it easy to see whether your times cluster tightly or spread out. Cycles through each room individually. Disabled by default.
+
+### Segment Histogram
+Same as the room histogram but for the full segment time. Enabled by default.
+
+### DNF % per Room
+A bar chart showing the percentage of resets that happened in each room. Higher bars indicate rooms where you reset most frequently. Enabled by default.
+
+### Problem Rooms
+A stacked bar chart combining DNF % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your gold, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.
+
+### Room Inconsistency (ranked)
+A normalized stacked bar chart ranking rooms by inconsistency from worst to best. Uses two complementary metrics: Relative Median Absolute Deviation (RMAD) and Relative Standard Deviation (RStdDev) to capture overall spread (with some resistance to outliers). The worst room fills the full bar height, all the others are shown proportionally. Disabled by default.
+
+### Time Loss per Room
+A grouped bar chart showing median and average time lost per room relative to your gold time in that room, allowing quick comparison between typical loss (median) and overall loss (average). Disabled by default.
+
+### Run Trajectory
+A line chart where each attempt is drawn as a line showing cumulative deviation from the per-room average. Lines go up when a room is faster than average and down when slower. The X axis represents the cumulative sum of per-room averages (a run that matches the average in every room follows it exactly). Older attempts are drawn in dark grey and fade toward white as they approach the most recent run, making it easy to see how your trajectory has evolved over the session. Your best attempt, your most recent attempt, and the Sum of Best are highlighted. Disabled by default.
 
 ## Available Metrics
 
-- History: chronological history of session times
-- Success Rate: (segment only) percentage of runs finishing within the target time
-- Dnf Count: number of runs that did not finish (for rooms: number of DNFs occurring in that room)
-- Completed Run Count: number of runs that did finish (for rooms: number of runs that cleared the room)
-- Total Run Count: dnf count + completed run count
-- Average: average time across all completed runs
-- Median: middle value of the run time distribution
-- Reset Rate: the ratio of dnf runs over the total number of runs
-- Reset Share: (Rooms only), the contribution of this room in total number of reset
-- Best: fastest recorded time
-- Worst: slowest recorded time
-- Standard Deviation: measure of how spread out the run times are around the average
-- Relative Standard Deviation: Standard Deviation as a percentage of the average, allowing easier comparison across different segments / rooms
-- Percentile: n% of your runs were faster than the selected value for n
-- Interquartile Range: the lower and upper bound of the middle 50% of your runs (first and third quarter basically)
-- Trend Slope: measures how session duration affects performance. Values closer to zero indicate little effect, while negative values indicate that your times tend to improve as the session progresses, whereas positive values indicate the opposite
-- SoB: Sum of Best
-- Median Absolute Deviation: measure of how spread out the run times are around the median
-- Relative Median Absolute Deviation: Median Absolute Deviation as a percentage of the median, allowing easier comparison across different segments / rooms
-- Consistency Score: Composite metric estimating how consistent times are. Tighter distributions, times closer to the best, and fewer resets result in a higher score.
-- Bimodal Test: detects multiple peaks in the time distribution indicating an hit-or-miss strat in a room. The Bimodality Coefficient is to be compared to the critical tresholf of 0.555 which indicates an uniform distribution; higher values point towards bimodality, whereas lower values point toward unimodality.
-- Room Dependency: measures how a poor time in a room impacts the next room, ranging from -1 to 1. A value of 0 indicates no effect, while a high positive score suggests that a mistake in a room often leads to a bad time in the following room.
+- **History:** chronological history of session times
+- **Success Rate:** (segment only) percentage of runs finishing within the target time
+- **DNF Count:** number of runs that did not finish (for rooms: number of DNFs occurring in that room)
+- **Completed Run Count:** number of runs that finished (for rooms: number of runs that cleared the room)
+- **Total Run Count:** DNF count + completed run count
+- **Average:** average time across all completed runs
+- **Median:** middle value of the run time distribution
+- **Reset Rate:** ratio of DNF runs over the total number of runs
+- **Reset Share:** (rooms only) this room's contribution to the total number of resets
+- **Best:** fastest recorded time
+- **Worst:** slowest recorded time
+- **Standard Deviation:** measure of how spread out run times are around the average
+- **Relative Standard Deviation:** standard deviation as a percentage of the average, allowing easier comparison across rooms
+- **Percentile:** n% of your runs were faster than the selected value for n
+- **Interquartile Range:** lower and upper bounds of the middle 50% of your runs
+- **Trend Slope:** measures how session duration affects performance. Values near zero indicate little effect; negative values indicate improving times as the session progresses
+- **SoB:** Sum of Best
+- **Median Absolute Deviation:** measure of how spread out run times are around the median
+- **Relative Median Absolute Deviation:** MAD as a percentage of the median
+- **Consistency Score:** composite metric estimating overall consistency. Tighter distributions, times closer to the best, and fewer resets result in a higher score
+- **Bimodal Test:** detects multiple peaks in the time distribution, indicating a hit-or-miss strat. The Bimodality Coefficient is compared to a critical threshold of 0.555 — higher values point toward bimodality, lower values toward unimodality
+- **Room Dependency:** measures how a poor time in a room impacts the next room, ranging from -1 to 1. A value of 0 indicates no effect, a high positive score suggests mistakes tend to carry over
 
 ## Limitations
 
