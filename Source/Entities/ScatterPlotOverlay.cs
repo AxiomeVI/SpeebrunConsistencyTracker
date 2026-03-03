@@ -37,7 +37,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly float width = 1800f;
         private readonly float height = 900f;
         private readonly float margin = 80f;
-        private const int MAX_TICK_MARKS = 12;
+        private const int MAX_TICK_MARKS = 13;
         
         // Colors
         private Color backgroundColor = Color.Black * 0.8f;
@@ -295,7 +295,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
             
-            // Draw the cached dots every frame
+            // Draw the cached dots
             foreach (var (pos, color, radius) in cachedDots)
             {
                 DrawDot(pos, color, (int)radius);

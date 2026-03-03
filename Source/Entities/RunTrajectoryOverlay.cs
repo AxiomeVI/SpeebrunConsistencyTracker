@@ -30,6 +30,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly long _maxPositiveDeviation;
         private readonly long _maxNegativeDeviation;
         private readonly long _totalRange;
+        private readonly long _roomAveragesSum;
+        private readonly long _bestFinalDeviation;
+        private readonly long _lastFinalDeviation;
 
         public RunTrajectoryOverlay(
             IReadOnlyList<Attempt> attempts,
@@ -124,6 +127,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     .Max(), 1);
 
             _totalRange = _maxPositiveDeviation + _maxNegativeDeviation;
+            _roomAveragesSum = roomAverages.Sum();
+            _bestFinalDeviation = raw[bestIdx].finalDeviation;
+            _lastFinalDeviation = raw[lastIdx].finalDeviation;
         }
 
         protected override void DrawAxes(float x, float y, float w, float h)
@@ -134,7 +140,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Draw.Line(new Vector2(x, y), new Vector2(x, y + h), axisColor, 2f);
             // Baseline (zero deviation) — positioned proportionally
             float baselineY = y + (float)_maxPositiveDeviation / _totalRange * h;
-            Draw.Line(new Vector2(x, baselineY), new Vector2(x + w, baselineY), Color.Gray * 0.6f, 1f);
+            Draw.Line(new Vector2(x, baselineY), new Vector2(x + w, baselineY), Color.Gray * 0.6f, 2f);
         }
 
         protected override void DrawBars(float x, float y, float w, float h)
@@ -154,7 +160,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             // SoB line
-            DrawAttemptLine(_sobLine, x, baselineY, columnWidth, scale, h, Color.LightBlue, 2f);
+            DrawAttemptLine(_sobLine, x, baselineY, columnWidth, scale, h, Color.Turquoise, 2f);
 
             if (!_lastIsBest)
             {
@@ -206,6 +212,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Vector2.Zero, Vector2.One * 0.35f,
                     Color.LightGray, 2f, Color.Black);
 
+                // Vertical grid line per room
                 Draw.Line(
                     new Vector2(x + r * columnWidth, y),
                     new Vector2(x + r * columnWidth, y + h),
@@ -219,18 +226,26 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int ticksAbove = Math.Max(1, (int)Math.Round((double)aboveHeight / h * totalTicks));
             int ticksBelow = Math.Max(1, totalTicks - ticksAbove);
 
-            DrawYTicks(x, y, w, baselineY, aboveHeight, _maxPositiveDeviation, ticksAbove, upward: true);
+            DrawYTicks(x, y, w, baselineY, aboveHeight, _maxPositiveDeviation, ticksAbove, true);
             DrawYBaseline(x, baselineY);
-            DrawYTicks(x, y, w, baselineY, belowHeight, _maxNegativeDeviation, ticksBelow, upward: false);
+            DrawYTicks(x, y, w, baselineY, belowHeight, _maxNegativeDeviation, ticksBelow, false);
+
+            // Right axis labels — actual cumulative times for key lines
+            DrawRightAxisLabels(x, y, w, h, baselineY);
 
             // Legend
             float legendY = y + h + 55;
             float legendX = x + w;
-            DrawLegendEntry(legendX, legendY, "Last run", Color.Red, 0.35f, right: true);
-            float offset = ActiveFont.Measure("Last run").X * 0.35f + 40;
-            DrawLegendEntry(legendX - offset, legendY, "Best run", Color.Gold, 0.35f, right: true);
-            offset += ActiveFont.Measure("Best run").X * 0.35f + 40;
-            DrawLegendEntry(legendX - offset, legendY, "SoB", Color.LightBlue, 0.35f, right: true);
+            string lastLabel = _lastIsBest ? "Best & last run" : "Last run";
+            Color lastColor = _lastIsBest ? Color.Gold : Color.Red;
+            DrawLegendEntry(legendX, legendY, lastLabel, lastColor, 0.35f, right: true);
+            float offset = ActiveFont.Measure(lastLabel).X * 0.35f + 40;
+            if (!_lastIsBest)
+            {
+                DrawLegendEntry(legendX - offset, legendY, "Best run", Color.Gold, 0.35f, right: true);
+                offset += ActiveFont.Measure("Best run").X * 0.35f + 40;
+            }
+            DrawLegendEntry(legendX - offset, legendY, "SoB", Color.Turquoise, 0.35f, right: true);
 
             // Attempt count
             string stats = $"Attempts: {_attempts.Count}";
@@ -241,17 +256,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Color.LightGray, 2f, Color.Black);
         }
 
-        private static void DrawYTicks(float x, float y, float w, float baselineY, float sideHeight, long maxDeviation, int tickCount, bool upward)
+        private static void DrawYTicks(float x, float y, float w, float baselineY, float sideHeight, long maxDeviation, int tickCount, bool sign)
         {
-            string prefix = upward ? "-" : "+";
+            string prefix = sign ? "-" : "+";
             for (int i = 1; i <= tickCount; i++)
             {
                 long tickDeviation = maxDeviation / tickCount * i;
-                float yPos = upward
+                float yPos = sign
                     ? baselineY - (float)i / tickCount * sideHeight
                     : baselineY + (float)i / tickCount * sideHeight;
 
-                if (upward ? yPos < y : yPos > y + sideHeight + (baselineY - y)) continue;
+                if (sign ? yPos < y : yPos > y + sideHeight + (baselineY - y)) continue;
 
                 string timeLabel = prefix + new TimeTicks(tickDeviation).ToString();
                 Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.3f;
@@ -267,6 +282,51 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.3f;
             ActiveFont.DrawOutline(timeLabel, new Vector2(x - labelSize.X - 10, baselineY - labelSize.Y / 2),
                 Vector2.Zero, Vector2.One * 0.3f, Color.Gray, 2f, Color.Black);
+        }
+
+        private void DrawRightAxisLabels(float x, float y, float w, float h, float baselineY)
+        {
+            float scale = h / _totalRange;
+            float labelHeight = ActiveFont.Measure("0").Y * 0.3f;
+            float minSpacing = labelHeight + 4f;
+            float rightX = x + w + 10;
+
+            // Define labels: (yPos, text, color) ordered by priority (index 0 = highest)
+            var labelList = new List<(float yPos, string text, Color color)>
+            {
+                (baselineY, new TimeTicks(_roomAveragesSum).ToString(), Color.Gray),
+                (baselineY - _bestFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _bestFinalDeviation).ToString(), Color.Gold),
+            };
+            if (!_lastIsBest)
+                labelList.Add((baselineY - _lastFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _lastFinalDeviation).ToString(), Color.Red));
+            labelList.Add((baselineY - _maxPositiveDeviation * scale, new TimeTicks(_roomAveragesSum - _maxPositiveDeviation).ToString(), Color.Turquoise));
+            var labels = labelList.ToArray();
+
+            // Nudged positions — process in priority order, push lower-priority labels away
+            float[] nudged = new float[labels.Length];
+            for (int i = 0; i < labels.Length; i++)
+                nudged[i] = labels[i].yPos;
+
+            for (int i = 1; i < nudged.Length; i++)
+            {
+                for (int j = 0; j < i; j++)
+                {
+                    float diff = nudged[i] - nudged[j];
+                    if (Math.Abs(diff) < minSpacing)
+                        nudged[i] = nudged[j] + (diff >= 0 ? minSpacing : -minSpacing);
+                }
+                nudged[i] = MathHelper.Clamp(nudged[i], y, y + h);
+            }
+
+            for (int i = 0; i < labels.Length; i++)
+            {
+                if (labels[i].yPos < y || labels[i].yPos > y + h) continue;
+                Vector2 labelSize = ActiveFont.Measure(labels[i].text) * 0.3f;
+                ActiveFont.DrawOutline(labels[i].text,
+                    new Vector2(rightX, nudged[i] - labelSize.Y / 2),
+                    Vector2.Zero, Vector2.One * 0.3f,
+                    labels[i].color, 2f, Color.Black);
+            }
         }
     }
 }

@@ -23,6 +23,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly string primaryLabel;
         private readonly string secondaryLabel;
         private readonly long maxTicks;
+        private const int MAX_TICK_MARKS = 13;
 
         // Cached bar layout — computed once in DrawBars, reused in DrawLabels
         private float _cachedGroupWidth;
@@ -71,7 +72,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return;
             }
             long totalFrames = (long)Math.Ceiling((double)range / ONE_FRAME);
-            long framesPerTick = (long)Math.Ceiling((double)totalFrames / 11);
+            long framesPerTick = (long)Math.Ceiling((double)totalFrames / MAX_TICK_MARKS);
             if (framesPerTick <= 0) framesPerTick = 1;
             step = framesPerTick * ONE_FRAME;
             count = (int)(range / step);
@@ -169,7 +170,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             DrawTitle();
 
-            // Y axis ticks — frame-aligned, at most 11 labels
+            // Y axis ticks, frame-aligned
             GetAxisSettings(maxTicks, out long yStep, out int yLabelCount);
             for (int i = 0; i <= yLabelCount; i++)
             {
@@ -191,7 +192,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), Color.Gray * 0.5f, 1f);
             }
 
-            // X axis labels — centered under each group
+            // X axis labels, centered under each group
             if (labels.Count > 0)
             {
                 float baseLabelY = y + h + 10;

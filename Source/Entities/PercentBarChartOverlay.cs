@@ -157,17 +157,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
 
-            // Legend (bottom right)
+            // Legend (bottom right) — secondary rightmost, primary offset left to match bar order
             float legendY = y + h + 55;
             float legendX = x + w;
-
-            if (primaryLabel != null)
-                DrawLegendEntry(legendX, legendY, primaryLabel, primaryColor, 0.35f, right: true);
-
             if (secondaryLabel != null && secondaryValues != null)
+                DrawLegendEntry(legendX, legendY, secondaryLabel, secondaryColor, 0.35f, right: true);
+            if (primaryLabel != null)
             {
-                float offset = primaryLabel != null ? ActiveFont.Measure(primaryLabel).X * 0.35f + 40 : 0;
-                DrawLegendEntry(legendX - offset, legendY, secondaryLabel, secondaryColor, 0.35f, right: true);
+                float offset = secondaryLabel != null ? ActiveFont.Measure(secondaryLabel).X * 0.35f + 40 : 0;
+                DrawLegendEntry(legendX - offset, legendY, primaryLabel, primaryColor, 0.35f, right: true);
             }
         }
     }

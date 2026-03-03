@@ -38,7 +38,7 @@ public class GraphManager
     private ScatterPlotOverlay _scatterGraph;
     private readonly Dictionary<int, HistogramOverlay> _roomHistograms = [];
     private HistogramOverlay _segmentHistogram;
-    private PercentBarChartOverlay _dnfPctChart;
+    private GroupedPercentOverlay _dnfPctChart;
     private PercentBarChartOverlay _problemRoomsChart;
     private PercentBarChartOverlay _inconsistentRoomsChart;
     private GroupedBarChartOverlay _timeLossChart;
@@ -319,18 +319,20 @@ public class GraphManager
             _settings.ChartOpacity);
     }
 
-    private PercentBarChartOverlay GetOrCreateDnfPctChart()
+    private GroupedPercentOverlay GetOrCreateDnfPctChart()
     {
         if (_dnfPctChart != null) return _dnfPctChart;
 
-        var labels  = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
-        var dnfPcts = ComputeDnfPcts();
+        var labels    = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
+        var dnfCounts = Enumerable.Range(0, _totalRooms)
+            .Select(i => _dnfData.GetValueOrDefault(i))
+            .ToList();
+        int totalAttempts = _attemptsByRoom.GetValueOrDefault(0);
 
-        _dnfPctChart = new PercentBarChartOverlay(
-            "DNF % per Room",
-            labels, dnfPcts,
-            Color.CornflowerBlue,
-            "DNF %",
+        _dnfPctChart = new GroupedPercentOverlay(
+            labels, dnfCounts,
+            totalAttempts,
+            Color.CornflowerBlue, Color.IndianRed,
             _settings.ChartOpacity);
 
         return _dnfPctChart;
@@ -358,7 +360,7 @@ public class GraphManager
             $"Problem Rooms (threshold: {_settings.TimeLossThresholdMs}ms)",
             labels, dnfPcts, timeLossPcts,
             Color.CornflowerBlue, Color.IndianRed,
-            "DNF %", $">{_settings.TimeLossThresholdMs}ms over gold",
+            "DNF rate", $">{_settings.TimeLossThresholdMs}ms over gold",
             _settings.ChartOpacity);
 
         return _problemRoomsChart;
