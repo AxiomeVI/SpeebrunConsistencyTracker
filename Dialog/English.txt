@@ -45,6 +45,8 @@ PROBLEM_ROOM_BAR_CHART=                Problem Rooms
 INCONSISTENT_ROOM_BAR_CHART=           Inconsistent Rooms
 TIME_LOSS_CHART=                       Time loss per Room
 TRAJECTORY_GRAPH=                      Trajectory graph
+BOX_PLOT_GRAPH=                        Box Plot
+
 
 # ======================= Hotkeys ==============================
 KEY_STATS_EXPORT=                      Export data
@@ -89,6 +91,7 @@ SOB=                                   Sum of Bests
 LINEAR_REGRESSION=                     Trend Slope
 SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
 CONSISTENCY_SCORE=                     Consistency Score
+GOLD_RATE=                             Gold Rate
 MULTIMODAL_TEST=                       Multimodal Test
 ROOM_DEPENDENCY=                       Room Dependency
 ALL_METRICS_OFF_BUTTON=                Turn off all metrics

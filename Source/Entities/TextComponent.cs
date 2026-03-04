@@ -16,7 +16,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public PixelFont Font { get; set; }
         public float FontFaceSize { get; set; }
         public Color TextColor { get; set; } = Color.White;
-        public float StrokeSize { get; set; } = 2f;
+        public float StrokeSize { get; set; } = ChartConstants.Stroke.OutlineSize;
         public Color StrokeColor { get; set; } = Color.Black;
 
         public int OffsetX { get; set; } = 5;
@@ -28,8 +28,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public float PosY { get; set; } = 0;
         public float LineSpacing { get; set; } = 1.1f;
 
-        private static readonly int WIDTH = 1920;
-        private static readonly int HEIGHT = 1080;
+        private static readonly int WIDTH  = ChartConstants.Screen.ScreenWidth;
+        private static readonly int HEIGHT = ChartConstants.Screen.ScreenHeight;
 
         public void SetPosition() {
             SetPosition(Position);

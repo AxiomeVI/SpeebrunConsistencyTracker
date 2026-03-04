@@ -29,25 +29,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             }
 
             // Compute per-room averages
-            var roomValues = new List<string>(roomCount);
-            if (isExport)
-            {
-                for (int r = 0; r < roomCount; r++)
-                {
-                    var roomTimes = session.GetRoomTimes(r).ToList();
-                    if (roomTimes.Count == 0)
-                    {
-                        roomValues.Add("0");
-                    }
-                    else
-                    {
-                        double roomAvg = context.GetOrCompute($"avg_room_{r}", () =>
-                            roomTimes.Average(t => t.Ticks));
-
-                        roomValues.Add(new TimeTicks((long)Math.Round(roomAvg)).ToString());
-                    }
-                }
-            }
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => {
+                    double roomAvg = context.GetOrCompute($"avg_room_{r}", () => sorted.Average(t => t.Ticks));
+                    return new TimeTicks((long)Math.Round(roomAvg)).ToString();
+                });
 
             return new MetricResult(segmentValue, roomValues);
         }
@@ -70,28 +56,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             segmentValue = median.ToString();
 
-            List<string> RoomValues = new(roomCount);
-            if (isExport)
-            {
-                for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
-                {
-                    string roomKey = $"room_{roomIndex}_values_sorted";
-
-                    var roomValues = context.GetOrCompute(
-                        roomKey,
-                        () => session.GetRoomTimes(roomIndex)
-                                    .OrderBy(t => t)
-                                    .ToList()
-                    );
-
-                    var roomMedian = context.GetOrCompute(
-                        $"med_room_{roomIndex}",
-                        () => MetricHelper.ComputePercentile(roomValues, 50)
-                    );
-
-                    RoomValues.Add(roomMedian.ToString());
-                }
-            }
+            var RoomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => context.GetOrCompute($"med_room_{r}", () => MetricHelper.ComputePercentile(sorted, 50)).ToString());
 
             return new MetricResult(segmentValue, RoomValues);
         }
@@ -108,23 +74,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             TimeTicks segmentMAD = context.GetOrCompute("mad_segment", () => MetricHelper.ComputeMAD(segmentValues));
             string segmentResult = segmentMAD.ToString();
 
-            List<string> RoomValues = new(roomCount);
-            if (isExport)
-            {
-                for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
-                {
-                    string roomKey = $"room_{roomIndex}_values_sorted";
-
-                    var roomValues = context.GetOrCompute(
-                        roomKey,
-                        () => session.GetRoomTimes(roomIndex)
-                                    .OrderBy(t => t)
-                                    .ToList()
-                    );
-                    TimeTicks roomMAD = context.GetOrCompute($"mad_room_{roomIndex}", () => MetricHelper.ComputeMAD(roomValues));
-                    RoomValues.Add(roomMAD.ToString());
-                }
-            }
+            var RoomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => context.GetOrCompute($"mad_room_{r}", () => MetricHelper.ComputeMAD(sorted)).ToString());
 
             return new MetricResult(segmentResult, RoomValues);
         }
@@ -144,24 +95,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double relmad = segmentMedian == 0.0 ? 0.0 : context.GetOrCompute("relmad_segment", () => segmentMAD / segmentMedian);
             string segmentResult = MetricHelper.FormatPercent(relmad);
 
-            List<string> roomValues = new(roomCount);
-            if (isExport)
-            {
-                for (int roomIndex = 0; roomIndex < roomCount; roomIndex++)
-                {
-                    string roomKey = $"room_{roomIndex}_values_sorted";
-                    var roomSorted = context.GetOrCompute(
-                        roomKey,
-                        () => session.GetRoomTimes(roomIndex)
-                                    .OrderBy(t => t)
-                                    .ToList()
-                    );
-                    TimeTicks roomMAD    = context.GetOrCompute($"mad_room_{roomIndex}", () => MetricHelper.ComputeMAD(roomSorted));
-                    TimeTicks roomMedian = context.GetOrCompute($"med_room_{roomIndex}", () => MetricHelper.ComputePercentile(roomSorted, 50));
-                    double relmadRoom = roomMedian == 0.0 ? 0.0 : context.GetOrCompute($"relmad_room_{roomIndex}", () => roomMAD / roomMedian);
-                    roomValues.Add(MetricHelper.FormatPercent(relmadRoom));
-                }
-            }
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => {
+                    TimeTicks roomMAD    = context.GetOrCompute($"mad_room_{r}", () => MetricHelper.ComputeMAD(sorted));
+                    TimeTicks roomMedian = context.GetOrCompute($"med_room_{r}", () => MetricHelper.ComputePercentile(sorted, 50));
+                    double relmadRoom = roomMedian == 0.0 ? 0.0 : context.GetOrCompute($"relmad_room_{r}", () => roomMAD / roomMedian);
+                    return MetricHelper.FormatPercent(relmadRoom);
+                });
 
             return new MetricResult(segmentResult, roomValues);
         }
@@ -180,31 +120,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 // Reuse average if available, otherwise compute
                 double avg = context.GetOrCompute("avg_segment", () =>
                     segmentTimes.Average(t => t.Ticks));
-                double stdSegment = context.GetOrCompute("std_segment", () => Math.Sqrt(segmentTimes.Sum(t => Math.Pow(t.Ticks - avg, 2)) / (segmentTimes.Count - 1)));
+                double stdSegment = context.GetOrCompute("std_segment", () => MetricHelper.ComputeStdDev(segmentTimes, avg));
                 segmentValue = new TimeTicks((long)Math.Round(stdSegment)).ToString();
             }
 
-            var roomValues = new List<string>(roomCount);
-            if (isExport)
-            {
-                for (int r = 0; r < roomCount; r++)
-                {
-                    var roomTimes = session.GetRoomTimes(r).ToList();
-                    if (roomTimes.Count < 2)
-                    {
-                        roomValues.Add("0");
-                    }
-                    else
-                    {
-                        double avgRoom = context.GetOrCompute($"avg_room_{r}", () =>
-                            roomTimes.Average(t => t.Ticks));
-
-                        double variance = roomTimes.Sum(t => Math.Pow(t.Ticks - avgRoom, 2)) / (roomTimes.Count - 1);
-                        double stdRoom = context.GetOrCompute($"std_room_{r}", () => Math.Sqrt(roomTimes.Sum(t => Math.Pow(t.Ticks - avgRoom, 2)) / (roomTimes.Count - 1)));
-                        roomValues.Add(new TimeTicks((long)Math.Round(stdRoom)).ToString());
-                    }
-                }
-            }
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => {
+                    double avgRoom = context.GetOrCompute($"avg_room_{r}", () => sorted.Average(t => t.Ticks));
+                    double stdRoom = context.GetOrCompute($"std_room_{r}", () => MetricHelper.ComputeStdDev(sorted, avgRoom));
+                    return new TimeTicks((long)Math.Round(stdRoom)).ToString();
+                }, minCount: 2);
 
             return new MetricResult(segmentValue, roomValues);
         }
@@ -223,41 +148,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 double avg = context.GetOrCompute("avg_segment", () =>
                     segmentTimes.Average(t => t.Ticks));
 
-                double std = context.GetOrCompute("std_segment", () =>
-                {
-                    double variance = segmentTimes.Sum(v => Math.Pow(v.Ticks - avg, 2)) / (segmentTimes.Count - 1);
-                    return Math.Sqrt(variance);
-                });
+                double std = context.GetOrCompute("std_segment", () => MetricHelper.ComputeStdDev(segmentTimes, avg));
 
                 double cv = avg == 0.0 ? 0.0 : context.GetOrCompute("cv_segment", () => std / avg);
                 segmentValue = MetricHelper.FormatPercent(cv);
             }
 
-            var roomValues = new List<string>(roomCount);
-            if (isExport)
-            {
-                for (int r = 0; r < roomCount; r++)
-                {
-                    var roomTimes = session.GetRoomTimes(r).ToList();
-                    if (roomTimes.Count < 2)
-                    {
-                        roomValues.Add("0");
-                    }
-                    else
-                    {
-                        double avgRoom = context.GetOrCompute($"avg_room_{r}", () =>
-                            roomTimes.Average(t => t.Ticks));
-
-                        double stdRoom = context.GetOrCompute($"std_room_{r}", () =>
-                        {
-                            double variance = roomTimes.Sum(v => Math.Pow(v.Ticks - avgRoom, 2)) / (roomTimes.Count - 1);
-                            return Math.Sqrt(variance);
-                        });
-                        double cv = avgRoom == 0.0 ? 0.0 : context.GetOrCompute($"cv_room_{r}", () => stdRoom / avgRoom);
-                        roomValues.Add(MetricHelper.FormatPercent(cv));
-                    }
-                }
-            }
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => {
+                    double avgRoom = context.GetOrCompute($"avg_room_{r}", () => sorted.Average(t => t.Ticks));
+                    double stdRoom = context.GetOrCompute($"std_room_{r}", () => MetricHelper.ComputeStdDev(sorted, avgRoom));
+                    double cv = avgRoom == 0.0 ? 0.0 : context.GetOrCompute($"cv_room_{r}", () => stdRoom / avgRoom);
+                    return MetricHelper.FormatPercent(cv);
+                }, minCount: 2);
 
             return new MetricResult(segmentValue, roomValues);
         }
@@ -282,29 +185,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 segmentValue = best.ToString();
             }
 
-            var roomValues = new List<string>(roomCount);
-            if (isExport)
-            {
-                for (int r = 0; r < roomCount; r++)
-                {
-                    var roomSorted = context.GetOrCompute(
-                        $"room_{r}_values_sorted",
-                        () => session.GetRoomTimes(r)
-                                    .OrderBy(t => t)
-                                    .ToList()
-                    );
-
-                    if (roomSorted.Count == 0)
-                    {
-                        roomValues.Add("0");
-                    }
-                    else
-                    {
-                        TimeTicks bestRoom = context.GetOrCompute($"min_room_{r}", () => roomSorted[0]);
-                        roomValues.Add(bestRoom.ToString());
-                    }
-                }
-            }
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => context.GetOrCompute($"min_room_{r}", () => sorted[0]).ToString());
 
             return new MetricResult(segmentValue, roomValues);
         }
@@ -327,29 +209,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 segmentValue = worst.ToString();
             }
 
-            var roomValues = new List<string>(roomCount);
-            if (isExport)
-            {
-                for (int r = 0; r < roomCount; r++)
-                {
-                    var roomSorted = context.GetOrCompute(
-                        $"room_{r}_values_sorted",
-                        () => session.GetRoomTimes(r)
-                                    .OrderBy(t => t)
-                                    .ToList()
-                    );
-
-                    if (roomSorted.Count == 0)
-                    {
-                        roomValues.Add("0");
-                    }
-                    else
-                    {
-                        TimeTicks worstRoom = context.GetOrCompute($"max_room_{r}", () => roomSorted[^1]);
-                        roomValues.Add(worstRoom.ToString());
-                    }
-                }
-            }
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => context.GetOrCompute($"max_room_{r}", () => sorted[^1]).ToString());
 
             return new MetricResult(segmentValue, roomValues);
         }
@@ -411,7 +272,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             string segmentValue;
             int percentile = MetricHelper.ToInt(SpeebrunConsistencyTrackerModule.Settings.PercentileValue);
 
-            // ---------- Segment ----------
             var segmentSorted = context.GetOrCompute(
                 "segment_values_sorted",
                 () => session.GetSegmentTimes(roomCount)
@@ -421,21 +281,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             segmentValue = MetricHelper.ComputePercentile(segmentSorted, percentile).ToString();
 
-            List<string> RoomValues = new(roomCount);
-            if (isExport)
-            {
-                for (int r = 0; r < roomCount; r++)
-                {
-                    var roomSorted = context.GetOrCompute(
-                        $"room_{r}_values_sorted",
-                        () => session.GetRoomTimes(r)
-                                    .OrderBy(t => t)
-                                    .ToList()
-                    );
-
-                    RoomValues.Add(MetricHelper.ComputePercentile(roomSorted, percentile).ToString());
-                }
-            }
+            var RoomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => MetricHelper.ComputePercentile(sorted, percentile).ToString(), minCount: 0);
 
             return new MetricResult(segmentValue, RoomValues);
         }
@@ -451,23 +298,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             TimeTicks Q3 = context.GetOrCompute("q3_segment", () => MetricHelper.ComputePercentile(segmentValues, 75));
             string segmentResult = "[" + Q1 + "; " + Q3 + "]";
 
-            List<string> roomValues = new(roomCount);
-
-            if (isExport)
-            {
-                for (int i = 0; i < roomCount; i++)
-                {
-                    string roomKey = $"room_{i}_values_sorted";
-                    var roomTimes = context.GetOrCompute(
-                        roomKey,
-                        () => session.GetRoomTimes(i).OrderBy(t => t).ToList()
-                    );
-
-                    TimeTicks roomQ1 = context.GetOrCompute($"q1_room_{i}", () => MetricHelper.ComputePercentile(roomTimes, 25));
-                    TimeTicks roomQ3 = context.GetOrCompute($"q3_room_{i}", () => MetricHelper.ComputePercentile(roomTimes, 75));
-                    roomValues.Add("[" + roomQ1 + "; " + roomQ3 + "]");
-                }
-            }
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => {
+                    TimeTicks roomQ1 = context.GetOrCompute($"q1_room_{r}", () => MetricHelper.ComputePercentile(sorted, 25));
+                    TimeTicks roomQ3 = context.GetOrCompute($"q3_room_{r}", () => MetricHelper.ComputePercentile(sorted, 75));
+                    return "[" + roomQ1 + "; " + roomQ3 + "]";
+                }, minCount: 0);
 
             return new MetricResult(segmentResult, roomValues);
         }
@@ -517,6 +353,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(segmentValue, roomValues);
         }
 
+        // Room loop too heterogeneous for ComputeRoomValues helper — left explicit.
         public static MetricResult ResetRate(PracticeSession session, int roomCount, MetricContext context, bool isExport)
         {
             int dnfCount = session.TotalDnfs(roomCount);
@@ -546,6 +383,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(segmentValue, roomValues);
         }
 
+        // Room loop too heterogeneous for ComputeRoomValues helper — left explicit.
         public static MetricResult ResetShare(PracticeSession session, int roomCount, MetricContext context, bool isExport)
         {   
             if (!isExport)
@@ -565,6 +403,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(segmentValue, roomValues);
         }
 
+        // Room loop uses chronological order — not interchangeable with sorted list, left explicit.
         public static MetricResult TrendSlope(PracticeSession session, int roomCount, MetricContext context, bool isExport)
         {
             var segmentTimes = session.GetSegmentTimes(roomCount).ToList();
@@ -583,6 +422,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(segmentValue, roomValues);
         }
 
+        // Room loop too heterogeneous for ComputeRoomValues helper — left explicit.
         public static MetricResult ConsistencyScore(PracticeSession session, int roomCount, MetricContext context, bool isExport)
         {
             int attempts = session.TotalCompleted(roomCount);
@@ -608,7 +448,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                         continue;
                     }
                     double roomAvg = context.GetOrCompute($"avg_room_{r}", () => roomTimes.Average(t => t.Ticks));
-                    double stdRoom = context.GetOrCompute($"std_room_{r}", () => Math.Sqrt(roomTimes.Sum(t => Math.Pow(t.Ticks - roomAvg, 2)) / (roomTimes.Count - 1)));
+                    double stdRoom = context.GetOrCompute($"std_room_{r}", () => MetricHelper.ComputeStdDev(roomTimes, roomAvg));
                     double roomResetRate = context.GetOrCompute($"resetRate_room_{r}", () => (double)session.DnfPerRoom.GetValueOrDefault(r) / session.TotalAttemptsPerRoom.GetValueOrDefault(r));
                     double roomMedian = context.GetOrCompute($"med_room_{r}", () => MetricHelper.ComputePercentile(roomTimes, 50)).Ticks;
                     TimeTicks roomMin = context.GetOrCompute($"min_room_{r}", () => roomTimes[0]);
@@ -628,7 +468,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                              .ToList()
             );
             double segmentAvg = context.GetOrCompute("avg_segment", () => segmentTimes.Average(t => t.Ticks));
-            double stdSegment = context.GetOrCompute("std_segment", () => Math.Sqrt(segmentTimes.Sum(t => Math.Pow(t.Ticks - segmentAvg, 2)) / (segmentTimes.Count - 1)));
+            double stdSegment = context.GetOrCompute("std_segment", () => MetricHelper.ComputeStdDev(segmentTimes, segmentAvg));
             double segmentMedian = context.GetOrCompute("med_segment", () => MetricHelper.ComputePercentile(segmentTimes, 50)).Ticks;
             double segmentResetRate = context.GetOrCompute("resetRate_segment", () => (double)session.TotalDnfs(roomCount) / session.TotalAttempts);
             TimeTicks segmentMin = context.GetOrCompute("min_segment", () => segmentTimes[0]);
@@ -642,6 +482,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(MetricHelper.FormatPercent(segmentFinalScore), roomValues);
         }
 
+        // Room loop too heterogeneous for ComputeRoomValues helper — left explicit.
         public static MetricResult MultimodalTest(PracticeSession session, int roomCount, MetricContext context, bool isExport)
         {
             if (!isExport)
@@ -658,7 +499,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             );
             double avgSegment = context.GetOrCompute("avg_segment", () =>
                     segmentValues.Average(t => t.Ticks));
-            double stdSegment = context.GetOrCompute("std_segment", () => Math.Sqrt(segmentValues.Sum(t => Math.Pow(t.Ticks - avgSegment, 2)) / (segmentValues.Count - 1)));
+            double stdSegment = context.GetOrCompute("std_segment", () => MetricHelper.ComputeStdDev(segmentValues, avgSegment));
             TimeTicks segmentMin = context.GetOrCompute("min_segment", () => segmentValues[0]);
             TimeTicks segmentMax = context.GetOrCompute("max_segment", () => segmentValues[^1]);
             TimeTicks segmentQ1 = context.GetOrCompute("q1_segment", () => MetricHelper.ComputePercentile(segmentValues, 25));
@@ -700,6 +541,32 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(segmentValue, roomValues);
         }
 
+        public static MetricResult GoldRate(PracticeSession session, int roomCount, MetricContext context, bool isExport)
+        {
+            var seg = session.GetSegmentTimes(roomCount).ToList();
+            string segmentValue;
+            if (seg.Count == 0)
+            {
+                segmentValue = "";
+            }
+            else
+            {
+                long bestSeg = seg.Min(t => t.Ticks);
+                double segRate = (double)seg.Count(t => t.Ticks == bestSeg) / seg.Count;
+                segmentValue = MetricHelper.FormatPercent(segRate);
+            }
+
+            var roomValues = MetricHelper.ComputeRoomValues(roomCount, isExport, session, context,
+                (r, sorted) => {
+                    long gold = sorted[0].Ticks;
+                    double rate = (double)sorted.Count(t => t.Ticks == gold) / sorted.Count;
+                    return MetricHelper.FormatPercent(rate);
+                });
+
+            return new MetricResult(segmentValue, roomValues);
+        }
+
+        // Room loop too heterogeneous for ComputeRoomValues helper — left explicit.
         public static MetricResult RoomDependency(PracticeSession session, int roomCount, MetricContext context, bool isExport)
         {
             if (!isExport)
@@ -714,13 +581,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 "" // First room doesn't depend on the previous one
             };
-            for (int i = 0; i < roomCount; i++)
+            for (int i = 0; i < roomCount - 1; i++)
             {
                 var x = new List<double>(); // Room i times
                 var y = new List<double>(); // Room i+1 times
                 foreach (var attempt in attempts)
                 {
-                    if (i >= 0 && i + 1 < attempt.CompletedRooms.Count)
+                    if (i + 1 < attempt.CompletedRooms.Count)
                     {
                         var ticksA = attempt.CompletedRooms[i];
                         var ticksB = attempt.CompletedRooms[i + 1];

@@ -184,6 +184,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new TimeTicks((long)Math.Round(slope));
         }
 
+        /// <summary>Sample standard deviation of a list of TimeTicks values given a pre-computed mean.</summary>
+        public static double ComputeStdDev(IList<TimeTicks> values, double mean) =>
+            values.Count < 2
+                ? 0.0
+                : Math.Sqrt(values.Sum(t => Math.Pow(t.Ticks - mean, 2)) / (values.Count - 1));
+
         public static TimeTicks ComputeMAD(IList<TimeTicks> sortedTimes)
         {
             if (sortedTimes == null || sortedTimes.Count == 0) return TimeTicks.Zero;
@@ -425,6 +431,24 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             return $"Bimodal Detected. Fast: {report.FastPeak.Value} ({FormatPercent(report.FastPeak.Weight)}% weight {FormatPercent(report.FastPeak.Consistency)} consistency). " +
                 $"Backup: {report.SlowPeak.Value} ({FormatPercent(report.SlowPeak.Weight)}% weight {FormatPercent(report.SlowPeak.Consistency)} consistency). Time loss: +{timeLoss}.";
+        }
+
+        public static List<string> ComputeRoomValues(
+            int roomCount, bool isExport, PracticeSession session, MetricContext context,
+            Func<int, List<TimeTicks>, string> computeValue,
+            int minCount = 1, string defaultValue = "0")
+        {
+            var roomValues = new List<string>(roomCount);
+            if (!isExport) return roomValues;
+            for (int r = 0; r < roomCount; r++)
+            {
+                var roomTimes = context.GetOrCompute(
+                    $"room_{r}_values_sorted",
+                    () => session.GetRoomTimes(r).OrderBy(t => t).ToList()
+                );
+                roomValues.Add(roomTimes.Count < minCount ? defaultValue : computeValue(r, roomTimes));
+            }
+            return roomValues;
         }
 
         public static double CalculatePearson(List<double> x, List<double> y)

@@ -10,7 +10,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
     public class HistogramOverlay : BaseChartOverlay
     {
-        private const long ONE_FRAME = 170000;
 
         private readonly List<TimeTicks> times;
         private readonly Color barColor;
@@ -47,7 +46,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             double iqr = q3 - q1;
             double freedmanDiaconisWidth = 2 * iqr * Math.Pow(times.Count, -1.0 / 3.0);
             double heuristicWidth = minTime * 0.1;
-            double binWidth = Math.Max(Math.Min(heuristicWidth, freedmanDiaconisWidth), ONE_FRAME);
+            double binWidth = Math.Max(Math.Min(heuristicWidth, freedmanDiaconisWidth), ChartConstants.Time.OneFrameTicks);
 
             // 2. Calculate bin count
             int binCount;
@@ -92,7 +91,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (buckets.Count == 0 || maxCount == 0) return;
 
             float barWidth = Math.Min(w / buckets.Count, MAX_BAR_WIDTH);
-            float barSpacing = barWidth * 0.1f;
+            float barSpacing = barWidth * ChartConstants.BarLayout.SingleBarSpacingRatio;
 
             for (int i = 0; i < buckets.Count; i++)
             {
@@ -104,16 +103,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
                 Draw.Rect(barX, barY, actualBarWidth, barHeight, barColor);
 
-                if (barHeight > 20)
+                if (barHeight > ChartConstants.BarLayout.SingleBarLabelMinHeight)
                 {
                     string countText = count.ToString();
-                    Vector2 countSize = ActiveFont.Measure(countText) * 0.3f;
+                    Vector2 countSize = ActiveFont.Measure(countText) * ChartConstants.FontScale.AxisLabelSmall;
                     ActiveFont.DrawOutline(
                         countText,
-                        new Vector2(barX + actualBarWidth / 2 - countSize.X / 2, barY - countSize.Y - 5),
+                        new Vector2(barX + actualBarWidth / 2 - countSize.X / 2, barY - countSize.Y - ChartConstants.BarLayout.BarLabelOffsetY),
                         new Vector2(0f, 0f),
-                        Vector2.One * 0.3f,
-                        Color.White, 2f, Color.Black);
+                        Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
+                        Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
                 }
             }
         }
@@ -126,13 +125,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             // Y axis label
             string yAxisLabel = "Count";
-            Vector2 yAxisSize = ActiveFont.Measure(yAxisLabel) * 0.5f;
+            Vector2 yAxisSize = ActiveFont.Measure(yAxisLabel) * ChartConstants.FontScale.HistogramYLabel;
             ActiveFont.DrawOutline(
                 yAxisLabel,
                 new Vector2(x - yAxisSize.X - 25, y + h / 2 - yAxisSize.Y / 2),
                 new Vector2(0f, 0f),
-                Vector2.One * 0.5f,
-                Color.White, 2f, Color.Black);
+                Vector2.One * ChartConstants.FontScale.HistogramYLabel,
+                Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
 
             // Y axis tick labels
             int yLabelCount = Math.Max(1, Math.Min(5, maxCount));
@@ -142,13 +141,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float yPos = y + h - h / yLabelCount * i;
 
                 string countLabel = countValue.ToString();
-                Vector2 labelSize = ActiveFont.Measure(countLabel) * 0.4f;
+                Vector2 labelSize = ActiveFont.Measure(countLabel) * ChartConstants.FontScale.AxisLabelMedium;
                 ActiveFont.DrawOutline(
                     countLabel,
-                    new Vector2(x - labelSize.X - 10, yPos - labelSize.Y / 2),
+                    new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, yPos - labelSize.Y / 2),
                     new Vector2(0f, 0f),
-                    Vector2.One * 0.4f,
-                    Color.White, 2f, Color.Black);
+                    Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                    Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             // X axis tick labels
@@ -164,8 +163,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
                     float tickX = x + i * barWidth;
                     bool isEven = i % 2 == 0;
-                    float labelY = isEven ? y + h + 10 : y + h + 30;
-                    float tickEndY = isEven ? y + h + 5 : y + h + 25;
+                    float labelY   = isEven ? y + h + ChartConstants.XAxisLabel.TickEvenLabelY   : y + h + ChartConstants.XAxisLabel.TickOddLabelY;
+                    float tickEndY = isEven ? y + h + ChartConstants.XAxisLabel.TickEvenLineEndY : y + h + ChartConstants.XAxisLabel.TickOddLineEndY;
 
                     Draw.Line(new Vector2(tickX, y + h), new Vector2(tickX, tickEndY), axisColor, 1f);
                     DrawEdgeLabel(edgeTick, tickX, labelY);
@@ -174,25 +173,25 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             // Stats
             string stats = $"Total: {times.Count}";
-            Vector2 statsSize = ActiveFont.Measure(stats) * 0.4f;
+            Vector2 statsSize = ActiveFont.Measure(stats) * ChartConstants.FontScale.AxisLabelMedium;
             ActiveFont.DrawOutline(
                 stats,
-                new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + 58),
+                new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + ChartConstants.XAxisLabel.StatsOffsetY),
                 new Vector2(0f, 0f),
-                Vector2.One * 0.4f,
-                Color.LightGray, 2f, Color.Black);
+                Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
 
         private static void DrawEdgeLabel(long tick, float x, float y)
         {
             string label = new TimeTicks(tick).ToString();
-            Vector2 labelSize = ActiveFont.Measure(label) * 0.3f;
+            Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabelSmall;
             ActiveFont.DrawOutline(
                 label,
                 new Vector2(x - labelSize.X / 2, y),
                 new Vector2(0f, 0f),
-                Vector2.One * 0.3f,
-                Color.White, 2f, Color.Black);
+                Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
+                Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
     }
 }

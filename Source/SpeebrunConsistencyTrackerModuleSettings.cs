@@ -43,6 +43,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool GraphInconsistentRooms { get; set; } = false;
     public bool GraphTimeLoss { get; set; } = false;
     public bool GraphRunTrajectory { get; set; } = false;
+    public bool GraphBoxPlot { get; set; } = false;
 
     // Metrics menu
     public bool History { get; set; } = true;
@@ -67,6 +68,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Export;
+    public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Export;
     public bool MultimodalTest { get; set; } = true;
     public bool RoomDependency { get; set; } = true;
 

@@ -93,6 +93,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.TotalRunCount, mode)
             ),
             new MetricDescriptor(
+                "Gold Rate",
+                "gold%",
+                Metrics.GoldRate,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.GoldRate, mode)
+            ),
+            new MetricDescriptor(
                 "DNF Count",
                 "dnf",
                 Metrics.DnfCount,

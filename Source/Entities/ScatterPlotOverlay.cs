@@ -1,5 +1,4 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
-using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -9,10 +8,8 @@ using System.Linq;
 // Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/GraphOverlay.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    public class ScatterPlotOverlay : Entity
+    public class ScatterPlotOverlay : BaseChartOverlay
     {
-        private const long ONE_FRAME = 170000;
-
         public class RoomData(string roomName, List<TimeTicks> times)
         {
             public string RoomName { get; set; } = roomName;
@@ -31,73 +28,34 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private long maxSegmentTime;
         private long minRoomTime;
         private long minSegmentTime;
-        
-        // Graph settings
-        private Vector2 position;
-        private readonly float width = 1800f;
-        private readonly float height = 900f;
-        private readonly float margin = 80f;
-        private const int MAX_TICK_MARKS = 13;
-        
-        // Colors
-        private Color backgroundColor = Color.Black * 0.8f;
-        private Color gridColor = Color.Gray * 0.5f;
-        private Color axisColor = Color.White;
-        private Color dotColor = Color.Cyan;
-        private Color segmentDotColor = Color.Orange;
 
-        public static Color ToColor(ColorChoice choice)
-        {
-            return choice switch
-            {
-                ColorChoice.BadelinePurple => new Color(197, 80, 128),
-                ColorChoice.MadelineRed => new Color(255, 89, 99),
-                ColorChoice.Blue => new Color(100, 149, 237),
-                ColorChoice.Coral => new Color(255, 127, 80),
-                ColorChoice.Cyan => new Color(0, 255, 255),
-                ColorChoice.Gold => new Color(255, 215, 0),
-                ColorChoice.Green => new Color(50, 205, 50),
-                ColorChoice.Indigo => new Color(75, 0, 130),
-                ColorChoice.LightGreen => new Color(124, 252, 0),
-                ColorChoice.Orange => new Color(255, 165, 0),
-                ColorChoice.Pink => new Color(255, 105, 180),
-                ColorChoice.Purple => new Color(147, 112, 219),
-                ColorChoice.Turquoise => new Color(72, 209, 204),
-                ColorChoice.Yellow => new Color(240, 228, 66),
-                _ => Color.White,
-            };
-        }
-        
+        // Scatter-specific colors
+        private Color gridColor        = ChartConstants.Colors.GridLineColor;
+        private Color dotColor         = Color.Cyan;
+        private Color segmentDotColor  = Color.Orange;
+
         public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
+            : base("Room and Segment Times", pos)
         {
-            Depth = -100; // Render on top
-
             // Filter out rooms with no times
             roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room)).Where(r => r.Times.Count > 0)];
-            segmentData = new RoomData("Segment", segment);
-            targetTime = target;
-            position = pos ?? new Vector2(
-                (1920 - width) / 2,
-                (1080 - height) / 2
-            );
-            dotColor = ToColor(_settings.RoomColor);
+            segmentData  = new RoomData("Segment", segment);
+            targetTime   = target;
+            dotColor        = ToColor(_settings.RoomColor);
             segmentDotColor = ToColor(_settings.SegmentColor);
             ComputeMaxValues();
-            Tag = Tags.HUD | Tags.Global;
         }
 
+        // Custom render order: axes → grid → data → target line → labels
         public override void Render()
         {
-            base.Render();
-            
             Draw.Rect(position, width, height, backgroundColor);
-            
-            // Calculate drawable area
-            float graphX = position.X + margin;
-            float graphY = position.Y + margin;
-            float graphWidth = width - margin * 2;
-            float graphHeight = height - margin * 2;
-            
+
+            float graphX      = position.X + marginH;
+            float graphY      = position.Y + margin;
+            float graphWidth  = width  - marginH * 2;
+            float graphHeight = height - margin  * 2;
+
             DrawAxes(graphX, graphY, graphWidth, graphHeight);
             DrawGrid(graphX, graphY, graphWidth, graphHeight);
             DrawDataPoints(graphX, graphY, graphWidth, graphHeight);
@@ -105,11 +63,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             DrawLabels(graphX, graphY, graphWidth, graphHeight);
         }
 
+        // Required by BaseChartOverlay but unused — Render() is fully overridden above
+        protected override void DrawBars(float x, float y, float w, float h) { }
+
         private void ComputeMaxValues()
         {
             long minRoomTimeRaw = long.MaxValue;
             long maxRoomTimeRaw = 0;
-            
+
             foreach (var room in roomDataList)
             {
                 if (room.Times.Count != 0)
@@ -118,53 +79,48 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     maxRoomTimeRaw = Math.Max(maxRoomTimeRaw, room.Times.Max(t => t.Ticks));
                 }
             }
-            
+
             long minSegmentTimeRaw = long.MaxValue;
             long maxSegmentTimeRaw = 0;
-            
+
             if (segmentData.Times.Count != 0)
             {
                 minSegmentTimeRaw = segmentData.Times.Min(t => t.Ticks);
                 maxSegmentTimeRaw = segmentData.Times.Max(t => t.Ticks);
             }
-            
+
             if (targetTime.HasValue && targetTime.Value.Ticks > 0)
             {
                 maxSegmentTimeRaw = Math.Max(maxSegmentTimeRaw, targetTime.Value.Ticks);
                 minSegmentTimeRaw = Math.Min(minSegmentTimeRaw, targetTime.Value.Ticks);
             }
-            
-            // Add 10% margin on each side and round it to the nearest valid frame
-            long roomRange = maxRoomTimeRaw - minRoomTimeRaw;
-            long roomMargin = Math.Max(ONE_FRAME, ONE_FRAME * (long)Math.Round(roomRange * 0.1 / ONE_FRAME, 0)); // at least one frame of margin
+
+            // Add 10% margin on each side, rounded to nearest frame
+            long roomRange    = maxRoomTimeRaw - minRoomTimeRaw;
+            long roomMargin   = Math.Max(ChartConstants.Time.OneFrameTicks, ChartConstants.Time.OneFrameTicks * (long)Math.Round(roomRange * 0.1 / ChartConstants.Time.OneFrameTicks, 0));
             minRoomTime = Math.Max(0, minRoomTimeRaw - roomMargin);
             maxRoomTime = maxRoomTimeRaw + roomMargin;
-            
-            long segmentRange = maxSegmentTimeRaw - minSegmentTimeRaw;
-            long segmentMargin = Math.Max(ONE_FRAME, ONE_FRAME * (long)Math.Round(segmentRange * 0.1 / ONE_FRAME, 0)); // at least one frame of margin
+
+            long segmentRange  = maxSegmentTimeRaw - minSegmentTimeRaw;
+            long segmentMargin = Math.Max(ChartConstants.Time.OneFrameTicks, ChartConstants.Time.OneFrameTicks * (long)Math.Round(segmentRange * 0.1 / ChartConstants.Time.OneFrameTicks, 0));
             minSegmentTime = Math.Max(0, minSegmentTimeRaw - segmentMargin);
             maxSegmentTime = maxSegmentTimeRaw + segmentMargin;
         }
 
-        private void DrawAxes(float x, float y, float w, float h)
+        protected override void DrawAxes(float x, float y, float w, float h)
         {
-            // X axis
-            Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, 2f);
-            
-            // Left Y axis (for rooms)
-            Draw.Line(new Vector2(x, y), new Vector2(x, y + h), axisColor, 2f);
-
-            // Right Y axis (for segment)
-            Draw.Line(new Vector2(x + w, y), new Vector2(x + w, y + h), axisColor, 2f);
+            Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
+            Draw.Line(new Vector2(x, y),     new Vector2(x, y + h),     axisColor, ChartConstants.Stroke.OutlineSize);
+            Draw.Line(new Vector2(x + w, y), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
         }
 
         private void DrawGrid(float x, float y, float w, float h)
         {
-            int totalColumns = roomDataList.Count + 1;
+            int totalColumns  = roomDataList.Count + 1;
             float columnWidth = w / totalColumns;
             float roomAreaWidth = columnWidth * roomDataList.Count;
 
-            // Vertical grid lines — separator between rooms and segment is thicker and more opaque
+            // Vertical grid lines — separator between rooms and segment is thicker/more opaque
             for (int i = 0; i <= totalColumns; i++)
             {
                 float xPos = x + columnWidth * i;
@@ -174,25 +130,24 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     isSeparator ? 1.5f : 1f);
             }
 
-            // Horizontal lines for rooms (Left Axis)
+            // Horizontal lines for rooms (left axis)
             long roomRange = maxRoomTime - minRoomTime;
             if (roomRange > 0)
             {
-                GetAxisSettings(roomRange, out long roomStep, out int yLeftLabelCount);
+                GetFrameAxisSettings(roomRange, out long roomStep, out int yLeftLabelCount);
                 for (int i = 0; i <= yLeftLabelCount; i++)
                 {
                     float normalizedY = (float)(i * roomStep) / roomRange;
                     float yPos = y + h - (normalizedY * h);
-                    // Draw only across the room columns
                     Draw.Line(new Vector2(x, yPos), new Vector2(x + roomAreaWidth, yPos), gridColor, 1f);
                 }
             }
 
-            // Horizontal lines for segment (Right Axis)
+            // Horizontal lines for segment (right axis)
             long segmentRange = maxSegmentTime - minSegmentTime;
             if (segmentRange > 0)
             {
-                GetAxisSettings(segmentRange, out long segmentStep, out int yRightLabelCount);
+                GetFrameAxisSettings(segmentRange, out long segmentStep, out int yRightLabelCount);
                 for (int i = 0; i <= yRightLabelCount; i++)
                 {
                     float normalizedY = (float)(i * segmentStep) / segmentRange;
@@ -205,237 +160,153 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private void DrawTargetLine(float x, float y, float w, float h)
         {
             if (!targetTime.HasValue || targetTime.Value <= 0) return;
-            
+
             long segmentRange = maxSegmentTime - minSegmentTime;
             if (segmentRange == 0) return;
-            
-            int totalColumns = roomDataList.Count + 1;
+
+            int totalColumns  = roomDataList.Count + 1;
             float columnWidth = w / totalColumns;
-            
-            // Calculate Y position based on target time within the range
+
             float normalizedY = (float)(targetTime.Value.Ticks - minSegmentTime) / segmentRange;
-            
-            // Clamp to graph bounds (in case target is outside range)
             normalizedY = MathHelper.Clamp(normalizedY, 0f, 1f);
-            
             float targetY = y + h - (normalizedY * h);
-            
-            // Calculate X range
+
             float segmentStartX = x + columnWidth * roomDataList.Count;
-            float segmentEndX = x + w;
-            
-            // Draw the target line in the segment column only
-            Color targetColor = Color.Red;
-            Draw.Line(
-                new Vector2(segmentStartX, targetY),
-                new Vector2(segmentEndX, targetY),
-                targetColor,
-                2f
-            );
-            
-            // Draw small label on the line
+            float segmentEndX   = x + w;
+
+            Draw.Line(new Vector2(segmentStartX, targetY), new Vector2(segmentEndX, targetY), Color.Red, ChartConstants.Stroke.OutlineSize);
+
             string targetLabel = $"Target: {targetTime.Value}";
-            Vector2 labelSize = ActiveFont.Measure(targetLabel) * 0.4f;
-            
+            Vector2 labelSize  = ActiveFont.Measure(targetLabel) * ChartConstants.FontScale.AxisLabelMedium;
             ActiveFont.DrawOutline(
                 targetLabel,
-                new Vector2(segmentStartX + 5, targetY - labelSize.Y - 5), // 5px padding from left, 5px above line
+                new Vector2(segmentStartX + 5, targetY - labelSize.Y - 5),
                 new Vector2(0f, 0f),
-                Vector2.One * 0.4f,
-                targetColor,
-                2f,
-                Color.Black
-            );
+                Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                Color.Red, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
 
         private void DrawDataPoints(float x, float y, float w, float h)
-        {                     
-            // Only compute positions once
+        {
             if (cachedDots == null)
             {
                 cachedDots = [];
-                
-                int totalColumns = roomDataList.Count + 1;
+
+                int totalColumns  = roomDataList.Count + 1;
                 float columnWidth = w / totalColumns;
-                
-                Random random = new(42);
-                float baseRadius = 2f;
-                
-                long roomRange = maxRoomTime - minRoomTime;
+                Random random     = new(42);
+                float baseRadius  = ChartConstants.Scatter.DotRadius;
+
+                long roomRange    = maxRoomTime - minRoomTime;
                 long segmentRange = maxSegmentTime - minSegmentTime;
-                
-                // Draw room data
+
                 for (int roomIndex = 0; roomIndex < roomDataList.Count; roomIndex++)
                 {
-                    var room = roomDataList[roomIndex];
+                    var room    = roomDataList[roomIndex];
                     float centerX = x + columnWidth * (roomIndex + 0.5f);
-                    
+
                     foreach (var time in room.Times)
                     {
-                        // Normalize based on min-max range
                         float normalizedY = roomRange > 0 ? (float)(time.Ticks - minRoomTime) / roomRange : 0.5f;
-                        float dotY = y + h - (normalizedY * h);
-                        
-                        float jitterX = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.4f);
-                        
+                        float dotY        = y + h - (normalizedY * h);
+                        float jitterX     = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
                         cachedDots.Add((new Vector2(jitterX, dotY), dotColor, baseRadius));
                     }
                 }
-                
-                // Draw segment data
+
                 float segmentCenterX = x + columnWidth * (totalColumns - 0.5f);
                 foreach (var time in segmentData.Times)
                 {
                     float normalizedY = segmentRange > 0 ? (float)(time.Ticks - minSegmentTime) / segmentRange : 0.5f;
-                    float dotY = y + h - (normalizedY * h);
-                    
-                    float jitterX = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * 0.4f);
-                    
+                    float dotY        = y + h - (normalizedY * h);
+                    float jitterX     = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
                     cachedDots.Add((new Vector2(jitterX, dotY), segmentDotColor, baseRadius));
                 }
             }
-            
-            // Draw the cached dots
+
             foreach (var (pos, color, radius) in cachedDots)
-            {
-                DrawDot(pos, color, (int)radius);
-            }
+                DrawDot(pos, color, radius);
         }
 
         private static void DrawDot(Vector2 position, Color color, float radius)
         {
-            // Draw a filled circle
             int circleCount = (int)Math.Ceiling(radius * 2);
             for (int i = 0; i < circleCount; i++)
-            {
                 Draw.Circle(position, radius - i * 0.5f, color, 4);
-            }
         }
 
-        private void DrawLabels(float x, float y, float w, float h)
+        protected override void DrawLabels(float x, float y, float w, float h)
         {
-            int totalColumns = roomDataList.Count + 1;
+            int totalColumns  = roomDataList.Count + 1;
             float columnWidth = w / totalColumns;
-            float baseLabelY = y + h + 10;
-            
-            // X axis labels (room index) - staggered
+            float baseLabelY  = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
+
+            // X axis labels (room names) — staggered
             for (int i = 0; i < roomDataList.Count; i++)
             {
                 float centerX = x + columnWidth * (i + 0.5f);
-                string label = roomDataList[i].RoomName;
-                
-                if (label.Length > 10)
-                    label = string.Concat(label.AsSpan(0, 10), "...");
-                
-                // Alternate Y position for staggered effect
-                float labelY = totalColumns > 25 ? i % 2 == 0 ? baseLabelY : baseLabelY + 20 : baseLabelY;
-                
-                Vector2 labelSize = ActiveFont.Measure(label) * 0.35f;
-                ActiveFont.DrawOutline(
-                    label,
+                string label  = roomDataList[i].RoomName;
+                if (label.Length > ChartConstants.Scatter.LabelTruncationLength)
+                    label = string.Concat(label.AsSpan(0, ChartConstants.Scatter.LabelTruncationLength), "...");
+
+                float labelY      = totalColumns > ChartConstants.XAxisLabel.StaggerThreshold
+                    ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
+                    : baseLabelY;
+                Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabel;
+                ActiveFont.DrawOutline(label,
                     new Vector2(centerX - labelSize.X / 2, labelY),
                     new Vector2(0f, 0f),
-                    Vector2.One * 0.35f,
-                    dotColor,
-                    2f,
-                    Color.Black
-                );
+                    Vector2.One * ChartConstants.FontScale.AxisLabel,
+                    dotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
-            
-            // Segment label - determine position based on room count
-            float segmentX = x + columnWidth * (totalColumns - 0.5f);
-            // Continue the alternating pattern
-            float segmentLabelY = totalColumns >= 25 ? (roomDataList.Count % 2 == 0) ? baseLabelY : baseLabelY + 20 : baseLabelY;
-            
-            Vector2 segmentLabelSize = ActiveFont.Measure("Segment") * 0.35f;
-            ActiveFont.DrawOutline(
-                "Segment",
-                new Vector2(segmentX - segmentLabelSize.X / 2, segmentLabelY),
+
+            // Segment label — continues the stagger pattern
+            float segmentX     = x + columnWidth * (totalColumns - 0.5f);
+            float segmentLabelY = totalColumns >= ChartConstants.XAxisLabel.StaggerThreshold
+                ? (roomDataList.Count % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
+                : baseLabelY;
+            Vector2 segLabelSize = ActiveFont.Measure("Segment") * ChartConstants.FontScale.AxisLabel;
+            ActiveFont.DrawOutline("Segment",
+                new Vector2(segmentX - segLabelSize.X / 2, segmentLabelY),
                 new Vector2(0f, 0f),
-                Vector2.One * 0.35f,
-                segmentDotColor,
-                2f,
-                Color.Black
-            );
-            
-            // LEFT Y axis labels (room times) - show actual range
+                Vector2.One * ChartConstants.FontScale.AxisLabel,
+                segmentDotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+
+            // Left Y axis labels (room times)
             long roomRange = maxRoomTime - minRoomTime;
-            GetAxisSettings(roomRange, out long roomStep, out int yLeftLabelCount);
+            GetFrameAxisSettings(roomRange, out long roomStep, out int yLeftLabelCount);
             for (int i = 0; i <= yLeftLabelCount; i++)
             {
-                // Calculate time value within the range
-                long timeValue = minRoomTime + i * roomStep;
+                long timeValue    = minRoomTime + i * roomStep;
                 float normalizedY = (float)(i * roomStep) / roomRange;
-                float yPos = y + h - (normalizedY * h);
-                
-                string timeLabel = new TimeTicks(timeValue).ToString();
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.4f;
-                
-                ActiveFont.DrawOutline(
-                    timeLabel,
-                    new Vector2(x - labelSize.X - 10, yPos - labelSize.Y / 2),
+                float yPos        = y + h - (normalizedY * h);
+                string timeLabel  = new TimeTicks(timeValue).ToString();
+                Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
+                ActiveFont.DrawOutline(timeLabel,
+                    new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, yPos - labelSize.Y / 2),
                     new Vector2(0f, 0f),
-                    Vector2.One * 0.4f,
-                    dotColor,
-                    2f,
-                    Color.Black
-                );
+                    Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                    dotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
-            // RIGHT Y axis labels (segment times) - show actual range
+            // Right Y axis labels (segment times)
             long segmentRange = maxSegmentTime - minSegmentTime;
-            GetAxisSettings(segmentRange, out long segmentStep, out int yRightLabelCount);
+            GetFrameAxisSettings(segmentRange, out long segmentStep, out int yRightLabelCount);
             for (int i = 0; i <= yRightLabelCount; i++)
             {
-                long timeValue = minSegmentTime + i * segmentStep;
+                long timeValue    = minSegmentTime + i * segmentStep;
                 float normalizedY = (float)(i * segmentStep) / segmentRange;
-                float yPos = y + h - (normalizedY * h);
-                
-                string timeLabel = new TimeTicks(timeValue).ToString();
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * 0.4f;
-                
-                ActiveFont.DrawOutline(
-                    timeLabel,
-                    new Vector2(x + w + 10, yPos - labelSize.Y / 2),
+                float yPos        = y + h - (normalizedY * h);
+                string timeLabel  = new TimeTicks(timeValue).ToString();
+                Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
+                ActiveFont.DrawOutline(timeLabel,
+                    new Vector2(x + w + ChartConstants.Trajectory.RightLabelMarginX, yPos - labelSize.Y / 2),
                     new Vector2(0f, 0f),
-                    Vector2.One * 0.4f,
-                    segmentDotColor,
-                    2f,
-                    Color.Black
-                );
-            }
-            
-            // Title
-            string title = "Room and Segment Times";
-            Vector2 titleSize = ActiveFont.Measure(title) * 0.7f;
-            ActiveFont.DrawOutline(
-                title,
-                new Vector2(position.X + width / 2 - titleSize.X / 2, position.Y + 10),
-                new Vector2(0f, 0f),
-                Vector2.One * 0.7f,
-                Color.White,
-                2f,
-                Color.Black
-            );
-        }
-
-        private static void GetAxisSettings(long range, out long step, out int count)
-        {
-            if (range <= 0)
-            {
-                step = ONE_FRAME;
-                count = 1;
-                return;
+                    Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                    segmentDotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
-            long totalFrames = (long)Math.Ceiling((double)range / ONE_FRAME);
-            long framesPerTick = (long)Math.Ceiling((double)totalFrames / MAX_TICK_MARKS);
-            
-            if (framesPerTick <= 0) framesPerTick = 1; // Safety check
-            
-            step = framesPerTick * ONE_FRAME;
-            
-            count = (int)(range / step);
+            DrawTitle();
         }
     }
 }

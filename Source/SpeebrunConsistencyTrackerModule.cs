@@ -4,19 +4,17 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeedrunTool.Message;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
-using Celeste.Mod.SpeebrunConsistencyTracker.Export.History;
+using Celeste.Mod.SpeebrunConsistencyTracker.Export;
 using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
 using MonoMod.ModInterop;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
-using System.Text;
 using FMOD.Studio;
 using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
-using System.IO;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
 
@@ -138,7 +136,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
 
-    private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self){
+    private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
         if (!Settings.Enabled) {
             orig(self);
             return;
@@ -146,12 +144,24 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         if (Settings.ButtonKeyImportTargetTime.Pressed) ImportTargetTimeFromClipboard();
 
-        if (Instance.sessionManager == null)
-        {
+        if (Instance.sessionManager == null) {
             orig(self);
             return;
         }
 
+        UpdateTextOverlay(self);
+
+        orig(self);
+        // Need to check again because orig(self) can destroy the sessionManager
+        if (Instance.sessionManager == null) return;
+
+        HandleExportButton();
+        HandleClearButton();
+        UpdateGraphOverlay(self);
+        HandlePauseHide(self);
+    }
+
+    private static void UpdateTextOverlay(Level self) {
         if (RoomTimerIntegration.RoomTimerIsCompleted() && Settings.OverlayEnabled)
         {
             if (Instance.textOverlay == null)
@@ -161,7 +171,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             }
             if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, Instance.sessionManager.DynamicRoomCount(), out List<string> result))
             {
-                Instance.textOverlay.SetText(result); 
+                Instance.textOverlay.SetText(result);
             }
         }
         else
@@ -169,38 +179,46 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             Instance.textOverlay?.RemoveSelf();
             Instance.textOverlay = null;
         }
+    }
 
-        orig(self);
-        // Need to check again because orig(self) can destroy the sessionManager
-        if (Instance.sessionManager == null) return;
-
-        if (Settings.ButtonKeyStatsExport.Pressed) 
+    private static void HandleExportButton() {
+        if (Settings.ButtonKeyStatsExport.Pressed)
         {
             if (Settings.ExportMode == ExportChoice.Clipboard)
                 ExportDataToClipboard();
             else
                 ExportDataToFiles();
         }
+    }
 
-
+    private static void HandleClearButton() {
         if (Settings.ButtonKeyClearStats.Pressed) {
             Clear();
             PopupMessage(Dialog.Clean(DialogIds.PopupDataClearId));
         }
-        
+    }
+
+    private static GraphManager BuildGraphManager(SessionManager mgr, int segmentLength) {
+        List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength)
+            .Select<int, List<TimeTicks>>(i => [.. mgr.CurrentSession.GetRoomTimes(i)])
+            .Where(roomList => roomList.Count > 0)];
+        List<TimeTicks> segment = [.. mgr.CurrentSession.GetSegmentTimes(segmentLength)];
+        return new GraphManager(
+            rooms, segment,
+            mgr.CurrentSession.DnfPerRoom,
+            mgr.CurrentSession.TotalAttemptsPerRoom,
+            mgr.CurrentSession.Attempts,
+            MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
+    }
+
+    private static void UpdateGraphOverlay(Level self) {
         SessionManager activeSessionManager = Instance.sessionManager;
         int segmentLength = activeSessionManager.DynamicRoomCount();
+
         if (Settings.ButtonToggleGraphOverlay.Pressed) {
             if (Instance.graphManager == null)
             {
-                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength).Select<int, List<TimeTicks>>(i => [.. activeSessionManager.CurrentSession.GetRoomTimes(i)]).Where(roomList => roomList.Count > 0)];
-                List<TimeTicks> segment = [.. activeSessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
-                Instance.graphManager = new GraphManager(
-                    rooms, segment, 
-                    activeSessionManager.CurrentSession.DnfPerRoom, 
-                    activeSessionManager.CurrentSession.TotalAttemptsPerRoom, 
-                    activeSessionManager.CurrentSession.Attempts,
-                    MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
+                Instance.graphManager = BuildGraphManager(activeSessionManager, segmentLength);
                 if (!self.Paused)
                     Instance.graphManager.CurrentGraph(self);
             }
@@ -220,35 +238,24 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             } else if (Settings.ButtonPreviousGraph.Pressed)
             {
                 Instance.graphManager.PreviousGraph(self);
-            } else if (!Instance.graphManager.SameSettings(segmentLength))
+            } else if (!Instance.graphManager.SameLength(segmentLength))
             {
-                List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength)
-                    .Select<int, List<TimeTicks>>(i => [.. activeSessionManager.CurrentSession.GetRoomTimes(i)])
-                    .Where(roomList => roomList.Count > 0)];
-                List<TimeTicks> segment = [.. activeSessionManager.CurrentSession.GetSegmentTimes(segmentLength)];
-
                 var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
                 bool wasShowing = Instance.graphManager.IsShowing();
 
                 Instance.graphManager.RemoveGraphs();
-                Instance.graphManager = new GraphManager(
-                    rooms, segment,
-                    activeSessionManager.CurrentSession.DnfPerRoom,
-                    activeSessionManager.CurrentSession.TotalAttemptsPerRoom,
-                    activeSessionManager.CurrentSession.Attempts,
-                    MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
-
+                Instance.graphManager = BuildGraphManager(activeSessionManager, segmentLength);
                 Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
 
                 if (!self.Paused && wasShowing)
                     Instance.graphManager.CurrentGraph(self);
             }
         }
+    }
 
+    private static void HandlePauseHide(Level self) {
         if (self.Paused || self.wasPaused)
-        {
             Instance.graphManager?.HideGraph();
-        }
     }
 
     private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
@@ -277,84 +284,17 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     public static void ExportDataToClipboard()
     {
-        if (!Settings.Enabled)
-            return;
-
-        SessionManager activeSessionManager = Instance.sessionManager;
-        if (activeSessionManager == null || activeSessionManager.CurrentSession?.TotalAttempts == 0)
-        {
-            PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
-            return;
-        }
-
-        PracticeSession currentSession = activeSessionManager.CurrentSession;
-        int roomCount = activeSessionManager.DynamicRoomCount();
-        StringBuilder sb = new();
-        if (Settings.ExportWithSRT)
-        {
-            // Clean current clipboard state in case srt export is done in file
-            TextInput.SetClipboardText("");
-            RoomTimerManager.CmdExportRoomTimes();
-            sb.Append(TextInput.GetClipboardText());
-            sb.Append("\n\n\n");
-        }
-        sb.Append(MetricsExporter.ExportSessionToCsv(currentSession, roomCount));
-        if (Settings.History)
-        {
-            sb.Append("\n\n\n");
-            sb.Append(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, roomCount));
-        }
-        TextInput.SetClipboardText(sb.ToString());
-        PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
+        if (!Settings.Enabled) return;
+        DataExporter.ExportToClipboard(Instance.sessionManager);
     }
 
     public static void ExportDataToFiles()
     {
-        if (!Settings.Enabled)
-            return;
-
-        SessionManager activeSessionManager = Instance.sessionManager;
-        if (activeSessionManager == null || activeSessionManager.CurrentSession?.TotalAttempts == 0)
-        {
-            PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
-            return;
-        }
-
-        PracticeSession currentSession = activeSessionManager.CurrentSession;
-        int roomCount = activeSessionManager.DynamicRoomCount();
-
-        if (Settings.ExportWithSRT)
-            RoomTimerManager.CmdExportRoomTimes();
-
-        string baseFolder = Path.Combine(
-            Everest.PathGame,
-            "SCT_Exports",
-            SanitizeFileName(currentSession.levelName)
-        );
-        Directory.CreateDirectory(baseFolder);
-        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
-        {
-            writer.WriteLine(MetricsExporter.ExportSessionToCsv(currentSession, roomCount));
-        }
-        using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv")))
-        {
-            writer.WriteLine(SessionHistoryCsvExporter.ExportSessionToCsv(currentSession, roomCount));
-        }
-
-        PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));
+        if (!Settings.Enabled) return;
+        DataExporter.ExportToFiles(Instance.sessionManager);
     }
 
-    public static string SanitizeFileName(string input)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-            return string.Empty;
-        var invalidChars = Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()).Distinct().ToArray();
-        var sanitized = new string(
-            [.. input.Where(ch => !invalidChars.Contains(ch))]
-        );
-        return sanitized.TrimEnd(' ', '.');
-    }
+    public static string SanitizeFileName(string input) => DataExporter.SanitizeFileName(input);
 
     public static void ImportTargetTimeFromClipboard() {
         if (!Settings.Enabled)
@@ -375,51 +315,5 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     public static bool TryParseTime(string input, out TimeSpan result)
-    {
-        if (string.IsNullOrWhiteSpace(input))
-        {
-            result = TimeSpan.Zero;
-            return true;
-        }
-
-        // Handle pure zero inputs before any trimming
-        if (input.Trim() == "0" || input.Trim() == "00")
-        {
-            result = TimeSpan.Zero;
-            return true;
-        }
-
-        string[] timeFormats = [
-            @"mm\:ss\.fff", @"m\:ss\.fff",
-            @"mm\:ss\.ff",  @"m\:ss\.ff",
-            @"mm\:ss\.f",   @"m\:ss\.f",
-            @"mm\:ss",      @"m\:ss",
-            @"ss\.fff",     @"s\.fff",
-            @"ss\.ff",      @"s\.ff",
-            @"ss\.f",       @"s\.f",
-            @"ss",          @"s",
-            @"\.fff",       @"\.ff",       @"\.f"
-        ];
-
-        string trimmed = input.TrimStart('0', ':');
-        if (string.IsNullOrEmpty(trimmed)) 
-        {
-            result = TimeSpan.Zero;
-            return true;
-        }
-
-        bool success = TimeSpan.TryParseExact(
-            trimmed, timeFormats,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out result);
-
-        // Fallback: pure number treated as milliseconds
-        if (!success && int.TryParse(input, out int msResult))
-        {
-            result = TimeSpan.FromMilliseconds(msResult);
-            success = true;
-        }
-
-        return success;
-    }
+        => TimeParser.TryParseTime(input, out result);
 }

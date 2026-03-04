@@ -35,9 +35,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
 
     public IReadOnlyDictionary<int, int> TotalAttemptsPerRoom =>
         _attempts
-            .SelectMany(a =>
-                Enumerable.Range(0, a.TotalRoomCount)
-                        .Select(r => r))
+            .SelectMany(a => Enumerable.Range(0, a.TotalRoomCount))
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
 
@@ -49,9 +47,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
     public IReadOnlyDictionary<int, int> CompletedRunsPerRoom =>
         _attempts
             .Where(a => a.Count > 0)
-            .SelectMany(a =>
-                Enumerable.Range(0, a.Count)
-                        .Select(r => r))
+            .SelectMany(a => Enumerable.Range(0, a.Count))
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
 

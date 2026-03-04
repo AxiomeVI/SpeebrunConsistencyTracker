@@ -40,8 +40,8 @@ A time distribution histogram for a single room. Shows how frequently each time 
 ### Segment Histogram
 Same as the room histogram but for the full segment time. Enabled by default.
 
-### DNF % per Room
-A bar chart showing the percentage of resets that happened in each room. Higher bars indicate rooms where you reset most frequently. Enabled by default.
+### DNF % per Room & Segment Survival Rate
+A grouped bar chart with two series per room: the DNF rate (percentage of all attempts that reset in that room) and the survival rate (percentage of attempts still alive after passing through that room). The survival bar shows how many runs made it through. Enabled by default.
 
 ### Problem Rooms
 A stacked bar chart combining DNF % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your gold, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.
@@ -54,6 +54,9 @@ A grouped bar chart showing median and average time lost per room relative to yo
 
 ### Run Trajectory
 A line chart where each attempt is drawn as a line showing cumulative deviation from the per-room average. Lines go up when a room is faster than average and down when slower. The X axis represents the cumulative sum of per-room averages (a run that matches the average in every room follows it exactly). Older attempts are drawn in dark grey and fade toward white as they approach the most recent run, making it easy to see how your trajectory has evolved over the session. Your best attempt, your most recent attempt, and the Sum of Best are highlighted. Disabled by default.
+
+### Box Plot
+Shows the statistical distribution of room times as a box-and-whisker plot, with rooms on the left and the full segment on the right (each on its own Y axis). For each column: the whisker spans min to max, the box covers the interquartile range (Q1–Q3), and the white line marks the median. Disabled by default.
 
 ## Metrics
 
@@ -68,6 +71,7 @@ A line chart where each attempt is drawn as a line showing cumulative deviation 
 - **Reset Share:** (rooms only) this room's contribution to the total number of resets
 - **Best:** fastest recorded time
 - **Worst:** slowest recorded time
+- **Gold Rate:** percentage of runs (individual rooms and segment) where gold (best) time was achieved
 - **Standard Deviation:** measure of how spread out run times are around the average
 - **Relative Standard Deviation:** standard deviation as a percentage of the average, allowing easier comparison across rooms
 - **Percentile:** the threshold where n% of runs are faster than this value (default: 90%, adjustable in mod options)

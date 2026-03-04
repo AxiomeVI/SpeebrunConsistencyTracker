@@ -24,7 +24,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             List<MetricDescriptor> filteredMetrics = FilterMetrics(mode);
             if (mode == MetricOutput.Overlay) lastFilter = [.. filteredMetrics.Select(m => m.CsvHeader())];
 
-            foreach (MetricDescriptor metric in FilterMetrics(mode))
+            foreach (MetricDescriptor metric in filteredMetrics)
             {
                 result.Add((metric, metric.Compute(session, roomCount, context, mode == MetricOutput.Export)));
             }

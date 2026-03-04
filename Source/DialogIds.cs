@@ -98,4 +98,8 @@ public static class DialogIds {
     public const string RoomDependencyId = "ROOM_DEPENDENCY";
     public const string MetricsSubHeaderId = "METRICS_SUBHEADER";
     public const string RelMadID = "RELATIVE_MAD";
+    public const string GoldRateId = "GOLD_RATE";
+
+    // Graph Overlay (charts)
+    public const string GraphBoxPlotId = "BOX_PLOT_GRAPH";
 }
