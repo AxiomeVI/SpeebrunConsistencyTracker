@@ -27,8 +27,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Vector2? pos = null)
             : base("Room and Segment Box Plot", pos)
         {
-            _roomTimes    = roomTimes;
-            _segmentTimes = segmentTimes;
+            _roomTimes    = [.. roomTimes.Select(r => (List<TimeTicks>)[.. r.OrderBy(t => t)])];
+            _segmentTimes = [.. segmentTimes.OrderBy(t => t)];
             _roomColor    = roomColor;
             _segmentColor = segmentColor;
             _opacity      = opacity / 100f;

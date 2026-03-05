@@ -98,8 +98,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         }
 
         /// <summary>
-        /// Computes Y-axis step size and tick count for a frame-aligned time range.
-        /// Used by time-based bar charts and scatter plot.
+        /// Converts a <see cref="ColorChoice"/> enum value to its corresponding XNA <see cref="Color"/>.
         /// </summary>
         public static Color ToColor(ColorChoice choice) => choice switch
         {
@@ -120,6 +119,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _ => Color.White,
         };
 
+        /// <summary>
+        /// Computes Y-axis step size and tick count for a frame-aligned time range.
+        /// Used by time-based bar charts and scatter plot.
+        /// </summary>
         protected static void GetFrameAxisSettings(long range, out long step, out int count)
         {
             if (range <= 0)
