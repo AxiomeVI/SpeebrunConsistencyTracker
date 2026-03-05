@@ -1,5 +1,5 @@
 - Name: SpeebrunConsistencyTracker
-  Version: 1.2.2
+  Version: 1.2.3
   DLL: bin/SpeebrunConsistencyTracker.dll
   Dependencies:
     - Name: EverestCore
