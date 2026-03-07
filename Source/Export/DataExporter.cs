@@ -78,6 +78,7 @@ public static class DataExporter
 
         IList<IList<object>> export_data = [];
         List<TableRange> tableRanges = [];
+        int rowOffset = 0;
 
         if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
         {
@@ -86,26 +87,28 @@ public static class DataExporter
             var srtRows = CsvStringToList(TextInput.GetClipboardText());
             foreach (var row in srtRows)
                 export_data.Add(row);
-            tableRanges.Add(new TableRange(export_data.Count, export_data.Count, srtRows.Max(r => r.Count)));
+            tableRanges.Add(new TableRange(rowOffset, rowOffset + srtRows.Count, srtRows.Max(r => r.Count)));
             export_data.Add([]);
             export_data.Add([]);
             export_data.Add([]);
+            rowOffset += 3 + srtRows.Count;
         }
 
         var metricRows = MetricsExporter.ExportMetricsToSheet(session, roomCount);
         foreach (var row in metricRows)
             export_data.Add(row);
-        tableRanges.Add(new TableRange(export_data.Count, export_data.Count, metricRows.Max(r => r.Count)));
+        tableRanges.Add(new TableRange(rowOffset, rowOffset + metricRows.Count, metricRows.Max(r => r.Count)));
         export_data.Add([]);
         export_data.Add([]);
         export_data.Add([]);
+        rowOffset += 3 + metricRows.Count;
 
         if (SpeebrunConsistencyTrackerModule.Settings.History)
         {
             var historyRows = SessionHistoryExporter.ExportSessionToSheet(session, roomCount);
             foreach (var row in historyRows)
                 export_data.Add(row);
-            tableRanges.Add(new TableRange(export_data.Count, export_data.Count, historyRows.Max(r => r.Count)));
+            tableRanges.Add(new TableRange(rowOffset, rowOffset + historyRows.Count, historyRows.Max(r => r.Count)));
         }
 
         using FileStream stream = new(settings.CredentialsPath, FileMode.Open, FileAccess.Read);
@@ -138,8 +141,8 @@ public static class DataExporter
             SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
 
         _ = await request.ExecuteAsync();
-        await ApplyTableFormatting(service, settings.SpreadsheetId, settings.TabName, tableRanges);
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToSheetid));
+        await ApplyTableFormatting(service, settings.SpreadsheetId, settings.TabName, tableRanges);
     }
 
     private static async Task ApplyTableFormatting(SheetsService service, string spreadsheetId, string tabName, List<TableRange> tableRanges)
@@ -172,6 +175,30 @@ public static class DataExporter
                 Right = none,
                 InnerHorizontal = none,
                 InnerVertical = none
+            }
+        });
+
+        // Clear all bold cells
+        requests.Add(new Request
+        {
+            RepeatCell = new RepeatCellRequest
+            {
+                Range = new GridRange
+                {
+                    SheetId = sheetId,
+                    StartRowIndex = 0,
+                    EndRowIndex = 1000,
+                    StartColumnIndex = 0,
+                    EndColumnIndex = 26
+                },
+                Cell = new CellData
+                {
+                    UserEnteredFormat = new CellFormat
+                    {
+                        TextFormat = new TextFormat { Bold = false }
+                    }
+                },
+                Fields = "userEnteredFormat.textFormat.bold"
             }
         });
 
@@ -272,6 +299,44 @@ public static class DataExporter
                 }
             });
         }
+
+        await service.Spreadsheets.BatchUpdate(
+            new BatchUpdateSpreadsheetRequest { Requests = requests },
+            spreadsheetId
+        ).ExecuteAsync();
+    }
+
+    private static async Task ResetSheetTab(SheetsService service, string spreadsheetId, string tabName)
+    {
+        Spreadsheet spreadsheet = await service.Spreadsheets.Get(spreadsheetId).ExecuteAsync();
+        Sheet existingSheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == tabName);
+
+        List<Request> requests = [];
+
+        int? tabIndex = null;
+        if (existingSheet != null)
+        {
+            tabIndex = existingSheet.Properties.Index;
+            requests.Add(new Request
+            {
+                DeleteSheet = new DeleteSheetRequest
+                {
+                    SheetId = existingSheet.Properties.SheetId
+                }
+            });
+        }
+
+        requests.Add(new Request
+        {
+            AddSheet = new AddSheetRequest
+            {
+                Properties = new SheetProperties
+                {
+                    Title = tabName,
+                    Index = tabIndex  // null = append at end if tab didn't exist before
+                }
+            }
+        });
 
         await service.Spreadsheets.BatchUpdate(
             new BatchUpdateSpreadsheetRequest { Requests = requests },
