@@ -9,7 +9,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool Enabled { get; set; } = true;
 
     // Export 
-    public bool ExportWithSRT { get; set; } = true;
+    public bool ExportWithSRT { get; set; } = false;
     public ExportChoice ExportMode { get; set; } = ExportChoice.Clipboard;
 
     // Target Time menu
@@ -46,31 +46,31 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool GraphBoxPlot { get; set; } = false;
 
     // Metrics menu
-    public bool History { get; set; } = true;
+    public bool History { get; set; } = false;
     public MetricOutputChoice SuccessRate { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice TargetTime { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice CompletedRunCount { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice TotalRunCount { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice DnfCount { get; set; } = MetricOutputChoice.Export;
+    public MetricOutputChoice DnfCount { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice Average { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice Median { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice ResetRate { get; set; } = MetricOutputChoice.Export;
-    public bool ResetShare { get; set; } = true;
+    public bool ResetShare { get; set; } = false;
     public MetricOutputChoice Minimum { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice Maximum { get; set; } = MetricOutputChoice.Export;
+    public MetricOutputChoice Maximum { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice StandardDeviation { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice CoefficientOfVariation { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice Percentile { get; set; } = MetricOutputChoice.Export;
+    public MetricOutputChoice CoefficientOfVariation { get; set; } = MetricOutputChoice.Off;
+    public MetricOutputChoice Percentile { get; set; } = MetricOutputChoice.Off;
     public PercentileChoice PercentileValue { get; set; } = PercentileChoice.P90;
-    public MetricOutputChoice InterquartileRange { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice LinearRegression { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Both;
-    public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Export;
-    public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Export;
-    public bool MultimodalTest { get; set; } = true;
-    public bool RoomDependency { get; set; } = true;
+    public MetricOutputChoice InterquartileRange { get; set; } = MetricOutputChoice.Off;
+    public MetricOutputChoice LinearRegression { get; set; } = MetricOutputChoice.Off;
+    public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Overlay;
+    public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Off;
+    public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Off;
+    public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Off;
+    public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Off;
+    public bool MultimodalTest { get; set; } = false;
+    public bool RoomDependency { get; set; } = false;
 
     #region Hotkeys
 

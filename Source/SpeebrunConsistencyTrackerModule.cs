@@ -17,6 +17,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -186,8 +187,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         {
             if (Settings.ExportMode == ExportChoice.Clipboard)
                 ExportDataToClipboard();
-            else
+            else if (Settings.ExportMode == ExportChoice.File)
                 ExportDataToFiles();
+            else 
+                ExportDataToSheet();
         }
     }
 
@@ -292,6 +295,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled) return;
         DataExporter.ExportToFiles(Instance.sessionManager);
+    }
+
+    public static async void ExportDataToSheet()
+    {
+        if (!Settings.Enabled) return;
+        await DataExporter.ExportToSheet(Instance.sessionManager);
     }
 
     public static string SanitizeFileName(string input) => DataExporter.SanitizeFileName(input);

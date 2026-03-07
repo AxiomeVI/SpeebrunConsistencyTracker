@@ -26,26 +26,26 @@ public static partial class ModMenuOptions
 
     private static List<MetricDef> BuildMetricDefs() =>
     [
-        new(DialogIds.ConsistencyScoreId,       AllChoices, () => _settings.ConsistencyScore,        v => _settings.ConsistencyScore = v,        MetricOutputChoice.Export),
+        new(DialogIds.ConsistencyScoreId,       AllChoices, () => _settings.ConsistencyScore,        v => _settings.ConsistencyScore = v,        MetricOutputChoice.Off),
         new(DialogIds.SuccessRateId,            AllChoices, () => _settings.SuccessRate,             v => _settings.SuccessRate = v,             MetricOutputChoice.Both),
         new(DialogIds.TargetTimeStatId,         AllChoices, () => _settings.TargetTime,              v => _settings.TargetTime = v,              MetricOutputChoice.Export),
         new(DialogIds.CompletedRunCountId,      AllChoices, () => _settings.CompletedRunCount,       v => _settings.CompletedRunCount = v,       MetricOutputChoice.Both),
         new(DialogIds.TotalRunCountId,          AllChoices, () => _settings.TotalRunCount,           v => _settings.TotalRunCount = v,           MetricOutputChoice.Both),
-        new(DialogIds.GoldRateId,               AllChoices, () => _settings.GoldRate,                v => _settings.GoldRate = v,                MetricOutputChoice.Export),
-        new(DialogIds.DnfCountId,               AllChoices, () => _settings.DnfCount,                v => _settings.DnfCount = v,                MetricOutputChoice.Export),
+        new(DialogIds.GoldRateId,               AllChoices, () => _settings.GoldRate,                v => _settings.GoldRate = v,                MetricOutputChoice.Off),
+        new(DialogIds.DnfCountId,               AllChoices, () => _settings.DnfCount,                v => _settings.DnfCount = v,                MetricOutputChoice.Off),
         new(DialogIds.AverageId,                AllChoices, () => _settings.Average,                 v => _settings.Average = v,                 MetricOutputChoice.Both),
         new(DialogIds.MedianId,                 AllChoices, () => _settings.Median,                  v => _settings.Median = v,                  MetricOutputChoice.Both),
-        new(DialogIds.MadID,                    AllChoices, () => _settings.MedianAbsoluteDeviation, v => _settings.MedianAbsoluteDeviation = v, MetricOutputChoice.Export),
-        new(DialogIds.RelMadID,                 AllChoices, () => _settings.RelativeMAD,             v => _settings.RelativeMAD = v,             MetricOutputChoice.Export),
+        new(DialogIds.MadID,                    AllChoices, () => _settings.MedianAbsoluteDeviation, v => _settings.MedianAbsoluteDeviation = v, MetricOutputChoice.Off),
+        new(DialogIds.RelMadID,                 AllChoices, () => _settings.RelativeMAD,             v => _settings.RelativeMAD = v,             MetricOutputChoice.Off),
         new(DialogIds.ResetRateId,              AllChoices, () => _settings.ResetRate,               v => _settings.ResetRate = v,               MetricOutputChoice.Export),
         new(DialogIds.MinimumId,                AllChoices, () => _settings.Minimum,                 v => _settings.Minimum = v,                 MetricOutputChoice.Export),
-        new(DialogIds.MaximumId,                AllChoices, () => _settings.Maximum,                 v => _settings.Maximum = v,                 MetricOutputChoice.Export),
+        new(DialogIds.MaximumId,                AllChoices, () => _settings.Maximum,                 v => _settings.Maximum = v,                 MetricOutputChoice.Off),
         new(DialogIds.StandardDeviationId,      AllChoices, () => _settings.StandardDeviation,       v => _settings.StandardDeviation = v,       MetricOutputChoice.Both),
-        new(DialogIds.CoefficientOfVariationId, AllChoices, () => _settings.CoefficientOfVariation,  v => _settings.CoefficientOfVariation = v,  MetricOutputChoice.Export),
-        new(DialogIds.PercentileId,             AllChoices, () => _settings.Percentile,              v => _settings.Percentile = v,              MetricOutputChoice.Export),
-        new(DialogIds.InterquartileRangeId,     AllChoices, () => _settings.InterquartileRange,      v => _settings.InterquartileRange = v,      MetricOutputChoice.Export),
-        new(DialogIds.LinearRegressionId,       AllChoices, () => _settings.LinearRegression,        v => _settings.LinearRegression = v,        MetricOutputChoice.Export),
-        new(DialogIds.SoBId,                    AllChoices, () => _settings.SoB,                     v => _settings.SoB = v,                     MetricOutputChoice.Both),
+        new(DialogIds.CoefficientOfVariationId, AllChoices, () => _settings.CoefficientOfVariation,  v => _settings.CoefficientOfVariation = v,  MetricOutputChoice.Off),
+        new(DialogIds.PercentileId,             AllChoices, () => _settings.Percentile,              v => _settings.Percentile = v,              MetricOutputChoice.Off),
+        new(DialogIds.InterquartileRangeId,     AllChoices, () => _settings.InterquartileRange,      v => _settings.InterquartileRange = v,      MetricOutputChoice.Off),
+        new(DialogIds.LinearRegressionId,       AllChoices, () => _settings.LinearRegression,        v => _settings.LinearRegression = v,        MetricOutputChoice.Off),
+        new(DialogIds.SoBId,                    AllChoices, () => _settings.SoB,                     v => _settings.SoB = v,                     MetricOutputChoice.Overlay),
     ];
 
     // ---------------------------------------------------------------------------

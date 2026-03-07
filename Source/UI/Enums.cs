@@ -11,7 +11,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
 
     public enum ExportChoice {
         Clipboard,
-        File
+        File,
+        Sheet
     }
 
     [Flags]

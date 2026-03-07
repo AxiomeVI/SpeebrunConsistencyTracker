@@ -9,6 +9,7 @@ public static class DialogIds {
     public const string ExportSubMenu = "EXPORT_SUBMENU";
     public const string ExportModeId = "EXPORT_MOD";
     public const string ExportPathId = "EXPORT_PATH";
+    public const string SheetExportExplanationId = "SHEET_EXPLANATION";
 
     // Hotkeys
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";
@@ -36,8 +37,10 @@ public static class DialogIds {
     public const string PopupExportToClipBoardid = "EXPORT_TO_CLIPBOARD";
     public const string PopupInvalidExportid = "INVALID_EXPORT";
     public const string PopupExportToFileid = "EXPORT_TO_FILE";
+    public const string PopupExportToSheetid = "EXPORT_TO_SHEET";
     public const string PopupDataClearId = "DATA_CLEAR";
     public const string PopupNoGraphid = "NO_GRAPH_ERROR";
+    public const string PopupFileNotFoundid = "FILE_NOT_FOUND";
 
     // Text Overlay Menu
     public const string IngameOverlayId = "INGAME_OVERLAY";
