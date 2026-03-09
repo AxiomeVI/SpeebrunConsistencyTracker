@@ -87,16 +87,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.InterquartileRange, mode)
             ),
             new MetricDescriptor(
-                "Completed Run Count",
-                "completed",
-                Metrics.CompletedRunCount,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.CompletedRunCount, mode)
-            ),
-            new MetricDescriptor(
                 "Total Run Count",
                 "total",
                 Metrics.TotalRunCount,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.TotalRunCount, mode)
+            ),
+            new MetricDescriptor(
+                "Completed Run Count",
+                "completed",
+                Metrics.CompletedRunCount,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.CompletedRunCount, mode)
             ),
             new MetricDescriptor(
                 "Reset Count",
