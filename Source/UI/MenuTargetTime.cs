@@ -1,4 +1,5 @@
 using System;
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Celeste.Mod.UI;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
@@ -55,7 +56,7 @@ public static partial class ModMenuOptions
                 confirmed =>
                 {
                     if (!confirmed) return;
-                    if (SpeebrunConsistencyTrackerModule.TryParseTime(pendingValue, out TimeSpan result))
+                    if (TimeParser.TryParseTime(pendingValue, out TimeSpan result))
                     {
                         _settings.Minutes                 = result.Minutes;
                         _settings.Seconds                 = result.Seconds;

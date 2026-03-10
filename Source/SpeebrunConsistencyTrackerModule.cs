@@ -294,13 +294,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         DataExporter.ExportToFiles(Instance.sessionManager);
     }
 
-    public static string SanitizeFileName(string input) => DataExporter.SanitizeFileName(input);
-
     public static void ImportTargetTimeFromClipboard() {
         if (!Settings.Enabled)
             return;
         string input = TextInput.GetClipboardText()?.Trim();
-        bool success = TryParseTime(input, out TimeSpan result);
+        bool success = TimeParser.TryParseTime(input, out TimeSpan result);
         if (success) {
             Settings.Minutes = result.Minutes;
             Settings.Seconds = result.Seconds;
@@ -313,7 +311,4 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             PopupMessage($"{Dialog.Clean(DialogIds.PopupInvalidTargetTimeid)}");
         }
     }
-
-    public static bool TryParseTime(string input, out TimeSpan result)
-        => TimeParser.TryParseTime(input, out result);
 }
