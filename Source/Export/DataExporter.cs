@@ -61,8 +61,9 @@ public static class DataExporter
 
     public static IList<IList<object>> CsvStringToList(string csv)
     {
+        if (string.IsNullOrEmpty(csv)) return [];
         return [.. csv
-            .Split('\n')
+            .Split(["\r\n", "\n"], StringSplitOptions.None)
             .Select(line => (IList<object>)[.. line.Split(',').Select(cell => (object)cell)])];
     }
 
@@ -76,79 +77,89 @@ public static class DataExporter
 
         if (!TryLoadSettings(out ExportSettings settings)) return;
 
-        IList<IList<object>> export_data = [];
-        List<TableRange> tableRanges = [];
-        int rowOffset = 0;
-
-        if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
+        try
         {
-            TextInput.SetClipboardText("");
-            RoomTimerManager.CmdExportRoomTimes();
-            var srtRows = CsvStringToList(TextInput.GetClipboardText());
-            foreach (var row in srtRows)
-                export_data.Add(row);
-            tableRanges.Add(new TableRange(rowOffset, rowOffset + srtRows.Count, srtRows.Max(r => r.Count)));
-            export_data.Add([]);
-            export_data.Add([]);
-            export_data.Add([]);
-            rowOffset += 3 + srtRows.Count;
-        }
+            List<IList<object>> exportData = [];
+            List<TableRange> tableRanges = [];
+            int rowOffset = 0;
 
-        var metricRows = MetricsExporter.ExportMetricsToSheet(session, roomCount);
-        foreach (var row in metricRows)
-            export_data.Add(row);
-        tableRanges.Add(new TableRange(rowOffset, rowOffset + metricRows.Count, metricRows.Max(r => r.Count)));
-        export_data.Add([]);
-        export_data.Add([]);
-        export_data.Add([]);
-        rowOffset += 3 + metricRows.Count;
-
-        if (SpeebrunConsistencyTrackerModule.Settings.History)
-        {
-            var historyRows = SessionHistoryExporter.ExportSessionToSheet(session, roomCount);
-            foreach (var row in historyRows)
-                export_data.Add(row);
-            tableRanges.Add(new TableRange(rowOffset, rowOffset + historyRows.Count, historyRows.Max(r => r.Count)));
-        }
-
-        using FileStream stream = new(settings.CredentialsPath, FileMode.Open, FileAccess.Read);
-        ServiceAccountCredential saCredential = ServiceAccountCredential.FromServiceAccountData(stream);
-        ServiceAccountCredential scopedCredential = new(
-            new ServiceAccountCredential.Initializer(saCredential.Id)
+            if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
             {
-                Scopes = [SheetsService.Scope.Spreadsheets],
-                Key = saCredential.Key
+                TextInput.SetClipboardText("");
+                RoomTimerManager.CmdExportRoomTimes();
+                var srtRows = CsvStringToList(TextInput.GetClipboardText());
+                AppendTableSection(exportData, srtRows, tableRanges, ref rowOffset);
             }
-        );
-        GoogleCredential credential = scopedCredential.ToGoogleCredential();
 
-        SheetsService service = new(new BaseClientService.Initializer
+            var metricRows = MetricsExporter.ExportMetricsToSheet(session, roomCount);
+            AppendTableSection(exportData, metricRows, tableRanges, ref rowOffset);
+
+            if (SpeebrunConsistencyTrackerModule.Settings.History)
+            {
+                var historyRows = SessionHistoryExporter.ExportSessionToSheet(session, roomCount);
+                AppendTableSection(exportData, historyRows, tableRanges, ref rowOffset, addSeparator: false);
+            }
+
+            using FileStream stream = new(settings.CredentialsPath, FileMode.Open, FileAccess.Read);
+            ServiceAccountCredential saCredential = ServiceAccountCredential.FromServiceAccountData(stream);
+            ServiceAccountCredential scopedCredential = new(
+                new ServiceAccountCredential.Initializer(saCredential.Id)
+                {
+                    Scopes = [SheetsService.Scope.Spreadsheets],
+                    Key = saCredential.Key
+                }
+            );
+            GoogleCredential credential = scopedCredential.ToGoogleCredential();
+
+            SheetsService service = new(new BaseClientService.Initializer
+            {
+                HttpClientInitializer = credential,
+                ApplicationName = nameof(SpeebrunConsistencyTracker),
+            });
+
+            int sheetId = await EnsureSheetTabExists(service, settings.SpreadsheetId, settings.TabName);
+
+            _ = await service.Spreadsheets.Values
+                .Clear(new ClearValuesRequest(), settings.SpreadsheetId, settings.TabName)
+                .ExecuteAsync();
+
+            ValueRange body = new() { Values = exportData };
+            SpreadsheetsResource.ValuesResource.UpdateRequest request =
+                service.Spreadsheets.Values.Update(body, settings.SpreadsheetId, settings.TabName);
+            request.ValueInputOption =
+                SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
+
+            _ = await request.ExecuteAsync();
+            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToSheetid));
+            await ApplyTableFormatting(service, settings.SpreadsheetId, sheetId, tableRanges);
+        }
+        catch (Exception ex)
         {
-            HttpClientInitializer = credential,
-            ApplicationName = nameof(SpeebrunConsistencyTracker),
-        });
-
-        await EnsureSheetTabExists(service, settings.SpreadsheetId, settings.TabName);
-
-        _ = await service.Spreadsheets.Values
-            .Clear(new ClearValuesRequest(), settings.SpreadsheetId, settings.TabName)
-            .ExecuteAsync();
-
-        ValueRange body = new() { Values = export_data };
-        SpreadsheetsResource.ValuesResource.UpdateRequest request =
-            service.Spreadsheets.Values.Update(body, settings.SpreadsheetId, settings.TabName);
-        request.ValueInputOption =
-            SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
-
-        _ = await request.ExecuteAsync();
-        SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToSheetid));
-        await ApplyTableFormatting(service, settings.SpreadsheetId, settings.TabName, tableRanges);
+            Logger.Log(LogLevel.Error, nameof(SpeebrunConsistencyTracker), $"Sheet export failed: {ex.Message}");
+        }
     }
 
-    private static async Task ApplyTableFormatting(SheetsService service, string spreadsheetId, string tabName, List<TableRange> tableRanges)
+    private static void AppendTableSection(List<IList<object>> data,
+        IList<IList<object>> rows, List<TableRange> tableRanges, ref int rowOffset,
+        bool addSeparator = true)
     {
-        Spreadsheet spreadsheet = await service.Spreadsheets.Get(spreadsheetId).ExecuteAsync();
-        int sheetId = (int)spreadsheet.Sheets.First(s => s.Properties.Title == tabName).Properties.SheetId;
+        data.AddRange(rows);
+        tableRanges.Add(new TableRange(rowOffset, rowOffset + rows.Count, rows.Max(r => r.Count)));
+        if (addSeparator)
+        {
+            data.Add([]);
+            data.Add([]);
+            data.Add([]);
+            rowOffset += 3 + rows.Count;
+        }
+        else
+        {
+            rowOffset += rows.Count;
+        }
+    }
+
+    private static async Task ApplyTableFormatting(SheetsService service, string spreadsheetId, int sheetId, List<TableRange> tableRanges)
+    {
 
         Border thin = new() { Style = "SOLID", Width = 1 };
         Border thick = new() { Style = "SOLID", Width = 2 };
@@ -306,63 +317,26 @@ public static class DataExporter
         ).ExecuteAsync();
     }
 
-    private static async Task ResetSheetTab(SheetsService service, string spreadsheetId, string tabName)
+    private static async Task<int> EnsureSheetTabExists(SheetsService service, string spreadsheetId, string tabName)
     {
         Spreadsheet spreadsheet = await service.Spreadsheets.Get(spreadsheetId).ExecuteAsync();
-        Sheet existingSheet = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == tabName);
+        Sheet existing = spreadsheet.Sheets.FirstOrDefault(s => s.Properties.Title == tabName);
 
-        List<Request> requests = [];
+        if (existing != null)
+            return (int)existing.Properties.SheetId;
 
-        int? tabIndex = null;
-        if (existingSheet != null)
+        BatchUpdateSpreadsheetRequest addSheet = new()
         {
-            tabIndex = existingSheet.Properties.Index;
-            requests.Add(new Request
+            Requests = [new Request
             {
-                DeleteSheet = new DeleteSheetRequest
+                AddSheet = new AddSheetRequest
                 {
-                    SheetId = existingSheet.Properties.SheetId
+                    Properties = new SheetProperties { Title = tabName }
                 }
-            });
-        }
-
-        requests.Add(new Request
-        {
-            AddSheet = new AddSheetRequest
-            {
-                Properties = new SheetProperties
-                {
-                    Title = tabName,
-                    Index = tabIndex  // null = append at end if tab didn't exist before
-                }
-            }
-        });
-
-        await service.Spreadsheets.BatchUpdate(
-            new BatchUpdateSpreadsheetRequest { Requests = requests },
-            spreadsheetId
-        ).ExecuteAsync();
-    }
-
-    private static async Task EnsureSheetTabExists(SheetsService service, string spreadsheetId, string tabName)
-    {
-        Spreadsheet spreadsheet = await service.Spreadsheets.Get(spreadsheetId).ExecuteAsync();
-        bool tabExists = spreadsheet.Sheets.Any(s => s.Properties.Title == tabName);
-
-        if (!tabExists)
-        {
-            BatchUpdateSpreadsheetRequest addSheet = new()
-            {
-                Requests = [new Request
-                {
-                    AddSheet = new AddSheetRequest
-                    {
-                        Properties = new SheetProperties { Title = tabName }
-                    }
-                }]
-            };
-            _ = await service.Spreadsheets.BatchUpdate(addSheet, spreadsheetId).ExecuteAsync();
-        }
+            }]
+        };
+        var response = await service.Spreadsheets.BatchUpdate(addSheet, spreadsheetId).ExecuteAsync();
+        return (int)response.Replies[0].AddSheet.Properties.SheetId;
     }
 
     public static void ExportToClipboard(SessionManager mgr)

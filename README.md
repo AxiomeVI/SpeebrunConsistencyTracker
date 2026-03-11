@@ -64,7 +64,7 @@ Shows the statistical distribution of room times as a box-and-whisker plot, with
 - **Success Rate:** (segment only) percentage of runs finishing within the target time
 - **Reset Count:** number of runs that did not finish (for rooms: number of resets occurring in that room)
 - **Completed Run Count:** number of runs that finished (for rooms: number of runs that cleared the room)
-- **Total Run Count:** Rest count + completed run count
+- **Total Run Count:** Reset count + completed run count
 - **Average:** average time across all completed runs
 - **Median:** middle value of the run time distribution
 - **Reset Rate:** ratio of reset runs over the total number of runs
