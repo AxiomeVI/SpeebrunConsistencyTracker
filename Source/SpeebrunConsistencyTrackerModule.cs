@@ -149,7 +149,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             return;
         }
 
-        UpdateTextOverlay(self);
+        UpdateTextOverlay(self); // before orig() because of RoomTimerIntegration.RoomTimerIsCompleted() behavior
 
         orig(self);
         // Need to check again because orig(self) can destroy the sessionManager
