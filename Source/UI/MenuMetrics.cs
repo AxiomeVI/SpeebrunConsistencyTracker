@@ -81,10 +81,10 @@ public static partial class ModMenuOptions
             .Pressed(() =>
             {
                 Audio.Play(ConfirmSfx);
-                history.Index        = 1; _settings.History        = true;
-                resetShare.Index     = 1; _settings.ResetShare     = true;
-                multimodalTest.Index = 1; _settings.MultimodalTest = true;
-                roomDependency.Index = 1; _settings.RoomDependency = true;
+                history.Index        = 0; _settings.History        = false;
+                resetShare.Index     = 0; _settings.ResetShare     = false;
+                multimodalTest.Index = 0; _settings.MultimodalTest = false;
+                roomDependency.Index = 0; _settings.RoomDependency = false;
                 foreach (MetricDef def in defs)
                 {
                     def.Set(def.DefaultValue);

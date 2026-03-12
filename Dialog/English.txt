@@ -18,7 +18,8 @@ MILLISECONDS_THIRD=                    3rd digit
 EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 EXPORT_SUBMENU=                        Export Settings
 EXPORT_MOD=                            Export mode
-EXPORT_PATH=                           files are exported to gamePath/SCT_Exports
+EXPORT_PATH=                           File: CSV files are exported to gamePath/SCT_Exports
+SHEET_EXPLANATION=                     Sheet: extra config required, see GameBanana page for more info
 
 # ====================== Text Overlay ==========================
 INGAME_OVERLAY=                        In-game Overlay
@@ -62,8 +63,10 @@ INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Please 
 EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 INVALID_EXPORT=                        No data to export
 EXPORT_TO_FILE=                        Session data exported to file
+EXPORT_TO_SHEET=                       Session data exported to sheet
 DATA_CLEAR=                            Session data cleared
 NO_GRAPH_ERROR=                        No charts enabled
+FILE_NOT_FOUND=                        settings.json or credentials.json not found
 
 # ======================== Stats ===============================
 STATS_SUBMENU=                         Metrics Settings
@@ -71,7 +74,7 @@ EXPORT_ONLY=                           Export only
 COMPLETED_RUN_COUNT=                   Completed Run Count
 SUCCESS_RATE=                          Success Rate
 TOTAL_RUN_COUNT=                       Total Run Count
-DNF_COUNT=                             DNF Count
+DNF_COUNT=                             Reset Count
 RESET_RATE=                            Reset Rate
 RESET_SHARE=                           Share of Resets
 AVERAGE=                               Average

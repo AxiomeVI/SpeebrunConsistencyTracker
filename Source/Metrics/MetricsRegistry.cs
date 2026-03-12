@@ -39,13 +39,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.Minimum, mode)
             ),
             new MetricDescriptor(
+                "Session SoB",
+                "sob",
+                Metrics.SumOfBest,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.SoB, mode)
+            ),
+            new MetricDescriptor(
                 "Worst",
                 "worst",
                 Metrics.Worst,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.Maximum, mode)
             ),
             new MetricDescriptor(
-                "StdDev",
+                "Standard Deviation",
                 "std",
                 Metrics.StdDev,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.StandardDeviation, mode)
@@ -63,7 +69,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.MedianAbsoluteDeviation, mode)
             ),
             new MetricDescriptor(
-                "Relative Median Absolute Deviation",
+                "Relative MAD",
                 "RelMAD",
                 Metrics.RelativeMAD,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.RelativeMAD, mode)
@@ -81,32 +87,26 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.InterquartileRange, mode)
             ),
             new MetricDescriptor(
-                "Completed Run Count",
-                "completed",
-                Metrics.CompletedRunCount,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.CompletedRunCount, mode)
-            ),
-            new MetricDescriptor(
                 "Total Run Count",
                 "total",
                 Metrics.TotalRunCount,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.TotalRunCount, mode)
             ),
             new MetricDescriptor(
-                "Gold Rate",
-                "gold%",
-                Metrics.GoldRate,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.GoldRate, mode)
+                "Completed Run Count",
+                "completed",
+                Metrics.CompletedRunCount,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.CompletedRunCount, mode)
             ),
             new MetricDescriptor(
-                "DNF Count",
-                "dnf",
+                "Reset Count",
+                "reset",
                 Metrics.DnfCount,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.DnfCount, mode)
             ),
             new MetricDescriptor(
                 "Reset Rate",
-                "reset rate",
+                "reset%",
                 Metrics.ResetRate,
                 (mode) => MetricHelper.IsMetricEnabled(_settings.ResetRate, mode)
             ),
@@ -117,10 +117,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.ResetShare, mode)
             ),
             new MetricDescriptor(
-                "SoB",
-                "sob",
-                Metrics.SumOfBest,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.SoB, mode)
+                "Gold Rate",
+                "gold%",
+                Metrics.GoldRate,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.GoldRate, mode)
             ),
             new MetricDescriptor(
                 "Trend Slope",

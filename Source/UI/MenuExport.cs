@@ -28,8 +28,10 @@ public static partial class ModMenuOptions
                 Audio.Play(ConfirmSfx);
                 if (_settings.ExportMode == ExportChoice.Clipboard)
                     SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
-                else
+                else if (_settings.ExportMode == ExportChoice.File)
                     SpeebrunConsistencyTrackerModule.ExportDataToFiles();
+                else
+                    SpeebrunConsistencyTrackerModule.ExportDataToSheet();  
             });
         exportStatsButton.Disabled = !inGame;
 
@@ -38,6 +40,7 @@ public static partial class ModMenuOptions
         sub.Add(exportWithSRT);
 
         exportMode.AddDescription(sub, menu, Dialog.Clean(DialogIds.ExportPathId));
+        exportMode.AddDescription(sub, menu, Dialog.Clean(DialogIds.SheetExportExplanationId));
 
         sub.Visible = _settings.Enabled;
         return sub;

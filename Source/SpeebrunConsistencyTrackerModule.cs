@@ -17,6 +17,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
+using System.Threading.Tasks;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -94,28 +95,34 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void OnBeforeSaveState(Level level) {
+        Logger.Log(LogLevel.Info, "OnBeforeSaveState", "Start");
         if (!Settings.Enabled)
             return;
         Instance.textOverlay?.RemoveSelf();
         Instance.textOverlay = null;
         Instance.graphManager?.RemoveGraphs();
         Instance.graphManager = null;
+        Logger.Log(LogLevel.Info, "OnBeforeSaveState", "End");
     }
 
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
     {
+        Logger.Log(LogLevel.Info, "OnSaveState", "Start");
         if (!Settings.Enabled)
             return;
         Instance.sessionManager = new();
         MetricsExporter.Clear();
         MetricEngine.Clear();
+        Logger.Log(LogLevel.Info, "OnSaveState", "End");
     }
 
     public static void OnClearState()
     {
+        Logger.Log(LogLevel.Info, "OnClearState", "Start");
         if (!Settings.Enabled)
             return;
         Clear();
+        Logger.Log(LogLevel.Info, "OnClearState", "End");
     }
 
     public static void OnBeforeLoadState(Level level)
@@ -162,6 +169,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void UpdateTextOverlay(Level self) {
+        Logger.Log(LogLevel.Info, "UpdateTextOverlay", "Start");
         if (RoomTimerIntegration.RoomTimerIsCompleted() && Settings.OverlayEnabled)
         {
             if (Instance.textOverlay == null)
@@ -173,12 +181,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             {
                 Instance.textOverlay.SetText(result);
             }
+            Logger.Log(LogLevel.Info, "UpdateTextOverlay", "Instance.textOverlay initialised");
         }
         else
         {
             Instance.textOverlay?.RemoveSelf();
             Instance.textOverlay = null;
+            Logger.Log(LogLevel.Info, "UpdateTextOverlay", "Instance.textOverlay removed");
         }
+        Logger.Log(LogLevel.Info, "UpdateTextOverlay", "End");
     }
 
     private static void HandleExportButton() {
@@ -186,8 +197,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         {
             if (Settings.ExportMode == ExportChoice.Clipboard)
                 ExportDataToClipboard();
-            else
+            else if (Settings.ExportMode == ExportChoice.File)
                 ExportDataToFiles();
+            else 
+                ExportDataToSheet();
         }
     }
 
@@ -293,6 +306,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled) return;
         DataExporter.ExportToFiles(Instance.sessionManager);
     }
+
+    public static async void ExportDataToSheet()
+    {
+        if (!Settings.Enabled) return;
+        await DataExporter.ExportToSheet(Instance.sessionManager);
+    }
+
+    public static string SanitizeFileName(string input) => DataExporter.SanitizeFileName(input);
 
     public static void ImportTargetTimeFromClipboard() {
         if (!Settings.Enabled)

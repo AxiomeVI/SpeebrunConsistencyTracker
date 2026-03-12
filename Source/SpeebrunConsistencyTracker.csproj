@@ -17,6 +17,18 @@
     </ItemDefinitionGroup>
 
     <ItemGroup>
+        <Reference Include="Google.Apis.Sheets.v4">
+            <HintPath>..\libs\Google.Apis.Sheets.v4.dll</HintPath>
+        </Reference>
+        <Reference Include="Google.Apis">
+            <HintPath>..\libs\Google.Apis.dll</HintPath>
+        </Reference>
+        <Reference Include="Google.Apis.Auth">
+            <HintPath>..\libs\Google.Apis.Auth.dll</HintPath>
+        </Reference>
+        <Reference Include="Google.Apis.Core">
+            <HintPath>..\libs\Google.Apis.Core.dll</HintPath>
+        </Reference>
         <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.1" PrivateAssets="all" ExcludeAssets="runtime" />
         <PackageReference Include="MonoMod.Patcher" Version="25.0.0-prerelease.2" />
         <PackageReference Include="CelesteAnalyzer" Version="*" />
@@ -32,8 +44,12 @@
     </ItemGroup>
 
     <Target Name="CopyFiles" AfterTargets="Build" Inputs="$(OutputPath)\$(AssemblyName).dll;$(OutputPath)\$(AssemblyName).pdb" Outputs="..\bin\$(AssemblyName).dll;..\bin\$(AssemblyName).pdb">
+        <ItemGroup>
+            <LibDlls Include="..\libs\Google.*.dll" />
+        </ItemGroup>
         <Copy SourceFiles="$(OutputPath)\$(AssemblyName).dll" DestinationFolder="..\bin" />
         <Copy SourceFiles="$(OutputPath)\$(AssemblyName).pdb" DestinationFolder="..\bin" />
+        <Copy SourceFiles="@(LibDlls)" DestinationFolder="..\bin" />
     </Target>
 
     <Target Name="PackageMod" AfterTargets="CopyFiles" Inputs="$(ZippedFiles)" Outputs="..\SpeebrunConsistencyTracker.zip" Condition="'$(Configuration)' == 'Release'">
