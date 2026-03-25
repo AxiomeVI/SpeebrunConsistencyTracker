@@ -123,15 +123,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             DrawTitle();
 
-            // Y axis label
+            // Y axis label — drawn vertically, one character per line
             string yAxisLabel = "Count";
-            Vector2 yAxisSize = ActiveFont.Measure(yAxisLabel) * ChartConstants.FontScale.HistogramYLabel;
-            ActiveFont.DrawOutline(
-                yAxisLabel,
-                new Vector2(x - yAxisSize.X - 25, y + h / 2 - yAxisSize.Y / 2),
-                new Vector2(0f, 0f),
-                Vector2.One * ChartConstants.FontScale.HistogramYLabel,
-                Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+            float charScale  = ChartConstants.FontScale.HistogramYLabel;
+            float charHeight = ActiveFont.LineHeight * charScale;
+            float labelX      = x - charHeight - 25;
+            float yLabelStart = y + h / 2 - yAxisLabel.Length * charHeight / 2;
+            for (int i = 0; i < yAxisLabel.Length; i++)
+            {
+                ActiveFont.DrawOutline(
+                    yAxisLabel[i].ToString(),
+                    new Vector2(labelX, yLabelStart + i * charHeight),
+                    new Vector2(0f, 0f),
+                    Vector2.One * charScale,
+                    Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+            }
 
             // Y axis tick labels
             int yLabelCount = Math.Max(1, Math.Min(5, maxCount));

@@ -59,30 +59,10 @@ public partial class GraphManager
     {
         if (_dnfPctChart != null) return _dnfPctChart;
 
-        var labels    = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
-        var dnfCounts = Enumerable.Range(0, _totalRooms)
-            .Select(i => _dnfData.GetValueOrDefault(i))
-            .ToList();
-        int totalAttempts = _attemptsByRoom.GetValueOrDefault(0);
-
-        // Compute survival and DNF rates from raw counts
-        var survivalRates = new List<float>();
-        var dnfRates      = new List<float>();
-        if (totalAttempts > 0)
-        {
-            int alive = totalAttempts;
-            foreach (int dnf in dnfCounts)
-            {
-                dnfRates.Add((float)dnf / totalAttempts * 100f);
-                alive -= dnf;
-                survivalRates.Add((float)alive / totalAttempts * 100f);
-            }
-        }
-        else
-        {
-            survivalRates = [.. Enumerable.Repeat(0f, _totalRooms)];
-            dnfRates      = [.. Enumerable.Repeat(0f, _totalRooms)];
-        }
+        var labels        = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
+        var dnfPcts       = ComputeDnfPcts();
+        var dnfRates      = dnfPcts.Select(p => (float)p).ToList();
+        var survivalRates = dnfPcts.Select(p => (float)(100.0 - p)).ToList();
 
         _dnfPctChart = new GroupedPercentOverlay(
             "DNF Rate per Room & Segment Survival Rate",
