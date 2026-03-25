@@ -26,6 +26,7 @@ Configure the overlay to display the metrics that matter most to your current go
 ### 3. Exporting
 
 * **Data Export:** Export your complete session history and statistics to CSV (exported files are saved to the `/SCT_Exports` directory within your Celeste installation folder)
+* **Google Sheets Export:** Export directly to a Google Sheets spreadsheet. See [Setting up Google Sheets Export](docs/google-sheets-export-setup.md) for setup instructions.
 
 ## Charts
 

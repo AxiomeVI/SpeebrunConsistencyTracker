@@ -21,7 +21,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export;
 public static class DataExporter
 {
 
-    public record ExportSettings(string SpreadsheetId, string TabName, string CredentialsPath);
+    public record ExportSettings(string SpreadsheetId, string TabName, string CredentialsPath, int StartRow, int StartCol);
     private record TableRange(int StartRow, int EndRow, int ColCount);
 
     private static bool TryGetExportData(SessionManager mgr, out PracticeSession session, out int roomCount)
@@ -35,6 +35,28 @@ public static class DataExporter
         session = mgr.CurrentSession;
         roomCount = mgr.DynamicRoomCount();
         return true;
+    }
+
+    private static (int row, int col) ParseStartCell(string cell)
+    {
+        if (string.IsNullOrWhiteSpace(cell))
+            return (0, 0);
+
+        cell = cell.Trim().ToUpperInvariant();
+
+        int i = 0;
+        int col = 0;
+        while (i < cell.Length && char.IsLetter(cell[i]))
+        {
+            col = col * 26 + (cell[i] - 'A' + 1);
+            i++;
+        }
+        col -= 1; // 0-indexed
+
+        if (i == 0 || i == cell.Length || !int.TryParse(cell[i..], out int row) || row < 1)
+            return (0, 0);
+
+        return (row - 1, col);
     }
 
     public static bool TryLoadSettings(out ExportSettings settings)
@@ -51,10 +73,14 @@ public static class DataExporter
         }
 
         JsonObject json = JsonSerializer.Deserialize<JsonObject>(File.ReadAllText(settingsPath));
+        string startCellRaw = json["StartCell"]?.GetValue<string>() ?? "A1";
+        (int startRow, int startCol) = ParseStartCell(startCellRaw);
         settings = new ExportSettings(
             SpreadsheetId:   json["SpreadsheetId"]?.GetValue<string>() ?? "",
             TabName:         json["TabName"]?.GetValue<string>() ?? "",
-            CredentialsPath: credentialsPath
+            CredentialsPath: credentialsPath,
+            StartRow:        startRow,
+            StartCol:        startCol
         );
         return true;
     }

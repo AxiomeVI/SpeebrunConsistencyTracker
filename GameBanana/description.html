@@ -1,0 +1,150 @@
+<h2>Overview</h2>
+<p>A Celeste mod built for speedrunners to analyze consistency and pinpoint specific rooms or segments that require further practice. Track segment and room times with real-time statistics to emphasize repeatability over PBs.</p>
+
+<h2>High-level Features</h2>
+<ul>
+  <li>HUD that shows real-time stats at the end of each completed attempt</li>
+  <li>Multiple chart types to visualize time distributions, DNF patterns, inconsistency, time loss, and run trajectories</li>
+  <li>Generate data exports including metrics for segments, individual rooms, and practice session history (CSV format)</li>
+</ul>
+
+<h2>Usage</h2>
+
+<h3>1. Training Workflow</h3>
+<ul>
+  <li><strong>Set a Save State:</strong> Starting a new training session. Creating or clearing a save state will reset all current session data</li>
+  <li><strong>Run the Segment:</strong> Practice the segment as you usually do. To maintain data integrity, <strong>make sure that the "current room / next room" SpeedrunTool setting is properly configured</strong></li>
+  <li><strong>Review Performance:</strong> After every completed run, a customizable text overlay displays your session statistics. You can also view various performance charts in-game via your configured keybinds</li>
+</ul>
+
+<h3>2. Real-Time Feedback &amp; Overlays</h3>
+<p>Configure the overlay to display the metrics that matter most to your current goals:</p>
+<ul>
+  <li><strong>Target Time Tracking:</strong> Define a goal time for the segment and track your <strong>Success Rate</strong> in real-time</li>
+  <li><strong>Live Charts:</strong> Cycle through performance charts for the entire segment or individual rooms using your configured keybinds</li>
+</ul>
+
+<h3>3. Exporting</h3>
+<ul>
+  <li><strong>Data Export:</strong> Export your complete session history and statistics to CSV (exported files are saved to the <code>/SCT_Exports</code> directory within your Celeste installation folder)</li>
+  <li><strong>Google Sheets Export:</strong> Export directly to a Google Sheets spreadsheet. See the <a href="https://github.com/AxiomeVI/SpeebrunConsistencyTracker/blob/main/docs/google-sheets-export-setup.md">setup instructions</a>.</li>
+</ul>
+
+<h2>Charts</h2>
+<p>All charts are accessible in-game via keybinds and can be individually toggled in the settings menu.</p>
+
+<h3>Scatter Plot</h3>
+<p>Displays all room times and segment times as individual dots, organized by room column. Useful for spotting outliers and seeing how times cluster within each room. Enabled by default.</p>
+
+<h3>Room Histogram</h3>
+<p>A time distribution histogram for a single room. Shows how frequently each time range occurs, making it easy to see whether your times cluster tightly or spread out. Cycles through each room individually. Disabled by default.</p>
+
+<h3>Segment Histogram</h3>
+<p>Same as the room histogram but for the full segment time. Enabled by default.</p>
+
+<h3>DNF % per Room &amp; Segment Survival Rate</h3>
+<p>A grouped bar chart with two series per room: the DNF rate (percentage of all attempts that reset in that room) and the survival rate (percentage of attempts still alive after passing through that room). Enabled by default.</p>
+
+<h3>Problem Rooms</h3>
+<p>A stacked bar chart combining DNF % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your gold, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.</p>
+
+<h3>Room Inconsistency</h3>
+<p>A normalized stacked bar chart ranking rooms by inconsistency from worst to best. Uses two complementary metrics: Relative Median Absolute Deviation (RMAD) and Relative Standard Deviation (RStdDev). The worst room fills the full bar height, all others are shown proportionally. Disabled by default.</p>
+
+<h3>Time Loss per Room</h3>
+<p>A grouped bar chart showing median and average time lost per room relative to your gold time in that room, allowing quick comparison between typical loss (median) and overall loss (average). Disabled by default.</p>
+
+<h3>Run Trajectory</h3>
+<p>A line chart where each attempt is drawn as a line showing cumulative deviation from the per-room average. Lines go up when a room is faster than average and down when slower. Older attempts are drawn in dark grey and fade toward white as they approach the most recent run. Your best attempt, most recent attempt, and Sum of Best are highlighted. Disabled by default.</p>
+
+<h3>Box Plot</h3>
+<p>Shows the statistical distribution of room times as a box-and-whisker plot, with rooms on the left and the full segment on the right. For each column: the whisker spans min to max, the box covers the interquartile range (Q1–Q3), and the white line marks the median. Disabled by default.</p>
+
+<h2>Metrics</h2>
+<ul>
+  <li><strong>History:</strong> chronological history of session times</li>
+  <li><strong>Success Rate:</strong> (segment only) percentage of runs finishing within the target time</li>
+  <li><strong>Reset Count:</strong> number of runs that did not finish (for rooms: number of resets occurring in that room)</li>
+  <li><strong>Completed Run Count:</strong> number of runs that finished (for rooms: number of runs that cleared the room)</li>
+  <li><strong>Total Run Count:</strong> Reset count + completed run count</li>
+  <li><strong>Average:</strong> average time across all completed runs</li>
+  <li><strong>Median:</strong> middle value of the run time distribution</li>
+  <li><strong>Reset Rate:</strong> ratio of reset runs over the total number of runs</li>
+  <li><strong>Reset Share:</strong> (rooms only) this room's contribution to the total number of resets</li>
+  <li><strong>Best:</strong> fastest recorded time</li>
+  <li><strong>Worst:</strong> slowest recorded time</li>
+  <li><strong>Gold Rate:</strong> percentage of runs (individual rooms and segment) where gold (best) time was achieved</li>
+  <li><strong>Standard Deviation:</strong> measure of how spread out run times are around the average</li>
+  <li><strong>Relative Standard Deviation:</strong> standard deviation as a percentage of the average, allowing easier comparison across rooms</li>
+  <li><strong>Percentile:</strong> the threshold where n% of runs are faster than this value (default: 90%, adjustable in mod options)</li>
+  <li><strong>Interquartile Range:</strong> lower and upper bounds of the middle 50% of your runs</li>
+  <li><strong>Trend Slope:</strong> measures how session duration affects performance. Values near zero indicate little effect; negative values indicate improving times as the session progresses</li>
+  <li><strong>SoB:</strong> Sum of Best</li>
+  <li><strong>Median Absolute Deviation:</strong> measure of how spread out run times are around the median</li>
+  <li><strong>Relative Median Absolute Deviation:</strong> MAD as a percentage of the median</li>
+  <li><strong>Consistency Score:</strong> composite metric estimating overall consistency. Tighter distributions, times closer to the best, and fewer resets result in a higher score</li>
+  <li><strong>Bimodal Test:</strong> detects multiple peaks in the time distribution, indicating a hit-or-miss strat. The Bimodality Coefficient is compared to a critical threshold of 0.555 — higher values point toward bimodality, lower values toward unimodality</li>
+  <li><strong>Room Dependency:</strong> measures how a poor time in a room impacts the next room, ranging from -1 to 1. A value of 0 indicates no effect, a high positive score suggests mistakes tend to carry over</li>
+</ul>
+
+<h2>Google Sheets Export Setup</h2>
+
+<h3>Create a Google Cloud Project</h3>
+<ol>
+  <li>Go to <a href="https://console.cloud.google.com/">https://console.cloud.google.com/</a> and accept the terms of service</li>
+  <li>Click the project dropdown in the top left corner → <strong>New Project</strong></li>
+  <li>Enter a name, e.g. <code>PracticeSessionExporter</code> → <strong>Create</strong></li>
+</ol>
+
+<h3>Enable the Google Sheets API</h3>
+<p><em>Make sure your project is selected.</em></p>
+<ol>
+  <li>Open the navigation menu (top left) → <strong>APIs &amp; Services</strong> → <strong>Library</strong></li>
+  <li>Search for <strong>Google Sheets API</strong> → Click on it → <strong>Enable</strong></li>
+</ol>
+
+<h3>Create a Service Account</h3>
+<ol>
+  <li>Open the navigation menu (top left) → <strong>APIs &amp; Services</strong></li>
+  <li>Go to <strong>Credentials</strong> → <strong>Create Credentials</strong> → <strong>Service Account</strong></li>
+  <li>Enter a name, e.g. <code>PracticeSessionExporter</code> → <strong>Create and Continue</strong></li>
+  <li>Skip the Permissions and Access sections → <strong>Done</strong></li>
+</ol>
+
+<h3>Download your credentials</h3>
+<ol>
+  <li>Click on your newly created Service Account</li>
+  <li>Go to <strong>Keys</strong> → <strong>Add Key</strong> → <strong>Create New Key</strong> → <strong>JSON</strong> → <strong>Create</strong></li>
+  <li>A JSON file will be downloaded automatically</li>
+</ol>
+
+<h3>Give the Service Account access to your sheet</h3>
+<ol>
+  <li>Open the downloaded JSON file, find the <code>client_email</code> field and copy the value (e.g. <code>practicesessionexporter@your-project-name.iam.gserviceaccount.com</code>)</li>
+  <li>Open your sheet → <strong>Share</strong> (top right)</li>
+  <li>Paste the <code>client_email</code> address, set the role to <strong>Editor</strong> → <strong>Send</strong></li>
+</ol>
+
+<h3>Configure Speebrun Consistency Tracker</h3>
+<ol>
+  <li>Rename the downloaded file to <code>credentials.json</code></li>
+  <li>Navigate to your Celeste base folder (Open Olympus → Manage → Browse)</li>
+  <li>Create a folder named <code>SCT_Exports</code> and place <code>credentials.json</code> inside it</li>
+  <li>In the same folder, create a file named <code>settings.json</code></li>
+  <li>Find your Spreadsheet ID in the sheet's URL, between <code>.../spreadsheets/d/</code> and <code>/edit</code></li>
+  <li>Paste the following into <code>settings.json</code>, replacing <code>YOUR_SHEET_ID</code> with your actual ID and adjusting <code>TabName</code> and <code>StartCell</code> as needed:
+    <pre><code>{
+    "SpreadsheetId": "YOUR_SHEET_ID",
+    "TabName": "Session Export",
+    "StartCell": "A1"
+}</code></pre>
+  </li>
+</ol>
+<p>The tab named in <code>TabName</code> will be created automatically if it doesn't exist. <code>StartCell</code> is optional — it controls which cell the export starts from.</p>
+
+<h2>Limitations</h2>
+<ul>
+  <li>Multiple save states are not supported</li>
+  <li>Updating current room / next room during an active session will cause inconsistencies in the data</li>
+  <li>Saving a state on the same frame the overlay appears will cause the overlay to persist and not disappear unless the level is reloaded (debug teleport, f5, s&q)</li>
+</ul>
