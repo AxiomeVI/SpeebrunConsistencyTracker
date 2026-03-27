@@ -9,21 +9,23 @@ public sealed class Attempt() : IEquatable<Attempt>
     public TimeTicks TotalSegmentTime = TimeTicks.Zero;
     public List<TimeTicks> CompletedRooms = [];
 
+    private static int RoomCount => SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+
     public void CompleteRoom(TimeTicks ticks)
     {
         CompletedRooms.Add(ticks);
         TotalSegmentTime += ticks;
     }
 
-    public bool IsCompleted(int segmentLength) => CompletedRooms.Count >= segmentLength;
+    public bool IsCompleted() => CompletedRooms.Count >= RoomCount;
 
-    public int TotalRoomCount => CompletedRooms.Count + 1; // Completed room + reset room that could have been completed
+    public int TotalRoomCount => CompletedRooms.Count + 1;
 
     public int Count => CompletedRooms.Count;
 
-    public TimeTicks SegmentTime(int segmentLength)
+    public TimeTicks SegmentTime()
     {
-        int countToSum = Math.Min(segmentLength, CompletedRooms.Count);
+        int countToSum = Math.Min(RoomCount, CompletedRooms.Count);
         if (countToSum <= 0) return TimeTicks.Zero;
 
         TimeTicks totalTicks = TimeTicks.Zero;

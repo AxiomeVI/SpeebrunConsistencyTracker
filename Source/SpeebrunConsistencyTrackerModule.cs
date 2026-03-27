@@ -37,7 +37,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     public GraphManager graphManager;
     public TextOverlay textOverlay;
-    private SessionManager sessionManager;
+    internal SessionManager sessionManager;
     private static Hook _updateTimerStateHook;
 
     private static UI.ComboHotkey _importTargetTimeHotkey;
@@ -198,7 +198,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 Instance.textOverlay = [];
                 self.Entities.Add(Instance.textOverlay);
             }
-            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, Instance.sessionManager.DynamicRoomCount(), out List<string> result))
+            Instance.sessionManager.UpdateRoomCount();
+            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
             {
                 Instance.textOverlay.SetText(result);
             }
@@ -229,11 +230,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
     }
 
-    private static GraphManager BuildGraphManager(SessionManager mgr, int segmentLength) {
+    private static GraphManager BuildGraphManager(SessionManager mgr) {
+        int segmentLength = mgr.RoomCount;
         List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength)
             .Select<int, List<TimeTicks>>(i => [.. mgr.CurrentSession.GetRoomTimes(i)])
             .Where(roomList => roomList.Count > 0)];
-        List<TimeTicks> segment = [.. mgr.CurrentSession.GetSegmentTimes(segmentLength)];
+        List<TimeTicks> segment = [.. mgr.CurrentSession.GetSegmentTimes()];
         return new GraphManager(
             rooms, segment,
             mgr.CurrentSession.DnfPerRoom,
@@ -244,12 +246,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void UpdateGraphOverlay(Level self) {
         SessionManager activeSessionManager = Instance.sessionManager;
-        int segmentLength = activeSessionManager.DynamicRoomCount();
+        activeSessionManager.UpdateRoomCount();
+        int segmentLength = activeSessionManager.RoomCount;
 
         if (_toggleGraphHotkey.Pressed) {
             if (Instance.graphManager == null)
             {
-                Instance.graphManager = BuildGraphManager(activeSessionManager, segmentLength);
+                Instance.graphManager = BuildGraphManager(activeSessionManager);
                 if (!self.Paused)
                     Instance.graphManager.CurrentGraph(self);
             }
@@ -275,7 +278,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 bool wasShowing = Instance.graphManager.IsShowing();
 
                 Instance.graphManager.RemoveGraphs();
-                Instance.graphManager = BuildGraphManager(activeSessionManager, segmentLength);
+                Instance.graphManager = BuildGraphManager(activeSessionManager);
                 Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
 
                 if (!self.Paused && wasShowing)
@@ -296,12 +299,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 Instance.sessionManager.CompleteRoom(segmentTime);
 
                 if (Instance.graphManager != null) {
-                    int segmentLength = Instance.sessionManager.DynamicRoomCount();
+                    Instance.sessionManager.UpdateRoomCount();
+                    int segmentLength = Instance.sessionManager.RoomCount;
                     var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
                     bool wasShowing = Instance.graphManager.IsShowing();
 
                     Instance.graphManager.RemoveGraphs();
-                    Instance.graphManager = BuildGraphManager(Instance.sessionManager, segmentLength);
+                    Instance.graphManager = BuildGraphManager(Instance.sessionManager);
                     Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
 
                     if (wasShowing && Engine.Scene is Level level)

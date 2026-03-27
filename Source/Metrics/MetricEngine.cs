@@ -16,7 +16,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             lastFilter = null;
         }
 
-        public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, int roomCount, MetricOutput mode)
+        public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
             MetricContext context = new();
             List<(MetricDescriptor, MetricResult)> result = [];
@@ -26,7 +26,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             foreach (MetricDescriptor metric in filteredMetrics)
             {
-                result.Add((metric, metric.Compute(session, roomCount, context, mode == MetricOutput.Export)));
+                result.Add((metric, metric.Compute(session, context, mode == MetricOutput.Export)));
             }
 
             return result;
@@ -44,7 +44,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return FilterMetrics(MetricOutput.Overlay).Select(m => m.CsvHeader()).SequenceEqual(lastFilter);
         }
 
-        public static TimeTicks GetTargetTimeTicks() {
+        public static TimeTicks GetTargetTimeTicks()
+        {
             var settings = SpeebrunConsistencyTrackerModule.Settings;
             int totalMilliseconds = settings.Minutes * 60000 + settings.Seconds * 1000 + settings.MillisecondsFirstDigit * 100 + settings.MillisecondsSecondDigit * 10 + settings.MillisecondsThirdDigit;
             return new TimeTicks(TimeSpan.FromMilliseconds(totalMilliseconds).Ticks);

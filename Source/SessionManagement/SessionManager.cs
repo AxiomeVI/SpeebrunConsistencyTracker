@@ -9,9 +9,12 @@ public class SessionManager
     private readonly PracticeSession _currentSession = new();
     private Attempt _currentAttempt = new();
 
+    public int RoomCount { get; private set; } = 0;
+
     public SessionManager()
     {
         _currentSession.AddAttempt(_currentAttempt);
+        RoomCount = 0;
     }
 
     public void OnLoadState()
@@ -31,9 +34,9 @@ public class SessionManager
     public PracticeSession CurrentSession => _currentSession;
     public bool HasActiveAttempt => _currentAttempt != null;
 
-    public int DynamicRoomCount()
+    public void UpdateRoomCount()
     {
         _currentSession.MaxRoomCount = Math.Max(_currentSession.MaxRoomCount, _currentAttempt?.TotalRoomCount ?? 0);
-        return Math.Min(_currentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
+        RoomCount = Math.Min(_currentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
     }
 }

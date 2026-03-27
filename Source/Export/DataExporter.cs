@@ -24,16 +24,15 @@ public static class DataExporter
     public record ExportSettings(string SpreadsheetId, string TabName, string CredentialsPath, int StartRow, int StartCol);
     private record TableRange(int StartRow, int EndRow, int ColCount);
 
-    private static bool TryGetExportData(SessionManager mgr, out PracticeSession session, out int roomCount)
+    private static bool TryGetExportData(SessionManager mgr, out PracticeSession session)
     {
         if (mgr == null || mgr.CurrentSession?.TotalAttempts == 0)
         {
             session = null;
-            roomCount = 0;
             return false;
         }
+        mgr.UpdateRoomCount();
         session = mgr.CurrentSession;
-        roomCount = mgr.DynamicRoomCount();
         return true;
     }
 
@@ -108,7 +107,7 @@ public static class DataExporter
 
     public static async Task ExportToSheet(SessionManager mgr)
     {
-        if (!TryGetExportData(mgr, out PracticeSession session, out int roomCount))
+        if (!TryGetExportData(mgr, out PracticeSession session))
         {
             SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
@@ -130,12 +129,12 @@ public static class DataExporter
                 AppendTableSection(exportData, srtRows, tableRanges, ref rowOffset);
             }
 
-            var metricRows = MetricsExporter.ExportMetricsToSheet(session, roomCount);
+            var metricRows = MetricsExporter.ExportMetricsToSheet(session);
             AppendTableSection(exportData, metricRows, tableRanges, ref rowOffset);
 
             if (SpeebrunConsistencyTrackerModule.Settings.History)
             {
-                var historyRows = SessionHistoryExporter.ExportSessionToSheet(session, roomCount);
+                var historyRows = SessionHistoryExporter.ExportSessionToSheet(session);
                 AppendTableSection(exportData, historyRows, tableRanges, ref rowOffset, addSeparator: false);
             }
 
@@ -383,7 +382,7 @@ public static class DataExporter
 
     public static void ExportToClipboard(SessionManager mgr)
     {
-        if (!TryGetExportData(mgr, out PracticeSession session, out int roomCount))
+        if (!TryGetExportData(mgr, out PracticeSession session))
         {
             SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
@@ -398,11 +397,11 @@ public static class DataExporter
             _ = sb.Append(TextInput.GetClipboardText());
             _ = sb.Append("\n\n\n");
         }
-        _ = sb.Append(MetricsExporter.ExportSessionToCsv(session, roomCount));
+        _ = sb.Append(MetricsExporter.ExportSessionToCsv(session));
         if (SpeebrunConsistencyTrackerModule.Settings.History)
         {
             _ = sb.Append("\n\n\n");
-            _ = sb.Append(SessionHistoryExporter.ExportSessionToCsv(session, roomCount));
+            _ = sb.Append(SessionHistoryExporter.ExportSessionToCsv(session));
         }
         TextInput.SetClipboardText(sb.ToString());
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
@@ -410,7 +409,7 @@ public static class DataExporter
 
     public static void ExportToFiles(SessionManager mgr)
     {
-        if (!TryGetExportData(mgr, out PracticeSession session, out int roomCount))
+        if (!TryGetExportData(mgr, out PracticeSession session))
         {
             SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
@@ -428,12 +427,12 @@ public static class DataExporter
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
         using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
         {
-            writer.WriteLine(MetricsExporter.ExportSessionToCsv(session, roomCount));
+            writer.WriteLine(MetricsExporter.ExportSessionToCsv(session));
         }
         if (SpeebrunConsistencyTrackerModule.Settings.History)
         {
             using StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_History.csv"));
-            writer.WriteLine(SessionHistoryExporter.ExportSessionToCsv(session, roomCount));
+            writer.WriteLine(SessionHistoryExporter.ExportSessionToCsv(session));
         }
 
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));

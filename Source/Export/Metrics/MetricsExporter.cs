@@ -9,26 +9,26 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 {
     public static class MetricsExporter
     {
-
         private static PracticeSession lastSession = null;
-        private static int lastSegmentLength = 0;
+        private static int lastRoomCount = 0;
 
         public static void Clear()
         {
             lastSession = null;
-            lastSegmentLength = 0;
+            lastRoomCount = 0;
         }
 
-        public static string ExportSessionToCsv(PracticeSession session, int segmentLength)
+        public static string ExportSessionToCsv(PracticeSession session)
         {
             if (session == null || session.TotalAttempts == 0)
                 return "";
-            
-            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, segmentLength, MetricOutput.Export);
-            
+
+            int segmentLength = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
+
             if (computedMetrics.Count == 0)
                 return "";
-                
+
             List<string> headers = [.. computedMetrics.Select(res => res.Item1.CsvHeader())];
             headers.Insert(0, "Room/Segment");
 
@@ -48,29 +48,27 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             return string.Join("\n", csvLines);
         }
 
-        public static IList<IList<object>> ExportMetricsToSheet(PracticeSession session, int segmentLength)
+        public static IList<IList<object>> ExportMetricsToSheet(PracticeSession session)
         {
             if (session == null || session.TotalAttempts == 0)
                 return [];
 
-            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, segmentLength, MetricOutput.Export);
+            int segmentLength = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
 
             if (computedMetrics.Count == 0)
                 return [];
 
             IList<IList<object>> rows = [];
 
-            // Header
             List<object> headers = [.. computedMetrics.Select(res => (object)res.Item1.CsvHeader())];
             headers.Insert(0, "Room/Segment");
             rows.Add(headers);
 
-            // Segment row
             List<object> segmentRow = [.. computedMetrics.Select(res => (object)res.Item2.SegmentValue)];
             segmentRow.Insert(0, "Segment");
             rows.Add(segmentRow);
 
-            // Room rows
             for (int roomIndex = 0; roomIndex < segmentLength; roomIndex++)
             {
                 List<object> roomRow = [.. computedMetrics.Select(res => (object)(res.Item2.RoomValues.ElementAtOrDefault(roomIndex) ?? ""))];
@@ -81,29 +79,26 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             return rows;
         }
 
-        public static bool TryExportSessionToOverlay(PracticeSession session, int segmentLength, out List<string> result)
+        public static bool TryExportSessionToOverlay(PracticeSession session, out List<string> result)
         {
             result = [];
-            if (session == null || session.TotalCompleted(segmentLength) == 0)
+            int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            if (session == null || session.TotalCompleted() == 0)
             {
-                lastSegmentLength = segmentLength;
+                lastRoomCount = roomCount;
                 return true;
             }
 
-            if (session.Equals(lastSession) && lastSegmentLength == segmentLength && MetricEngine.SameSettings())
-            {
+            if (session.Equals(lastSession) && lastRoomCount == roomCount && MetricEngine.SameSettings())
                 return false;
-            }
 
-            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, segmentLength, MetricOutput.Overlay);
+            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
             foreach ((MetricDescriptor desc, MetricResult metricResult) in computedMetrics)
-            {
-                result.Add($"{desc.InGameName()}" + ": " + $"{metricResult.SegmentValue}");
-            }
+                result.Add($"{desc.InGameName()}: {metricResult.SegmentValue}");
+
             lastSession = session.DeepClone();
-            lastSegmentLength = segmentLength;
+            lastRoomCount = roomCount;
             return true;
         }
     }
 }
-

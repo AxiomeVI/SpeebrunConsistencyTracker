@@ -50,41 +50,31 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
     public sealed class MetricDescriptor(
         Func<string> csvHeader,
         Func<string> inGameName,
-        Func<PracticeSession, int, MetricContext, bool, MetricResult> compute,
+        Func<PracticeSession, MetricContext, bool, MetricResult> compute,
         Func<MetricOutput, bool> isEnabled) : IEquatable<MetricDescriptor>
     {
         public Func<string> CsvHeader { get; } = csvHeader ?? throw new ArgumentNullException(nameof(csvHeader));
-
         public Func<string> InGameName { get; } = inGameName ?? throw new ArgumentNullException(nameof(inGameName));
-
-        public Func<PracticeSession, int, MetricContext, bool, MetricResult> Compute { get; } = compute ?? throw new ArgumentNullException(nameof(compute));
-
+        public Func<PracticeSession, MetricContext, bool, MetricResult> Compute { get; } = compute ?? throw new ArgumentNullException(nameof(compute));
         public Func<MetricOutput, bool> IsEnabled { get; } = isEnabled ?? throw new ArgumentNullException(nameof(isEnabled));
 
         public MetricDescriptor(
             string csvHeader,
             string inGameName,
-            Func<PracticeSession, int , MetricContext, bool, MetricResult> compute,
+            Func<PracticeSession, MetricContext, bool, MetricResult> compute,
             Func<MetricOutput, bool> isEnabled)
             : this(() => csvHeader, () => inGameName, compute, isEnabled)
         { }
 
         public bool Equals(MetricDescriptor other)
         {
-            if (other is null)
-                return false;
-
-            if (ReferenceEquals(this, other))
-                return true;
-
+            if (other is null) return false;
+            if (ReferenceEquals(this, other)) return true;
             return InGameName() == other.InGameName();
         }
 
-        public override bool Equals(object obj)
-            => Equals(obj as MetricDescriptor);
-        
-        public override int GetHashCode()
-            => InGameName().GetHashCode();
+        public override bool Equals(object obj) => Equals(obj as MetricDescriptor);
+        public override int GetHashCode() => InGameName().GetHashCode();
     }
 
     public sealed class MetricResult(string segmentValue, IReadOnlyList<string> roomValues)
@@ -434,10 +424,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         }
 
         public static List<string> ComputeRoomValues(
-            int roomCount, bool isExport, PracticeSession session, MetricContext context,
+            bool isExport, PracticeSession session, MetricContext context,
             Func<int, List<TimeTicks>, string> computeValue,
             int minCount = 1, string defaultValue = "0")
         {
+            int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
             var roomValues = new List<string>(roomCount);
             if (!isExport) return roomValues;
             for (int r = 0; r < roomCount; r++)

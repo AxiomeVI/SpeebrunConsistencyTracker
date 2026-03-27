@@ -14,7 +14,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
     private readonly List<Attempt> _attempts = [];
     public IReadOnlyList<Attempt> Attempts => _attempts;
 
-    public PracticeSession ()
+    public PracticeSession()
     {
         if (Engine.Scene is Level level)
         {
@@ -30,8 +30,8 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
     }
 
     public int TotalAttempts => _attempts.Count;
-    public int TotalDnfs(int segmentLength) => _attempts.Count(a => !a.IsCompleted(segmentLength));
-    public int TotalCompleted(int segmentLength) => _attempts.Count(a => a.IsCompleted(segmentLength));
+    public int TotalDnfs() => _attempts.Count(a => !a.IsCompleted());
+    public int TotalCompleted() => _attempts.Count(a => a.IsCompleted());
 
     public IReadOnlyDictionary<int, int> TotalAttemptsPerRoom =>
         _attempts
@@ -41,7 +41,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
 
     public IReadOnlyDictionary<int, int> DnfPerRoom =>
         _attempts
-            .GroupBy(a => a.Count) // The dnf room index is Attempt.CompletedRooms.Count
+            .GroupBy(a => a.Count)
             .ToDictionary(g => g.Key, g => g.Count());
 
     public IReadOnlyDictionary<int, int> CompletedRunsPerRoom =>
@@ -51,7 +51,8 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
 
-    public IEnumerable<TimeTicks> GetSegmentTimes(int segmentLength) => _attempts.Where(a => a.Count >= segmentLength).Select(a => a.SegmentTime(segmentLength));
+    public IEnumerable<TimeTicks> GetSegmentTimes() =>
+        _attempts.Where(a => a.IsCompleted()).Select(a => a.SegmentTime());
 
     public IEnumerable<TimeTicks> GetRoomTimes(int roomIndex) =>
         _attempts
