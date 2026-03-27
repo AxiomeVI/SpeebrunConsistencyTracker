@@ -91,7 +91,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (totalHeight > ChartConstants.BarLayout.StackedLabelMinHeight)
                 {
                     double totalPct = pct + (secondaryValues != null && i < secondaryValues.Count ? secondaryValues[i] : 0);
-                    string pctText  = $"{totalPct:F0}%";
+                    string pctText  = $"{totalPct:0.#}%";
                     Vector2 textSize = ActiveFont.Measure(pctText) * ChartConstants.FontScale.AxisLabelSmall;
                     float topOfBar   = y + h - totalHeight;
                     ActiveFont.DrawOutline(

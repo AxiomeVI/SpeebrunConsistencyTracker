@@ -27,6 +27,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly List<AttemptLine> _attempts;
         private readonly AttemptLine _sobLine;
         private readonly bool _lastIsBest;
+        private readonly bool _sobIsBest;
         private readonly long _maxPositiveDeviation;
         private readonly long _maxNegativeDeviation;
         private readonly long _totalRange;
@@ -130,6 +131,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _roomAveragesSum = roomAverages.Sum();
             _bestFinalDeviation = raw[bestIdx].finalDeviation;
             _lastFinalDeviation = raw[lastIdx].finalDeviation;
+            _sobIsBest = sobDeviations[^1] == _bestFinalDeviation;
         }
 
         protected override void DrawAxes(float x, float y, float w, float h)
@@ -160,7 +162,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             // SoB line
-            DrawAttemptLine(_sobLine, x, baselineY, columnWidth, scale, h, Color.Turquoise, 2f);
+            Color sobColor = _sobIsBest ? Color.Gold : Color.Turquoise;
+            DrawAttemptLine(_sobLine, x, baselineY, columnWidth, scale, h, sobColor, 2f);
 
             if (!_lastIsBest)
             {
@@ -225,16 +228,24 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Legend
             float legendY = y + h + ChartConstants.Legend.LegendOffsetY;
             float legendX = x + w;
-            string lastLabel = _lastIsBest ? "Best & last run" : "Last run";
-            Color lastColor = _lastIsBest ? Color.Gold : Color.Red;
-            DrawLegendEntry(legendX, legendY, lastLabel, lastColor, ChartConstants.FontScale.AxisLabel, right: true);
-            float offset = ActiveFont.Measure(lastLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
-            if (!_lastIsBest)
+            float offset = 0;
+            if (!(_sobIsBest && _lastIsBest))
+            {
+                string lastLabel = _lastIsBest ? "Best & last run" : "Last run";
+                Color lastColor = _lastIsBest ? Color.Gold : Color.Red;
+                DrawLegendEntry(legendX, legendY, lastLabel, lastColor, ChartConstants.FontScale.AxisLabel, right: true);
+                offset = ActiveFont.Measure(lastLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
+            }
+            if (!_lastIsBest && !_sobIsBest)
             {
                 DrawLegendEntry(legendX - offset, legendY, "Best run", Color.Gold, ChartConstants.FontScale.AxisLabel, right: true);
                 offset += ActiveFont.Measure("Best run").X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
             }
-            DrawLegendEntry(legendX - offset, legendY, "SoB", Color.Turquoise, ChartConstants.FontScale.AxisLabel, right: true);
+            string sobLabel = _sobIsBest && _lastIsBest ? "SoB & Best & last run"
+                            : _sobIsBest               ? "SoB & Best run"
+                                                       : "SoB";
+            Color sobLegendColor = _sobIsBest ? Color.Gold : Color.Turquoise;
+            DrawLegendEntry(legendX - offset, legendY, sobLabel, sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
 
             // Attempt count
             string stats = $"Attempts: {_attempts.Count}";
@@ -245,23 +256,33 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
 
-        private static void DrawYTicks(float x, float y, float w, float baselineY, float sideHeight, long maxDeviation, int tickCount, bool sign)
+        private static void DrawYTicks(float x, float y, float w, float baselineY, float sideHeight, long maxDeviation, int tickCount, bool above)
         {
-            string prefix = sign ? "-" : "+";
+            string prefix = above ? "-" : "+";
+            float chartBottom = baselineY + (above ? 0 : sideHeight);
+            float minSpacing = ActiveFont.LineHeight * ChartConstants.FontScale.AxisLabelSmall * 1.1f;
+            float lastDrawnY = above ? float.MaxValue : float.MinValue;
+
             for (int i = 1; i <= tickCount; i++)
             {
                 long tickDeviation = maxDeviation / tickCount * i;
-                float yPos = sign
+                float yPos = above
                     ? baselineY - (float)i / tickCount * sideHeight
                     : baselineY + (float)i / tickCount * sideHeight;
 
-                if (sign ? yPos < y : yPos > y + sideHeight + (baselineY - y)) continue;
+                if (above  && yPos < y)            continue;
+                if (!above && yPos > chartBottom)  continue;
+
+                // Skip if too close to the previously drawn label
+                if (above  && lastDrawnY - yPos < minSpacing) continue;
+                if (!above && yPos - lastDrawnY  < minSpacing) continue;
 
                 string timeLabel = prefix + new TimeTicks(tickDeviation).ToString();
                 Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelSmall;
                 ActiveFont.DrawOutline(timeLabel, new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, yPos - labelSize.Y / 2),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelSmall, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
                 Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), ChartConstants.Colors.GridLineColor, 1f);
+                lastDrawnY = yPos;
             }
         }
 
@@ -281,14 +302,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float rightX = x + w + ChartConstants.Trajectory.RightLabelMarginX;
 
             // Define labels: (yPos, text, color) ordered by priority (index 0 = highest)
+            Color sobLabelColor = _sobIsBest ? Color.Gold : Color.Turquoise;
             var labelList = new List<(float yPos, string text, Color color)>
             {
                 (baselineY, new TimeTicks(_roomAveragesSum).ToString(), Color.Gray),
-                (baselineY - _bestFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _bestFinalDeviation).ToString(), Color.Gold),
             };
+            if (!_sobIsBest)
+                labelList.Add((baselineY - _bestFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _bestFinalDeviation).ToString(), Color.Gold));
             if (!_lastIsBest)
                 labelList.Add((baselineY - _lastFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _lastFinalDeviation).ToString(), Color.Red));
-            labelList.Add((baselineY - _maxPositiveDeviation * scale, new TimeTicks(_roomAveragesSum - _maxPositiveDeviation).ToString(), Color.Turquoise));
+            labelList.Add((baselineY - _maxPositiveDeviation * scale, new TimeTicks(_roomAveragesSum - _maxPositiveDeviation).ToString(), sobLabelColor));
             var labels = labelList.ToArray();
 
             // Nudged positions — process in priority order, push lower-priority labels away
@@ -309,8 +332,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             for (int i = 0; i < labels.Length; i++)
             {
-                if (labels[i].yPos < y || labels[i].yPos > y + h) continue;
                 Vector2 labelSize = ActiveFont.Measure(labels[i].text) * ChartConstants.FontScale.AxisLabelSmall;
+                // Skip only if the line itself is out of bounds (not based on nudged position)
+                if (labels[i].yPos < y - labelSize.Y / 2 || labels[i].yPos > y + h + labelSize.Y / 2) continue;
                 ActiveFont.DrawOutline(labels[i].text,
                     new Vector2(rightX, nudged[i] - labelSize.Y / 2),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
