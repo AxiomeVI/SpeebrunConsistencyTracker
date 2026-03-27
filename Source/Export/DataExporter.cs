@@ -37,6 +37,19 @@ public static class DataExporter
         return true;
     }
 
+    private static string CellNotation(int row, int col)
+    {
+        string colLetters = "";
+        int c = col + 1;
+        while (c > 0)
+        {
+            c--;
+            colLetters = (char)('A' + c % 26) + colLetters;
+            c /= 26;
+        }
+        return $"{colLetters}{row + 1}";
+    }
+
     private static (int row, int col) ParseStartCell(string cell)
     {
         if (string.IsNullOrWhiteSpace(cell))
@@ -149,15 +162,18 @@ public static class DataExporter
                 .Clear(new ClearValuesRequest(), settings.SpreadsheetId, settings.TabName)
                 .ExecuteAsync();
 
+            string startCellNotation = CellNotation(settings.StartRow, settings.StartCol);
+            string writeRange = $"{settings.TabName}!{startCellNotation}";
+
             ValueRange body = new() { Values = exportData };
             SpreadsheetsResource.ValuesResource.UpdateRequest request =
-                service.Spreadsheets.Values.Update(body, settings.SpreadsheetId, settings.TabName);
+                service.Spreadsheets.Values.Update(body, settings.SpreadsheetId, writeRange);
             request.ValueInputOption =
                 SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
 
             _ = await request.ExecuteAsync();
             SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToSheetid));
-            await ApplyTableFormatting(service, settings.SpreadsheetId, sheetId, tableRanges);
+            await ApplyTableFormatting(service, settings.SpreadsheetId, sheetId, tableRanges, settings.StartRow, settings.StartCol);
         }
         catch (Exception ex)
         {
@@ -184,7 +200,7 @@ public static class DataExporter
         }
     }
 
-    private static async Task ApplyTableFormatting(SheetsService service, string spreadsheetId, int sheetId, List<TableRange> tableRanges)
+    private static async Task ApplyTableFormatting(SheetsService service, string spreadsheetId, int sheetId, List<TableRange> tableRanges, int startRow = 0, int startCol = 0)
     {
 
         Border thin = new() { Style = "SOLID", Width = 1 };
@@ -244,10 +260,10 @@ public static class DataExporter
             GridRange fullTable = new()
             {
                 SheetId = sheetId,
-                StartRowIndex = table.StartRow,
-                EndRowIndex = table.EndRow,
-                StartColumnIndex = 0,
-                EndColumnIndex = table.ColCount
+                StartRowIndex = startRow + table.StartRow,
+                EndRowIndex = startRow + table.EndRow,
+                StartColumnIndex = startCol,
+                EndColumnIndex = startCol + table.ColCount
             };
 
             // Thin borders for all cells
@@ -286,10 +302,10 @@ public static class DataExporter
                     Range = new GridRange
                     {
                         SheetId = sheetId,
-                        StartRowIndex = table.StartRow,
-                        EndRowIndex = table.StartRow + 1,
-                        StartColumnIndex = 0,
-                        EndColumnIndex = table.ColCount
+                        StartRowIndex = startRow + table.StartRow,
+                        EndRowIndex = startRow + table.StartRow + 1,
+                        StartColumnIndex = startCol,
+                        EndColumnIndex = startCol + table.ColCount
                     },
                     Bottom = thick
                 }
@@ -303,10 +319,10 @@ public static class DataExporter
                     Range = new GridRange
                     {
                         SheetId = sheetId,
-                        StartRowIndex = table.StartRow,
-                        EndRowIndex = table.EndRow,
-                        StartColumnIndex = 0,
-                        EndColumnIndex = 1
+                        StartRowIndex = startRow + table.StartRow,
+                        EndRowIndex = startRow + table.EndRow,
+                        StartColumnIndex = startCol,
+                        EndColumnIndex = startCol + 1
                     },
                     Right = thick
                 }
@@ -320,10 +336,10 @@ public static class DataExporter
                     Range = new GridRange
                     {
                         SheetId = sheetId,
-                        StartRowIndex = table.StartRow,
-                        EndRowIndex = table.StartRow + 1,
-                        StartColumnIndex = 0,
-                        EndColumnIndex = table.ColCount
+                        StartRowIndex = startRow + table.StartRow,
+                        EndRowIndex = startRow + table.StartRow + 1,
+                        StartColumnIndex = startCol,
+                        EndColumnIndex = startCol + table.ColCount
                     },
                     Cell = new CellData
                     {
