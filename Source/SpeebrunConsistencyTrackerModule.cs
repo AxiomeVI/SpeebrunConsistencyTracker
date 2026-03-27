@@ -17,7 +17,6 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
-using System.Threading.Tasks;
 using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
