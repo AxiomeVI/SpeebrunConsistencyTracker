@@ -11,6 +11,15 @@ public static class DialogIds {
     public const string ExportPathId = "EXPORT_PATH";
     public const string SheetExportExplanationId = "SHEET_EXPLANATION";
 
+    // Hotkey menu UI
+    public const string KeybindConfigId       = "KEYBIND_CONFIG";
+    public const string KeybindComboSubId     = "KEYBIND_COMBO_SUB";
+    public const string KeyConfigTitle        = "KEY_CONFIG_TITLE";
+    public const string BtnConfigTitle        = "BTN_CONFIG_TITLE";
+    public const string KeyConfigChanging     = "KEY_CONFIG_CHANGING";
+    public const string BtnConfigChanging     = "BTN_CONFIG_CHANGING";
+    public const string BtnConfigNoController = "BTN_CONFIG_NO_CONTROLLER";
+
     // Hotkeys
     public const string KeyStatsExportId = "KEY_STATS_EXPORT";
     public const string ToggleGraphOverlayId = "TOGGLE_GRAPH_OVERLAY";

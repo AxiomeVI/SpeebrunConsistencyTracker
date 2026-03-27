@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeebrunConsistencyTracker.UI;
+using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
@@ -82,14 +84,25 @@ public static partial class ModMenuOptions
             CreateGraphOverlaySubMenu(menu)
         ];
 
+        TextMenu.Button keybindButton = new TextMenu.Button(Dialog.Clean(DialogIds.KeybindConfigId));
+        keybindButton.Pressed(() => {
+            menu.Focused = false;
+            var ui = new KeybindConfigUi();
+            ui.OnClose = () => menu.Focused = true;
+            Engine.Scene.Add(ui);
+            Engine.Scene.OnEndOfFrame += () => Engine.Scene.Entities.UpdateLists();
+        });
+
         menu.Add(new TextMenu.OnOff(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled).Change(value =>
         {
             _settings.Enabled = value;
             foreach (TextMenuExt.SubMenu sub in subMenus) sub.Visible = value;
+            keybindButton.Visible = value;
             if (!value) SpeebrunConsistencyTrackerModule.Clear();
         }));
 
         foreach (TextMenuExt.SubMenu sub in subMenus)
             menu.Add(sub);
+        menu.Add(keybindButton);
     }
 }

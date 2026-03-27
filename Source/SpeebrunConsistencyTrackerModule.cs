@@ -41,6 +41,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private SessionManager sessionManager;
     private static Hook _updateTimerStateHook;
 
+    private static UI.ComboHotkey _importTargetTimeHotkey;
+    private static UI.ComboHotkey _statsExportHotkey;
+    private static UI.ComboHotkey _toggleGraphHotkey;
+    private static UI.ComboHotkey _nextGraphHotkey;
+    private static UI.ComboHotkey _previousGraphHotkey;
+    private static UI.ComboHotkey _clearStatsHotkey;
+
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
 #if DEBUG
@@ -73,6 +80,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 typeof(SpeebrunConsistencyTrackerModule).GetMethod("OnUpdateTimerState", BindingFlags.NonPublic | BindingFlags.Static)
             );
         }
+
+        _importTargetTimeHotkey = new UI.ComboHotkey(Settings.ButtonKeyImportTargetTime);
+        _statsExportHotkey      = new UI.ComboHotkey(Settings.ButtonKeyStatsExport);
+        _toggleGraphHotkey      = new UI.ComboHotkey(Settings.ButtonToggleGraphOverlay);
+        _nextGraphHotkey        = new UI.ComboHotkey(Settings.ButtonNextGraph);
+        _previousGraphHotkey    = new UI.ComboHotkey(Settings.ButtonPreviousGraph);
+        _clearStatsHotkey       = new UI.ComboHotkey(Settings.ButtonKeyClearStats);
     }
 
     public override void Unload() {
@@ -82,13 +96,18 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         Clear();
         _updateTimerStateHook?.Dispose();
         _updateTimerStateHook = null;
+        _importTargetTimeHotkey = null;
+        _statsExportHotkey      = null;
+        _toggleGraphHotkey      = null;
+        _nextGraphHotkey        = null;
+        _previousGraphHotkey    = null;
+        _clearStatsHotkey       = null;
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
     {
         CreateModMenuSectionHeader(menu, inGame, pauseSnapshot);
         ModMenuOptions.CreateMenu(menu, inGame);
-        CreateModMenuSectionKeyBindings(menu, inGame, pauseSnapshot);
     }
 
     public static void PopupMessage(string message) {
@@ -144,7 +163,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             return;
         }
 
-        if (Settings.ButtonKeyImportTargetTime.Pressed) ImportTargetTimeFromClipboard();
+        UI.ComboHotkey.UpdateStates();
+        _importTargetTimeHotkey.Update();
+        _statsExportHotkey.Update();
+        _toggleGraphHotkey.Update();
+        _nextGraphHotkey.Update();
+        _previousGraphHotkey.Update();
+        _clearStatsHotkey.Update();
+
+        if (_importTargetTimeHotkey.Pressed) ImportTargetTimeFromClipboard();
 
         if (Instance.sessionManager == null) {
             orig(self);
@@ -185,7 +212,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void HandleExportButton() {
-        if (Settings.ButtonKeyStatsExport.Pressed)
+        if (_statsExportHotkey.Pressed)
         {
             if (Settings.ExportMode == ExportChoice.Clipboard)
                 ExportDataToClipboard();
@@ -197,7 +224,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void HandleClearButton() {
-        if (Settings.ButtonKeyClearStats.Pressed) {
+        if (_clearStatsHotkey.Pressed) {
             Clear();
             PopupMessage(Dialog.Clean(DialogIds.PopupDataClearId));
         }
@@ -220,7 +247,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         SessionManager activeSessionManager = Instance.sessionManager;
         int segmentLength = activeSessionManager.DynamicRoomCount();
 
-        if (Settings.ButtonToggleGraphOverlay.Pressed) {
+        if (_toggleGraphHotkey.Pressed) {
             if (Instance.graphManager == null)
             {
                 Instance.graphManager = BuildGraphManager(activeSessionManager, segmentLength);
@@ -237,10 +264,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             }
         } else if (Instance.graphManager != null && Instance.graphManager.IsShowing())
         {
-            if (Settings.ButtonNextGraph.Pressed)
+            if (_nextGraphHotkey.Pressed)
             {
                 Instance.graphManager.NextGraph(self);
-            } else if (Settings.ButtonPreviousGraph.Pressed)
+            } else if (_previousGraphHotkey.Pressed)
             {
                 Instance.graphManager.PreviousGraph(self);
             } else if (!Instance.graphManager.SameLength(segmentLength))

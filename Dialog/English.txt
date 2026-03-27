@@ -50,6 +50,8 @@ BOX_PLOT_GRAPH=                        Box Plot
 
 
 # ======================= Hotkeys ==============================
+KEYBIND_CONFIG=                        Hotkeys
+KEYBIND_COMBO_SUB=                     Binding multiple keys acts as a key combo (all must be held)
 KEY_STATS_EXPORT=                      Export data
 KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
 TOGGLE_GRAPH_OVERLAY=                  Display/Hide data chart

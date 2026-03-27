@@ -75,28 +75,34 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     #region Hotkeys
 
     [SettingName(DialogIds.KeyImportTargetTimeId)]
+    [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonKeyImportTargetTime { get; set; }  = new(0, Keys.None);
+    public ButtonBinding ButtonKeyImportTargetTime { get; set; }
 
     [SettingName(DialogIds.KeyStatsExportId)]
+    [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonKeyStatsExport { get; set; } = new(0, Keys.None);
+    public ButtonBinding ButtonKeyStatsExport { get; set; }
 
     [SettingName(DialogIds.ToggleGraphOverlayId)]
+    [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonToggleGraphOverlay { get; set; }  = new(0, Keys.None);
+    public ButtonBinding ButtonToggleGraphOverlay { get; set; }
 
     [SettingName(DialogIds.KeyNextGraphId)]
-    [DefaultButtonBinding(0, Keys.Right)]
-    public ButtonBinding ButtonNextGraph { get; set; }  = new(0, Keys.None);
+    [SettingSubText(DialogIds.KeybindComboSubId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonNextGraph { get; set; }
 
     [SettingName(DialogIds.KeyPreviousGraphId)]
-    [DefaultButtonBinding(0, Keys.Left)]
-    public ButtonBinding ButtonPreviousGraph { get; set; }  = new(0, Keys.None);
+    [SettingSubText(DialogIds.KeybindComboSubId)]
+    [DefaultButtonBinding(0, Keys.None)]
+    public ButtonBinding ButtonPreviousGraph { get; set; }
 
     [SettingName(DialogIds.KeyClearStatsId)]
+    [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonKeyClearStats { get; set; }  = new(0, Keys.None);
+    public ButtonBinding ButtonKeyClearStats { get; set; }
 
     #endregion
 }
