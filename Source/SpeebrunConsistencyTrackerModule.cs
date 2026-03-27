@@ -95,7 +95,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         Everest.Events.Level.OnExit -= Level_OnLevelExit;
         Clear();
         _updateTimerStateHook?.Dispose();
-        _updateTimerStateHook = null;
+        _updateTimerStateHook   = null;
         _importTargetTimeHotkey = null;
         _statsExportHotkey      = null;
         _toggleGraphHotkey      = null;

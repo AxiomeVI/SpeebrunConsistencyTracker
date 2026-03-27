@@ -60,7 +60,7 @@ public partial class GraphManager
         _segmentTimes   = segment;
         _dnfData        = dnfPerRoom;
         _attemptsByRoom = totalAttemptsPerRoom;
-        _attempts       = attempts ?? (IReadOnlyList<Attempt>)[];
+        _attempts       = attempts ?? [];
         _totalRooms     = rooms.Count;
         _targetTime     = target;
 
