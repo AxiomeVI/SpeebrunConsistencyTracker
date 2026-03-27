@@ -18,6 +18,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using MonoMod.RuntimeDetour;
 using System.Reflection;
 using System.Threading.Tasks;
+using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -265,8 +266,22 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
         if (Settings.Enabled && Instance.sessionManager != null && Instance.sessionManager.HasActiveAttempt) {
             long segmentTime = RoomTimerIntegration.GetRoomTime();
-            if (segmentTime > 0)
+            if (segmentTime > 0) {
                 Instance.sessionManager.CompleteRoom(segmentTime);
+
+                if (Instance.graphManager != null) {
+                    int segmentLength = Instance.sessionManager.DynamicRoomCount();
+                    var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
+                    bool wasShowing = Instance.graphManager.IsShowing();
+
+                    Instance.graphManager.RemoveGraphs();
+                    Instance.graphManager = BuildGraphManager(Instance.sessionManager, segmentLength);
+                    Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
+
+                    if (wasShowing && Engine.Scene is Level level)
+                        Instance.graphManager.CurrentGraph(level);
+                }
+            }
         }
         orig(endPoint);
     }
