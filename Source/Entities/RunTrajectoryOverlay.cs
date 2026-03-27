@@ -44,7 +44,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             _totalRooms = totalRooms;
 
-            if (attempts.Count == 0)
+            if (attempts.Count == 0 || totalRooms == 0)
             {
                 _attempts = [];
                 _sobLine = new AttemptLine([], 0);
@@ -197,6 +197,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override void DrawLabels(float x, float y, float w, float h)
         {
             DrawTitle();
+
+            if (_totalRooms == 0 || _attempts.Count == 0) return;
 
             float columnWidth = w / _totalRooms;
             float baselineY = y + (float)_maxPositiveDeviation / _totalRange * h;

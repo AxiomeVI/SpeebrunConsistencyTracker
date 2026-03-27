@@ -136,7 +136,7 @@ public partial class GraphManager
         var rankedRstddev = ranked.Select(i => rstddevPcts[i]).ToList();
 
         // Normalize relative to worst room (first after sort)
-        double maxTotal = rankedRmad[0] + rankedRstddev[0];
+        double maxTotal = ranked.Count > 0 ? rankedRmad[0] + rankedRstddev[0] : 0.0;
 
         List<double> scaledRmad;
         List<double> scaledRstddev;
