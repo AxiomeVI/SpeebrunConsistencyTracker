@@ -17,7 +17,7 @@ public sealed class Attempt() : IEquatable<Attempt>
 
     public bool IsCompleted(int segmentLength) => CompletedRooms.Count >= segmentLength;
 
-    public int TotalRoomCount => CompletedRooms.Count + 1; // Completed room + dnf room
+    public int TotalRoomCount => CompletedRooms.Count + 1; // Completed room + reset room that could have been completed
 
     public int Count => CompletedRooms.Count;
 
