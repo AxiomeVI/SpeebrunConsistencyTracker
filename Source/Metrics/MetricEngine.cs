@@ -9,12 +9,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
     public static class MetricEngine
     {
-        private static List<string> lastFilter = null;
-
-        public static void Clear()
-        {
-            lastFilter = null;
-        }
+        public static void Clear() { }
 
         public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
@@ -22,7 +17,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             List<(MetricDescriptor, MetricResult)> result = [];
 
             List<MetricDescriptor> filteredMetrics = FilterMetrics(mode);
-            if (mode == MetricOutput.Overlay) lastFilter = [.. filteredMetrics.Select(m => m.CsvHeader())];
 
             foreach (MetricDescriptor metric in filteredMetrics)
             {
@@ -32,16 +26,20 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return result;
         }
 
-        private static List<MetricDescriptor> FilterMetrics(MetricOutput mode)
+        public static int ComputeOverlaySettingsHash()
         {
-            List<MetricDescriptor> filteredMetrics = [.. MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode))];
-            return filteredMetrics;
+            var settings = SpeebrunConsistencyTrackerModule.Settings;
+            var hashCode = new HashCode();
+            foreach (string header in FilterMetrics(MetricOutput.Overlay).Select(m => m.CsvHeader()))
+                hashCode.Add(header);
+            hashCode.Add(GetTargetTimeTicks());
+            hashCode.Add(settings.PercentileValue);
+            return hashCode.ToHashCode();
         }
 
-        public static bool SameSettings()
+        private static List<MetricDescriptor> FilterMetrics(MetricOutput mode)
         {
-            if (lastFilter == null) return false;
-            return FilterMetrics(MetricOutput.Overlay).Select(m => m.CsvHeader()).SequenceEqual(lastFilter);
+            return [.. MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode))];
         }
 
         public static TimeTicks GetTargetTimeTicks()

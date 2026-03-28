@@ -7,10 +7,11 @@ using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 
-public sealed class PracticeSession : IEquatable<PracticeSession>
+public sealed class PracticeSession
 {
     public string levelName;
     public int MaxRoomCount { get; set; } = 0;
+    public uint Version { get; private set; } = 0;
     private readonly List<Attempt> _attempts = [];
     public IReadOnlyList<Attempt> Attempts => _attempts;
 
@@ -27,6 +28,7 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
     {
         ArgumentNullException.ThrowIfNull(attempt);
         _attempts.Add(attempt);
+        Version++;
     }
 
     public int TotalAttempts => _attempts.Count;
@@ -58,20 +60,4 @@ public sealed class PracticeSession : IEquatable<PracticeSession>
         _attempts
             .Where(a => roomIndex < a.Count)
             .Select(a => a.CompletedRooms[roomIndex]);
-
-    public bool Equals(PracticeSession other)
-    {
-        if (other is null)
-            return false;
-
-        if (ReferenceEquals(this, other))
-            return true;
-
-        return _attempts.Count == other._attempts.Count && (_attempts.Count == 0 || _attempts[^1].Equals(other._attempts[^1]));
-    }
-
-    public override bool Equals(object obj)
-        => Equals(obj as PracticeSession);
-
-    public override int GetHashCode() => HashCode.Combine(MaxRoomCount, _attempts.Count);
 }

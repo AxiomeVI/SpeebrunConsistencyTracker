@@ -3,19 +3,20 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using System.Linq;
-using Force.DeepCloner;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 {
     public static class MetricsExporter
     {
-        private static PracticeSession lastSession = null;
-        private static int lastRoomCount = 0;
+        private static uint _lastVersion = 0;
+        private static int _lastRoomCount = 0;
+        private static int _lastSettingsHash = 0;
 
         public static void Clear()
         {
-            lastSession = null;
-            lastRoomCount = 0;
+            _lastVersion = 0;
+            _lastRoomCount = 0;
+            _lastSettingsHash = 0;
         }
 
         public static string ExportSessionToCsv(PracticeSession session)
@@ -85,19 +86,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
             if (session == null || session.TotalCompleted() == 0)
             {
-                lastRoomCount = roomCount;
+                _lastVersion = session?.Version ?? 0;
+                _lastRoomCount = roomCount;
+                _lastSettingsHash = MetricEngine.ComputeOverlaySettingsHash();
                 return true;
             }
 
-            if (session.Equals(lastSession) && lastRoomCount == roomCount && MetricEngine.SameSettings())
+            int settingsHash = MetricEngine.ComputeOverlaySettingsHash();
+            if (session.Version == _lastVersion && roomCount == _lastRoomCount && settingsHash == _lastSettingsHash)
                 return false;
 
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
             foreach ((MetricDescriptor desc, MetricResult metricResult) in computedMetrics)
                 result.Add($"{desc.InGameName()}: {metricResult.SegmentValue}");
 
-            lastSession = session.DeepClone();
-            lastRoomCount = roomCount;
+            _lastVersion = session.Version;
+            _lastRoomCount = roomCount;
+            _lastSettingsHash = settingsHash;
             return true;
         }
     }
