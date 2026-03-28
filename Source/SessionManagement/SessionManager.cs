@@ -14,7 +14,6 @@ public class SessionManager
     public SessionManager()
     {
         _currentSession.AddAttempt(_currentAttempt);
-        RoomCount = 0;
     }
 
     public void OnLoadState()
