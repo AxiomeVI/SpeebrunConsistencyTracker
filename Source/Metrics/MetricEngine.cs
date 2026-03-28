@@ -9,16 +9,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
     public static class MetricEngine
     {
+        private static int _settingsHash = 0;
+
         public static void Clear() { }
+
+        public static void InvalidateSettingsHash()
+        {
+            _settingsHash = ComputeOverlaySettingsHash();
+        }
+
+        public static int GetOverlaySettingsHash() => _settingsHash;
 
         public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
             MetricContext context = new();
             List<(MetricDescriptor, MetricResult)> result = [];
 
-            List<MetricDescriptor> filteredMetrics = FilterMetrics(mode);
-
-            foreach (MetricDescriptor metric in filteredMetrics)
+            foreach (MetricDescriptor metric in FilterMetrics(mode))
             {
                 result.Add((metric, metric.Compute(session, context, mode == MetricOutput.Export)));
             }
@@ -26,7 +33,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return result;
         }
 
-        public static int ComputeOverlaySettingsHash()
+        private static int ComputeOverlaySettingsHash()
         {
             var settings = SpeebrunConsistencyTrackerModule.Settings;
             var hashCode = new HashCode();

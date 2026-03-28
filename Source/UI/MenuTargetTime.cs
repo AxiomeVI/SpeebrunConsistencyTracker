@@ -1,4 +1,5 @@
 using System;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Celeste.Mod.UI;
 
@@ -27,11 +28,11 @@ public static partial class ModMenuOptions
         TextMenu.Slider ms2 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsSecondDigit);
         TextMenu.Slider ms3 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsThirdDigit);
 
-        minutes.Change(v => _settings.Minutes = v);
-        seconds.Change(v => _settings.Seconds = v);
-        ms1.Change(v => _settings.MillisecondsFirstDigit = v);
-        ms2.Change(v => _settings.MillisecondsSecondDigit = v);
-        ms3.Change(v => _settings.MillisecondsThirdDigit = v);
+        minutes.Change(v => { _settings.Minutes = v;                   MetricEngine.InvalidateSettingsHash(); });
+        seconds.Change(v => { _settings.Seconds = v;                   MetricEngine.InvalidateSettingsHash(); });
+        ms1.Change(v =>     { _settings.MillisecondsFirstDigit = v;    MetricEngine.InvalidateSettingsHash(); });
+        ms2.Change(v =>     { _settings.MillisecondsSecondDigit = v;   MetricEngine.InvalidateSettingsHash(); });
+        ms3.Change(v =>     { _settings.MillisecondsThirdDigit = v;    MetricEngine.InvalidateSettingsHash(); });
 
         // Buttons — declare first so SyncSlidersFromSettings can close over it
         TextMenu.Button inputTimeButton = new(Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime());
@@ -44,6 +45,7 @@ public static partial class ModMenuOptions
             ms2.Index     = _settings.MillisecondsSecondDigit;
             ms3.Index     = _settings.MillisecondsThirdDigit;
             inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
+            MetricEngine.InvalidateSettingsHash();
         }
 
         inputTimeButton.Pressed(() =>

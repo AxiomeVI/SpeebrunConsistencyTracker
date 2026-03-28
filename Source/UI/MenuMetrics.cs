@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
@@ -27,7 +28,7 @@ public static partial class ModMenuOptions
         {
             Disabled = _settings.Percentile == MetricOutputChoice.Off
         };
-        percentileValue.Change(v => _settings.PercentileValue = enumPercentileValues[v]);
+        percentileValue.Change(v => { _settings.PercentileValue = enumPercentileValues[v]; MetricEngine.InvalidateSettingsHash(); });
 
         // Build all metric sliders from definitions
         List<MetricDef> defs = BuildMetricDefs();
@@ -57,6 +58,7 @@ public static partial class ModMenuOptions
                 }
                 percentileValue.Disabled = true;
                 _instance.SaveSettings();
+                MetricEngine.InvalidateSettingsHash();
             });
 
         TextMenu.Button turnAllOn = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonAllOnId))
@@ -75,6 +77,7 @@ public static partial class ModMenuOptions
                 }
                 percentileValue.Disabled = false;
                 _instance.SaveSettings();
+                MetricEngine.InvalidateSettingsHash();
             });
 
         TextMenu.Button resetAll = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonResetId))
@@ -93,6 +96,7 @@ public static partial class ModMenuOptions
                 percentileValue.Index    = Array.IndexOf(enumPercentileValues, PercentileChoice.P90);
                 percentileValue.Disabled = _settings.Percentile == MetricOutputChoice.Off;
                 _instance.SaveSettings();
+                MetricEngine.InvalidateSettingsHash();
             });
 
         sub.Add(turnAllOff);

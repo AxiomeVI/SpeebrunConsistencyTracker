@@ -86,13 +86,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
             if (session == null || session.TotalCompleted() == 0)
             {
-                _lastVersion = session?.Version ?? 0;
+                uint version = session?.Version ?? 0;
+                bool changed = version != _lastVersion || roomCount != _lastRoomCount;
+                _lastVersion = version;
                 _lastRoomCount = roomCount;
-                _lastSettingsHash = MetricEngine.ComputeOverlaySettingsHash();
-                return true;
+                return changed;
             }
 
-            int settingsHash = MetricEngine.ComputeOverlaySettingsHash();
+            int settingsHash = MetricEngine.GetOverlaySettingsHash();
             if (session.Version == _lastVersion && roomCount == _lastRoomCount && settingsHash == _lastSettingsHash)
                 return false;
 

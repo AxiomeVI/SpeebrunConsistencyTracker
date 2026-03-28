@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.UI;
 using Monocle;
 
@@ -62,7 +63,7 @@ public static partial class ModMenuOptions
             0,
             def.Choices.Length - 1,
             Array.IndexOf(def.Choices, def.Get()));
-        slider.Change(v => def.Set(def.Choices[v]));
+        slider.Change(v => { def.Set(def.Choices[v]); MetricEngine.InvalidateSettingsHash(); });
         return slider;
     }
 
