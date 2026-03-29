@@ -1,4 +1,3 @@
-using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -96,11 +95,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     labelColor, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
         }
-
-        /// <summary>
-        /// Converts a <see cref="ColorChoice"/> enum value to its corresponding XNA <see cref="Color"/>.
-        /// </summary>
-        public static Color ToColor(ColorChoice choice) => ColorHelper.ToColor(choice);
 
         /// <summary>
         /// Computes Y-axis step size and tick count for a frame-aligned time range.

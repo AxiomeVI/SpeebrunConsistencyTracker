@@ -99,7 +99,10 @@ public static partial class ModMenuOptions
             _settings.Enabled = value;
             foreach (TextMenuExt.SubMenu sub in subMenus) sub.Visible = value;
             keybindButton.Visible = value;
-            if (!value) SpeebrunConsistencyTrackerModule.Clear();
+            if (!value)
+                SpeebrunConsistencyTrackerModule.Clear();
+            else if (Engine.Scene is Level level && _settings.OverlayEnabled)
+                SpeebrunConsistencyTrackerModule.EnsureTextOverlay(level);
         }));
 
         foreach (TextMenuExt.SubMenu sub in subMenus)

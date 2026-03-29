@@ -23,4 +23,7 @@ public static class ColorHelper
         ColorChoice.Yellow         => new Color(240, 228, 66),
         _ => Color.White,
     };
+
+    public static Color ToFinalColor(ColorChoice choice, int opacity) =>
+        ToColor(choice) * (opacity / 100f);
 }

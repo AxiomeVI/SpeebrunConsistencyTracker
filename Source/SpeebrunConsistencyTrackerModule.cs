@@ -61,16 +61,17 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public override void Load() {
         typeof(SaveLoadIntegration).ModInterop();
         SaveLoadInstance = SaveLoadIntegration.RegisterSaveLoadAction(
-            OnSaveState, 
-            OnLoadState, 
-            OnClearState, 
-            OnBeforeSaveState,
-            OnBeforeLoadState,
+            OnSaveState,
+            OnLoadState,
+            OnClearState,
+            null,
+            null,
             null
         );
         typeof(RoomTimerIntegration).ModInterop();
         On.Celeste.Level.Update += LevelOnUpdate;
         Everest.Events.Level.OnExit += Level_OnLevelExit;
+        Everest.Events.Level.OnLoadLevel += OnLoadLevel;
 
         var updateTimerStateMethod = typeof(RoomTimerManager).GetMethod("UpdateTimerState", BindingFlags.Public | BindingFlags.Static);
         if (updateTimerStateMethod != null) {
@@ -92,6 +93,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
         Everest.Events.Level.OnExit -= Level_OnLevelExit;
+        Everest.Events.Level.OnLoadLevel -= OnLoadLevel;
         Clear();
         _updateTimerStateHook?.Dispose();
         _updateTimerStateHook   = null;
@@ -113,15 +115,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         PopupMessageUtils.Show(message, null);
     }
 
-    private static void OnBeforeSaveState(Level level) {
-        if (!Settings.Enabled)
-            return;
-        Instance.textOverlay?.RemoveSelf();
-        Instance.textOverlay = null;
-        Instance.graphManager?.RemoveGraphs();
-        Instance.graphManager = null;
-    }
-
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
     {
         if (!Settings.Enabled)
@@ -129,6 +122,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         Instance.sessionManager = new();
         MetricsExporter.Clear();
         MetricEngine.Clear();
+        if (Settings.OverlayEnabled)
+            EnsureTextOverlay(level);
     }
 
     public static void OnClearState()
@@ -136,16 +131,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         Clear();
-    }
-
-    public static void OnBeforeLoadState(Level level)
-    {
-        if (!Settings.Enabled)
-            return;
-        Instance.graphManager?.RemoveGraphs();
-        Instance.graphManager = null;
-        Instance.textOverlay?.RemoveSelf();
-        Instance.textOverlay = null;
     }
 
     public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
@@ -189,25 +174,27 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         HandlePauseHide(self);
     }
 
-    private static void UpdateTextOverlay(Level self) {
-        // Known bug: a ghost text will remain on screen if the TextOverlay appears on the same frame than a save state is created
-        if (RoomTimerIntegration.RoomTimerIsCompleted() && Settings.OverlayEnabled)
-        {
-            if (Instance.textOverlay == null)
-            {
-                Instance.textOverlay = [];
-                self.Entities.Add(Instance.textOverlay);
-            }
+    internal static void EnsureTextOverlay(Level level) {
+        if (Instance.textOverlay != null) return;
+        Instance.textOverlay = new TextOverlay();
+        level.Add(Instance.textOverlay);
+        SaveLoadIntegration.IgnoreSaveState?.Invoke(Instance.textOverlay, true);
+    }
+
+    private static void OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
+        if (!isFromLoader) return;
+        Instance.textOverlay?.RemoveSelf();
+        Instance.textOverlay = null;
+    }
+
+    private static void UpdateTextOverlay(Level _) {
+        if (Instance.textOverlay == null) return;
+        Instance.textOverlay.Visible =
+            RoomTimerIntegration.RoomTimerIsCompleted() && Settings.OverlayEnabled;
+        if (Instance.textOverlay.Visible) {
             Instance.sessionManager.UpdateRoomCount();
-            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
-            {
+            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result) && result.Count > 0)
                 Instance.textOverlay.SetText(result);
-            }
-        }
-        else
-        {
-            Instance.textOverlay?.RemoveSelf();
-            Instance.textOverlay = null;
         }
     }
 

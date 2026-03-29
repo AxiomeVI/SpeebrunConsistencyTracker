@@ -35,8 +35,10 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
     public int ChartOpacity { get; set; } = 75;
 
-    public Color RoomColorFinal    { get; set; } = ColorHelper.ToColor(ColorChoice.Cyan)   * (75 / 100f);
-    public Color SegmentColorFinal { get; set; } = ColorHelper.ToColor(ColorChoice.Orange) * (75 / 100f);
+    [SettingIgnore]
+    public Color RoomColorFinal    { get; set; } = ColorHelper.ToFinalColor(ColorChoice.Cyan,   75);
+    [SettingIgnore]
+    public Color SegmentColorFinal { get; set; } = ColorHelper.ToFinalColor(ColorChoice.Orange, 75);
 
     public bool ShowRoomTimeDistributionPlots { get; set; } = false;
     public int TimeLossThresholdMs { get; set; } = 493;

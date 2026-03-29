@@ -22,7 +22,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         public void ApplyModSettings() {
-            Visible = _settings.OverlayEnabled;
+            Visible = false; // UpdateTextOverlay drives visibility each frame; start hidden
             SetTextVisible(_settings.OverlayEnabled);
             SetTextPosition(_settings.TextPosition);
             SetTextOffsetX(_settings.TextOffsetX);
@@ -57,13 +57,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             StatText?.SetPosition(pos);
         }
         public void SetTextOffsetX(int offset) {
-            if (StatText != null) StatText.OffsetX = offset;
-            StatText?.SetPosition();
+            if (StatText == null) return;
+            StatText.OffsetX = offset;
+            StatText.SetPosition();
         }
         public void SetTextOffsetY(int offset)
         {
-            if (StatText != null) StatText.OffsetY = offset;
-            StatText?.SetPosition();
+            if (StatText == null) return;
+            StatText.OffsetY = offset;
+            StatText.SetPosition();
         }
         //size in percent as int
         public void SetTextSize(int size) {
@@ -76,7 +78,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public override void Render() {
             base.Render();
-            if (_settings.Enabled && StatText.Visible)
+            if (_settings.Enabled && StatText?.Visible == true)
             {
                 StatText.Render();
             }
@@ -88,10 +90,5 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             StatText = null;
         }
 
-        public override void SceneEnd(Scene scene)
-        {
-            base.SceneEnd(scene);
-            StatText = null;
-        }
     }
 }

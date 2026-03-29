@@ -1,4 +1,5 @@
-﻿using MonoMod.ModInterop;
+﻿using Monocle;
+using MonoMod.ModInterop;
 using System;
 using System.Collections.Generic;
 
@@ -17,4 +18,5 @@ public static class SaveLoadIntegration
         Action<Dictionary<Type, Dictionary<string, object>>, Level>, Action,
         Action<Level>, Action<Level>, Action, object> RegisterSaveLoadAction;
     public static Action<object> Unregister;
+    public static Action<Entity, bool> IgnoreSaveState;
 }

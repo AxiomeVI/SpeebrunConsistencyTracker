@@ -1,5 +1,6 @@
 using System;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
@@ -46,6 +47,8 @@ public static partial class ModMenuOptions
                 textAlpha.Visible       = value;
                 textPosition.Visible    = value;
                 textOrientation.Visible = value;
+                if (value && Engine.Scene is Level level)
+                    SpeebrunConsistencyTrackerModule.EnsureTextOverlay(level);
             });
 
         sub.Add(overlayEnabled);

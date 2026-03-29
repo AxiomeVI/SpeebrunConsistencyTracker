@@ -37,12 +37,12 @@ public static partial class ModMenuOptions
         roomColor.Change(v =>
         {
             _settings.RoomColor = enumColors[v];
-            _settings.RoomColorFinal = ColorHelper.ToColor(enumColors[v]) * (_settings.ChartOpacity / 100f);
+            _settings.RoomColorFinal = ColorHelper.ToFinalColor(enumColors[v], _settings.ChartOpacity);
         });
         segmentColor.Change(v =>
         {
             _settings.SegmentColor = enumColors[v];
-            _settings.SegmentColorFinal = ColorHelper.ToColor(enumColors[v]) * (_settings.ChartOpacity / 100f);
+            _settings.SegmentColorFinal = ColorHelper.ToFinalColor(enumColors[v], _settings.ChartOpacity);
         });
         timeLossThreshold.Change(v =>
         {
@@ -52,8 +52,8 @@ public static partial class ModMenuOptions
         graphOpacity.Change(v =>
         {
             _settings.ChartOpacity = v;
-            _settings.RoomColorFinal    = ColorHelper.ToColor(_settings.RoomColor)    * (v / 100f);
-            _settings.SegmentColorFinal = ColorHelper.ToColor(_settings.SegmentColor) * (v / 100f);
+            _settings.RoomColorFinal    = ColorHelper.ToFinalColor(_settings.RoomColor,    v);
+            _settings.SegmentColorFinal = ColorHelper.ToFinalColor(_settings.SegmentColor, v);
         });
 
         // Per-graph enable/disable toggles
