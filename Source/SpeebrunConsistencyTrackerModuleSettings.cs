@@ -1,5 +1,6 @@
-using Microsoft.Xna.Framework.Input;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Input;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -32,9 +33,13 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     // Graph Overlay menu
     public ColorChoice RoomColor { get; set; } = ColorChoice.Cyan;
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
+    public int ChartOpacity { get; set; } = 75;
+
+    public Color RoomColorFinal    { get; set; } = ColorHelper.ToColor(ColorChoice.Cyan)   * (75 / 100f);
+    public Color SegmentColorFinal { get; set; } = ColorHelper.ToColor(ColorChoice.Orange) * (75 / 100f);
+
     public bool ShowRoomTimeDistributionPlots { get; set; } = false;
     public int TimeLossThresholdMs { get; set; } = 493;
-    public int ChartOpacity { get; set; } = 75;
     public bool GraphScatter { get; set; } = true;
     public bool GraphRoomHistogram { get; set; } = false;
     public bool GraphSegmentHistogram { get; set; } = true;

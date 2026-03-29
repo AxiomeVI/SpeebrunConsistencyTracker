@@ -12,26 +12,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     {
         private readonly List<List<TimeTicks>> _roomTimes;
         private readonly List<TimeTicks> _segmentTimes;
-        private readonly Color _roomColor;
-        private readonly Color _segmentColor;
-        private readonly float _opacity;
         private readonly long _minRoom, _maxRoom;
         private readonly long _minSeg, _maxSeg;
 
         public BoxPlotOverlay(
             List<List<TimeTicks>> roomTimes,
             List<TimeTicks> segmentTimes,
-            Color roomColor,
-            Color segmentColor,
-            float opacity,
             Vector2? pos = null)
             : base("Room and Segment Box Plot", pos)
         {
             _roomTimes    = [.. roomTimes.Select(r => (List<TimeTicks>)[.. r.OrderBy(t => t)])];
             _segmentTimes = [.. segmentTimes.OrderBy(t => t)];
-            _roomColor    = roomColor;
-            _segmentColor = segmentColor;
-            _opacity      = opacity / 100f;
             ComputeRanges(out _minRoom, out _maxRoom, out _minSeg, out _maxSeg);
         }
 
@@ -135,13 +126,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 var times = _roomTimes[r];
                 if (times.Count == 0) continue;
                 float centerX = x + columnWidth * (r + 0.5f);
-                DrawBox(times, centerX, columnWidth, y, h, _minRoom, _maxRoom, _roomColor);
+                DrawBox(times, centerX, columnWidth, y, h, _minRoom, _maxRoom, SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal);
             }
 
             if (_segmentTimes.Count > 0)
             {
                 float segCenterX = x + columnWidth * (roomCount + 0.5f);
-                DrawBox(_segmentTimes, segCenterX, columnWidth, y, h, _minSeg, _maxSeg, _segmentColor);
+                DrawBox(_segmentTimes, segCenterX, columnWidth, y, h, _minSeg, _maxSeg, SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal);
             }
         }
 
@@ -163,7 +154,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             float boxHalfW = columnWidth * 0.2f;
             float capHalfW = columnWidth * 0.08f;
-            Color fillColor = color * _opacity;
+            Color fillColor = color;
 
             // Whisker: vertical line spanning full range
             Draw.Line(new Vector2(centerX, pxWorst), new Vector2(centerX, pxBest), color, 1.5f);
@@ -205,7 +196,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 ActiveFont.DrawOutline(label,
                     new Vector2(centerX - labelSize.X / 2, labelY),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
-                    _roomColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             // Segment label
@@ -217,7 +208,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             ActiveFont.DrawOutline("Segment",
                 new Vector2(segX - segLabelSize.X / 2, segLabelY),
                 Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
-                _segmentColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
 
             // Left Y axis (room times)
             long roomRange = _maxRoom - _minRoom;
@@ -232,7 +223,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 ActiveFont.DrawOutline(timeLabel,
                     new Vector2(x - lSize.X - ChartConstants.Axis.YLabelMarginX, yPos - lSize.Y / 2),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                    _roomColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             // Right Y axis (segment times)
@@ -248,7 +239,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 ActiveFont.DrawOutline(timeLabel,
                     new Vector2(x + w + ChartConstants.Trajectory.RightLabelMarginX, yPos - lSize.Y / 2),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                    _segmentColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             DrawTitle();

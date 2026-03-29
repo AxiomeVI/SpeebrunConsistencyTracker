@@ -23,16 +23,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly TimeTicks? targetTime = null;
 
         // Cache computed values
-        private List<(Vector2 pos, Color color, float radius)> cachedDots = null;
+        private List<(Vector2 pos, bool isSegment, float radius)> cachedDots = null;
         private long maxRoomTime;
         private long maxSegmentTime;
         private long minRoomTime;
         private long minSegmentTime;
 
         // Scatter-specific colors
-        private Color gridColor        = ChartConstants.Colors.GridLineColor;
-        private Color dotColor         = Color.Cyan;
-        private Color segmentDotColor  = Color.Orange;
+        private Color gridColor = ChartConstants.Colors.GridLineColor;
 
         public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
             : base("Room and Segment Times", pos)
@@ -41,8 +39,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room)).Where(r => r.Times.Count > 0)];
             segmentData  = new RoomData("Segment", segment);
             targetTime   = target;
-            dotColor        = ToColor(_settings.RoomColor);
-            segmentDotColor = ToColor(_settings.SegmentColor);
             ComputeMaxValues();
         }
 
@@ -210,7 +206,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         float normalizedY = roomRange > 0 ? (float)(time.Ticks - minRoomTime) / roomRange : 0.5f;
                         float dotY        = y + h - (normalizedY * h);
                         float jitterX     = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
-                        cachedDots.Add((new Vector2(jitterX, dotY), dotColor, baseRadius));
+                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius));
                     }
                 }
 
@@ -220,12 +216,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float normalizedY = segmentRange > 0 ? (float)(time.Ticks - minSegmentTime) / segmentRange : 0.5f;
                     float dotY        = y + h - (normalizedY * h);
                     float jitterX     = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
-                    cachedDots.Add((new Vector2(jitterX, dotY), segmentDotColor, baseRadius));
+                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius));
                 }
             }
 
-            foreach (var (pos, color, radius) in cachedDots)
-                DrawDot(pos, color, radius);
+            foreach (var (pos, isSegment, radius) in cachedDots)
+                DrawDot(pos, isSegment ? _settings.SegmentColorFinal : _settings.RoomColorFinal, radius);
         }
 
         private static void DrawDot(Vector2 position, Color color, float radius)
@@ -257,7 +253,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     new Vector2(centerX - labelSize.X / 2, labelY),
                     new Vector2(0f, 0f),
                     Vector2.One * ChartConstants.FontScale.AxisLabel,
-                    dotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             // Segment label — continues the stagger pattern
@@ -270,7 +266,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(segmentX - segLabelSize.X / 2, segmentLabelY),
                 new Vector2(0f, 0f),
                 Vector2.One * ChartConstants.FontScale.AxisLabel,
-                segmentDotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
 
             // Left Y axis labels (room times)
             long roomRange = maxRoomTime - minRoomTime;
@@ -286,7 +282,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, yPos - labelSize.Y / 2),
                     new Vector2(0f, 0f),
                     Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                    dotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             // Right Y axis labels (segment times)
@@ -303,7 +299,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     new Vector2(x + w + ChartConstants.Trajectory.RightLabelMarginX, yPos - labelSize.Y / 2),
                     new Vector2(0f, 0f),
                     Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                    segmentDotColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             DrawTitle();

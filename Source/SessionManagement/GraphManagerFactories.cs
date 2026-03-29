@@ -37,8 +37,7 @@ public partial class GraphManager
             value = new HistogramOverlay(
                 $"Room {roomIndex + 1}",
                 _roomTimes[roomIndex],
-                BaseChartOverlay.ToColor(_settings.RoomColor),
-                _settings.ChartOpacity);
+                isSegment: false);
             _roomHistograms[roomIndex] = value;
         }
         return value;
@@ -51,8 +50,7 @@ public partial class GraphManager
         return _segmentHistogram ??= new HistogramOverlay(
             $"Segment ({roomLabel})",
             _segmentTimes,
-            BaseChartOverlay.ToColor(_settings.SegmentColor),
-            _settings.ChartOpacity);
+            isSegment: true);
     }
 
     private GroupedPercentOverlay GetOrCreateDnfPctChart()
@@ -206,10 +204,7 @@ public partial class GraphManager
     {
         return _boxPlotChart ??= new BoxPlotOverlay(
             _roomTimes,
-            _segmentTimes,
-            BaseChartOverlay.ToColor(_settings.RoomColor),
-            BaseChartOverlay.ToColor(_settings.SegmentColor),
-            _settings.ChartOpacity);
+            _segmentTimes);
     }
 
     // -------------------------------------------------------------------------

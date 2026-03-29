@@ -12,17 +12,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     {
 
         private readonly List<TimeTicks> times;
-        private readonly Color barColor;
+        private readonly bool _isSegment;
 
         // Histogram data (cached)
         private List<(long minTick, long maxTick, int count)> buckets;
         private int maxCount;
 
-        public HistogramOverlay(string roomName, List<TimeTicks> times, Color barColor, float opacity = 1f, Vector2? pos = null)
+        public HistogramOverlay(string roomName, List<TimeTicks> times, bool isSegment = false, Vector2? pos = null)
             : base($"Time Distribution - {roomName}", pos)
         {
             this.times = times;
-            this.barColor = barColor * (opacity / 100);
+            _isSegment = isSegment;
             ComputeHistogram();
         }
 
@@ -89,6 +89,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override void DrawBars(float x, float y, float w, float h)
         {
             if (buckets.Count == 0 || maxCount == 0) return;
+
+            Color barColor = _isSegment
+                ? SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal
+                : SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal;
 
             float barWidth = Math.Min(w / buckets.Count, MAX_BAR_WIDTH);
             float barSpacing = barWidth * ChartConstants.BarLayout.SingleBarSpacingRatio;

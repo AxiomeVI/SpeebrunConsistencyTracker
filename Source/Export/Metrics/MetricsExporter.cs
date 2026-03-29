@@ -88,8 +88,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             {
                 uint version = session?.Version ?? 0;
                 bool changed = version != _lastVersion || roomCount != _lastRoomCount;
-                _lastVersion = version;
-                _lastRoomCount = roomCount;
+                // Don't stamp the cache — stay dirty so we re-evaluate next frame
+                // when TotalCompleted() may become > 0 again (e.g. after RoomCount increase)
                 return changed;
             }
 
