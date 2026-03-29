@@ -104,7 +104,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             _lastVersion = session.Version;
             _lastRoomCount = roomCount;
             _lastSettingsHash = settingsHash;
-            return true;
+            return result.Count > 0;
         }
     }
 }

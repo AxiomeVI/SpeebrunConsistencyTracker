@@ -189,11 +189,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void UpdateTextOverlay(Level _) {
         if (Instance.textOverlay == null) return;
-        Instance.textOverlay.Visible =
-            RoomTimerIntegration.RoomTimerIsCompleted() && Settings.OverlayEnabled;
+        Instance.textOverlay.Visible = RoomTimerIntegration.RoomTimerIsCompleted() && Settings.OverlayEnabled;
         if (Instance.textOverlay.Visible) {
             Instance.sessionManager.UpdateRoomCount();
-            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result) && result.Count > 0)
+            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
                 Instance.textOverlay.SetText(result);
         }
     }
