@@ -13,8 +13,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected readonly List<string> _labels;
         protected readonly List<T> _primaryValues;
         protected readonly List<T> _secondaryValues;
-        protected readonly Color _primaryColor;
-        protected readonly Color _secondaryColor;
         protected readonly string _primaryLabel;
         protected readonly string _secondaryLabel;
 
@@ -28,19 +26,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<string> labels,
             List<T> primaryValues,
             List<T> secondaryValues,
-            Color primaryColor,
-            Color secondaryColor,
             string primaryLabel,
             string secondaryLabel,
-            float opacity = 1f,
             Vector2? pos = null)
             : base(title, pos)
         {
             _labels          = labels;
             _primaryValues   = primaryValues;
             _secondaryValues = secondaryValues;
-            _primaryColor    = primaryColor   * (opacity / 100f);
-            _secondaryColor  = secondaryColor * (opacity / 100f);
             _primaryLabel    = primaryLabel;
             _secondaryLabel  = secondaryLabel;
 
@@ -56,6 +49,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (_primaryValues.Count == 0) return;
 
+            Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
+            Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
+
             for (int i = 0; i < _primaryValues.Count; i++)
             {
                 float groupX = x + i * _cachedGroupWidth + _cachedGroupSpacing / 2f;
@@ -69,10 +65,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float secondaryY      = y + h - secondaryHeight;
 
                 if (primaryHeight > 0)
-                    Draw.Rect(groupX, primaryY, _cachedBarWidth, primaryHeight, _primaryColor);
+                    Draw.Rect(groupX, primaryY, _cachedBarWidth, primaryHeight, primaryColor);
 
                 if (secondaryExists && secondaryHeight > 0)
-                    Draw.Rect(secondaryX, secondaryY, _cachedBarWidth, secondaryHeight, _secondaryColor);
+                    Draw.Rect(secondaryX, secondaryY, _cachedBarWidth, secondaryHeight, secondaryColor);
 
                 bool primaryVisible   = primaryHeight > 0;
                 bool secondaryVisible = secondaryExists && secondaryHeight > 0;
@@ -100,15 +96,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         protected override void DrawLabels(float x, float y, float w, float h)
         {
+            Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
+            Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
+
             DrawTitle();
             DrawYAxis(x, y, w, h);
             DrawXAxisStaggeredLabels(x, y, h, _labels.Count, _cachedGroupWidth, i => _labels[i], Color.LightGray);
 
             float legendY = y + h + ChartConstants.Legend.LegendOffsetY;
             float legendX = x + w;
-            DrawLegendEntry(legendX, legendY, _secondaryLabel, _secondaryColor, ChartConstants.FontScale.AxisLabel, right: true);
+            DrawLegendEntry(legendX, legendY, _secondaryLabel, secondaryColor, ChartConstants.FontScale.AxisLabel, right: true);
             float offset = ActiveFont.Measure(_secondaryLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
-            DrawLegendEntry(legendX - offset, legendY, _primaryLabel, _primaryColor, ChartConstants.FontScale.AxisLabel, right: true);
+            DrawLegendEntry(legendX - offset, legendY, _primaryLabel, primaryColor, ChartConstants.FontScale.AxisLabel, right: true);
         }
     }
 }

@@ -14,8 +14,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly List<string> labels;
         private readonly List<double> primaryValues;
         private readonly List<double> secondaryValues;
-        private readonly Color primaryColor;
-        private readonly Color secondaryColor;
         private readonly string primaryLabel;
         private readonly string secondaryLabel;
         private readonly int maxValue = 100;
@@ -27,11 +25,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             string title,
             List<string> labels,
             List<double> values,
-            Color barColor,
             string legendLabel = null,
-            float opacity = 1f,
             Vector2? pos = null)
-            : this(title, labels, values, null, barColor, Color.Transparent, legendLabel, null, opacity, pos) { }
+            : this(title, labels, values, null, legendLabel, null, pos) { }
 
         /// <summary>
         /// Stacked percentage bar chart with primary + secondary layers.
@@ -41,29 +37,27 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<string> labels,
             List<double> primaryValues,
             List<double> secondaryValues,
-            Color primaryColor,
-            Color secondaryColor,
             string primaryLabel,
             string secondaryLabel,
-            float opacity = 1f,
             Vector2? pos = null)
             : base(title, pos)
         {
-            this.labels = labels;
-            this.primaryValues = primaryValues;
+            this.labels          = labels;
+            this.primaryValues   = primaryValues;
             this.secondaryValues = secondaryValues;
-            this.primaryColor = primaryColor * (opacity / 100);
-            this.secondaryColor = secondaryColor * (opacity / 100);
-            this.primaryLabel = primaryLabel;
-            this.secondaryLabel = secondaryLabel;
+            this.primaryLabel    = primaryLabel;
+            this.secondaryLabel  = secondaryLabel;
         }
 
         protected override void DrawBars(float x, float y, float w, float h)
         {
             if (primaryValues.Count == 0) return;
 
-            float barWidth      = Math.Min(w / primaryValues.Count, MAX_BAR_WIDTH);
-            float barSpacing    = barWidth * ChartConstants.BarLayout.GroupSpacingRatio;
+            Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
+            Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
+
+            float barWidth       = Math.Min(w / primaryValues.Count, MAX_BAR_WIDTH);
+            float barSpacing     = barWidth * ChartConstants.BarLayout.GroupSpacingRatio;
             float actualBarWidth = barWidth - barSpacing;
 
             for (int i = 0; i < primaryValues.Count; i++)
@@ -106,6 +100,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         protected override void DrawLabels(float x, float y, float w, float h)
         {
+            Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
+            Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
+
             float barWidth = Math.Min(w / Math.Max(labels.Count, 1), MAX_BAR_WIDTH);
 
             DrawTitle();

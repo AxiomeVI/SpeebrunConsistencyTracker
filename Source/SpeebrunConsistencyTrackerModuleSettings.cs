@@ -40,6 +40,22 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [SettingIgnore]
     public Color SegmentColorFinal { get; set; } = ColorHelper.ToFinalColor(ColorChoice.Orange, 75);
 
+    [SettingIgnore]
+    public Color PrimaryChartColor   { get; set; } = Color.IndianRed;
+    [SettingIgnore]
+    public Color SecondaryChartColor { get; set; } = Color.CornflowerBlue;
+    
+    public Color PrimaryChartColorFinal   { get; set; } = Color.IndianRed      * 0.75f;
+    [SettingIgnore]
+    public Color SecondaryChartColorFinal { get; set; } = Color.CornflowerBlue * 0.75f;
+
+    [SettingIgnore]
+    public Color TrajectoryBestColorFinal { get; set; } = Color.Gold;
+    [SettingIgnore]
+    public Color TrajectoryLastColorFinal { get; set; } = Color.Red;
+    [SettingIgnore]
+    public Color TrajectorySobColorFinal  { get; set; } = Color.Turquoise;
+
     public bool ShowRoomTimeDistributionPlots { get; set; } = false;
     public int TimeLossThresholdMs { get; set; } = 493;
     public bool GraphScatter { get; set; } = true;

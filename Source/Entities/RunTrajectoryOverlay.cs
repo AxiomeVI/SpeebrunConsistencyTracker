@@ -162,17 +162,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             // SoB line
-            Color sobColor = _sobIsBest ? Color.Gold : Color.Turquoise;
+            var s = SpeebrunConsistencyTrackerModule.Settings;
+            Color sobColor = _sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal;
             DrawAttemptLine(_sobLine, x, baselineY, columnWidth, scale, h, sobColor, 2f);
 
             if (!_lastIsBest)
             {
-                DrawAttemptLine(_attempts[^2], x, baselineY, columnWidth, scale, h, Color.Gold, 2f);
-                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, scale, h, Color.Red, 2f);
+                DrawAttemptLine(_attempts[^2], x, baselineY, columnWidth, scale, h, s.TrajectoryBestColorFinal, 2f);
+                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, scale, h, s.TrajectoryLastColorFinal, 2f);
             }
             else
             {
-                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, scale, h, Color.Gold, 2f);
+                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, scale, h, s.TrajectoryBestColorFinal, 2f);
             }
         }
 
@@ -231,22 +232,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float legendY = y + h + ChartConstants.Legend.LegendOffsetY;
             float legendX = x + w;
             float offset = 0;
+            var s = SpeebrunConsistencyTrackerModule.Settings;
             if (!(_sobIsBest && _lastIsBest))
             {
                 string lastLabel = _lastIsBest ? "Best & last run" : "Last run";
-                Color lastColor = _lastIsBest ? Color.Gold : Color.Red;
+                Color lastColor = _lastIsBest ? s.TrajectoryBestColorFinal : s.TrajectoryLastColorFinal;
                 DrawLegendEntry(legendX, legendY, lastLabel, lastColor, ChartConstants.FontScale.AxisLabel, right: true);
                 offset = ActiveFont.Measure(lastLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
             }
             if (!_lastIsBest && !_sobIsBest)
             {
-                DrawLegendEntry(legendX - offset, legendY, "Best run", Color.Gold, ChartConstants.FontScale.AxisLabel, right: true);
+                DrawLegendEntry(legendX - offset, legendY, "Best run", s.TrajectoryBestColorFinal, ChartConstants.FontScale.AxisLabel, right: true);
                 offset += ActiveFont.Measure("Best run").X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
             }
             string sobLabel = _sobIsBest && _lastIsBest ? "SoB & Best & last run"
                             : _sobIsBest               ? "SoB & Best run"
                                                        : "SoB";
-            Color sobLegendColor = _sobIsBest ? Color.Gold : Color.Turquoise;
+            Color sobLegendColor = _sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal;
             DrawLegendEntry(legendX - offset, legendY, sobLabel, sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
 
             // Attempt count
@@ -304,15 +306,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float rightX = x + w + ChartConstants.Trajectory.RightLabelMarginX;
 
             // Define labels: (yPos, text, color) ordered by priority (index 0 = highest)
-            Color sobLabelColor = _sobIsBest ? Color.Gold : Color.Turquoise;
+            var s = SpeebrunConsistencyTrackerModule.Settings;
+            Color sobLabelColor = _sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal;
             var labelList = new List<(float yPos, string text, Color color)>
             {
                 (baselineY, new TimeTicks(_roomAveragesSum).ToString(), Color.Gray),
             };
             if (!_sobIsBest)
-                labelList.Add((baselineY - _bestFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _bestFinalDeviation).ToString(), Color.Gold));
+                labelList.Add((baselineY - _bestFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _bestFinalDeviation).ToString(), s.TrajectoryBestColorFinal));
             if (!_lastIsBest)
-                labelList.Add((baselineY - _lastFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _lastFinalDeviation).ToString(), Color.Red));
+                labelList.Add((baselineY - _lastFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _lastFinalDeviation).ToString(), s.TrajectoryLastColorFinal));
             labelList.Add((baselineY - _maxPositiveDeviation * scale, new TimeTicks(_roomAveragesSum - _maxPositiveDeviation).ToString(), sobLabelColor));
             var labels = labelList.ToArray();
 

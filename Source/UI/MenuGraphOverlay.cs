@@ -1,5 +1,6 @@
 using System;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Microsoft.Xna.Framework;
 using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
@@ -52,8 +53,10 @@ public static partial class ModMenuOptions
         graphOpacity.Change(v =>
         {
             _settings.ChartOpacity = v;
-            _settings.RoomColorFinal    = ColorHelper.ToFinalColor(_settings.RoomColor,    v);
-            _settings.SegmentColorFinal = ColorHelper.ToFinalColor(_settings.SegmentColor, v);
+            _settings.RoomColorFinal           = ColorHelper.ToFinalColor(_settings.RoomColor, v);
+            _settings.SegmentColorFinal        = ColorHelper.ToFinalColor(_settings.SegmentColor, v);
+            _settings.PrimaryChartColorFinal   = _settings.PrimaryChartColor * (v / 100f);
+            _settings.SecondaryChartColorFinal = _settings.SecondaryChartColor * (v / 100f);
         });
 
         // Per-graph enable/disable toggles

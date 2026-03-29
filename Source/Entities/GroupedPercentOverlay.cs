@@ -14,14 +14,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<string> labels,
             List<float> primaryValues,
             List<float> secondaryValues,
-            Color primaryColor,
-            Color secondaryColor,
             string primaryLabel,
             string secondaryLabel,
-            float opacity = 1f,
             Vector2? pos = null)
-            : base(title, labels, primaryValues, secondaryValues, primaryColor, secondaryColor,
-                   primaryLabel, secondaryLabel, opacity, pos) { }
+            : base(title, labels, primaryValues, secondaryValues, primaryLabel, secondaryLabel, pos) { }
 
         protected override float GetBarHeight(float value, float chartHeight) =>
             value / 100f * chartHeight;

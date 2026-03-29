@@ -20,14 +20,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<string> labels,
             List<long> primaryTicks,
             List<long> secondaryTicks,
-            Color primaryColor,
-            Color secondaryColor,
             string primaryLabel,
             string secondaryLabel,
-            float opacity = 1f,
             Vector2? pos = null)
-            : base(title, labels, primaryTicks, secondaryTicks, primaryColor, secondaryColor,
-                   primaryLabel, secondaryLabel, opacity, pos)
+            : base(title, labels, primaryTicks, secondaryTicks, primaryLabel, secondaryLabel, pos)
         {
             long dataMax = Enumerable.Range(0, primaryTicks.Count)
                 .Select(i => Math.Max(

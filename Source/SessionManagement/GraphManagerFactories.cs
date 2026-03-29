@@ -1,7 +1,6 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
-using Microsoft.Xna.Framework;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -65,9 +64,7 @@ public partial class GraphManager
         _dnfPctChart = new GroupedPercentOverlay(
             "DNF Rate per Room & Segment Survival Rate",
             labels, dnfRates, survivalRates,
-            Color.IndianRed, Color.CornflowerBlue,
-            "DNF rate", "Remaining (%)",
-            _settings.ChartOpacity);
+            "DNF rate", "Remaining (%)");
 
         return _dnfPctChart;
     }
@@ -93,9 +90,7 @@ public partial class GraphManager
         _problemRoomsChart = new PercentBarChartOverlay(
             $"Problem Rooms (threshold: {_settings.TimeLossThresholdMs}ms)",
             labels, dnfPcts, timeLossPcts,
-            Color.IndianRed, Color.CornflowerBlue,
-            "DNF rate", $">{_settings.TimeLossThresholdMs}ms over gold",
-            _settings.ChartOpacity);
+            "DNF rate", $">{_settings.TimeLossThresholdMs}ms over gold");
 
         return _problemRoomsChart;
     }
@@ -152,9 +147,7 @@ public partial class GraphManager
         _inconsistentRoomsChart = new PercentBarChartOverlay(
             "Room Inconsistency (ranked)",
             rankedLabels, scaledRmad, scaledRstddev,
-            Color.IndianRed, Color.CornflowerBlue,
-            "RMAD", "RStdDev",
-            _settings.ChartOpacity);
+            "RMAD", "RStdDev");
 
         return _inconsistentRoomsChart;
     }
@@ -185,9 +178,7 @@ public partial class GraphManager
         _timeLossChart = new GroupedBarChartOverlay(
             "Time Loss per Room",
             labels, medianTicks, averageTicks,
-            Color.IndianRed, Color.CornflowerBlue,
-            "Median loss", "Avg loss",
-            _settings.ChartOpacity);
+            "Median loss", "Avg loss");
 
         return _timeLossChart;
     }
