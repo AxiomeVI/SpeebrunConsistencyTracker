@@ -39,19 +39,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public void SetTextOrientation(StatTextOrientation orientation)
         {
-            if (StatText != null) StatText.Orientation = orientation;
+            StatText?.Orientation = orientation;
         }
 
         public void SetTextAlpha(float alpha) {
-            if (StatText != null) StatText.SetAlpha((float)alpha/100);
+            StatText?.SetAlpha((float)alpha/100);
         }
 
         public void SetTextVisible(bool visible) {
-            if (StatText != null) StatText.OptionVisible = visible;
+            StatText?.OptionVisible = visible;
             UpdateTextVisibility();
         }
         public void SetText(List<string> text) {
-            if (StatText != null) StatText.Text = text;
+            StatText?.Text = text;
         }
         public void SetTextPosition(StatTextPosition pos) {
             StatText?.SetPosition(pos);
@@ -69,11 +69,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
         //size in percent as int
         public void SetTextSize(int size) {
-            if (StatText != null) StatText.Scale = (float)size / 100;
+            StatText?.Scale = (float)size / 100;
         }
 
         private void UpdateTextVisibility() {
-            if (StatText != null) StatText.Visible = StatText.OptionVisible;
+            StatText?.Visible = StatText.OptionVisible;
         }
 
         public override void Render() {
