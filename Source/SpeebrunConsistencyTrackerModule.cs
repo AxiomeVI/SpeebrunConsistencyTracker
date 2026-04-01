@@ -193,7 +193,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         Instance.sessionManager.UpdateRoomCount();
         bool roomCountChanged = Instance.sessionManager.RoomCount != prevRoomCount;
 
-        bool visible = !roomCountChanged && RoomTimerIntegration.RoomTimerIsCompleted();
+        bool timerOff = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType == RoomTimerType.Off;
+        bool visible = !roomCountChanged && !timerOff && RoomTimerIntegration.RoomTimerIsCompleted();
         TextOverlay.SetTextVisible(visible);
         if (visible) {
             if (MetricsExporter.RefreshTextOverlayIfNecessary(Instance.sessionManager.CurrentSession, out List<string> result))

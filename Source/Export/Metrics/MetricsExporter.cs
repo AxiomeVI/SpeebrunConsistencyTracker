@@ -11,12 +11,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
         private static uint _lastVersion = 0;
         private static int _lastRoomCount = 0;
         private static int _lastSettingsHash = 0;
+        private static int _lastRoomTimerType = 0;
 
         public static void Clear()
         {
             _lastVersion = 0;
             _lastRoomCount = 0;
             _lastSettingsHash = 0;
+            _lastRoomTimerType = 0;
         }
 
         public static string ExportSessionToCsv(PracticeSession session)
@@ -86,7 +88,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
 
             int settingsHash = MetricEngine.GetOverlaySettingsHash();
-            if (session.Version == _lastVersion && roomCount == _lastRoomCount && settingsHash == _lastSettingsHash)
+            int roomTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+            if (session.Version == _lastVersion && roomCount == _lastRoomCount && settingsHash == _lastSettingsHash && roomTimerType == _lastRoomTimerType)
                 return false;
 
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
@@ -96,6 +99,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             _lastVersion = session.Version;
             _lastRoomCount = roomCount;
             _lastSettingsHash = settingsHash;
+            _lastRoomTimerType = roomTimerType;
             return true;
         }
     }
