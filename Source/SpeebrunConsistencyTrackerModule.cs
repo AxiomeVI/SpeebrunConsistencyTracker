@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Microsoft.Xna.Framework.Graphics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeedrunTool.Message;
@@ -177,8 +178,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private static void LevelOnRender(On.Celeste.Level.orig_Render orig, Level self) {
         orig(self);
         if (Settings.Enabled && Instance.sessionManager != null) {
-            Draw.SpriteBatch.Begin();
+            Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Engine.ScreenMatrix);
             TextOverlay.Render();
+            Instance.graphManager?.Render();
             Draw.SpriteBatch.End();
         }
     }
@@ -245,7 +247,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             {
                 Instance.graphManager = BuildGraphManager(activeSessionManager);
                 if (!self.Paused)
-                    Instance.graphManager.CurrentGraph(self);
+                    Instance.graphManager.CurrentGraph();
             }
             else if (Instance.graphManager.IsShowing())
             {
@@ -253,16 +255,16 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             }
             else if (!self.Paused)
             {
-                Instance.graphManager.CurrentGraph(self);
+                Instance.graphManager.CurrentGraph();
             }
         } else if (Instance.graphManager != null && Instance.graphManager.IsShowing())
         {
             if (_nextGraphHotkey.Pressed)
             {
-                Instance.graphManager.NextGraph(self);
+                Instance.graphManager.NextGraph();
             } else if (_previousGraphHotkey.Pressed)
             {
-                Instance.graphManager.PreviousGraph(self);
+                Instance.graphManager.PreviousGraph();
             } else if (!Instance.graphManager.SameLength(segmentLength))
             {
                 var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
@@ -273,7 +275,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                 Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
 
                 if (!self.Paused && wasShowing)
-                    Instance.graphManager.CurrentGraph(self);
+                    Instance.graphManager.CurrentGraph();
             }
         }
     }
@@ -298,8 +300,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
                     Instance.graphManager = BuildGraphManager(Instance.sessionManager);
                     Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
 
-                    if (wasShowing && Engine.Scene is Level level)
-                        Instance.graphManager.CurrentGraph(level);
+                    if (wasShowing)
+                        Instance.graphManager.CurrentGraph();
                 }
             }
         }

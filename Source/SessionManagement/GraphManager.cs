@@ -1,7 +1,6 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
-using Monocle;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -38,7 +37,7 @@ public partial class GraphManager
     private record GraphSlot(GraphType Type, int RoomIndex = -1);
     private List<GraphSlot> _enabledSlots = [];
     private int _currentSlotIndex = -1; // -1 = nothing shown yet
-    private Entity _currentOverlay;
+    private BaseChartOverlay _currentOverlay;
 
     // Persists the last shown graph type across GraphManager rebuilds (e.g. room count changed)
     // Defaults to Scatter so the first open always shows the scatter plot
@@ -87,6 +86,8 @@ public partial class GraphManager
 
     public bool IsShowing() => _currentOverlay != null;
 
+    public void Render() => _currentOverlay?.Render();
+
     // -------------------------------------------------------------------------
     // Slot management
     // -------------------------------------------------------------------------
@@ -97,7 +98,7 @@ public partial class GraphManager
     /// the next enabled graph (or shows the "no graphs" message).
     /// Call this whenever a graph toggle changes in the settings menu.
     /// </summary>
-    public void RebuildEnabledSlots(Level level = null)
+    public void RebuildEnabledSlots()
     {
         var (prevType, prevRoom) = GetCurrentSlot();
         bool wasShowing = IsShowing();
@@ -109,10 +110,10 @@ public partial class GraphManager
         {
             _currentSlotIndex = restored;
         }
-        else if (wasShowing && level != null)
+        else if (wasShowing)
         {
             _currentSlotIndex = -1;
-            NextGraph(level);
+            NextGraph();
         }
         else
         {
@@ -194,9 +195,8 @@ public partial class GraphManager
     // Navigation
     // -------------------------------------------------------------------------
 
-    public void NextGraph(Level level)
+    public void NextGraph()
     {
-        _currentOverlay?.RemoveSelf();
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -206,12 +206,11 @@ public partial class GraphManager
         }
 
         _currentSlotIndex = (_currentSlotIndex + 1) % _enabledSlots.Count;
-        ShowCurrentSlot(level);
+        ShowCurrentSlot();
     }
 
-    public void PreviousGraph(Level level)
+    public void PreviousGraph()
     {
-        _currentOverlay?.RemoveSelf();
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -221,18 +220,17 @@ public partial class GraphManager
         }
 
         _currentSlotIndex = (_currentSlotIndex - 1 + _enabledSlots.Count) % _enabledSlots.Count;
-        ShowCurrentSlot(level);
+        ShowCurrentSlot();
     }
 
-    public void CurrentGraph(Level level)
+    public void CurrentGraph()
     {
         if (_currentSlotIndex < 0)
         {
-            NextGraph(level);
+            NextGraph();
             return;
         }
 
-        _currentOverlay?.RemoveSelf();
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -241,14 +239,14 @@ public partial class GraphManager
             return;
         }
 
-        ShowCurrentSlot(level);
+        ShowCurrentSlot();
     }
 
     // -------------------------------------------------------------------------
     // Rendering
     // -------------------------------------------------------------------------
 
-    private void ShowCurrentSlot(Level level)
+    private void ShowCurrentSlot()
     {
         if (_currentSlotIndex < 0 || _currentSlotIndex >= _enabledSlots.Count) return;
 
@@ -268,9 +266,6 @@ public partial class GraphManager
             GraphType.BoxPlot           => GetOrCreateBoxPlotChart(),
             _                           => null
         };
-
-        if (_currentOverlay != null)
-            level.Add(_currentOverlay);
     }
 
     private static void ShowNoGraphsMessage()
@@ -284,28 +279,16 @@ public partial class GraphManager
 
     public void HideGraph()
     {
-        _currentOverlay?.RemoveSelf();
         _currentOverlay = null;
     }
 
     public void RemoveGraphs()
     {
-        _currentOverlay?.RemoveSelf();
-        _scatterGraph?.RemoveSelf();
-        _segmentHistogram?.RemoveSelf();
-        _dnfPctChart?.RemoveSelf();
-        _problemRoomsChart?.RemoveSelf();
-        _inconsistentRoomsChart?.RemoveSelf();
-        _timeLossChart?.RemoveSelf();
-        _runTrajectoryChart?.RemoveSelf();
-        _boxPlotChart?.RemoveSelf();
-        foreach (HistogramOverlay graph in _roomHistograms.Values)
-            graph?.RemoveSelf();
+        _currentOverlay = null;
     }
 
     public void Dispose()
     {
-        RemoveGraphs();
         _currentOverlay         = null;
         _scatterGraph           = null;
         _segmentHistogram       = null;

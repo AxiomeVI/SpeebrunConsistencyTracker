@@ -1,7 +1,5 @@
 using System;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
-using Microsoft.Xna.Framework;
-using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
@@ -120,7 +118,6 @@ public static partial class ModMenuOptions
     private static void RebuildGraphSlots()
     {
         if (_instance.graphManager == null) return;
-        Level level = Engine.Scene as Level;
-        _instance.graphManager.RebuildEnabledSlots(level);
+        _instance.graphManager.RebuildEnabledSlots();
     }
 }

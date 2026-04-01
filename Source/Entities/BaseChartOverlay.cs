@@ -8,7 +8,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     /// Base class for all bar chart / histogram overlays. Handles common layout, rendering pipeline,
     /// title drawing, axis drawing, and legend entry drawing.
     /// </summary>
-    public abstract class BaseChartOverlay : Entity
+    public abstract class BaseChartOverlay
     {
         protected readonly string title;
         protected readonly Vector2 position;
@@ -23,11 +23,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected BaseChartOverlay(string title, Vector2? pos = null)
         {
             this.title = title;
-            Depth = -100;
             position = pos ?? new Vector2(
                 (ChartConstants.Screen.ScreenWidth  - width)  / 2,
                 (ChartConstants.Screen.ScreenHeight - height) / 2);
-            Tag = Tags.HUD | Tags.Global;
         }
 
         protected abstract void DrawBars(float x, float y, float w, float h);
@@ -115,9 +113,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             count = (int)(range / step);
         }
 
-        public override void Render()
+        public virtual void Render()
         {
-            base.Render();
             Draw.Rect(position, width, height, backgroundColor);
             float gx = position.X + marginH;
             float gy = position.Y + margin;
