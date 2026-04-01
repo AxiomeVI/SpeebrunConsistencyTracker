@@ -5,12 +5,11 @@ using System.Collections.Generic;
 
 // Adapted from https://github.com/viddie/ConsistencyTrackerMod/blob/main/Entities/StatTextComponent.cs
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
-    public class TextComponent(bool active, bool visible, StatTextPosition position, StatTextOrientation orientation, float alpha) : Component(active, visible) {
+    public class TextComponent(StatTextPosition position, StatTextOrientation orientation, float alpha) {
 
         public StatTextPosition Position { get; set; } = position;
         public StatTextOrientation Orientation { get; set; } = orientation;
         public List<string> Text { get; set; }
-        public bool OptionVisible { get; set; }
         public float Scale { get; set; } = 1f;
         private float Alpha { get; set; } = alpha;
         public PixelFont Font { get; set; }
@@ -108,8 +107,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             StrokeColor = Color.Black * Alpha;
         }
 
-        public override void Render() {
-            base.Render();
+        public void Render() {
             if (Text == null || Text.Count == 0) return;
             
             if (Orientation == StatTextOrientation.Horizontal)

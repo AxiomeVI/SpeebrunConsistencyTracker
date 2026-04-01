@@ -11,12 +11,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
 
         private TextComponent StatText { get; set; }
+        private bool _textVisible;
 
         public TextOverlay() {
             Depth = -101;
             Tag = Tags.HUD | Tags.Global;
 
-            StatText = new TextComponent(true, true, StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f);
+            StatText = new TextComponent(StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f);
             InitStatTextOptions();
             ApplyModSettings();
         }
@@ -47,8 +48,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         public void SetTextVisible(bool visible) {
-            StatText?.OptionVisible = visible;
-            UpdateTextVisibility();
+            _textVisible = visible;
         }
         public void SetText(List<string> text) {
             StatText?.Text = text;
@@ -72,13 +72,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             StatText?.Scale = (float)size / 100;
         }
 
-        private void UpdateTextVisibility() {
-            StatText?.Visible = StatText.OptionVisible;
-        }
-
         public override void Render() {
             base.Render();
-            if (_settings.Enabled && StatText?.Visible == true)
+            if (_settings.Enabled && _textVisible)
             {
                 StatText.Render();
             }
