@@ -101,8 +101,6 @@ public static partial class ModMenuOptions
             keybindButton.Visible = value;
             if (!value)
                 SpeebrunConsistencyTrackerModule.Clear();
-            else if (Engine.Scene is Level level && _settings.OverlayEnabled)
-                SpeebrunConsistencyTrackerModule.EnsureTextOverlay(level);
         }));
 
         foreach (TextMenuExt.SubMenu sub in subMenus)

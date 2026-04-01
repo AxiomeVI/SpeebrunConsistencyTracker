@@ -80,18 +80,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             return rows;
         }
 
-        public static bool TryExportSessionToOverlay(PracticeSession session, out List<string> result)
+        public static bool RefreshTextOverlayIfNecessary(PracticeSession session, out List<string> result)
         {
             result = [];
             int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
-            if (session == null || session.TotalCompleted() == 0)
-            {
-                uint version = session?.Version ?? 0;
-                bool changed = version != _lastVersion || roomCount != _lastRoomCount;
-                // Don't stamp the cache — stay dirty so we re-evaluate next frame
-                // when TotalCompleted() may become > 0 again (e.g. after RoomCount increase)
-                return changed;
-            }
 
             int settingsHash = MetricEngine.GetOverlaySettingsHash();
             if (session.Version == _lastVersion && roomCount == _lastRoomCount && settingsHash == _lastSettingsHash)
@@ -104,7 +96,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             _lastVersion = session.Version;
             _lastRoomCount = roomCount;
             _lastSettingsHash = settingsHash;
-            return result.Count > 0;
+            return true;
         }
     }
 }

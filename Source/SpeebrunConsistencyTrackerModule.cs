@@ -36,7 +36,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private object SaveLoadInstance = null;
 
     public GraphManager graphManager;
-    public TextOverlay textOverlay;
     internal SessionManager sessionManager;
     private static Hook _updateTimerStateHook;
 
@@ -70,6 +69,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         );
         typeof(RoomTimerIntegration).ModInterop();
         On.Celeste.Level.Update += LevelOnUpdate;
+        On.Celeste.Level.Render += LevelOnRender;
         Everest.Events.Level.OnExit += Level_OnLevelExit;
         Everest.Events.Level.OnLoadLevel += OnLoadLevel;
 
@@ -92,6 +92,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public override void Unload() {
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
+        On.Celeste.Level.Render -= LevelOnRender;
         Everest.Events.Level.OnExit -= Level_OnLevelExit;
         Everest.Events.Level.OnLoadLevel -= OnLoadLevel;
         Clear();
@@ -122,8 +123,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         Instance.sessionManager = new();
         MetricsExporter.Clear();
         MetricEngine.Clear();
-        if (Settings.OverlayEnabled)
-            EnsureTextOverlay(level);
     }
 
     public static void OnClearState()
@@ -138,6 +137,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         Instance.sessionManager?.OnLoadState();
+        TextOverlay.SetTextVisible(false);
     }
 
 
@@ -174,26 +174,30 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         HandlePauseHide(self);
     }
 
-    internal static void EnsureTextOverlay(Level level) {
-        if (Instance.textOverlay != null) return;
-        Instance.textOverlay = new TextOverlay();
-        level.Add(Instance.textOverlay);
-        SaveLoadIntegration.IgnoreSaveState?.Invoke(Instance.textOverlay, true);
+    private static void LevelOnRender(On.Celeste.Level.orig_Render orig, Level self) {
+        orig(self);
+        if (Settings.Enabled && Instance.sessionManager != null) {
+            Draw.SpriteBatch.Begin();
+            TextOverlay.Render();
+            Draw.SpriteBatch.End();
+        }
     }
 
     private static void OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!isFromLoader) return;
-        Instance.textOverlay?.RemoveSelf();
-        Instance.textOverlay = null;
+        TextOverlay.Init();
     }
 
     private static void UpdateTextOverlay(Level _) {
-        if (Instance.textOverlay == null) return;
-        Instance.textOverlay.Visible = RoomTimerIntegration.RoomTimerIsCompleted() && Settings.OverlayEnabled;
-        if (Instance.textOverlay.Visible) {
-            Instance.sessionManager.UpdateRoomCount();
-            if (MetricsExporter.TryExportSessionToOverlay(Instance.sessionManager.CurrentSession, out List<string> result))
-                Instance.textOverlay.SetText(result);
+        int prevRoomCount = Instance.sessionManager.RoomCount;
+        Instance.sessionManager.UpdateRoomCount();
+        bool roomCountChanged = Instance.sessionManager.RoomCount != prevRoomCount;
+
+        bool visible = !roomCountChanged && RoomTimerIntegration.RoomTimerIsCompleted();
+        TextOverlay.SetTextVisible(visible);
+        if (visible) {
+            if (MetricsExporter.RefreshTextOverlayIfNecessary(Instance.sessionManager.CurrentSession, out List<string> result))
+                TextOverlay.SetText(result);
         }
     }
 
@@ -286,7 +290,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
                 if (Instance.graphManager != null) {
                     Instance.sessionManager.UpdateRoomCount();
-                    int segmentLength = Instance.sessionManager.RoomCount;
                     var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
                     bool wasShowing = Instance.graphManager.IsShowing();
 
@@ -311,8 +314,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         MetricsExporter.Clear();
         MetricEngine.Clear();
         Instance.sessionManager = null;
-        Instance.textOverlay?.RemoveSelf();
-        Instance.textOverlay = null;
+        TextOverlay.Clear();
         Instance.graphManager?.Dispose();
         Instance.graphManager = null;
     }
