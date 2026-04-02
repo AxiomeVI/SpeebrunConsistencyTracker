@@ -230,6 +230,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void UpdateGraphOverlay(Level self) {
+        bool timerOff = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType == RoomTimerType.Off;
+        if (timerOff) {
+            if (GraphManager.IsShowing())
+                GraphManager.HideGraph();
+            return;
+        }
         if (_toggleGraphHotkey.Pressed || GraphManager.IsShowing()) {
             Instance.sessionManager.UpdateRoomCount();
         }
