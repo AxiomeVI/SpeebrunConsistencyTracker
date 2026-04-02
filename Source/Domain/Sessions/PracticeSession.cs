@@ -31,6 +31,8 @@ public sealed class PracticeSession
         Version++;
     }
 
+    public void BumpVersion() => Version++;
+
     public int TotalAttempts => _attempts.Count;
     public int TotalDnfs() => _attempts.Count(a => !a.IsCompleted());
     public int TotalCompleted() => _attempts.Count(a => a.IsCompleted());
@@ -43,6 +45,7 @@ public sealed class PracticeSession
 
     public IReadOnlyDictionary<int, int> DnfPerRoom =>
         _attempts
+            .Where(a => !a.IsCompleted())
             .GroupBy(a => a.Count)
             .ToDictionary(g => g.Key, g => g.Count());
 

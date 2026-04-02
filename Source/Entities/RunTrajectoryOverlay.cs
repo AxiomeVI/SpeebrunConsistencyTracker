@@ -34,6 +34,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly long _roomAveragesSum;
         private readonly long _bestFinalDeviation;
         private readonly long _lastFinalDeviation;
+        private readonly bool _anyCompleted;
+        private readonly bool _sobReachesEnd;
+        private readonly bool _lastReachesEnd;
 
         public RunTrajectoryOverlay(
             IReadOnlyList<Attempt> attempts,
@@ -103,20 +106,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 _attempts.Add(raw[bestIdx].line);
             _attempts.Add(raw[lastIdx].line);
 
-            // Compute SoB cumulative deviations
+            // Compute SoB cumulative deviations — only for rooms with actual completion data
             long sobCumulative = 0;
             var sobDeviations = new long[_totalRooms];
+            int sobRoomsCompleted = 0;
             for (int r = 0; r < _totalRooms; r++)
             {
                 var times = r < roomTimes.Count ? roomTimes[r] : [];
-                long sob = times.Count > 0 ? times.Min(t => t.Ticks) : roomAverages[r];
-                sobCumulative += roomAverages[r] - sob;
+                if (times.Count == 0) break; // stop at the first room with no data
+                sobCumulative += roomAverages[r] - times.Min(t => t.Ticks);
                 sobDeviations[r] = sobCumulative;
+                sobRoomsCompleted = r + 1;
             }
-            _sobLine = new AttemptLine(sobDeviations, _totalRooms);
+            _sobLine = new AttemptLine(sobDeviations, sobRoomsCompleted);
 
             // SoB is always the most positive deviation by definition
-            _maxPositiveDeviation = Math.Max(sobDeviations[^1], 1);
+            _maxPositiveDeviation = Math.Max(sobRoomsCompleted > 0 ? sobDeviations[sobRoomsCompleted - 1] : 0, 1);
 
             // Max negative only needs to come from attempts
             _maxNegativeDeviation = Math.Max(
@@ -131,7 +136,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _roomAveragesSum = roomAverages.Sum();
             _bestFinalDeviation = raw[bestIdx].finalDeviation;
             _lastFinalDeviation = raw[lastIdx].finalDeviation;
-            _sobIsBest = sobDeviations[^1] == _bestFinalDeviation;
+            long sobFinalDeviation = sobRoomsCompleted > 0 ? sobDeviations[sobRoomsCompleted - 1] : 0;
+            _sobIsBest = sobFinalDeviation == _bestFinalDeviation;
+            _anyCompleted = _attempts.Any(a => a.RoomsCompleted == _totalRooms);
+            _sobReachesEnd = _sobLine.RoomsCompleted == _totalRooms;
+            _lastReachesEnd = _attempts.Count >= 1 && _attempts[^1].RoomsCompleted == _totalRooms;
         }
 
         protected override void DrawAxes(float x, float y, float w, float h)
@@ -308,15 +317,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Define labels: (yPos, text, color) ordered by priority (index 0 = highest)
             var s = SpeebrunConsistencyTrackerModule.Settings;
             Color sobLabelColor = _sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal;
-            var labelList = new List<(float yPos, string text, Color color)>
-            {
-                (baselineY, new TimeTicks(_roomAveragesSum).ToString(), Color.Gray),
-            };
-            if (!_sobIsBest)
+
+            var labelList = new List<(float yPos, string text, Color color)>();
+            if (_anyCompleted)
+                labelList.Add((baselineY, new TimeTicks(_roomAveragesSum).ToString(), Color.Gray));
+            if (!_sobIsBest && _anyCompleted)
                 labelList.Add((baselineY - _bestFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _bestFinalDeviation).ToString(), s.TrajectoryBestColorFinal));
-            if (!_lastIsBest)
+            if (!_lastIsBest && _lastReachesEnd)
                 labelList.Add((baselineY - _lastFinalDeviation * scale, new TimeTicks(_roomAveragesSum - _lastFinalDeviation).ToString(), s.TrajectoryLastColorFinal));
-            labelList.Add((baselineY - _maxPositiveDeviation * scale, new TimeTicks(_roomAveragesSum - _maxPositiveDeviation).ToString(), sobLabelColor));
+            if (_sobReachesEnd)
+                labelList.Add((baselineY - _maxPositiveDeviation * scale, new TimeTicks(_roomAveragesSum - _maxPositiveDeviation).ToString(), sobLabelColor));
             var labels = labelList.ToArray();
 
             // Nudged positions — process in priority order, push lower-priority labels away

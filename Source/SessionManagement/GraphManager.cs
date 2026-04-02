@@ -1,5 +1,3 @@
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using System;
 using System.Collections.Generic;
@@ -20,63 +18,42 @@ public enum GraphType
     BoxPlot
 }
 
-public partial class GraphManager
+public static partial class GraphManager
 {
-    private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
-
-    private readonly List<List<TimeTicks>> _roomTimes;
-    private readonly List<TimeTicks> _segmentTimes;
-    private readonly IReadOnlyDictionary<int, int> _dnfData;
-    private readonly IReadOnlyDictionary<int, int> _attemptsByRoom;
-    private readonly IReadOnlyList<Attempt> _attempts;
-    private readonly int _totalRooms;
-    private readonly TimeTicks? _targetTime;
+    private static SessionManager _sessionManager;
 
     // Cycling state
-    // A slot is (GraphType, roomIndex) where roomIndex is only meaningful for RoomHistogram
     private record GraphSlot(GraphType Type, int RoomIndex = -1);
-    private List<GraphSlot> _enabledSlots = [];
-    private int _currentSlotIndex = -1; // -1 = nothing shown yet
-    private BaseChartOverlay _currentOverlay;
+    private static List<GraphSlot> _enabledSlots = [];
+    private static int _currentSlotIndex = -1;
+    private static BaseChartOverlay _currentOverlay;
 
-    // Persists the last shown graph type across GraphManager rebuilds (e.g. room count changed)
-    // Defaults to Scatter so the first open always shows the scatter plot
-    private static GraphType _lastShownType = GraphType.Scatter;
-
-    // -------------------------------------------------------------------------
-    // Constructor
-    // -------------------------------------------------------------------------
-
-    public GraphManager(
-        List<List<TimeTicks>> rooms,
-        List<TimeTicks> segment,
-        IReadOnlyDictionary<int, int> dnfPerRoom,
-        IReadOnlyDictionary<int, int> totalAttemptsPerRoom,
-        IReadOnlyList<Attempt> attempts = null,
-        TimeTicks? target = null)
-    {
-        _roomTimes      = rooms;
-        _segmentTimes   = segment;
-        _dnfData        = dnfPerRoom;
-        _attemptsByRoom = totalAttemptsPerRoom;
-        _attempts       = attempts ?? [];
-        _totalRooms     = rooms.Count;
-        _targetTime     = target;
-
-        RebuildEnabledSlots();
-        // Restore last shown type — on very first run _lastShownType is Scatter,
-        // so scatter will be index 0 and NextGraph will show it first.
-        // If the type is disabled, RestoreSlot returns -1 and NextGraph falls back to index 0.
-        RestoreSlot(_lastShownType, -1);
+    private static GraphType LastShownType {
+        get => SpeebrunConsistencyTrackerModule.Settings.LastShownGraph;
+        set => SpeebrunConsistencyTrackerModule.Settings.LastShownGraph = value;
     }
 
-    // -------------------------------------------------------------------------
-    // Public API — settings / state queries
-    // -------------------------------------------------------------------------
+    public static bool IsInitialized => _sessionManager != null;
 
-    public bool SameLength(int segmentLength) => _roomTimes.Count == segmentLength;
+    public static void Init(SessionManager mgr)
+    {
+        _sessionManager = mgr;
+        ClearAllCharts();
+        RebuildEnabledSlots();
+    }
 
-    public (GraphType Type, int RoomIndex) GetCurrentSlot()
+    public static void Clear()
+    {
+        _sessionManager   = null;
+        _currentOverlay   = null;
+        _currentSlotIndex = -1;
+        _enabledSlots.Clear();
+        ClearAllCharts();
+    }
+
+    public static bool IsShowing() => _currentOverlay != null;
+
+    public static (GraphType Type, int RoomIndex) GetCurrentSlot()
     {
         if (_currentSlotIndex < 0 || _enabledSlots.Count == 0)
             return (GraphType.Scatter, -1);
@@ -84,23 +61,21 @@ public partial class GraphManager
         return (slot.Type, slot.RoomIndex);
     }
 
-    public bool IsShowing() => _currentOverlay != null;
-
-    public void Render() => _currentOverlay?.Render();
-
-    // -------------------------------------------------------------------------
-    // Slot management
-    // -------------------------------------------------------------------------
-
-    /// <summary>
-    /// Rebuilds the enabled slot list from current settings.
-    /// If the currently displayed graph is no longer in the list, advances to
-    /// the next enabled graph (or shows the "no graphs" message).
-    /// Call this whenever a graph toggle changes in the settings menu.
-    /// </summary>
-    public void RebuildEnabledSlots()
+    public static void Render()
     {
-        var (prevType, prevRoom) = GetCurrentSlot();
+        if (_currentOverlay != null)
+        {
+            ShowCurrentSlot();
+            _currentOverlay?.Render();
+        }
+    }
+
+    public static void RebuildEnabledSlots()
+    {
+        GraphType prevType = _currentSlotIndex >= 0 && _enabledSlots.Count > 0
+            ? _enabledSlots[_currentSlotIndex].Type : GraphType.Scatter;
+        int prevRoom = _currentSlotIndex >= 0 && _enabledSlots.Count > 0
+            ? _enabledSlots[_currentSlotIndex].RoomIndex : -1;
         bool wasShowing = IsShowing();
 
         _enabledSlots = BuildSlots();
@@ -109,6 +84,8 @@ public partial class GraphManager
         if (restored >= 0)
         {
             _currentSlotIndex = restored;
+            if (wasShowing)
+                ShowCurrentSlot();
         }
         else if (wasShowing)
         {
@@ -121,58 +98,46 @@ public partial class GraphManager
         }
     }
 
-    /// <summary>
-    /// After a GraphManager rebuild (e.g. room count changed), tries to restore
-    /// the same graph type / room that was previously showing.
-    /// </summary>
-    public void RestoreSlot(GraphType prevType, int prevRoomIndex)
+    private static List<GraphSlot> BuildSlots()
     {
-        int idx = FindBestSlot(prevType, prevRoomIndex);
-        _currentSlotIndex = idx >= 0 ? idx : -1;
-    }
+        var settings = SpeebrunConsistencyTrackerModule.Settings;
+        var slots    = new List<GraphSlot>();
 
-    private List<GraphSlot> BuildSlots()
-    {
-        var slots = new List<GraphSlot>();
-
-        if (_settings.GraphScatter)
+        if (settings.GraphScatter)
             slots.Add(new GraphSlot(GraphType.Scatter));
 
-        if (_settings.GraphBoxPlot)
+        if (settings.GraphBoxPlot)
             slots.Add(new GraphSlot(GraphType.BoxPlot));
 
-        if (_settings.GraphRoomHistogram)
-            for (int i = 0; i < _roomTimes.Count; i++)
+        if (settings.GraphRoomHistogram && _sessionManager != null)
+        {
+            int roomCount = _sessionManager.RoomCount;
+            for (int i = 0; i < roomCount; i++)
                 slots.Add(new GraphSlot(GraphType.RoomHistogram, i));
+        }
 
-        if (_settings.GraphSegmentHistogram)
+        if (settings.GraphSegmentHistogram)
             slots.Add(new GraphSlot(GraphType.SegmentHistogram));
 
-        if (_settings.GraphDnfPercent)
+        if (settings.GraphDnfPercent)
             slots.Add(new GraphSlot(GraphType.DnfPercent));
 
-        if (_settings.GraphProblemRooms)
+        if (settings.GraphProblemRooms)
             slots.Add(new GraphSlot(GraphType.ProblemRooms));
 
-        if (_settings.GraphInconsistentRooms)
+        if (settings.GraphInconsistentRooms)
             slots.Add(new GraphSlot(GraphType.InconsistentRooms));
 
-        if (_settings.GraphTimeLoss)
+        if (settings.GraphTimeLoss)
             slots.Add(new GraphSlot(GraphType.TimeLoss));
 
-        if (_settings.GraphRunTrajectory)
+        if (settings.GraphRunTrajectory)
             slots.Add(new GraphSlot(GraphType.RunTrajectory));
 
         return slots;
     }
 
-    /// <summary>
-    /// Finds the best matching slot index for a given type + room.
-    /// For RoomHistogram: tries exact room, then nearest valid room, then first room slot.
-    /// For other types: finds the first slot of that type.
-    /// Returns -1 if no match found.
-    /// </summary>
-    private int FindBestSlot(GraphType type, int roomIndex)
+    private static int FindBestSlot(GraphType type, int roomIndex)
     {
         if (type == GraphType.RoomHistogram)
         {
@@ -191,11 +156,7 @@ public partial class GraphManager
         return _enabledSlots.FindIndex(s => s.Type == type);
     }
 
-    // -------------------------------------------------------------------------
-    // Navigation
-    // -------------------------------------------------------------------------
-
-    public void NextGraph()
+    public static void NextGraph()
     {
         _currentOverlay = null;
 
@@ -209,7 +170,7 @@ public partial class GraphManager
         ShowCurrentSlot();
     }
 
-    public void PreviousGraph()
+    public static void PreviousGraph()
     {
         _currentOverlay = null;
 
@@ -223,14 +184,8 @@ public partial class GraphManager
         ShowCurrentSlot();
     }
 
-    public void CurrentGraph()
+    public static void CurrentGraph()
     {
-        if (_currentSlotIndex < 0)
-        {
-            NextGraph();
-            return;
-        }
-
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -239,19 +194,43 @@ public partial class GraphManager
             return;
         }
 
+        if (_currentSlotIndex < 0)
+        {
+            // Try to restore the last shown type/slot before falling back to next
+            int restored = FindBestSlot(LastShownType, -1);
+            if (restored >= 0)
+            {
+                _currentSlotIndex = restored;
+                ShowCurrentSlot();
+                return;
+            }
+            NextGraph();
+            return;
+        }
+
         ShowCurrentSlot();
     }
 
-    // -------------------------------------------------------------------------
-    // Rendering
-    // -------------------------------------------------------------------------
-
-    private void ShowCurrentSlot()
+    private static void ShowCurrentSlot()
     {
         if (_currentSlotIndex < 0 || _currentSlotIndex >= _enabledSlots.Count) return;
 
         GraphSlot slot = _enabledSlots[_currentSlotIndex];
-        _lastShownType = slot.Type;
+
+        // Fix slot index if roomCount shrank and this histogram room is out of range
+        if (slot.Type == GraphType.RoomHistogram && _sessionManager != null)
+        {
+            int curRoomCount = _sessionManager.RoomCount;
+            if (slot.RoomIndex >= curRoomCount)
+            {
+                int best = FindBestSlot(GraphType.RoomHistogram, curRoomCount - 1);
+                if (best < 0) best = FindBestSlot(GraphType.Scatter, -1);
+                _currentSlotIndex = best >= 0 ? best : 0;
+                slot = _enabledSlots[_currentSlotIndex];
+            }
+        }
+
+        LastShownType = slot.Type;
 
         _currentOverlay = slot.Type switch
         {
@@ -273,32 +252,8 @@ public partial class GraphManager
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupNoGraphid));
     }
 
-    // -------------------------------------------------------------------------
-    // Lifecycle
-    // -------------------------------------------------------------------------
-
-    public void HideGraph()
+    public static void HideGraph()
     {
         _currentOverlay = null;
-    }
-
-    public void RemoveGraphs()
-    {
-        _currentOverlay = null;
-    }
-
-    public void Dispose()
-    {
-        _currentOverlay         = null;
-        _scatterGraph           = null;
-        _segmentHistogram       = null;
-        _dnfPctChart            = null;
-        _problemRoomsChart      = null;
-        _inconsistentRoomsChart = null;
-        _timeLossChart          = null;
-        _runTrajectoryChart     = null;
-        _boxPlotChart           = null;
-        _roomHistograms.Clear();
-        _enabledSlots.Clear();
     }
 }

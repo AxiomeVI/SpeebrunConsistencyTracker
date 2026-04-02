@@ -71,7 +71,7 @@ public static partial class ModMenuOptions
                 roomDependency.Index = 1; _settings.RoomDependency = true;
                 foreach (MetricDef def in defs)
                 {
-                    MetricOutputChoice best = def.Choices[def.Choices.Length - 1];
+                    MetricOutputChoice best = def.Choices[^1];
                     def.Set(best);
                     sliders[def.LabelKey].Index = def.Choices.Length - 1;
                 }

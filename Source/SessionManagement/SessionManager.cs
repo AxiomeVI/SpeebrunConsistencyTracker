@@ -14,6 +14,7 @@ public class SessionManager
     public SessionManager()
     {
         _currentSession.AddAttempt(_currentAttempt);
+        UpdateRoomCount();
     }
 
     public void OnLoadState()
@@ -27,7 +28,12 @@ public class SessionManager
     {
         TimeTicks roomTime = new TimeTicks(ticks) - _currentAttempt.TotalSegmentTime;
         if (roomTime > 0)
+        {
+            int roomIndex = _currentAttempt.Count; // captured before CompleteRoom mutates Count
             _currentAttempt.CompleteRoom(roomTime);
+            if (roomIndex < RoomCount)
+                _currentSession.BumpVersion();
+        }
     }
 
     public PracticeSession CurrentSession => _currentSession;
@@ -35,7 +41,9 @@ public class SessionManager
 
     public void UpdateRoomCount()
     {
-        _currentSession.MaxRoomCount = Math.Max(_currentSession.MaxRoomCount, _currentAttempt?.TotalRoomCount ?? 0);
+        int attemptRooms = _currentAttempt?.TotalRoomCount ?? 0;
+        if (attemptRooms > _currentSession.MaxRoomCount)
+            _currentSession.MaxRoomCount = attemptRooms;
         RoomCount = Math.Min(_currentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
     }
 }

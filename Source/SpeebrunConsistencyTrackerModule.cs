@@ -11,9 +11,7 @@ using MonoMod.ModInterop;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
 using FMOD.Studio;
 using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
-using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using MonoMod.RuntimeDetour;
@@ -36,9 +34,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private object SaveLoadInstance = null;
 
-    public GraphManager graphManager;
     internal SessionManager sessionManager;
     private static Hook _updateTimerStateHook;
+    private static int _lastKnownRoomCount = 0;
 
     private static UI.ComboHotkey _importTargetTimeHotkey;
     private static UI.ComboHotkey _statsExportHotkey;
@@ -121,9 +119,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled)
             return;
+        Clear();
         Instance.sessionManager = new();
         MetricsExporter.Clear();
         MetricEngine.Clear();
+        GraphManager.Init(Instance.sessionManager);
     }
 
     public static void OnClearState()
@@ -139,6 +139,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             return;
         Instance.sessionManager?.OnLoadState();
         TextOverlay.SetTextVisible(false);
+        GraphManager.HideGraph();
     }
 
 
@@ -180,7 +181,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (Settings.Enabled && Instance.sessionManager != null) {
             Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Engine.ScreenMatrix);
             TextOverlay.Render();
-            Instance.graphManager?.Render();
+            GraphManager.Render();
             Draw.SpriteBatch.End();
         }
     }
@@ -191,12 +192,17 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void UpdateTextOverlay(Level _) {
-        int prevRoomCount = Instance.sessionManager.RoomCount;
-        Instance.sessionManager.UpdateRoomCount();
-        bool roomCountChanged = Instance.sessionManager.RoomCount != prevRoomCount;
-
         bool timerOff = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType == RoomTimerType.Off;
-        bool visible = !roomCountChanged && !timerOff && RoomTimerIntegration.RoomTimerIsCompleted();
+        bool timerCompleted = !timerOff && RoomTimerIntegration.RoomTimerIsCompleted();
+
+        bool roomCountChanged = false;
+        if (timerCompleted) {
+            int prevRoomCount = Instance.sessionManager.RoomCount;
+            Instance.sessionManager.UpdateRoomCount();
+            roomCountChanged = Instance.sessionManager.RoomCount != prevRoomCount;
+        }
+
+        bool visible = timerCompleted && !roomCountChanged;
         TextOverlay.SetTextVisible(visible);
         if (visible) {
             if (MetricsExporter.RefreshTextOverlayIfNecessary(Instance.sessionManager.CurrentSession, out List<string> result))
@@ -223,87 +229,41 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
     }
 
-    private static GraphManager BuildGraphManager(SessionManager mgr) {
-        int segmentLength = mgr.RoomCount;
-        List<List<TimeTicks>> rooms = [.. Enumerable.Range(0, segmentLength)
-            .Select<int, List<TimeTicks>>(i => [.. mgr.CurrentSession.GetRoomTimes(i)])
-            .Where(roomList => roomList.Count > 0)];
-        List<TimeTicks> segment = [.. mgr.CurrentSession.GetSegmentTimes()];
-        return new GraphManager(
-            rooms, segment,
-            mgr.CurrentSession.DnfPerRoom,
-            mgr.CurrentSession.TotalAttemptsPerRoom,
-            mgr.CurrentSession.Attempts,
-            MetricHelper.IsMetricEnabled(Settings.TargetTime, MetricOutput.Overlay) ? MetricEngine.GetTargetTimeTicks() : null);
-    }
-
     private static void UpdateGraphOverlay(Level self) {
-        SessionManager activeSessionManager = Instance.sessionManager;
-        activeSessionManager.UpdateRoomCount();
-        int segmentLength = activeSessionManager.RoomCount;
+        if (_toggleGraphHotkey.Pressed || GraphManager.IsShowing()) {
+            Instance.sessionManager.UpdateRoomCount();
+        }
+        int currentRoomCount = Instance.sessionManager.RoomCount;
+
+        if (currentRoomCount > _lastKnownRoomCount) {
+            _lastKnownRoomCount = currentRoomCount;
+            GraphManager.RebuildEnabledSlots();
+        }
 
         if (_toggleGraphHotkey.Pressed) {
-            if (Instance.graphManager == null)
-            {
-                Instance.graphManager = BuildGraphManager(activeSessionManager);
-                if (!self.Paused)
-                    Instance.graphManager.CurrentGraph();
-            }
-            else if (Instance.graphManager.IsShowing())
-            {
-                Instance.graphManager.HideGraph();
-            }
+            if (GraphManager.IsShowing())
+                GraphManager.HideGraph();
             else if (!self.Paused)
-            {
-                Instance.graphManager.CurrentGraph();
-            }
-        } else if (Instance.graphManager != null && Instance.graphManager.IsShowing())
+                GraphManager.CurrentGraph();
+        } else if (GraphManager.IsShowing())
         {
             if (_nextGraphHotkey.Pressed)
-            {
-                Instance.graphManager.NextGraph();
-            } else if (_previousGraphHotkey.Pressed)
-            {
-                Instance.graphManager.PreviousGraph();
-            } else if (!Instance.graphManager.SameLength(segmentLength))
-            {
-                var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
-                bool wasShowing = Instance.graphManager.IsShowing();
-
-                Instance.graphManager.RemoveGraphs();
-                Instance.graphManager = BuildGraphManager(activeSessionManager);
-                Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
-
-                if (!self.Paused && wasShowing)
-                    Instance.graphManager.CurrentGraph();
-            }
+                GraphManager.NextGraph();
+            else if (_previousGraphHotkey.Pressed)
+                GraphManager.PreviousGraph();
         }
     }
 
     private static void HandlePauseHide(Level self) {
         if (self.Paused || self.wasPaused)
-            Instance.graphManager?.HideGraph();
+            GraphManager.HideGraph();
     }
 
     private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
         if (Settings.Enabled && Instance.sessionManager != null && Instance.sessionManager.HasActiveAttempt) {
             long segmentTime = RoomTimerIntegration.GetRoomTime();
-            if (segmentTime > 0) {
+            if (segmentTime > 0)
                 Instance.sessionManager.CompleteRoom(segmentTime);
-
-                if (Instance.graphManager != null) {
-                    Instance.sessionManager.UpdateRoomCount();
-                    var (prevType, prevRoomIndex) = Instance.graphManager.GetCurrentSlot();
-                    bool wasShowing = Instance.graphManager.IsShowing();
-
-                    Instance.graphManager.RemoveGraphs();
-                    Instance.graphManager = BuildGraphManager(Instance.sessionManager);
-                    Instance.graphManager.RestoreSlot(prevType, prevRoomIndex);
-
-                    if (wasShowing)
-                        Instance.graphManager.CurrentGraph();
-                }
-            }
         }
         orig(endPoint);
     }
@@ -318,8 +278,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         MetricEngine.Clear();
         Instance.sessionManager = null;
         TextOverlay.Clear();
-        Instance.graphManager?.Dispose();
-        Instance.graphManager = null;
+        GraphManager.Clear();
+        _lastKnownRoomCount = 0;
     }
 
     public static void ExportDataToClipboard()

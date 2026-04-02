@@ -1,4 +1,5 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 
@@ -67,6 +68,9 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool GraphTimeLoss { get; set; } = false;
     public bool GraphRunTrajectory { get; set; } = false;
     public bool GraphBoxPlot { get; set; } = false;
+
+    [SettingIgnore]
+    public GraphType LastShownGraph { get; set; } = GraphType.Scatter;
 
     // Metrics menu
     public bool History { get; set; } = false;

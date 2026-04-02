@@ -270,36 +270,42 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             // Left Y axis labels (room times)
             long roomRange = maxRoomTime - minRoomTime;
-            GetFrameAxisSettings(roomRange, out long roomStep, out int yLeftLabelCount);
-            for (int i = 0; i <= yLeftLabelCount; i++)
+            if (roomRange > 0)
             {
-                long timeValue    = minRoomTime + i * roomStep;
-                float normalizedY = (float)(i * roomStep) / roomRange;
-                float yPos        = y + h - (normalizedY * h);
-                string timeLabel  = new TimeTicks(timeValue).ToString();
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
-                ActiveFont.DrawOutline(timeLabel,
-                    new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, yPos - labelSize.Y / 2),
-                    new Vector2(0f, 0f),
-                    Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                    _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                GetFrameAxisSettings(roomRange, out long roomStep, out int yLeftLabelCount);
+                for (int i = 0; i <= yLeftLabelCount; i++)
+                {
+                    long timeValue    = minRoomTime + i * roomStep;
+                    float normalizedY = (float)(i * roomStep) / roomRange;
+                    float yPos        = y + h - (normalizedY * h);
+                    string timeLabel  = new TimeTicks(timeValue).ToString();
+                    Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
+                    ActiveFont.DrawOutline(timeLabel,
+                        new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, yPos - labelSize.Y / 2),
+                        new Vector2(0f, 0f),
+                        Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                        _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                }
             }
 
             // Right Y axis labels (segment times)
             long segmentRange = maxSegmentTime - minSegmentTime;
-            GetFrameAxisSettings(segmentRange, out long segmentStep, out int yRightLabelCount);
-            for (int i = 0; i <= yRightLabelCount; i++)
+            if (segmentRange > 0)
             {
-                long timeValue    = minSegmentTime + i * segmentStep;
-                float normalizedY = (float)(i * segmentStep) / segmentRange;
-                float yPos        = y + h - (normalizedY * h);
-                string timeLabel  = new TimeTicks(timeValue).ToString();
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
-                ActiveFont.DrawOutline(timeLabel,
-                    new Vector2(x + w + ChartConstants.Trajectory.RightLabelMarginX, yPos - labelSize.Y / 2),
-                    new Vector2(0f, 0f),
-                    Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                    _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                GetFrameAxisSettings(segmentRange, out long segmentStep, out int yRightLabelCount);
+                for (int i = 0; i <= yRightLabelCount; i++)
+                {
+                    long timeValue    = minSegmentTime + i * segmentStep;
+                    float normalizedY = (float)(i * segmentStep) / segmentRange;
+                    float yPos        = y + h - (normalizedY * h);
+                    string timeLabel  = new TimeTicks(timeValue).ToString();
+                    Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
+                    ActiveFont.DrawOutline(timeLabel,
+                        new Vector2(x + w + ChartConstants.Trajectory.RightLabelMarginX, yPos - labelSize.Y / 2),
+                        new Vector2(0f, 0f),
+                        Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                        _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                }
             }
 
             DrawTitle();

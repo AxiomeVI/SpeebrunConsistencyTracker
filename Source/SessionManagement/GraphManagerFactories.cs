@@ -1,5 +1,6 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using System;
 using System.Collections.Generic;
@@ -7,229 +8,482 @@ using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
-public partial class GraphManager
+public static partial class GraphManager
 {
-    // Graph cache
-    private ScatterPlotOverlay _scatterGraph;
-    private readonly Dictionary<int, HistogramOverlay> _roomHistograms = [];
-    private HistogramOverlay _segmentHistogram;
-    private GroupedPercentOverlay _dnfPctChart;
-    private PercentBarChartOverlay _problemRoomsChart;
-    private PercentBarChartOverlay _inconsistentRoomsChart;
-    private GroupedBarChartOverlay _timeLossChart;
-    private RunTrajectoryOverlay _runTrajectoryChart;
-    private BoxPlotOverlay _boxPlotChart;
+    private static ScatterPlotOverlay _scatterGraph;
+    private static uint _scatterVersion;
+    private static int  _scatterRoomCount;
+    private static int  _scatterRoomTimerType;
 
-    // -------------------------------------------------------------------------
-    // Graph factories
-    // -------------------------------------------------------------------------
+    private static readonly Dictionary<int, HistogramOverlay> _roomHistograms     = [];
+    private static readonly Dictionary<int, uint>             _roomHistogramVersion   = [];
+    private static readonly Dictionary<int, int>              _roomHistogramTimerType = [];
 
-    private ScatterPlotOverlay GetOrCreateScatter()
+    private static HistogramOverlay _segmentHistogram;
+    private static uint _segmentHistogramVersion;
+    private static int  _segmentHistogramRoomCount;
+    private static int  _segmentHistogramTimerType;
+
+    private static GroupedPercentOverlay _dnfPctChart;
+    private static uint _dnfPctVersion;
+    private static int  _dnfPctRoomCount;
+    private static int  _dnfPctTimerType;
+
+    private static PercentBarChartOverlay _problemRoomsChart;
+    private static uint _problemRoomsVersion;
+    private static int  _problemRoomsRoomCount;
+    private static int  _problemRoomsTimerType;
+
+    private static PercentBarChartOverlay _inconsistentRoomsChart;
+    private static uint _inconsistentRoomsVersion;
+    private static int  _inconsistentRoomsRoomCount;
+    private static int  _inconsistentRoomsTimerType;
+
+    private static GroupedBarChartOverlay _timeLossChart;
+    private static uint _timeLossVersion;
+    private static int  _timeLossRoomCount;
+    private static int  _timeLossTimerType;
+
+    private static RunTrajectoryOverlay _runTrajectoryChart;
+    private static uint _runTrajectoryVersion;
+    private static int  _runTrajectoryRoomCount;
+    private static int  _runTrajectoryTimerType;
+
+    private static BoxPlotOverlay _boxPlotChart;
+    private static uint _boxPlotVersion;
+    private static int  _boxPlotRoomCount;
+    private static int  _boxPlotTimerType;
+
+    private static ScatterPlotOverlay GetOrCreateScatter()
     {
-        return _scatterGraph ??= new ScatterPlotOverlay(_roomTimes, _segmentTimes, null, _targetTime);
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+
+        if (_scatterGraph != null && (
+            _scatterVersion       != curVersion   ||
+            _scatterRoomCount     != curRoomCount ||
+            _scatterRoomTimerType != curTimerType))
+        {
+            _scatterGraph = null;
+        }
+
+        if (_scatterGraph == null)
+        {
+            var roomTimes    = Enumerable.Range(0, curRoomCount)
+                .Select(i => _sessionManager.CurrentSession.GetRoomTimes(i).ToList())
+                .Where(l => l.Count > 0)
+                .ToList();
+            var segmentTimes = _sessionManager.CurrentSession.GetSegmentTimes().ToList();
+            TimeTicks? target = MetricHelper.IsMetricEnabled(SpeebrunConsistencyTrackerModule.Settings.TargetTime, MetricOutput.Overlay)
+                ? MetricEngine.GetTargetTimeTicks() : null;
+
+            _scatterGraph         = new ScatterPlotOverlay(roomTimes, segmentTimes, null, target);
+            _scatterVersion       = curVersion;
+            _scatterRoomCount     = curRoomCount;
+            _scatterRoomTimerType = curTimerType;
+        }
+
+        return _scatterGraph;
     }
 
-    private HistogramOverlay GetOrCreateRoomHistogram(int roomIndex)
+    private static HistogramOverlay GetOrCreateRoomHistogram(int roomIndex)
     {
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+
+        if (_roomHistograms.ContainsKey(roomIndex) && (
+            _roomHistogramVersion.GetValueOrDefault(roomIndex)   != curVersion  ||
+            _roomHistogramTimerType.GetValueOrDefault(roomIndex) != curTimerType))
+        {
+            _roomHistograms.Remove(roomIndex);
+        }
+
         if (!_roomHistograms.TryGetValue(roomIndex, out HistogramOverlay value))
         {
             value = new HistogramOverlay(
                 $"Room {roomIndex + 1}",
-                _roomTimes[roomIndex],
+                _sessionManager.CurrentSession.GetRoomTimes(roomIndex).ToList(),
                 isSegment: false);
-            _roomHistograms[roomIndex] = value;
+            _roomHistograms[roomIndex]         = value;
+            _roomHistogramVersion[roomIndex]   = curVersion;
+            _roomHistogramTimerType[roomIndex] = curTimerType;
         }
+
         return value;
     }
 
-    private HistogramOverlay GetOrCreateSegmentHistogram()
+    private static HistogramOverlay GetOrCreateSegmentHistogram()
     {
-        int roomCount = SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms;
-        string roomLabel = roomCount == 1 ? "1 room" : $"{roomCount} rooms";
-        return _segmentHistogram ??= new HistogramOverlay(
-            $"Segment ({roomLabel})",
-            _segmentTimes,
-            isSegment: true);
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+
+        if (_segmentHistogram != null && (
+            _segmentHistogramVersion   != curVersion   ||
+            _segmentHistogramRoomCount != curRoomCount ||
+            _segmentHistogramTimerType != curTimerType))
+        {
+            _segmentHistogram = null;
+        }
+
+        if (_segmentHistogram == null)
+        {
+            string label   = curRoomCount == 1 ? "1 room" : $"{curRoomCount} rooms";
+            _segmentHistogram          = new HistogramOverlay(
+                $"Segment ({label})",
+                _sessionManager.CurrentSession.GetSegmentTimes().ToList(),
+                isSegment: true);
+            _segmentHistogramVersion   = curVersion;
+            _segmentHistogramRoomCount = curRoomCount;
+            _segmentHistogramTimerType = curTimerType;
+        }
+
+        return _segmentHistogram;
     }
 
-    private GroupedPercentOverlay GetOrCreateDnfPctChart()
+    private static GroupedPercentOverlay GetOrCreateDnfPctChart()
     {
-        if (_dnfPctChart != null) return _dnfPctChart;
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
-        var labels        = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
-        var dnfPcts       = ComputeDnfPcts();
-        var dnfRates      = dnfPcts.Select(p => (float)p).ToList();
-        var survivalRates = dnfPcts.Select(p => (float)(100.0 - p)).ToList();
+        if (_dnfPctChart != null && (
+            _dnfPctVersion   != curVersion   ||
+            _dnfPctRoomCount != curRoomCount ||
+            _dnfPctTimerType != curTimerType))
+        {
+            _dnfPctChart = null;
+        }
 
-        _dnfPctChart = new GroupedPercentOverlay(
-            "DNF Rate per Room & Segment Survival Rate",
-            labels, dnfRates, survivalRates,
-            "DNF rate", "Remaining (%)");
+        if (_dnfPctChart == null)
+        {
+            var labels        = Enumerable.Range(1, curRoomCount).Select(i => $"R{i}").ToList();
+            var dnfPcts       = ComputeDnfPcts(curRoomCount);
+            var dnfRates      = dnfPcts.Select(p => (float)p).ToList();
+            var survivalRates = dnfPcts.Select(p => (float)(100.0 - p)).ToList();
+
+            _dnfPctChart   = new GroupedPercentOverlay(
+                "DNF Rate per Room & Segment Survival Rate",
+                labels, dnfRates, survivalRates,
+                "DNF rate", "Remaining (%)");
+            _dnfPctVersion   = curVersion;
+            _dnfPctRoomCount = curRoomCount;
+            _dnfPctTimerType = curTimerType;
+        }
 
         return _dnfPctChart;
     }
 
-    private PercentBarChartOverlay GetOrCreateProblemRoomsChart()
+    private static PercentBarChartOverlay GetOrCreateProblemRoomsChart()
     {
-        if (_problemRoomsChart != null) return _problemRoomsChart;
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
-        var labels     = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
-        long threshold = _settings.TimeLossThresholdMs * 10000L;
-        var dnfPcts    = ComputeDnfPcts();
-        var timeLossPcts = Enumerable.Range(0, _totalRooms).Select(i =>
+        if (_problemRoomsChart != null && (
+            _problemRoomsVersion   != curVersion   ||
+            _problemRoomsRoomCount != curRoomCount ||
+            _problemRoomsTimerType != curTimerType))
         {
-            int reached = _attemptsByRoom.GetValueOrDefault(i);
-            if (reached == 0) return 0.0;
-            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
-            if (times.Count == 0) return 0.0;
-            long best     = times.Min(t => t.Ticks);
-            int slowCount = times.Count(t => t.Ticks > best + threshold);
-            return (double)slowCount / reached * 100;
-        }).ToList();
+            _problemRoomsChart = null;
+        }
 
-        _problemRoomsChart = new PercentBarChartOverlay(
-            $"Problem Rooms (threshold: {_settings.TimeLossThresholdMs}ms)",
-            labels, dnfPcts, timeLossPcts,
-            "DNF rate", $">{_settings.TimeLossThresholdMs}ms over gold");
+        if (_problemRoomsChart == null)
+        {
+            var settings     = SpeebrunConsistencyTrackerModule.Settings;
+            var labels       = Enumerable.Range(1, curRoomCount).Select(i => $"R{i}").ToList();
+            long threshold   = settings.TimeLossThresholdMs * 10000L;
+            var dnfPcts      = ComputeDnfPcts(curRoomCount);
+            var session      = _sessionManager.CurrentSession;
+            var timeLossPcts = Enumerable.Range(0, curRoomCount).Select(i =>
+            {
+                int reached  = session.TotalAttemptsPerRoom.GetValueOrDefault(i);
+                if (reached == 0) return 0.0;
+                var times    = session.GetRoomTimes(i).ToList();
+                if (times.Count == 0) return 0.0;
+                long best    = times.Min(t => t.Ticks);
+                int slowCount = times.Count(t => t.Ticks > best + threshold);
+                return (double)slowCount / reached * 100;
+            }).ToList();
+
+            _problemRoomsChart   = new PercentBarChartOverlay(
+                $"Problem Rooms (threshold: {settings.TimeLossThresholdMs}ms)",
+                labels, dnfPcts, timeLossPcts,
+                "DNF rate", $">{settings.TimeLossThresholdMs}ms over gold");
+            _problemRoomsVersion   = curVersion;
+            _problemRoomsRoomCount = curRoomCount;
+            _problemRoomsTimerType = curTimerType;
+        }
 
         return _problemRoomsChart;
     }
 
-    private PercentBarChartOverlay GetOrCreateInconsistentRoomsChart()
+    private static PercentBarChartOverlay GetOrCreateInconsistentRoomsChart()
     {
-        if (_inconsistentRoomsChart != null) return _inconsistentRoomsChart;
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
-        var rmadPcts = Enumerable.Range(0, _totalRooms).Select(i =>
+        if (_inconsistentRoomsChart != null && (
+            _inconsistentRoomsVersion   != curVersion   ||
+            _inconsistentRoomsRoomCount != curRoomCount ||
+            _inconsistentRoomsTimerType != curTimerType))
         {
-            var sorted = (i < _roomTimes.Count ? _roomTimes[i] : [])
-                .OrderBy(t => t).ToList();
-            if (sorted.Count == 0) return 0.0;
-            TimeTicks median = MetricHelper.ComputePercentile(sorted, 50);
-            if (median.Ticks == 0) return 0.0;
-            TimeTicks mad = MetricHelper.ComputeMAD(sorted);
-            return (double)mad.Ticks / median.Ticks * 100;
-        }).ToList();
-
-        var rstddevPcts = Enumerable.Range(0, _totalRooms).Select(i =>
-        {
-            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
-            if (times.Count == 0) return 0.0;
-            double mean = times.Average(t => (double)t.Ticks);
-            if (mean == 0) return 0.0;
-            return MetricHelper.ComputeStdDev(times, mean) / mean * 100;
-        }).ToList();
-
-        // Sort rooms by total inconsistency descending
-        var ranked = Enumerable.Range(0, _totalRooms)
-            .OrderByDescending(i => rmadPcts[i] + rstddevPcts[i])
-            .ToList();
-
-        var rankedLabels  = ranked.Select(i => $"R{i + 1}").ToList();
-        var rankedRmad    = ranked.Select(i => rmadPcts[i]).ToList();
-        var rankedRstddev = ranked.Select(i => rstddevPcts[i]).ToList();
-
-        // Normalize relative to worst room (first after sort)
-        double maxTotal = ranked.Count > 0 ? rankedRmad[0] + rankedRstddev[0] : 0.0;
-
-        List<double> scaledRmad;
-        List<double> scaledRstddev;
-        if (maxTotal == 0)
-        {
-            scaledRmad    = [.. rankedRmad.Select(_ => 0.0)];
-            scaledRstddev = [.. rankedRstddev.Select(_ => 0.0)];
-        }
-        else
-        {
-            scaledRmad    = [.. rankedRmad.Select(v => v / maxTotal * 100)];
-            scaledRstddev = [.. rankedRstddev.Select(v => v / maxTotal * 100)];
+            _inconsistentRoomsChart = null;
         }
 
-        _inconsistentRoomsChart = new PercentBarChartOverlay(
-            "Room Inconsistency (ranked)",
-            rankedLabels, scaledRmad, scaledRstddev,
-            "RMAD", "RStdDev");
+        if (_inconsistentRoomsChart == null)
+        {
+            var session  = _sessionManager.CurrentSession;
+            var rmadPcts = Enumerable.Range(0, curRoomCount).Select(i =>
+            {
+                var sorted = session.GetRoomTimes(i).OrderBy(t => t).ToList();
+                if (sorted.Count == 0) return 0.0;
+                TimeTicks median = MetricHelper.ComputePercentile(sorted, 50);
+                if (median.Ticks == 0) return 0.0;
+                TimeTicks mad = MetricHelper.ComputeMAD(sorted);
+                return (double)mad.Ticks / median.Ticks * 100;
+            }).ToList();
+
+            var rstddevPcts = Enumerable.Range(0, curRoomCount).Select(i =>
+            {
+                var times = session.GetRoomTimes(i).ToList();
+                if (times.Count == 0) return 0.0;
+                double mean = times.Average(t => (double)t.Ticks);
+                if (mean == 0) return 0.0;
+                return MetricHelper.ComputeStdDev(times, mean) / mean * 100;
+            }).ToList();
+
+            var ranked = Enumerable.Range(0, curRoomCount)
+                .OrderByDescending(i => rmadPcts[i] + rstddevPcts[i])
+                .ToList();
+
+            var rankedLabels  = ranked.Select(i => $"R{i + 1}").ToList();
+            var rankedRmad    = ranked.Select(i => rmadPcts[i]).ToList();
+            var rankedRstddev = ranked.Select(i => rstddevPcts[i]).ToList();
+
+            double maxTotal   = ranked.Count > 0 ? rankedRmad[0] + rankedRstddev[0] : 0.0;
+            // maxTotal == 0 means all values are 0; dividing would produce NaN, so keep them as-is
+            List<double> scaledRmad    = maxTotal == 0 ? rankedRmad    : [.. rankedRmad.Select(v => v / maxTotal * 100)];
+            List<double> scaledRstddev = maxTotal == 0 ? rankedRstddev : [.. rankedRstddev.Select(v => v / maxTotal * 100)];
+
+            _inconsistentRoomsChart   = new PercentBarChartOverlay(
+                "Room Inconsistency (ranked)",
+                rankedLabels, scaledRmad, scaledRstddev,
+                "RMAD", "RStdDev");
+            _inconsistentRoomsVersion   = curVersion;
+            _inconsistentRoomsRoomCount = curRoomCount;
+            _inconsistentRoomsTimerType = curTimerType;
+        }
 
         return _inconsistentRoomsChart;
     }
 
-    private GroupedBarChartOverlay GetOrCreateTimeLossChart()
+    private static GroupedBarChartOverlay GetOrCreateTimeLossChart()
     {
-        if (_timeLossChart != null) return _timeLossChart;
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
-        var labels = Enumerable.Range(1, _totalRooms).Select(i => $"R{i}").ToList();
-
-        var medianTicks = Enumerable.Range(0, _totalRooms).Select(i =>
+        if (_timeLossChart != null && (
+            _timeLossVersion   != curVersion   ||
+            _timeLossRoomCount != curRoomCount ||
+            _timeLossTimerType != curTimerType))
         {
-            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
-            if (times.Count == 0) return 0L;
-            long gold = times.Min(t => t.Ticks);
-            List<TimeTicks> losses = [.. times.Select(t => new TimeTicks(t.Ticks - gold)).OrderBy(t => t)];
-            return MetricHelper.ComputePercentile(losses, 50).Ticks;
-        }).ToList();
+            _timeLossChart = null;
+        }
 
-        var averageTicks = Enumerable.Range(0, _totalRooms).Select(i =>
+        if (_timeLossChart == null)
         {
-            var times = i < _roomTimes.Count ? _roomTimes[i] : [];
-            if (times.Count == 0) return 0L;
-            long gold = times.Min(t => t.Ticks);
-            return (long)times.Average(t => (double)(t.Ticks - gold));
-        }).ToList();
+            var session   = _sessionManager.CurrentSession;
+            var labels    = Enumerable.Range(1, curRoomCount).Select(i => $"R{i}").ToList();
 
-        _timeLossChart = new GroupedBarChartOverlay(
-            "Time Loss per Room",
-            labels, medianTicks, averageTicks,
-            "Median loss", "Avg loss");
+            var medianTicks = Enumerable.Range(0, curRoomCount).Select(i =>
+            {
+                var times = session.GetRoomTimes(i).ToList();
+                if (times.Count == 0) return 0L;
+                long gold = times.Min(t => t.Ticks);
+                List<TimeTicks> losses = [.. times.Select(t => new TimeTicks(t.Ticks - gold)).OrderBy(t => t)];
+                return MetricHelper.ComputePercentile(losses, 50).Ticks;
+            }).ToList();
+
+            var averageTicks = Enumerable.Range(0, curRoomCount).Select(i =>
+            {
+                var times = session.GetRoomTimes(i).ToList();
+                if (times.Count == 0) return 0L;
+                long gold = times.Min(t => t.Ticks);
+                return (long)times.Average(t => (double)(t.Ticks - gold));
+            }).ToList();
+
+            _timeLossChart   = new GroupedBarChartOverlay(
+                "Time Loss per Room",
+                labels, medianTicks, averageTicks,
+                "Median loss", "Avg loss");
+            _timeLossVersion   = curVersion;
+            _timeLossRoomCount = curRoomCount;
+            _timeLossTimerType = curTimerType;
+        }
 
         return _timeLossChart;
     }
 
-    private RunTrajectoryOverlay GetOrCreateRunTrajectoryChart()
+    private static RunTrajectoryOverlay GetOrCreateRunTrajectoryChart()
     {
-        return _runTrajectoryChart ??= new RunTrajectoryOverlay(
-            _attempts,
-            _roomTimes,
-            _totalRooms);
-    }
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
-    private BoxPlotOverlay GetOrCreateBoxPlotChart()
-    {
-        return _boxPlotChart ??= new BoxPlotOverlay(
-            _roomTimes,
-            _segmentTimes);
-    }
-
-    // -------------------------------------------------------------------------
-    // Helpers
-    // -------------------------------------------------------------------------
-
-    private List<double> ComputeDnfPcts() =>
-        [.. Enumerable.Range(0, _totalRooms).Select(i =>
+        if (_runTrajectoryChart != null && (
+            _runTrajectoryVersion   != curVersion   ||
+            _runTrajectoryRoomCount != curRoomCount ||
+            _runTrajectoryTimerType != curTimerType))
         {
-            int reached = _attemptsByRoom.GetValueOrDefault(i);
+            _runTrajectoryChart = null;
+        }
+
+        if (_runTrajectoryChart == null)
+        {
+            var session      = _sessionManager.CurrentSession;
+            var roomTimes    = Enumerable.Range(0, curRoomCount)
+                .Select(i => session.GetRoomTimes(i).ToList())
+                .ToList();
+
+            _runTrajectoryChart   = new RunTrajectoryOverlay(
+                session.Attempts,
+                roomTimes,
+                curRoomCount);
+            _runTrajectoryVersion   = curVersion;
+            _runTrajectoryRoomCount = curRoomCount;
+            _runTrajectoryTimerType = curTimerType;
+        }
+
+        return _runTrajectoryChart;
+    }
+
+    private static BoxPlotOverlay GetOrCreateBoxPlotChart()
+    {
+        uint curVersion   = _sessionManager.CurrentSession.Version;
+        int  curRoomCount = _sessionManager.RoomCount;
+        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+
+        if (_boxPlotChart != null && (
+            _boxPlotVersion   != curVersion   ||
+            _boxPlotRoomCount != curRoomCount ||
+            _boxPlotTimerType != curTimerType))
+        {
+            _boxPlotChart = null;
+        }
+
+        if (_boxPlotChart == null)
+        {
+            var session      = _sessionManager.CurrentSession;
+            var roomTimes    = Enumerable.Range(0, curRoomCount)
+                .Select(i => session.GetRoomTimes(i).ToList())
+                .ToList();
+            var segmentTimes = session.GetSegmentTimes().ToList();
+
+            _boxPlotChart   = new BoxPlotOverlay(roomTimes, segmentTimes);
+            _boxPlotVersion   = curVersion;
+            _boxPlotRoomCount = curRoomCount;
+            _boxPlotTimerType = curTimerType;
+        }
+
+        return _boxPlotChart;
+    }
+
+    private static List<double> ComputeDnfPcts(int roomCount)
+    {
+        var session = _sessionManager.CurrentSession;
+        return [.. Enumerable.Range(0, roomCount).Select(i =>
+        {
+            int reached = session.TotalAttemptsPerRoom.GetValueOrDefault(i);
             if (reached == 0) return 0.0;
-            return (double)_dnfData.GetValueOrDefault(i) / reached * 100;
+            return (double)session.DnfPerRoom.GetValueOrDefault(i) / reached * 100;
         })];
+    }
 
-    // -------------------------------------------------------------------------
-    // Cache invalidation
-    // -------------------------------------------------------------------------
+    public static void ClearScatterGraph()
+    {
+        _scatterGraph         = null;
+        _scatterVersion       = 0;
+        _scatterRoomCount     = 0;
+        _scatterRoomTimerType = 0;
+    }
 
-    public void ClearScatterGraph() => _scatterGraph = null;
-
-    public void ClearHistogram()
+    public static void ClearRoomHistograms()
     {
         _roomHistograms.Clear();
-        _segmentHistogram = null;
+        _roomHistogramVersion.Clear();
+        _roomHistogramTimerType.Clear();
     }
 
-    public void ClearBarCharts()
+    public static void ClearSegmentHistogram()
     {
-        _dnfPctChart            = null;
-        _problemRoomsChart      = null;
-        _inconsistentRoomsChart = null;
-        _timeLossChart          = null;
-        _boxPlotChart           = null;
+        _segmentHistogram          = null;
+        _segmentHistogramVersion   = 0;
+        _segmentHistogramRoomCount = 0;
+        _segmentHistogramTimerType = 0;
     }
 
-    public void ClearProblemChart() => _problemRoomsChart = null;
+    public static void ClearDnfPctChart()
+    {
+        _dnfPctChart   = null;
+        _dnfPctVersion   = 0;
+        _dnfPctRoomCount = 0;
+        _dnfPctTimerType = 0;
+    }
+
+    public static void ClearProblemRoomsChart()
+    {
+        _problemRoomsChart   = null;
+        _problemRoomsVersion   = 0;
+        _problemRoomsRoomCount = 0;
+        _problemRoomsTimerType = 0;
+    }
+
+    public static void ClearInconsistentRoomsChart()
+    {
+        _inconsistentRoomsChart   = null;
+        _inconsistentRoomsVersion   = 0;
+        _inconsistentRoomsRoomCount = 0;
+        _inconsistentRoomsTimerType = 0;
+    }
+
+    public static void ClearTimeLossChart()
+    {
+        _timeLossChart   = null;
+        _timeLossVersion   = 0;
+        _timeLossRoomCount = 0;
+        _timeLossTimerType = 0;
+    }
+
+    public static void ClearRunTrajectoryChart()
+    {
+        _runTrajectoryChart   = null;
+        _runTrajectoryVersion   = 0;
+        _runTrajectoryRoomCount = 0;
+        _runTrajectoryTimerType = 0;
+    }
+
+    public static void ClearBoxPlotChart()
+    {
+        _boxPlotChart   = null;
+        _boxPlotVersion   = 0;
+        _boxPlotRoomCount = 0;
+        _boxPlotTimerType = 0;
+    }
+
+    private static void ClearAllCharts()
+    {
+        ClearScatterGraph();
+        ClearRoomHistograms();
+        ClearSegmentHistogram();
+        ClearDnfPctChart();
+        ClearProblemRoomsChart();
+        ClearInconsistentRoomsChart();
+        ClearTimeLossChart();
+        ClearRunTrajectoryChart();
+        ClearBoxPlotChart();
+    }
 }
