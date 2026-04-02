@@ -166,12 +166,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float boxTop    = Math.Min(pxQ1, pxQ3);
             float boxBottom = Math.Max(pxQ1, pxQ3);
             float boxHeight = Math.Max(1f, boxBottom - boxTop);
-            Draw.Rect(centerX - boxHalfW + 1f, boxTop + 1f, boxHalfW * 2 - 2f, boxHeight - 2f, fillColor);
-            // Box outline (4 lines)
-            Draw.Line(new Vector2(centerX - boxHalfW, boxTop),    new Vector2(centerX + boxHalfW, boxTop),    color, 1f);
-            Draw.Line(new Vector2(centerX - boxHalfW, boxBottom), new Vector2(centerX + boxHalfW, boxBottom), color, 1f);
-            Draw.Line(new Vector2(centerX - boxHalfW, boxTop),    new Vector2(centerX - boxHalfW, boxBottom), color, 1f);
-            Draw.Line(new Vector2(centerX + boxHalfW, boxTop),    new Vector2(centerX + boxHalfW, boxBottom), color, 1f);
+            Draw.Rect(centerX - boxHalfW, boxTop, boxHalfW * 2, boxHeight, fillColor);
 
             // Median line (thick white)
             Draw.Line(new Vector2(centerX - boxHalfW, pxMed), new Vector2(centerX + boxHalfW, pxMed), Color.White, 2.5f);
