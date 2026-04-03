@@ -33,6 +33,11 @@ public sealed class PracticeSession
 
     public void BumpVersion() => Version++;
 
+    public void RecomputeMaxRoomCount()
+    {
+        MaxRoomCount = _attempts.Count > 0 ? _attempts.Max(a => a.TotalRoomCount) : 0;
+    }
+
     public int TotalAttempts => _attempts.Count;
     public int TotalDnfs() => _attempts.Count(a => !a.IsCompleted());
     public int TotalCompleted() => _attempts.Count(a => a.IsCompleted());
@@ -62,5 +67,5 @@ public sealed class PracticeSession
     public IEnumerable<TimeTicks> GetRoomTimes(int roomIndex) =>
         _attempts
             .Where(a => roomIndex < a.Count)
-            .Select(a => a.CompletedRooms[roomIndex]);
+            .Select(a => a.CompletedRooms[SessionManagement.SessionManager.StartRoomIndex + roomIndex]);
 }

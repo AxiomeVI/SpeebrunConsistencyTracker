@@ -37,6 +37,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     internal SessionManager sessionManager;
     private static Hook _updateTimerStateHook;
     private static int _lastKnownRoomCount = 0;
+    private static Func<long> _getCurrentRoomTime;
 
     private static UI.ComboHotkey _importTargetTimeHotkey;
     private static UI.ComboHotkey _statsExportHotkey;
@@ -67,6 +68,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             null
         );
         typeof(RoomTimerIntegration).ModInterop();
+        var currentRoomTimerDataField = typeof(RoomTimerManager)
+            .GetField("CurrentRoomTimerData", BindingFlags.NonPublic | BindingFlags.Static);
+        var timeProperty = currentRoomTimerDataField?.FieldType
+            .GetProperty("Time", BindingFlags.Public | BindingFlags.Instance);
+        if (currentRoomTimerDataField != null && timeProperty != null)
+        {
+            var instance = currentRoomTimerDataField.GetValue(null);
+            _getCurrentRoomTime = () => (long)timeProperty.GetValue(instance);
+        }
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.Level.Render += LevelOnRender;
         Everest.Events.Level.OnExit += Level_OnLevelExit;
@@ -97,6 +107,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         Clear();
         _updateTimerStateHook?.Dispose();
         _updateTimerStateHook   = null;
+        _getCurrentRoomTime = null;
         _importTargetTimeHotkey = null;
         _statsExportHotkey      = null;
         _toggleGraphHotkey      = null;
@@ -267,7 +278,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
         if (Settings.Enabled && Instance.sessionManager != null && Instance.sessionManager.HasActiveAttempt) {
-            long segmentTime = RoomTimerIntegration.GetRoomTime();
+            long segmentTime = _getCurrentRoomTime?.Invoke() ?? 0;
             if (segmentTime > 0)
                 Instance.sessionManager.CompleteRoom(segmentTime);
         }
