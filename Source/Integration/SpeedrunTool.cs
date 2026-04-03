@@ -19,4 +19,5 @@ public static class SaveLoadIntegration
         Action<Level>, Action<Level>, Action, object> RegisterSaveLoadAction;
     public static Action<object> Unregister;
     public static Action<Entity, bool> IgnoreSaveState;
+    public static Func<string> GetSlotName;  // maps to SaveLoadExports.GetSlotName (SRT >= v3.25.0)
 }

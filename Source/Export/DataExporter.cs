@@ -24,15 +24,15 @@ public static class DataExporter
     public record ExportSettings(string SpreadsheetId, string TabName, string CredentialsPath, int StartRow, int StartCol);
     private record TableRange(int StartRow, int EndRow, int ColCount);
 
-    private static bool TryGetExportData(SessionManager mgr, out PracticeSession session)
+    private static bool TryGetExportData(out PracticeSession session)
     {
-        if (mgr == null || mgr.CurrentSession?.TotalAttempts == 0)
+        if (SessionManager.CurrentSession?.TotalAttempts == 0)
         {
             session = null;
             return false;
         }
-        mgr.UpdateRoomCount();
-        session = mgr.CurrentSession;
+        SessionManager.UpdateRoomCount();
+        session = SessionManager.CurrentSession;
         return true;
     }
 
@@ -105,9 +105,9 @@ public static class DataExporter
             .Select(line => (IList<object>)[.. line.Split(',').Select(cell => (object)cell)])];
     }
 
-    public static async Task ExportToSheet(SessionManager mgr)
+    public static async Task ExportToSheet()
     {
-        if (!TryGetExportData(mgr, out PracticeSession session))
+        if (!TryGetExportData(out PracticeSession session))
         {
             SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
@@ -381,9 +381,9 @@ public static class DataExporter
         return (int)response.Replies[0].AddSheet.Properties.SheetId;
     }
 
-    public static void ExportToClipboard(SessionManager mgr)
+    public static void ExportToClipboard()
     {
-        if (!TryGetExportData(mgr, out PracticeSession session))
+        if (!TryGetExportData(out PracticeSession session))
         {
             SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;
@@ -408,9 +408,9 @@ public static class DataExporter
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
     }
 
-    public static void ExportToFiles(SessionManager mgr)
+    public static void ExportToFiles()
     {
-        if (!TryGetExportData(mgr, out PracticeSession session))
+        if (!TryGetExportData(out PracticeSession session))
         {
             SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
             return;

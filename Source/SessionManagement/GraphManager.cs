@@ -1,4 +1,5 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,7 +21,7 @@ public enum GraphType
 
 public static partial class GraphManager
 {
-    private static SessionManager _sessionManager;
+    private static PracticeSession _lastKnownSession;
 
     // Cycling state
     private record GraphSlot(GraphType Type, int RoomIndex = -1);
@@ -33,18 +34,18 @@ public static partial class GraphManager
         set => SpeebrunConsistencyTrackerModule.Settings.LastShownGraph = value;
     }
 
-    public static bool IsInitialized => _sessionManager != null;
+    public static bool IsInitialized => SessionManager.CurrentSession != null;
 
-    public static void Init(SessionManager mgr)
+    public static void Init()
     {
-        _sessionManager = mgr;
+        _lastKnownSession = SessionManager.CurrentSession;
         ClearAllCharts();
         RebuildEnabledSlots();
     }
 
     public static void Clear()
     {
-        _sessionManager   = null;
+        _lastKnownSession = null;
         _currentOverlay   = null;
         _currentSlotIndex = -1;
         _enabledSlots.Clear();
@@ -61,10 +62,20 @@ public static partial class GraphManager
         return (slot.Type, slot.RoomIndex);
     }
 
+    private static void InvalidateIfSessionChanged()
+    {
+        if (!ReferenceEquals(SessionManager.CurrentSession, _lastKnownSession))
+        {
+            _lastKnownSession = SessionManager.CurrentSession;
+            ClearAllCharts();
+        }
+    }
+
     public static void Render()
     {
         if (_currentOverlay != null)
         {
+            InvalidateIfSessionChanged();
             ShowCurrentSlot();
             _currentOverlay?.Render();
         }
@@ -109,9 +120,9 @@ public static partial class GraphManager
         if (settings.GraphBoxPlot)
             slots.Add(new GraphSlot(GraphType.BoxPlot));
 
-        if (settings.GraphRoomHistogram && _sessionManager != null)
+        if (settings.GraphRoomHistogram && SessionManager.CurrentSession != null)
         {
-            int roomCount = _sessionManager.RoomCount;
+            int roomCount = SessionManager.RoomCount;
             for (int i = 0; i < roomCount; i++)
                 slots.Add(new GraphSlot(GraphType.RoomHistogram, i));
         }
@@ -196,7 +207,6 @@ public static partial class GraphManager
 
         if (_currentSlotIndex < 0)
         {
-            // Try to restore the last shown type/slot before falling back to next
             int restored = FindBestSlot(LastShownType, -1);
             if (restored >= 0)
             {
@@ -217,10 +227,9 @@ public static partial class GraphManager
 
         GraphSlot slot = _enabledSlots[_currentSlotIndex];
 
-        // Fix slot index if roomCount shrank and this histogram room is out of range
-        if (slot.Type == GraphType.RoomHistogram && _sessionManager != null)
+        if (slot.Type == GraphType.RoomHistogram && SessionManager.CurrentSession != null)
         {
-            int curRoomCount = _sessionManager.RoomCount;
+            int curRoomCount = SessionManager.RoomCount;
             if (slot.RoomIndex >= curRoomCount)
             {
                 int best = FindBestSlot(GraphType.RoomHistogram, curRoomCount - 1);

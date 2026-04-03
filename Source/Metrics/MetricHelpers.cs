@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
+using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using System.Globalization;
@@ -428,7 +429,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             Func<int, List<TimeTicks>, string> computeValue,
             int minCount = 1, string defaultValue = "0")
         {
-            int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            int roomCount = SessionManager.RoomCount;
             var roomValues = new List<string>(roomCount);
             if (!isExport) return roomValues;
             for (int r = 0; r < roomCount; r++)

@@ -13,7 +13,7 @@ public sealed class Attempt() : IEquatable<Attempt>
     public TimeTicks TotalSegmentTime = TimeTicks.Zero;
     public List<TimeTicks> CompletedRooms = [];
 
-    private static int RoomCount => SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+    private static int RoomCount => SessionManagement.SessionManager.RoomCount;
     private static int StartRoomIndex => SessionManagement.SessionManager.StartRoomIndex;
     private int VisibleRoomCount => Math.Max(0, CompletedRooms.Count - StartRoomIndex);
 

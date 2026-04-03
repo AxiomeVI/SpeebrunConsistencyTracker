@@ -56,8 +56,8 @@ public static partial class GraphManager
 
     private static ScatterPlotOverlay GetOrCreateScatter()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_scatterGraph != null && (
@@ -71,10 +71,10 @@ public static partial class GraphManager
         if (_scatterGraph == null)
         {
             var roomTimes    = Enumerable.Range(0, curRoomCount)
-                .Select(i => _sessionManager.CurrentSession.GetRoomTimes(i).ToList())
+                .Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())
                 .Where(l => l.Count > 0)
                 .ToList();
-            var segmentTimes = _sessionManager.CurrentSession.GetSegmentTimes().ToList();
+            var segmentTimes = SessionManager.CurrentSession.GetSegmentTimes().ToList();
             TimeTicks? target = MetricHelper.IsMetricEnabled(SpeebrunConsistencyTrackerModule.Settings.TargetTime, MetricOutput.Overlay)
                 ? MetricEngine.GetTargetTimeTicks() : null;
 
@@ -89,7 +89,7 @@ public static partial class GraphManager
 
     private static HistogramOverlay GetOrCreateRoomHistogram(int roomIndex)
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
+        uint curVersion   = SessionManager.CurrentSession.Version;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_roomHistograms.ContainsKey(roomIndex) && (
@@ -103,7 +103,7 @@ public static partial class GraphManager
         {
             value = new HistogramOverlay(
                 $"Room {roomIndex + 1}",
-                _sessionManager.CurrentSession.GetRoomTimes(roomIndex).ToList(),
+                SessionManager.CurrentSession.GetRoomTimes(roomIndex).ToList(),
                 isSegment: false);
             _roomHistograms[roomIndex]         = value;
             _roomHistogramVersion[roomIndex]   = curVersion;
@@ -115,8 +115,8 @@ public static partial class GraphManager
 
     private static HistogramOverlay GetOrCreateSegmentHistogram()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_segmentHistogram != null && (
@@ -132,7 +132,7 @@ public static partial class GraphManager
             string label   = curRoomCount == 1 ? "1 room" : $"{curRoomCount} rooms";
             _segmentHistogram          = new HistogramOverlay(
                 $"Segment ({label})",
-                _sessionManager.CurrentSession.GetSegmentTimes().ToList(),
+                SessionManager.CurrentSession.GetSegmentTimes().ToList(),
                 isSegment: true);
             _segmentHistogramVersion   = curVersion;
             _segmentHistogramRoomCount = curRoomCount;
@@ -144,8 +144,8 @@ public static partial class GraphManager
 
     private static GroupedPercentOverlay GetOrCreateDnfPctChart()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_dnfPctChart != null && (
@@ -177,8 +177,8 @@ public static partial class GraphManager
 
     private static PercentBarChartOverlay GetOrCreateProblemRoomsChart()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_problemRoomsChart != null && (
@@ -195,7 +195,7 @@ public static partial class GraphManager
             var labels       = Enumerable.Range(1, curRoomCount).Select(i => $"R{i}").ToList();
             long threshold   = settings.TimeLossThresholdMs * 10000L;
             var dnfPcts      = ComputeDnfPcts(curRoomCount);
-            var session      = _sessionManager.CurrentSession;
+            var session      = SessionManager.CurrentSession;
             var timeLossPcts = Enumerable.Range(0, curRoomCount).Select(i =>
             {
                 int reached  = session.TotalAttemptsPerRoom.GetValueOrDefault(i);
@@ -221,8 +221,8 @@ public static partial class GraphManager
 
     private static PercentBarChartOverlay GetOrCreateInconsistentRoomsChart()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_inconsistentRoomsChart != null && (
@@ -235,7 +235,7 @@ public static partial class GraphManager
 
         if (_inconsistentRoomsChart == null)
         {
-            var session  = _sessionManager.CurrentSession;
+            var session  = SessionManager.CurrentSession;
             var rmadPcts = Enumerable.Range(0, curRoomCount).Select(i =>
             {
                 var sorted = session.GetRoomTimes(i).OrderBy(t => t).ToList();
@@ -282,8 +282,8 @@ public static partial class GraphManager
 
     private static GroupedBarChartOverlay GetOrCreateTimeLossChart()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_timeLossChart != null && (
@@ -296,7 +296,7 @@ public static partial class GraphManager
 
         if (_timeLossChart == null)
         {
-            var session   = _sessionManager.CurrentSession;
+            var session   = SessionManager.CurrentSession;
             var labels    = Enumerable.Range(1, curRoomCount).Select(i => $"R{i}").ToList();
 
             var medianTicks = Enumerable.Range(0, curRoomCount).Select(i =>
@@ -330,8 +330,8 @@ public static partial class GraphManager
 
     private static RunTrajectoryOverlay GetOrCreateRunTrajectoryChart()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_runTrajectoryChart != null && (
@@ -344,7 +344,7 @@ public static partial class GraphManager
 
         if (_runTrajectoryChart == null)
         {
-            var session      = _sessionManager.CurrentSession;
+            var session      = SessionManager.CurrentSession;
             var roomTimes    = Enumerable.Range(0, curRoomCount)
                 .Select(i => session.GetRoomTimes(i).ToList())
                 .ToList();
@@ -363,8 +363,8 @@ public static partial class GraphManager
 
     private static BoxPlotOverlay GetOrCreateBoxPlotChart()
     {
-        uint curVersion   = _sessionManager.CurrentSession.Version;
-        int  curRoomCount = _sessionManager.RoomCount;
+        uint curVersion   = SessionManager.CurrentSession.Version;
+        int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
         if (_boxPlotChart != null && (
@@ -377,7 +377,7 @@ public static partial class GraphManager
 
         if (_boxPlotChart == null)
         {
-            var session      = _sessionManager.CurrentSession;
+            var session      = SessionManager.CurrentSession;
             var roomTimes    = Enumerable.Range(0, curRoomCount)
                 .Select(i => session.GetRoomTimes(i).ToList())
                 .ToList();
@@ -394,7 +394,7 @@ public static partial class GraphManager
 
     private static List<double> ComputeDnfPcts(int roomCount)
     {
-        var session = _sessionManager.CurrentSession;
+        var session = SessionManager.CurrentSession;
         return [.. Enumerable.Range(0, roomCount).Select(i =>
         {
             int reached = session.TotalAttemptsPerRoom.GetValueOrDefault(i);

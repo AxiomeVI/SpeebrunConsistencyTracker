@@ -2,12 +2,14 @@ using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
+using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 {
     public static class MetricsExporter
     {
+        private static PracticeSession _lastKnownSession;
         private static uint _lastVersion = 0;
         private static int _lastRoomCount = 0;
         private static int _lastSettingsHash = 0;
@@ -15,6 +17,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
 
         public static void Clear()
         {
+            _lastKnownSession = null;
             _lastVersion = 0;
             _lastRoomCount = 0;
             _lastSettingsHash = 0;
@@ -26,7 +29,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             if (session == null || session.TotalAttempts == 0)
                 return "";
 
-            int segmentLength = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            int segmentLength = SessionManager.RoomCount;
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
 
             if (computedMetrics.Count == 0)
@@ -56,7 +59,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             if (session == null || session.TotalAttempts == 0)
                 return [];
 
-            int segmentLength = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            int segmentLength = SessionManager.RoomCount;
             List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
 
             if (computedMetrics.Count == 0)
@@ -85,7 +88,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
         public static bool RefreshTextOverlayIfNecessary(PracticeSession session, out List<string> result)
         {
             result = [];
-            int roomCount = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            int roomCount = SessionManager.RoomCount;
+
+            // Full invalidation if session identity changed (slot switch)
+            if (!ReferenceEquals(session, _lastKnownSession))
+            {
+                _lastKnownSession = session;
+                _lastVersion = 0;
+                _lastRoomCount = 0;
+                _lastSettingsHash = 0;
+                _lastRoomTimerType = 0;
+            }
 
             int settingsHash = MetricEngine.GetOverlaySettingsHash();
             int roomTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;

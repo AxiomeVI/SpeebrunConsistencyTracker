@@ -34,7 +34,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private object SaveLoadInstance = null;
 
-    internal SessionManager sessionManager;
     private static Hook _updateTimerStateHook;
     private static int _lastKnownRoomCount = 0;
     private static Func<long> _getCurrentRoomTime;
@@ -130,27 +129,34 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled)
             return;
-        Clear();
-        Instance.sessionManager = new();
+        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? "Default Slot";
+        SessionManager.SaveSlot(slot);
         MetricsExporter.Clear();
         MetricEngine.Clear();
-        GraphManager.Init(Instance.sessionManager);
-    }
-
-    public static void OnClearState()
-    {
-        if (!Settings.Enabled)
-            return;
-        Clear();
+        GraphManager.Init();
+        _lastKnownRoomCount = 0;
+        TextOverlay.SetTextVisible(false);
+        GraphManager.HideGraph();
     }
 
     public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
     {
         if (!Settings.Enabled)
             return;
-        Instance.sessionManager?.OnLoadState();
+        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? "Default Slot";
+        SessionManager.LoadSlot(slot);
+        _lastKnownRoomCount = 0;
         TextOverlay.SetTextVisible(false);
         GraphManager.HideGraph();
+    }
+
+    public static void OnClearState()
+    {
+        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? "Default Slot";
+        if (!Settings.Enabled)
+            return;
+        SessionManager.ClearSlot(slot);
+        _lastKnownRoomCount = 0;
     }
 
 
@@ -170,7 +176,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         if (_importTargetTimeHotkey.Pressed) ImportTargetTimeFromClipboard();
 
-        if (Instance.sessionManager == null) {
+        if (SessionManager.CurrentSession == null) {
             orig(self);
             return;
         }
@@ -178,8 +184,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         UpdateTextOverlay(self); // need to before orig() because of RoomTimerIntegration.RoomTimerIsCompleted() behavior
 
         orig(self);
-        // Need to check again because orig(self) can destroy the sessionManager
-        if (Instance.sessionManager == null) return;
+        // Need to check again because orig(self) can destroy the session
+        if (SessionManager.CurrentSession == null) return;
 
         HandleExportButton();
         HandleClearButton();
@@ -189,7 +195,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void LevelOnRender(On.Celeste.Level.orig_Render orig, Level self) {
         orig(self);
-        if (Settings.Enabled && Instance.sessionManager != null) {
+        if (Settings.Enabled && SessionManager.CurrentSession != null) {
             Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Engine.ScreenMatrix);
             TextOverlay.Render();
             GraphManager.Render();
@@ -208,15 +214,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         bool roomCountChanged = false;
         if (timerCompleted) {
-            int prevRoomCount = Instance.sessionManager.RoomCount;
-            Instance.sessionManager.UpdateRoomCount();
-            roomCountChanged = Instance.sessionManager.RoomCount != prevRoomCount;
+            int prevRoomCount = SessionManager.RoomCount;
+            SessionManager.UpdateRoomCount();
+            roomCountChanged = SessionManager.RoomCount != prevRoomCount;
         }
 
         bool visible = timerCompleted && !roomCountChanged;
         TextOverlay.SetTextVisible(visible);
         if (visible) {
-            if (MetricsExporter.RefreshTextOverlayIfNecessary(Instance.sessionManager.CurrentSession, out List<string> result))
+            if (MetricsExporter.RefreshTextOverlayIfNecessary(SessionManager.CurrentSession, out List<string> result))
                 TextOverlay.SetText(result);
         }
     }
@@ -242,9 +248,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void UpdateGraphOverlay(Level self) {
         if (_toggleGraphHotkey.Pressed || GraphManager.IsShowing()) {
-            Instance.sessionManager.UpdateRoomCount();
+            SessionManager.UpdateRoomCount();
         }
-        int currentRoomCount = Instance.sessionManager.RoomCount;
+        int currentRoomCount = SessionManager.RoomCount;
 
         if (currentRoomCount > _lastKnownRoomCount) {
             _lastKnownRoomCount = currentRoomCount;
@@ -271,10 +277,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
-        if (Settings.Enabled && Instance.sessionManager != null && Instance.sessionManager.HasActiveAttempt) {
+        if (Settings.Enabled && SessionManager.CurrentSession?.CurrentAttempt != null) {
             long segmentTime = _getCurrentRoomTime?.Invoke() ?? 0;
             if (segmentTime > 0)
-                Instance.sessionManager.CompleteRoom(segmentTime);
+                SessionManager.CompleteRoom(segmentTime);
         }
         orig(endPoint);
     }
@@ -287,7 +293,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         MetricsExporter.Clear();
         MetricEngine.Clear();
-        Instance.sessionManager = null;
+        SessionManager.ClearAll();
         TextOverlay.Clear();
         GraphManager.Clear();
         _lastKnownRoomCount = 0;
@@ -296,19 +302,19 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public static void ExportDataToClipboard()
     {
         if (!Settings.Enabled) return;
-        DataExporter.ExportToClipboard(Instance.sessionManager);
+        DataExporter.ExportToClipboard();
     }
 
     public static void ExportDataToFiles()
     {
         if (!Settings.Enabled) return;
-        DataExporter.ExportToFiles(Instance.sessionManager);
+        DataExporter.ExportToFiles();
     }
 
     public static async void ExportDataToSheet()
     {
         if (!Settings.Enabled) return;
-        await DataExporter.ExportToSheet(Instance.sessionManager);
+        await DataExporter.ExportToSheet();
     }
 
     public static void ImportTargetTimeFromClipboard() {

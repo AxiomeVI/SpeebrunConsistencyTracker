@@ -15,6 +15,8 @@ public sealed class PracticeSession
     private readonly List<Attempt> _attempts = [];
     public IReadOnlyList<Attempt> Attempts => _attempts;
 
+    public Attempt CurrentAttempt { get; private set; }
+
     public PracticeSession()
     {
         if (Engine.Scene is Level level)
@@ -22,9 +24,16 @@ public sealed class PracticeSession
             string[] parts = level.Session.Area.GetSID().Split('-', 2);
             levelName = parts.Length > 1 ? parts[1] : "unknown";
         }
+        StartNewAttempt();
     }
 
-    public void AddAttempt(Attempt attempt)
+    public void StartNewAttempt()
+    {
+        CurrentAttempt = new Attempt();
+        AddAttempt(CurrentAttempt);
+    }
+
+    private void AddAttempt(Attempt attempt)
     {
         ArgumentNullException.ThrowIfNull(attempt);
         _attempts.Add(attempt);

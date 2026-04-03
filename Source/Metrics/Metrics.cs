@@ -4,13 +4,14 @@ using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
+using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using System.Globalization;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
     public static partial class Metrics
     {
-        private static int RoomCount => SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+        private static int RoomCount => SessionManager.RoomCount;
 
         public static MetricResult Average(PracticeSession session, MetricContext context, bool isExport)
         {

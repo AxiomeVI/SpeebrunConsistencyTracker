@@ -1,5 +1,6 @@
 using System.Text;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
+using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using System.Collections.Generic;
@@ -13,7 +14,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
             if (session.TotalAttempts == 0)
                 return "";
 
-            int segmentLength = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            int segmentLength = SessionManager.RoomCount;
             var sb = new StringBuilder();
 
             sb.Append("Attempt");
@@ -39,7 +40,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
             if (session.TotalAttempts == 0)
                 return [];
 
-            int segmentLength = SpeebrunConsistencyTrackerModule.Instance.sessionManager.RoomCount;
+            int segmentLength = SessionManager.RoomCount;
             IList<IList<object>> rows = [];
 
             List<object> header = ["Attempt"];

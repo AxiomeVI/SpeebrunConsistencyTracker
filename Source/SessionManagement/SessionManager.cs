@@ -1,62 +1,98 @@
 using System;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
+using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
-public class SessionManager
-{
-    private readonly PracticeSession _currentSession = new();
-    private Attempt _currentAttempt = new();
 
-    public int RoomCount { get; private set; } = 0;
+public static class SessionManager
+{
+    private static readonly Dictionary<string, PracticeSession> _slots = new();
+    public static PracticeSession CurrentSession { get; private set; }
+
+    public static int RoomCount { get; private set; } = 0;
 
     public static int StartRoomIndex =>
         SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType == RoomTimerType.CurrentRoom ? 0 : 1;
 
-    private RoomTimerType _lastRoomTimerType = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+    private static RoomTimerType _lastRoomTimerType = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
-    public SessionManager()
+    // Called on SRT OnSaveState: fresh session for this slot, overwrites any prior data.
+    public static void SaveSlot(string slotName)
     {
-        _currentSession.AddAttempt(_currentAttempt);
+        var session = new PracticeSession();
+        _slots[slotName] = session;
+        CurrentSession = session;
         UpdateRoomCount();
     }
 
-    public void OnLoadState()
+    // Called on SRT OnLoadState: switch to the slot's session, start a new attempt.
+    // If the slot was never saved in this session, create a fresh session for it.
+    public static void LoadSlot(string slotName)
     {
-        _currentSession.MaxRoomCount = Math.Max(_currentSession.MaxRoomCount, _currentAttempt?.TotalRoomCount ?? 0);
-        _currentAttempt = new Attempt();
-        _currentSession.AddAttempt(_currentAttempt);
+        if (!_slots.TryGetValue(slotName, out PracticeSession session))
+        {
+            session = new PracticeSession();
+            _slots[slotName] = session;
+        }
+        CurrentSession = session;
+        CurrentSession.StartNewAttempt();
     }
 
-    public void CompleteRoom(long ticks)
+    // Called on SRT OnClearState: remove slot data, deactivate if it was the current slot.
+    public static void ClearSlot(string slotName)
     {
-        TimeTicks roomTime = new TimeTicks(ticks) - _currentAttempt.TotalSegmentTime;
+        if (_slots.TryGetValue(slotName, out PracticeSession clearedSession))
+        {
+            _slots.Remove(slotName);
+            if (ReferenceEquals(CurrentSession, clearedSession))
+                CurrentSession = null;
+        }
+        RoomCount = 0;
+    }
+
+    // Called on level exit or full clear: wipe everything.
+    public static void ClearAll()
+    {
+        _slots.Clear();
+        CurrentSession = null;
+        RoomCount = 0;
+    }
+
+    public static void CompleteRoom(long ticks)
+    {
+        if (CurrentSession == null) return;
+        var attempt = CurrentSession.CurrentAttempt;
+        TimeTicks roomTime = new TimeTicks(ticks) - attempt.TotalSegmentTime;
         if (roomTime > 0)
         {
-            int roomIndex = _currentAttempt.Count; // captured before CompleteRoom mutates Count
-            _currentAttempt.CompleteRoom(roomTime);
+            int roomIndex = attempt.Count; // captured before CompleteRoom mutates Count
+            attempt.CompleteRoom(roomTime);
             if (roomIndex < RoomCount)
-                _currentSession.BumpVersion();
+                CurrentSession.BumpVersion();
         }
     }
 
-    public PracticeSession CurrentSession => _currentSession;
-    public bool HasActiveAttempt => _currentAttempt != null;
-
-    public void UpdateRoomCount()
+    public static void UpdateRoomCount()
     {
+        if (CurrentSession == null)
+        {
+            RoomCount = 0;
+            return;
+        }
+
         var currentType = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
         if (currentType != _lastRoomTimerType)
         {
             _lastRoomTimerType = currentType;
-            _currentSession.RecomputeMaxRoomCount();
+            CurrentSession.RecomputeMaxRoomCount();
         }
 
-        int attemptRooms = _currentAttempt?.TotalRoomCount ?? 0;
-        if (attemptRooms > _currentSession.MaxRoomCount)
-            _currentSession.MaxRoomCount = attemptRooms;
-        RoomCount = Math.Min(_currentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
+        int attemptRooms = CurrentSession.CurrentAttempt?.TotalRoomCount ?? 0;
+        if (attemptRooms > CurrentSession.MaxRoomCount)
+            CurrentSession.MaxRoomCount = attemptRooms;
+
+        RoomCount = Math.Min(CurrentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
     }
 }
