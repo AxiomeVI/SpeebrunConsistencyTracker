@@ -121,16 +121,17 @@ public static class DataExporter
             List<TableRange> tableRanges = [];
             int rowOffset = 0;
 
+            var metricRows = MetricsExporter.ExportMetricsToSheet(session);
+            AppendTableSection(exportData, metricRows, tableRanges, ref rowOffset);
+
             if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
             {
                 TextInput.SetClipboardText("");
                 RoomTimerManager.CmdExportRoomTimes();
                 var srtRows = CsvStringToList(TextInput.GetClipboardText());
-                AppendTableSection(exportData, srtRows, tableRanges, ref rowOffset);
+                AppendTableSection(exportData, srtRows, tableRanges, ref rowOffset,
+                    addSeparator: SpeebrunConsistencyTrackerModule.Settings.History);
             }
-
-            var metricRows = MetricsExporter.ExportMetricsToSheet(session);
-            AppendTableSection(exportData, metricRows, tableRanges, ref rowOffset);
 
             if (SpeebrunConsistencyTrackerModule.Settings.History)
             {
@@ -389,15 +390,15 @@ public static class DataExporter
         }
 
         StringBuilder sb = new();
+        _ = sb.Append(MetricsExporter.ExportSessionToCsv(session));
         if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
         {
+            _ = sb.Append("\n\n\n");
             // Clean current clipboard state in case srt export is done in file
             TextInput.SetClipboardText("");
             RoomTimerManager.CmdExportRoomTimes();
             _ = sb.Append(TextInput.GetClipboardText());
-            _ = sb.Append("\n\n\n");
         }
-        _ = sb.Append(MetricsExporter.ExportSessionToCsv(session));
         if (SpeebrunConsistencyTrackerModule.Settings.History)
         {
             _ = sb.Append("\n\n\n");
