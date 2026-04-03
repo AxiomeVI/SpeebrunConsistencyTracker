@@ -6,6 +6,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 
 public sealed class Attempt() : IEquatable<Attempt>
 {
+    public readonly DateTime CreatedAt = DateTime.UtcNow;
+
     // Raw running sum of ALL completed rooms including any StartRoomIndex prefix rooms.
     // Use SegmentTime() for the user-visible segment time.
     public TimeTicks TotalSegmentTime = TimeTicks.Zero;
@@ -44,17 +46,13 @@ public sealed class Attempt() : IEquatable<Attempt>
 
     public bool Equals(Attempt other)
     {
-        if (other is null)
-            return false;
-
-        if (ReferenceEquals(this, other))
-            return true;
-
-        return TotalSegmentTime == other.TotalSegmentTime && CompletedRooms.Count == other.CompletedRooms.Count;
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return CreatedAt == other.CreatedAt;
     }
 
     public override bool Equals(object obj)
         => Equals(obj as Attempt);
 
-    public override int GetHashCode() => HashCode.Combine(TotalSegmentTime.Ticks, CompletedRooms.Count);
+    public override int GetHashCode() => CreatedAt.GetHashCode();
 }
