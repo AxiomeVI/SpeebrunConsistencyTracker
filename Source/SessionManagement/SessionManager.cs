@@ -47,9 +47,11 @@ public static class SessionManager
         {
             _slots.Remove(slotName);
             if (ReferenceEquals(CurrentSession, clearedSession))
+            {
                 CurrentSession = null;
+                RoomCount = 0;
+            }
         }
-        RoomCount = 0;
     }
 
     // Called on level exit or full clear: wipe everything.

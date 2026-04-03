@@ -34,6 +34,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private object SaveLoadInstance = null;
 
+    private const string DefaultSlotName = "Default Slot";
+
     private static Hook _updateTimerStateHook;
     private static int _lastKnownRoomCount = 0;
     private static Func<long> _getCurrentRoomTime;
@@ -129,7 +131,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled)
             return;
-        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? "Default Slot";
+        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
         SessionManager.SaveSlot(slot);
         MetricsExporter.Clear();
         MetricEngine.Clear();
@@ -143,7 +145,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled)
             return;
-        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? "Default Slot";
+        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
         SessionManager.LoadSlot(slot);
         _lastKnownRoomCount = 0;
         TextOverlay.SetTextVisible(false);
@@ -152,7 +154,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     public static void OnClearState()
     {
-        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? "Default Slot";
+        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
         if (!Settings.Enabled)
             return;
         SessionManager.ClearSlot(slot);

@@ -61,8 +61,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             long[] roomAverages = [.. Enumerable.Range(0, _totalRooms).Select(r =>
             {
                 var times = attempts
-                    .Where(a => a.CompletedRooms.Count > r)
-                    .Select(a => a.CompletedRooms[r].Ticks)
+                    .Where(a => a.Count > r)
+                    .Select(a => a.GetRoomTime(r).Ticks)
                     .ToList();
                 return times.Count == 0 ? 0L : (long)times.Average();
             })];
@@ -72,9 +72,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 long cumulative = 0;
                 var deviations = new List<long>();
-                for (int r = 0; r < a.CompletedRooms.Count && r < _totalRooms; r++)
+                for (int r = 0; r < a.Count && r < _totalRooms; r++)
                 {
-                    cumulative += roomAverages[r] - a.CompletedRooms[r].Ticks; // positive = faster
+                    cumulative += roomAverages[r] - a.GetRoomTime(r).Ticks; // positive = faster
                     deviations.Add(cumulative);
                 }
                 return (line: new AttemptLine([.. deviations], deviations.Count), finalDeviation: deviations.Count > 0 ? deviations[^1] : 0L);

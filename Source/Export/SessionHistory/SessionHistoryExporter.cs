@@ -27,7 +27,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
             {
                 sb.Append(i);
                 for (int roomIndex = 0; roomIndex < segmentLength; roomIndex++)
-                    sb.Append(roomIndex < attempt.Count ? $",{attempt.CompletedRooms[roomIndex]}" : ",");
+                    sb.Append(roomIndex < attempt.Count ? $",{attempt.GetRoomTime(roomIndex)}" : ",");
                 sb.Append(attempt.IsCompleted() ? $",{attempt.SegmentTime()}" : ",");
                 sb.AppendLine();
             }
@@ -53,7 +53,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
             {
                 List<object> row = [i];
                 for (int roomIndex = 0; roomIndex < segmentLength; roomIndex++)
-                    row.Add(roomIndex < attempt.Count ? attempt.CompletedRooms[roomIndex].ToString() : "");
+                    row.Add(roomIndex < attempt.Count ? attempt.GetRoomTime(roomIndex).ToString() : "");
                 row.Add(attempt.IsCompleted() ? attempt.SegmentTime().ToString() : "");
                 rows.Add(row);
             }

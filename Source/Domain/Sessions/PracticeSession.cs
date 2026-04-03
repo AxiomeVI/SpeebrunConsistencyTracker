@@ -76,5 +76,5 @@ public sealed class PracticeSession
     public IEnumerable<TimeTicks> GetRoomTimes(int roomIndex) =>
         _attempts
             .Where(a => roomIndex < a.Count)
-            .Select(a => a.CompletedRooms[SessionManagement.SessionManager.StartRoomIndex + roomIndex]);
+            .Select(a => a.GetRoomTime(roomIndex));
 }

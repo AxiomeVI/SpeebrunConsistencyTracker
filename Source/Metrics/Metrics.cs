@@ -479,10 +479,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 var y = new List<double>();
                 foreach (var attempt in attempts)
                 {
-                    if (i + 1 < attempt.CompletedRooms.Count)
+                    if (i + 1 < attempt.Count)
                     {
-                        x.Add((double)attempt.CompletedRooms[i]);
-                        y.Add((double)attempt.CompletedRooms[i + 1]);
+                        x.Add((double)attempt.GetRoomTime(i));
+                        y.Add((double)attempt.GetRoomTime(i + 1));
                     }
                 }
                 roomValues.Add((x.Count < 5) ? "" : MetricHelper.CalculatePearson(x, y).ToString("F2", CultureInfo.InvariantCulture));

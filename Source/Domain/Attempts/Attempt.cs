@@ -11,17 +11,19 @@ public sealed class Attempt() : IEquatable<Attempt>
     // Raw running sum of ALL completed rooms including any StartRoomIndex prefix rooms.
     // Use SegmentTime() for the user-visible segment time.
     public TimeTicks TotalSegmentTime = TimeTicks.Zero;
-    public List<TimeTicks> CompletedRooms = [];
+    private readonly List<TimeTicks> _completedRooms = [];
 
     private static int RoomCount => SessionManagement.SessionManager.RoomCount;
     private static int StartRoomIndex => SessionManagement.SessionManager.StartRoomIndex;
-    private int VisibleRoomCount => Math.Max(0, CompletedRooms.Count - StartRoomIndex);
+    private int VisibleRoomCount => Math.Max(0, _completedRooms.Count - StartRoomIndex);
 
     public void CompleteRoom(TimeTicks ticks)
     {
-        CompletedRooms.Add(ticks);
+        _completedRooms.Add(ticks);
         TotalSegmentTime += ticks;
     }
+
+    public TimeTicks GetRoomTime(int visibleIndex) => _completedRooms[StartRoomIndex + visibleIndex];
 
     public bool IsCompleted() => VisibleRoomCount >= RoomCount;
 
@@ -32,11 +34,11 @@ public sealed class Attempt() : IEquatable<Attempt>
     public TimeTicks SegmentTime()
     {
         int start = StartRoomIndex;
-        int end = Math.Min(start + RoomCount, CompletedRooms.Count);
+        int end = Math.Min(start + RoomCount, _completedRooms.Count);
         if (end <= start) return TimeTicks.Zero;
 
         TimeTicks totalTicks = TimeTicks.Zero;
-        foreach (var room in CompletedRooms[start..end])
+        foreach (var room in _completedRooms[start..end])
         {
             totalTicks += room;
         }
