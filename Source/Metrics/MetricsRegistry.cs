@@ -12,7 +12,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 "Consistency Score",
                 "score",
                 Metrics.ConsistencyScore,
-                (mode) => MetricHelper.IsMetricEnabled(_settings.ConsistencyScore, mode)
+                (mode) => false
             ),
             new MetricDescriptor(
                 "Success Rate",

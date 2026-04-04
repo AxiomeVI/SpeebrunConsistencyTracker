@@ -81,7 +81,6 @@ Shows the statistical distribution of room times as a box-and-whisker plot, with
 - **SoB:** Sum of Best
 - **Median Absolute Deviation:** measure of how spread out run times are around the median
 - **Relative Median Absolute Deviation:** MAD as a percentage of the median
-- **Consistency Score:** composite metric estimating overall consistency. Tighter distributions, times closer to the best, and fewer resets result in a higher score
 - **Bimodal Test:** detects multiple peaks in the time distribution, indicating a hit-or-miss strat. The Bimodality Coefficient is compared to a critical threshold of 0.555 — higher values point toward bimodality, lower values toward unimodality
 - **Room Dependency:** measures how a poor time in a room impacts the next room, ranging from -1 to 1. A value of 0 indicates no effect, a high positive score suggests mistakes tend to carry over
 

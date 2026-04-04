@@ -29,8 +29,7 @@ public static partial class ModMenuOptions
 
     private static List<MetricDef> BuildMetricDefs() =>
     [
-        new(DialogIds.ConsistencyScoreId,       AllChoices, () => _settings.ConsistencyScore,        v => _settings.ConsistencyScore = v,        MetricOutputChoice.Off),
-        new(DialogIds.SuccessRateId,            AllChoices, () => _settings.SuccessRate,             v => _settings.SuccessRate = v,             MetricOutputChoice.Both),
+new(DialogIds.SuccessRateId,            AllChoices, () => _settings.SuccessRate,             v => _settings.SuccessRate = v,             MetricOutputChoice.Both),
         new(DialogIds.TargetTimeStatId,         AllChoices, () => _settings.TargetTime,              v => _settings.TargetTime = v,              MetricOutputChoice.Export),
         new(DialogIds.CompletedRunCountId,      AllChoices, () => _settings.CompletedRunCount,       v => _settings.CompletedRunCount = v,       MetricOutputChoice.Both),
         new(DialogIds.TotalRunCountId,          AllChoices, () => _settings.TotalRunCount,           v => _settings.TotalRunCount = v,           MetricOutputChoice.Both),
