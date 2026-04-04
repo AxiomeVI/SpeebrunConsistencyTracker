@@ -193,6 +193,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         HandleClearButton();
         UpdateGraphOverlay(self);
         HandlePauseHide(self);
+        if (Settings.Enabled && GraphManager.IsShowing())
+            GraphInteractivity.Update();
     }
 
     private static void LevelOnRender(On.Celeste.Level.orig_Render orig, Level self) {
@@ -254,7 +256,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
         int currentRoomCount = SessionManager.RoomCount;
 
-        if (currentRoomCount > _lastKnownRoomCount) {
+        if (currentRoomCount != _lastKnownRoomCount) {
             _lastKnownRoomCount = currentRoomCount;
             GraphManager.RebuildEnabledSlots();
         }

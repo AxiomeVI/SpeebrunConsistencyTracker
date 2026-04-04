@@ -21,6 +21,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected readonly float _cachedBarSpacing;
         protected readonly float _cachedGroupSpacing;
 
+        private int   _hoveredGroupIndex  = -1;
+        private float _hoveredHighlightX  = 0f;
+        private float _hoveredHighlightY  = 0f;
+        private float _hoveredHighlightW  = 0f;
+        private float _hoveredHighlightH  = 0f;
+
+        /// <summary>Returns the tooltip label for group index i. Override in subclasses.</summary>
+        protected virtual string BuildHoverLabel(int i, bool isPrimary, bool isSecondary) => "";
+
         protected GroupedChartBase(
             string title,
             List<string> labels,
@@ -39,6 +48,81 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             ComputeBarLayout(width - margin * 2, _labels.Count,
                 out _cachedGroupWidth, out _cachedGroupSpacing, out _cachedBarSpacing, out _cachedBarWidth);
+        }
+
+        public override HoverInfo? HitTest(Vector2 mouseHudPos)
+        {
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            _hoveredGroupIndex = -1;
+
+            if (mouseHudPos.X < gx || mouseHudPos.X > gx + gw ||
+                mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
+                return null;
+
+            int idx = (int)((mouseHudPos.X - gx) / _cachedGroupWidth);
+            idx = System.Math.Clamp(idx, 0, _primaryValues.Count - 1);
+
+            float groupX      = gx + idx * _cachedGroupWidth + _cachedGroupSpacing / 2f;
+            float primaryTopY = gy + gh - GetBarHeight(_primaryValues[idx], gh);
+
+            bool  secondaryExists = idx < _secondaryValues.Count;
+            float secondaryX      = groupX + _cachedBarWidth + _cachedBarSpacing;
+            float secondaryTopY   = secondaryExists ? gy + gh - GetBarHeight(_secondaryValues[idx], gh) : gy + gh;
+
+            bool overPrimary   = mouseHudPos.X >= groupX    && mouseHudPos.X <= groupX + _cachedBarWidth
+                               && mouseHudPos.Y >= primaryTopY && mouseHudPos.Y <= gy + gh
+                               && primaryTopY < gy + gh;
+            bool overSecondary = secondaryExists
+                               && mouseHudPos.X >= secondaryX  && mouseHudPos.X <= secondaryX + _cachedBarWidth
+                               && mouseHudPos.Y >= secondaryTopY && mouseHudPos.Y <= gy + gh
+                               && secondaryTopY < gy + gh;
+
+            if (!overPrimary && !overSecondary)
+                return null;
+
+            _hoveredGroupIndex = idx;
+
+            float labelX;
+            if (overPrimary && overSecondary)
+            {
+                _hoveredHighlightX = groupX;
+                _hoveredHighlightY = System.Math.Min(primaryTopY, secondaryTopY);
+                _hoveredHighlightW = _cachedBarWidth * 2 + _cachedBarSpacing;
+                _hoveredHighlightH = gy + gh - _hoveredHighlightY;
+                labelX = groupX + (_cachedBarWidth * 2 + _cachedBarSpacing) / 2f;
+            }
+            else if (overPrimary)
+            {
+                _hoveredHighlightX = groupX;
+                _hoveredHighlightY = primaryTopY;
+                _hoveredHighlightW = _cachedBarWidth;
+                _hoveredHighlightH = gy + gh - primaryTopY;
+                labelX = groupX + _cachedBarWidth / 2f;
+            }
+            else
+            {
+                _hoveredHighlightX = secondaryX;
+                _hoveredHighlightY = secondaryTopY;
+                _hoveredHighlightW = _cachedBarWidth;
+                _hoveredHighlightH = gy + gh - secondaryTopY;
+                labelX = secondaryX + _cachedBarWidth / 2f;
+            }
+
+            string hoverLabel = BuildHoverLabel(idx, overPrimary, overSecondary);
+            int    lineCount  = hoverLabel.Split('\n').Length;
+            float  lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
+            float  labelY     = _hoveredHighlightY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
+            return new HoverInfo(hoverLabel, new Vector2(labelX, labelY));
+        }
+
+        public override void DrawHighlight()
+        {
+            if (_hoveredGroupIndex < 0) return;
+            Draw.HollowRect(_hoveredHighlightX, _hoveredHighlightY, _hoveredHighlightW, _hoveredHighlightH, Color.White * 0.8f);
         }
 
         protected abstract float GetBarHeight(T value, float chartHeight);

@@ -1,9 +1,17 @@
+#nullable enable
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
+    /// <summary>
+    /// Returned by HitTest when a chart element is hovered.
+    /// Label is the tooltip text (use \n for multiple lines).
+    /// LabelPos is the top-center screen coordinate for the tooltip.
+    /// </summary>
+    public sealed record HoverInfo(string Label, Vector2 LabelPos);
+
     /// <summary>
     /// Base class for all bar chart / histogram overlays. Handles common layout, rendering pipeline,
     /// title drawing, axis drawing, and legend entry drawing.
@@ -27,6 +35,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 (ChartConstants.Screen.ScreenWidth  - width)  / 2,
                 (ChartConstants.Screen.ScreenHeight - height) / 2);
         }
+
+        /// <summary>
+        /// Returns hover info if the mouse is over an interactive element, null otherwise.
+        /// mouseHudPos is in HUD coordinates (1920x1080 space).
+        /// </summary>
+        public virtual HoverInfo? HitTest(Vector2 mouseHudPos) => null;
+
+        /// <summary>
+        /// Draws the highlight for the currently hovered element.
+        /// Only called when HitTest returned non-null on this frame.
+        /// </summary>
+        public virtual void DrawHighlight() { }
 
         protected abstract void DrawBars(float x, float y, float w, float h);
         protected abstract void DrawLabels(float x, float y, float w, float h);
@@ -63,7 +83,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(startX + boxSize + spacing, y),
                 new Vector2(0f, 0f),
                 Vector2.One * scale,
-                Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+                Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
 
         /// <summary>

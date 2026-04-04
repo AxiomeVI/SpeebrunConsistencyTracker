@@ -15,6 +15,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly long _minRoom, _maxRoom;
         private readonly long _minSeg, _maxSeg;
 
+        private record BoxGeometry(
+            float CenterX, float BoxHalfW, float CapHalfW,
+            float PxMin, float PxMax, float PxQ1, float PxQ3, float PxMed,
+            long TickMin, long TickMax, long TickQ1, long TickQ3, long TickMed);
+
+        private BoxGeometry? _hoveredBox = null;
+
+        private record StatLabel(string Left, string Right, float X, float Y);
+        private List<StatLabel> _statLabels = [];
+
         public BoxPlotOverlay(
             List<List<TimeTicks>> roomTimes,
             List<TimeTicks> segmentTimes,
@@ -139,12 +149,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private void DrawBox(List<TimeTicks> times, float centerX, float columnWidth,
             float y, float h, long minTick, long maxTick, Color color)
         {
-            var sorted  = times.OrderBy(t => t).ToList();
-            long tMin   = sorted[0].Ticks;
-            long tMax   = sorted[^1].Ticks;
-            TimeTicks q1  = MetricHelper.ComputePercentile(sorted, 25);
-            TimeTicks med = MetricHelper.ComputePercentile(sorted, 50);
-            TimeTicks q3  = MetricHelper.ComputePercentile(sorted, 75);
+            long tMin   = times[0].Ticks;
+            long tMax   = times[^1].Ticks;
+            TimeTicks q1  = MetricHelper.ComputePercentile(times, 25);
+            TimeTicks med = MetricHelper.ComputePercentile(times, 50);
+            TimeTicks q3  = MetricHelper.ComputePercentile(times, 75);
 
             float pxBest  = ToPixelY(tMin,       minTick, maxTick, y, h);
             float pxWorst = ToPixelY(tMax,       minTick, maxTick, y, h);
@@ -244,6 +253,173 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (maxTick == minTick) return y + h / 2;
             return y + h - (float)(ticks - minTick) / (maxTick - minTick) * h;
+        }
+
+        private BoxGeometry? ComputeBoxGeometry(int columnIndex, float gx, float gy, float gw, float gh)
+        {
+            int   totalColumns = _roomTimes.Count + 1;
+            float columnWidth  = gw / totalColumns;
+            bool  isSegment    = columnIndex == _roomTimes.Count;
+
+            List<TimeTicks> times;
+            long minTick, maxTick;
+            if (isSegment)
+            {
+                times   = _segmentTimes;
+                minTick = _minSeg;
+                maxTick = _maxSeg;
+            }
+            else
+            {
+                times   = _roomTimes[columnIndex];
+                minTick = _minRoom;
+                maxTick = _maxRoom;
+            }
+
+            if (times.Count == 0) return null;
+
+            var sorted = times.OrderBy(t => t).ToList();
+            long tMin  = sorted[0].Ticks;
+            long tMax  = sorted[^1].Ticks;
+            var  q1    = MetricHelper.ComputePercentile(sorted, 25);
+            var  med   = MetricHelper.ComputePercentile(sorted, 50);
+            var  q3    = MetricHelper.ComputePercentile(sorted, 75);
+
+            float centerX  = gx + columnWidth * (columnIndex + 0.5f);
+            float boxHalfW = columnWidth * 0.2f;
+            float capHalfW = columnWidth * 0.08f;
+
+            return new BoxGeometry(
+                CenterX:  centerX,
+                BoxHalfW: boxHalfW,
+                CapHalfW: capHalfW,
+                PxMin:    ToPixelY(tMin,       minTick, maxTick, gy, gh),
+                PxMax:    ToPixelY(tMax,       minTick, maxTick, gy, gh),
+                PxQ1:     ToPixelY(q1.Ticks,  minTick, maxTick, gy, gh),
+                PxQ3:     ToPixelY(q3.Ticks,  minTick, maxTick, gy, gh),
+                PxMed:    ToPixelY(med.Ticks, minTick, maxTick, gy, gh),
+                TickMin:  tMin,
+                TickMax:  tMax,
+                TickQ1:   q1.Ticks,
+                TickQ3:   q3.Ticks,
+                TickMed:  med.Ticks);
+        }
+
+        public override HoverInfo? HitTest(Vector2 mouseHudPos)
+        {
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            _hoveredBox  = null;
+            _statLabels  = [];
+
+            if (mouseHudPos.X < gx || mouseHudPos.X > gx + gw ||
+                mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
+                return null;
+
+            int   totalColumns = _roomTimes.Count + 1;
+            float columnWidth  = gw / totalColumns;
+            int   idx          = Math.Clamp((int)((mouseHudPos.X - gx) / columnWidth), 0, totalColumns - 1);
+
+            var times = idx == _roomTimes.Count ? _segmentTimes : _roomTimes[idx];
+            if (times.Count == 0) return null;
+
+            _hoveredBox = ComputeBoxGeometry(idx, gx, gy, gw, gh);
+            if (_hoveredBox == null) return null;
+
+            var b = _hoveredBox;
+
+            // Hit test: must be within whisker X range and Y range
+            float hitXMin = b.CenterX - b.BoxHalfW;
+            float hitXMax = b.CenterX + b.BoxHalfW;
+            float hitYMin = Math.Min(b.PxMin, b.PxMax); // PxMax (slowest) = low Y = screen top
+            float hitYMax = Math.Max(b.PxMin, b.PxMax);
+            if (mouseHudPos.X < hitXMin || mouseHudPos.X > hitXMax ||
+                mouseHudPos.Y < hitYMin || mouseHudPos.Y > hitYMax)
+            {
+                _hoveredBox = null;
+                return null;
+            }
+
+            // Build per-stat labels: place each to the right of the box, at the stat's Y position
+            const float scale   = ChartConstants.FontScale.AxisLabelMedium;
+            const float bgPad   = ChartConstants.Interactivity.TooltipBgPadding;
+            float lineH  = ActiveFont.Measure("A").Y * scale;
+            float labelX = b.CenterX + b.BoxHalfW + bgPad * 2f;
+
+            // Screen Y: PxMax (slowest) = low Y = top of screen; PxMin (fastest) = high Y = bottom of screen
+            // Stat order top→bottom on screen: Max, Q3, Median, Q1, Min
+            var raw = new (string name, string val, float py)[]
+            {
+                ("Max",    new TimeTicks(b.TickMax).ToString(), b.PxMax),
+                ("Q3",     new TimeTicks(b.TickQ3).ToString(),  Math.Min(b.PxQ1, b.PxQ3)),
+                ("Median", new TimeTicks(b.TickMed).ToString(), b.PxMed),
+                ("Q1",     new TimeTicks(b.TickQ1).ToString(),  Math.Max(b.PxQ1, b.PxQ3)),
+                ("Min",    new TimeTicks(b.TickMin).ToString(), b.PxMin),
+            };
+
+            // Nudge labels apart so they don't overlap (min gap = lineH + 2*bgPad)
+            float minGap  = lineH + bgPad * 2f;
+            float[] nudged = new float[raw.Length];
+            for (int i = 0; i < raw.Length; i++) nudged[i] = raw[i].py;
+            // Pass 1: push down
+            for (int i = 1; i < nudged.Length; i++)
+                if (nudged[i] - nudged[i - 1] < minGap)
+                    nudged[i] = nudged[i - 1] + minGap;
+            // Pass 2: push up from bottom
+            for (int i = nudged.Length - 2; i >= 0; i--)
+                if (nudged[i + 1] - nudged[i] < minGap)
+                    nudged[i] = nudged[i + 1] - minGap;
+
+            _statLabels = [];
+            for (int i = 0; i < raw.Length; i++)
+                _statLabels.Add(new StatLabel(raw[i].name, raw[i].val, labelX, nudged[i] - lineH / 2f));
+
+            // Return a sentinel HoverInfo (empty label = DrawTooltip skipped; just triggers DrawHighlight)
+            return new HoverInfo("", new Vector2(labelX, nudged[0]));
+        }
+
+        public override void DrawHighlight()
+        {
+            if (_hoveredBox == null) return;
+
+            var   b      = _hoveredBox;
+            Color c      = Color.White * 0.85f;
+            float boxTop = Math.Min(b.PxQ1, b.PxQ3);
+            float boxBot = Math.Max(b.PxQ1, b.PxQ3);
+            float boxH   = Math.Max(1f, boxBot - boxTop);
+
+            Draw.HollowRect(b.CenterX - b.BoxHalfW, boxTop, b.BoxHalfW * 2f, boxH, c);
+            Draw.Line(new Vector2(b.CenterX, b.PxMax), new Vector2(b.CenterX, b.PxMin), c, 1.5f);
+            Draw.Line(new Vector2(b.CenterX - b.CapHalfW, b.PxMin), new Vector2(b.CenterX + b.CapHalfW, b.PxMin), c, 1.5f);
+            Draw.Line(new Vector2(b.CenterX - b.CapHalfW, b.PxMax), new Vector2(b.CenterX + b.CapHalfW, b.PxMax), c, 1.5f);
+            Draw.Line(new Vector2(b.CenterX - b.BoxHalfW, b.PxMed), new Vector2(b.CenterX + b.BoxHalfW, b.PxMed), Color.White, 2.5f);
+
+            const float scale  = ChartConstants.FontScale.AxisLabelMedium;
+            const float bgPad  = ChartConstants.Interactivity.TooltipBgPadding;
+            const float colGap = 8f;
+            float lineH = ActiveFont.Measure("A").Y * scale;
+
+            float maxLeftW = 0f, maxRightW = 0f;
+            foreach (var sl in _statLabels)
+            {
+                maxLeftW  = Math.Max(maxLeftW,  ActiveFont.Measure(sl.Left).X  * scale);
+                maxRightW = Math.Max(maxRightW, ActiveFont.Measure(sl.Right).X * scale);
+            }
+            float totalW = maxLeftW + colGap + maxRightW;
+
+            foreach (var sl in _statLabels)
+            {
+                float bgX = sl.X - bgPad;
+                float bgY = sl.Y - bgPad;
+
+                Draw.Rect(bgX, bgY, totalW + bgPad * 2f, lineH + bgPad * 2f, Color.Black * 0.92f);
+                ActiveFont.DrawOutline(sl.Left,  new Vector2(sl.X, sl.Y), Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+                float rw = ActiveFont.Measure(sl.Right).X * scale;
+                ActiveFont.DrawOutline(sl.Right, new Vector2(sl.X + maxLeftW + colGap + maxRightW - rw, sl.Y), Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+            }
         }
     }
 }

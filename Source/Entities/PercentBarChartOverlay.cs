@@ -18,6 +18,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly string secondaryLabel;
         private readonly int maxValue = 100;
 
+        private int   _hoveredBarIndex = -1;
+        private float _hoveredBarWidth;
+        private float _hoveredBarTopY;
+
         /// <summary>
         /// Single-layer percentage bar chart (e.g. DNF % only).
         /// </summary>
@@ -65,7 +69,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float barX = x + i * barWidth + barSpacing / 2;
 
                 double pct = primaryValues[i];
-                float primaryHeight = (float)(pct / maxValue) * h;
+                float primaryHeight = MathF.Floor((float)(pct / maxValue) * h);
                 float primaryY = y + h - primaryHeight;
 
                 if (primaryHeight > 0)
@@ -75,7 +79,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (secondaryValues != null && i < secondaryValues.Count)
                 {
                     double secPct = secondaryValues[i];
-                    secondaryHeight = (float)(secPct / maxValue) * h;
+                    secondaryHeight = MathF.Floor((float)(secPct / maxValue) * h);
                     float secondaryY = primaryY - secondaryHeight;
                     if (secondaryHeight > 0)
                         Draw.Rect(barX, secondaryY, actualBarWidth, secondaryHeight, secondaryColor);
@@ -96,6 +100,79 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
                 }
             }
+        }
+
+        public override HoverInfo? HitTest(Vector2 mouseHudPos)
+        {
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            if (mouseHudPos.X < gx || mouseHudPos.X > gx + gw ||
+                mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
+            {
+                _hoveredBarIndex = -1;
+                return null;
+            }
+
+            float barWidth   = System.Math.Min(gw / System.Math.Max(primaryValues.Count, 1), MAX_BAR_WIDTH);
+            float barSpacing = barWidth * ChartConstants.BarLayout.GroupSpacingRatio;
+            float actualBarWidth = barWidth - barSpacing;
+            int idx = (int)((mouseHudPos.X - gx) / barWidth);
+            idx = System.Math.Clamp(idx, 0, primaryValues.Count - 1);
+
+            // Only hit when inside the actual bar rect (not spacing), and bar has non-zero height
+            float barX      = gx + idx * barWidth + barSpacing / 2f;
+            double totalPct = primaryValues[idx] + (secondaryValues != null && idx < secondaryValues.Count ? secondaryValues[idx] : 0);
+            float barTopY   = gy + gh - (float)(totalPct / maxValue) * gh;
+
+            if (mouseHudPos.X < barX || mouseHudPos.X > barX + actualBarWidth || totalPct <= 0 || mouseHudPos.Y < barTopY)
+            {
+                _hoveredBarIndex = -1;
+                return null;
+            }
+
+            _hoveredBarIndex = idx;
+            _hoveredBarWidth = barWidth;
+            _hoveredBarTopY  = barTopY;
+
+            float barCenterX = barX + actualBarWidth / 2f;
+            string label = BuildPercentHoverLabel(idx);
+            int    lineCount = label.Split('\n').Length;
+            float  lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
+            float  labelY = barTopY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
+            return new HoverInfo(label, new Vector2(barCenterX, labelY));
+        }
+
+        private string BuildPercentHoverLabel(int i)
+        {
+            double pct = primaryValues[i];
+            if (secondaryValues != null && i < secondaryValues.Count)
+            {
+                double secPct = secondaryValues[i];
+                string pLabel = primaryLabel  ?? "Primary";
+                string sLabel = secondaryLabel ?? "Secondary";
+                return $"{sLabel}: {secPct:0.#}%\n{pLabel}: {pct:0.#}%";
+            }
+            string lbl = primaryLabel ?? "Value";
+            return $"{lbl}: {pct:0.#}%";
+        }
+
+        public override void DrawHighlight()
+        {
+            if (_hoveredBarIndex < 0) return;
+
+            float gx = position.X + marginH;
+            float gh = height - margin * 2;
+            float gy = position.Y + margin;
+
+            float barSpacing     = _hoveredBarWidth * ChartConstants.BarLayout.GroupSpacingRatio;
+            float actualBarWidth = _hoveredBarWidth - barSpacing;
+            float barX           = gx + _hoveredBarIndex * _hoveredBarWidth + barSpacing / 2f;
+            float barH           = gy + gh - _hoveredBarTopY;
+
+            Draw.HollowRect(barX, _hoveredBarTopY, actualBarWidth, barH, Color.White * 0.8f);
         }
 
         protected override void DrawLabels(float x, float y, float w, float h)

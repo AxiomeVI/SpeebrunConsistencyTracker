@@ -50,9 +50,12 @@ public static partial class GraphManager
         _currentSlotIndex = -1;
         _enabledSlots.Clear();
         ClearAllCharts();
+        GraphInteractivity.Clear();
     }
 
     public static bool IsShowing() => _currentOverlay != null;
+
+    public static BaseChartOverlay CurrentOverlay => _currentOverlay;
 
     public static (GraphType Type, int RoomIndex) GetCurrentSlot()
     {
@@ -78,6 +81,7 @@ public static partial class GraphManager
             InvalidateIfSessionChanged();
             ShowCurrentSlot();
             _currentOverlay?.Render();
+            GraphInteractivity.Render();
         }
     }
 

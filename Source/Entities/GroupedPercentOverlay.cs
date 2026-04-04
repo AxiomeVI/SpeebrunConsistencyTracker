@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using System;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
@@ -20,12 +21,30 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             : base(title, labels, primaryValues, secondaryValues, primaryLabel, secondaryLabel, pos) { }
 
         protected override float GetBarHeight(float value, float chartHeight) =>
-            value / 100f * chartHeight;
+            MathF.Floor(value / 100f * chartHeight);
 
         protected override string FormatBarLabel(float value) =>
             $"{value:0.#}%";
 
         protected override void DrawYAxis(float x, float y, float w, float h) =>
             DrawPercentYAxis(x, y, w, h);
+
+        protected override string BuildHoverLabel(int i, bool isPrimary, bool isSecondary)
+        {
+            if (isPrimary && isSecondary)
+            {
+                string primary   = FormatBarLabel(_primaryValues[i]);
+                bool   hasSecond = i < _secondaryValues.Count;
+                string secondary = hasSecond ? FormatBarLabel(_secondaryValues[i]) : null;
+                return hasSecond
+                    ? $"{_primaryLabel}: {primary}\n{_secondaryLabel}: {secondary}"
+                    : $"{_primaryLabel}: {primary}";
+            }
+            if (isPrimary)
+                return $"{_primaryLabel}: {FormatBarLabel(_primaryValues[i])}";
+            if (isSecondary && i < _secondaryValues.Count)
+                return $"{_secondaryLabel}: {FormatBarLabel(_secondaryValues[i])}";
+            return "";
+        }
     }
 }

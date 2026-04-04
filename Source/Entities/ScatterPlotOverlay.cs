@@ -23,7 +23,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly TimeTicks? targetTime = null;
 
         // Cache computed values
-        private List<(Vector2 pos, bool isSegment, float radius)> cachedDots = null;
+        private List<(Vector2 pos, bool isSegment, float radius, int attemptIndex)> cachedDots = null;
+        private int _hoveredDotIndex = -1;
         private long maxRoomTime;
         private long maxSegmentTime;
         private long minRoomTime;
@@ -201,26 +202,26 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     var room    = roomDataList[roomIndex];
                     float centerX = x + columnWidth * (roomIndex + 0.5f);
 
-                    foreach (var time in room.Times)
+                    for (int t = 0; t < room.Times.Count; t++)
                     {
-                        float normalizedY = roomRange > 0 ? (float)(time.Ticks - minRoomTime) / roomRange : 0.5f;
+                        float normalizedY = roomRange > 0 ? (float)(room.Times[t].Ticks - minRoomTime) / roomRange : 0.5f;
                         float dotY        = y + h - (normalizedY * h);
                         float jitterX     = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
-                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius));
+                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius, t));
                     }
                 }
 
                 float segmentCenterX = x + columnWidth * (totalColumns - 0.5f);
-                foreach (var time in segmentData.Times)
+                for (int t = 0; t < segmentData.Times.Count; t++)
                 {
-                    float normalizedY = segmentRange > 0 ? (float)(time.Ticks - minSegmentTime) / segmentRange : 0.5f;
+                    float normalizedY = segmentRange > 0 ? (float)(segmentData.Times[t].Ticks - minSegmentTime) / segmentRange : 0.5f;
                     float dotY        = y + h - (normalizedY * h);
                     float jitterX     = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
-                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius));
+                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius, t));
                 }
             }
 
-            foreach (var (pos, isSegment, radius) in cachedDots)
+            foreach (var (pos, isSegment, radius, _) in cachedDots)
                 DrawDot(pos, isSegment ? _settings.SegmentColorFinal : _settings.RoomColorFinal, radius);
         }
 
@@ -229,6 +230,78 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int circleCount = (int)Math.Ceiling(radius * 2);
             for (int i = 0; i < circleCount; i++)
                 Draw.Circle(position, radius - i * 0.5f, color, 4);
+        }
+
+        public override HoverInfo? HitTest(Vector2 mouseHudPos)
+        {
+            if (cachedDots == null)
+            {
+                _hoveredDotIndex = -1;
+                return null;
+            }
+
+            float snapSq  = ChartConstants.Interactivity.ScatterSnapRadius * ChartConstants.Interactivity.ScatterSnapRadius;
+            float bestDist = float.MaxValue;
+            int   bestIdx  = -1;
+
+            for (int i = 0; i < cachedDots.Count; i++)
+            {
+                float dx   = cachedDots[i].pos.X - mouseHudPos.X;
+                float dy   = cachedDots[i].pos.Y - mouseHudPos.Y;
+                float dist = dx * dx + dy * dy;
+                if (dist < bestDist)
+                {
+                    bestDist = dist;
+                    bestIdx  = i;
+                }
+            }
+
+            if (bestIdx < 0 || bestDist > snapSq)
+            {
+                _hoveredDotIndex = -1;
+                return null;
+            }
+
+            _hoveredDotIndex = bestIdx;
+            var (pos, isSegment, radius, attemptIndex) = cachedDots[bestIdx];
+
+            string label;
+            if (isSegment)
+            {
+                string timeStr = segmentData.Times[attemptIndex].ToString();
+                label = $"Segment attempt #{attemptIndex + 1}: {timeStr}";
+            }
+            else
+            {
+                int dotCount = 0;
+                int roomIdx  = -1;
+                for (int r = 0; r < roomDataList.Count; r++)
+                {
+                    if (bestIdx < dotCount + roomDataList[r].Times.Count)
+                    {
+                        roomIdx = r;
+                        break;
+                    }
+                    dotCount += roomDataList[r].Times.Count;
+                }
+                string timeStr  = roomIdx >= 0 ? roomDataList[roomIdx].Times[attemptIndex].ToString() : "?";
+                label = $"Attempt #{attemptIndex + 1}: {timeStr}";
+            }
+
+            float lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
+            float labelY = pos.Y - ChartConstants.Scatter.DotRadius - ChartConstants.Interactivity.TooltipPaddingY - lineHeight - ChartConstants.Interactivity.TooltipBgPadding * 2f;
+            return new HoverInfo(label, new Vector2(pos.X, labelY));
+        }
+
+        public override void DrawHighlight()
+        {
+            if (_hoveredDotIndex < 0 || cachedDots == null) return;
+
+            var (pos, isSegment, radius, _) = cachedDots[_hoveredDotIndex];
+            float highlightRadius = ChartConstants.Interactivity.ScatterSnapRadius;
+            int circleCount = (int)Math.Ceiling(highlightRadius * 2);
+            for (int i = 0; i < circleCount; i++)
+                Draw.Circle(pos, highlightRadius - i * 0.5f, Color.White * 0.9f, 4);
         }
 
         protected override void DrawLabels(float x, float y, float w, float h)

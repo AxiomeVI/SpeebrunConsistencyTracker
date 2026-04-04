@@ -100,5 +100,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             internal const float RightLabelMarginX    = 10f; // x + w + this for right-side axis labels
             internal const float LabelMinSpacingExtra = 4f;  // nudge: minSpacing = labelHeight + this
         }
+
+        internal static class Interactivity
+        {
+            internal const float TooltipPaddingY  = 8f;   // gap between hovered element top and tooltip bottom
+            internal const float TooltipBgPadding = 6f;   // padding around tooltip text background rect
+            internal const float ScatterSnapRadius = 4f;  // DotRadius (2f) * 2 — max distance to snap to a dot
+        }
     }
 }

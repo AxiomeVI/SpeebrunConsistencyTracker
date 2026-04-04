@@ -18,6 +18,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private List<(long minTick, long maxTick, int count)> buckets;
         private int maxCount;
 
+        private int   _hoveredBucketIndex = -1;
+        private float _hoveredBarWidth;
+        private float _hoveredBarTopY;
+
         public HistogramOverlay(string roomName, List<TimeTicks> times, bool isSegment = false, Vector2? pos = null)
             : base($"Time Distribution - {roomName}", pos)
         {
@@ -100,7 +104,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             for (int i = 0; i < buckets.Count; i++)
             {
                 var (_, _, count) = buckets[i];
-                float barHeight = (float)count / maxCount * h;
+                float barHeight = MathF.Floor((float)count / maxCount * h);
                 float barX = x + i * barWidth + barSpacing / 2;
                 float barY = y + h - barHeight;
                 float actualBarWidth = barWidth - barSpacing;
@@ -186,6 +190,73 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(0f, 0f),
                 Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
                 Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+        }
+
+        public override HoverInfo? HitTest(Vector2 mouseHudPos)
+        {
+            if (buckets.Count == 0)
+            {
+                _hoveredBucketIndex = -1;
+                return null;
+            }
+
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            if (mouseHudPos.X < gx || mouseHudPos.X > gx + gw ||
+                mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
+            {
+                _hoveredBucketIndex = -1;
+                return null;
+            }
+
+            float barWidth       = System.Math.Min(gw / buckets.Count, MAX_BAR_WIDTH);
+            float barSpacing     = barWidth * ChartConstants.BarLayout.SingleBarSpacingRatio;
+            float actualBarWidth = barWidth - barSpacing;
+            int idx = (int)((mouseHudPos.X - gx) / barWidth);
+            idx = System.Math.Clamp(idx, 0, buckets.Count - 1);
+
+            float barX = gx + idx * barWidth + barSpacing / 2f;
+            var (minTick, maxTick, count) = buckets[idx];
+            float barTopY = gy + gh - (float)count / maxCount * gh;
+
+            if (mouseHudPos.X < barX || mouseHudPos.X > barX + actualBarWidth || count == 0 || mouseHudPos.Y < barTopY)
+            {
+                _hoveredBucketIndex = -1;
+                return null;
+            }
+
+            _hoveredBucketIndex = idx;
+            _hoveredBarWidth    = barWidth;
+            _hoveredBarTopY     = barTopY;
+
+            string minStr = new Domain.Time.TimeTicks(minTick).ToString();
+            string maxStr = new Domain.Time.TimeTicks(maxTick).ToString();
+            string label  = $"{count} {(count == 1 ? "attempt" : "attempts")}\n[{minStr}, {maxStr})";
+
+            float barCenterX = barX + actualBarWidth / 2f;
+            int   lineCount  = label.Split('\n').Length;
+            float lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
+            float labelY     = barTopY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
+            return new HoverInfo(label, new Vector2(barCenterX, labelY));
+        }
+
+        public override void DrawHighlight()
+        {
+            if (_hoveredBucketIndex < 0) return;
+
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gh = height - margin * 2;
+
+            float barSpacing     = _hoveredBarWidth * ChartConstants.BarLayout.SingleBarSpacingRatio;
+            float actualBarWidth = _hoveredBarWidth - barSpacing;
+            float barX           = gx + _hoveredBucketIndex * _hoveredBarWidth + barSpacing / 2f;
+            float barH           = gy + gh - _hoveredBarTopY;
+
+            Draw.HollowRect(barX, _hoveredBarTopY, actualBarWidth, barH, Color.White * 0.8f);
         }
     }
 }
