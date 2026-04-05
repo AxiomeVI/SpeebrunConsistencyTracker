@@ -240,10 +240,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (r, sorted) => {
                     TimeTicks roomQ1 = context.GetOrCompute($"q1_room_{r}", () => MetricHelper.ComputePercentile(sorted, 25));
                     TimeTicks roomQ3 = context.GetOrCompute($"q3_room_{r}", () => MetricHelper.ComputePercentile(sorted, 75));
-                    return "[" + roomQ1 + "; " + roomQ3 + "]";
+                    return (roomQ3 - roomQ1).ToString();
                 }, minCount: 0);
 
-            return new MetricResult("[" + Q1 + "; " + Q3 + "]", roomValues);
+            return new MetricResult((Q3 - Q1).ToString(), roomValues);
         }
 
         public static MetricResult CompletedRunCount(PracticeSession session, MetricContext context, bool isExport)

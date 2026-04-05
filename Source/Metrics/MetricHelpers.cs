@@ -188,10 +188,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double median = ComputePercentile(sortedTimes, 50).Ticks;
 
             var deviations = sortedTimes
-                .Select(t => (long)Math.Round(Math.Abs(t.Ticks - median)))
+                .Select(t => (double)Math.Abs(t.Ticks - median))
                 .OrderBy(d => d);
 
-            return ComputePercentile([.. deviations.Select(t => new TimeTicks(t))], 50);
+            return ComputePercentile([.. deviations.Select(t => new TimeTicks((long)Math.Round(t)))], 50);
         }
 
         public static double ComputeConsistencyScore(double median, TimeTicks min, double relMAD, double resetRate, double stdCV)

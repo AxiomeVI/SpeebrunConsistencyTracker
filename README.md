@@ -76,7 +76,7 @@ Shows the statistical distribution of room times as a box-and-whisker plot, with
 - **Standard Deviation:** measure of how spread out run times are around the average
 - **Relative Standard Deviation:** standard deviation as a percentage of the average, allowing easier comparison across rooms
 - **Percentile:** the threshold where n% of runs are faster than this value (default: 90%, adjustable in mod options)
-- **Interquartile Range:** lower and upper bounds of the middle 50% of your runs
+- **Interquartile Range:** the difference between the third and the first quartile
 - **Trend Slope:** measures how session duration affects performance. Values near zero indicate little effect; negative values indicate improving times as the session progresses
 - **SoB:** Sum of Best
 - **Median Absolute Deviation:** measure of how spread out run times are around the median
