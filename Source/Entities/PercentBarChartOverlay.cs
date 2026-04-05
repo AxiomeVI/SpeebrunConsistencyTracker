@@ -72,8 +72,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float barX = x + i * barWidth + barSpacing / 2;
 
                 double pct = primaryValues[i];
-                float primaryHeight = MathF.Floor((float)(pct / maxValue) * h);
-                float primaryY = y + h - primaryHeight;
+                float primaryY      = MathF.Round(y + h - (float)(pct / maxValue) * h);
+                float primaryHeight = (y + h) - primaryY;
 
                 if (primaryHeight > 0)
                     Draw.Rect(barX, primaryY, actualBarWidth, primaryHeight, primaryColor);
@@ -82,8 +82,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (secondaryValues != null && i < secondaryValues.Count)
                 {
                     double secPct = secondaryValues[i];
-                    secondaryHeight = MathF.Floor((float)(secPct / maxValue) * h);
-                    float secondaryY = primaryY - secondaryHeight;
+                    float secondaryY = MathF.Round(primaryY - (float)(secPct / maxValue) * h);
+                    secondaryHeight  = primaryY - secondaryY;
                     if (secondaryHeight > 0)
                         Draw.Rect(barX, secondaryY, actualBarWidth, secondaryHeight, secondaryColor);
                 }
@@ -128,7 +128,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Only hit when inside the actual bar rect (not spacing), and bar has non-zero height
             float barX      = gx + idx * barWidth + barSpacing / 2f;
             double totalPct = primaryValues[idx] + (secondaryValues != null && idx < secondaryValues.Count ? secondaryValues[idx] : 0);
-            float barTopY   = gy + gh - (float)(totalPct / maxValue) * gh;
+            float barTopY   = MathF.Round(gy + gh - (float)(totalPct / maxValue) * gh);
 
             if (mouseHudPos.X < barX || mouseHudPos.X > barX + actualBarWidth || totalPct <= 0 || mouseHudPos.Y < barTopY)
             {

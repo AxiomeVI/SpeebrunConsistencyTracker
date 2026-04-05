@@ -37,7 +37,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         }
 
         protected override float GetBarHeight(long value, float chartHeight) =>
-            _maxTicks > 0 ? MathF.Floor((float)value / _maxTicks * chartHeight) : 0f;
+            _maxTicks > 0 ? chartHeight - MathF.Round(chartHeight - (float)value / _maxTicks * chartHeight) : 0f;
 
         protected override string FormatBarLabel(long value) =>
             "+" + new TimeTicks(value).ToString().TrimStart('0');
@@ -50,7 +50,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 long tickValue = yStep * i;
                 if (tickValue > _maxTicks) break;
-                float yPos = y + h - (float)tickValue / _maxTicks * h;
+                float yPos = MathF.Round(y + h - (float)tickValue / _maxTicks * h);
                 Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), ChartConstants.Colors.GridLineColor, 1f);
             }
         }
@@ -62,7 +62,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 long tickValue = yStep * i;
                 if (tickValue > _maxTicks) break;
-                float yPos = y + h - (float)tickValue / _maxTicks * h;
+                float yPos = MathF.Round(y + h - (float)tickValue / _maxTicks * h);
 
                 string timeLabel = new TimeTicks(tickValue).ToString();
                 Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabel;

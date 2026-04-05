@@ -158,7 +158,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void DrawAxesLines(float x, float y, float w, float h)
         {
-            Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, 2f);
+            Draw.Line(new Vector2(x - 1, y + h), new Vector2(x + w + 1, y + h), axisColor, 2f);
             Draw.Line(new Vector2(x, y),     new Vector2(x, y + h),     axisColor, 2f);
             float baselineY = y + (float)_maxUpwardDeviation / _totalRange * h;
             Draw.Line(new Vector2(x, baselineY), new Vector2(x + w, baselineY), ChartConstants.Colors.BaselineColor, ChartConstants.Stroke.OutlineSize);

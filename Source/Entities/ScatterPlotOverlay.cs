@@ -106,7 +106,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void DrawScatterAxes(float x, float y, float w, float h)
         {
-            Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
+            Draw.Line(new Vector2(x - 1, y + h), new Vector2(x + w + 1, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
             Draw.Line(new Vector2(x, y),     new Vector2(x, y + h),     axisColor, ChartConstants.Stroke.OutlineSize);
             Draw.Line(new Vector2(x + w, y), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
         }

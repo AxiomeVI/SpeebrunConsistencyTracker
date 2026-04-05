@@ -90,6 +90,20 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             maxCount = buckets.Max(b => b.count);
         }
 
+        protected override void DrawGrid(float x, float y, float w, float h)
+        {
+            if (buckets.Count == 0) return;
+
+            // Horizontal count gridlines
+            int yLabelCount = Math.Max(1, Math.Min(5, maxCount));
+            for (int i = 1; i <= yLabelCount; i++)
+            {
+                float yPos = MathF.Round(y + h - h / yLabelCount * i);
+                Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), ChartConstants.Colors.GridLineColor, 1f);
+            }
+
+        }
+
         protected override void DrawBars(float x, float y, float w, float h)
         {
             if (buckets.Count == 0 || maxCount == 0) return;
@@ -104,9 +118,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             for (int i = 0; i < buckets.Count; i++)
             {
                 var (_, _, count) = buckets[i];
-                float barHeight = MathF.Floor((float)count / maxCount * h);
                 float barX = x + i * barWidth + barSpacing / 2;
-                float barY = y + h - barHeight;
+                float barY = MathF.Round(y + h - (float)count / maxCount * h);
+                float barHeight = (y + h) - barY;
                 float actualBarWidth = barWidth - barSpacing;
 
                 Draw.Rect(barX, barY, actualBarWidth, barHeight, barColor);
@@ -136,7 +150,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             for (int i = 0; i <= yLabelCount; i++)
             {
                 int countValue = (int)Math.Round((double)maxCount / yLabelCount * i);
-                float yPos = y + h - h / yLabelCount * i;
+                float yPos = MathF.Round(y + h - h / yLabelCount * i);
 
                 string countLabel = countValue.ToString();
                 Vector2 labelSize = ActiveFont.Measure(countLabel) * ChartConstants.FontScale.AxisLabelMedium;
@@ -220,7 +234,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             float barX = gx + idx * barWidth + barSpacing / 2f;
             var (minTick, maxTick, count) = buckets[idx];
-            float barTopY = gy + gh - (float)count / maxCount * gh;
+            float barTopY = MathF.Round(gy + gh - (float)count / maxCount * gh);
 
             if (mouseHudPos.X < barX || mouseHudPos.X > barX + actualBarWidth || count == 0 || mouseHudPos.Y < barTopY)
             {

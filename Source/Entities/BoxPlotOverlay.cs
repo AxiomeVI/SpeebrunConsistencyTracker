@@ -156,24 +156,25 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float pxMed   = ToPixelY(med.Ticks,  minTick, maxTick, y, h);
             float pxQ3    = ToPixelY(q3.Ticks,   minTick, maxTick, y, h);
 
-            float boxHalfW = columnWidth * 0.2f;
-            float capHalfW = columnWidth * 0.08f;
-            Color fillColor = color;
+            float boxLeft  = MathF.Round(centerX - columnWidth * 0.2f);
+            float boxRight = MathF.Round(centerX + columnWidth * 0.2f);
+            float capLeft  = MathF.Round(centerX - columnWidth * 0.08f);
+            float capRight = MathF.Round(centerX + columnWidth * 0.08f);
 
             // Whisker: vertical line spanning full range
             Draw.Line(new Vector2(centerX, pxWorst), new Vector2(centerX, pxBest), color, 1.5f);
             // End caps
-            Draw.Line(new Vector2(centerX - capHalfW, pxBest),  new Vector2(centerX + capHalfW, pxBest),  color, 1.5f);
-            Draw.Line(new Vector2(centerX - capHalfW, pxWorst), new Vector2(centerX + capHalfW, pxWorst), color, 1.5f);
+            Draw.Line(new Vector2(capLeft, pxBest),  new Vector2(capRight, pxBest),  color, 1.5f);
+            Draw.Line(new Vector2(capLeft, pxWorst), new Vector2(capRight, pxWorst), color, 1.5f);
 
             // Box Q1–Q3 (pxQ3 < pxQ1 in screen coords — slower time = higher on screen)
             float boxTop    = Math.Min(pxQ1, pxQ3);
             float boxBottom = Math.Max(pxQ1, pxQ3);
             float boxHeight = Math.Max(1f, boxBottom - boxTop);
-            Draw.Rect(centerX - boxHalfW, boxTop, boxHalfW * 2, boxHeight, fillColor);
+            Draw.Rect(boxLeft, boxTop, boxRight - boxLeft, boxHeight, color);
 
             // Median line (thick white)
-            Draw.Line(new Vector2(centerX - boxHalfW, pxMed), new Vector2(centerX + boxHalfW, pxMed), Color.White, 2.5f);
+            Draw.Line(new Vector2(boxLeft, pxMed), new Vector2(boxRight, pxMed), Color.White, 2.5f);
         }
 
         protected override void DrawLabels(float x, float y, float w, float h)
@@ -386,11 +387,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float boxBot = Math.Max(b.PxQ1, b.PxQ3);
             float boxH   = Math.Max(1f, boxBot - boxTop);
 
-            Draw.HollowRect(b.CenterX - b.BoxHalfW, boxTop, b.BoxHalfW * 2f, boxH, c);
+            float hBoxLeft  = MathF.Round(b.CenterX - b.BoxHalfW);
+            float hBoxRight = MathF.Round(b.CenterX + b.BoxHalfW);
+            float hCapLeft  = MathF.Round(b.CenterX - b.CapHalfW);
+            float hCapRight = MathF.Round(b.CenterX + b.CapHalfW);
+
+            Draw.HollowRect(hBoxLeft, boxTop, hBoxRight - hBoxLeft, boxH, c);
             Draw.Line(new Vector2(b.CenterX, b.PxMax), new Vector2(b.CenterX, b.PxMin), c, 1.5f);
-            Draw.Line(new Vector2(b.CenterX - b.CapHalfW, b.PxMin), new Vector2(b.CenterX + b.CapHalfW, b.PxMin), c, 1.5f);
-            Draw.Line(new Vector2(b.CenterX - b.CapHalfW, b.PxMax), new Vector2(b.CenterX + b.CapHalfW, b.PxMax), c, 1.5f);
-            Draw.Line(new Vector2(b.CenterX - b.BoxHalfW, b.PxMed), new Vector2(b.CenterX + b.BoxHalfW, b.PxMed), Color.White, 2.5f);
+            Draw.Line(new Vector2(hCapLeft, b.PxMin), new Vector2(hCapRight, b.PxMin), c, 1.5f);
+            Draw.Line(new Vector2(hCapLeft, b.PxMax), new Vector2(hCapRight, b.PxMax), c, 1.5f);
+            Draw.Line(new Vector2(hBoxLeft, b.PxMed), new Vector2(hBoxRight, b.PxMed), Color.White, 2.5f);
 
             const float scale  = ChartConstants.FontScale.AxisLabelMedium;
             const float bgPad  = ChartConstants.Interactivity.TooltipBgPadding;

@@ -60,7 +60,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         protected virtual void DrawXAxisLine(float x, float y, float w, float h)
         {
-            Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
+            Draw.Line(new Vector2(x - 1, y + h), new Vector2(x + w + 1, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
         }
 
         protected void DrawTitle()
@@ -101,9 +101,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float   startX    = right ? x - totalWidth : x;
             float   boxY      = y + (textSize.Y / 2f) - (boxSize / 2f);
 
-            float bandW = boxSize / colors.Length;
             for (int k = 0; k < colors.Length; k++)
-                Draw.Rect(startX + k * bandW, boxY, bandW, boxSize, colors[k]);
+            {
+                float bx1 = MathF.Round(startX + (float)k       / colors.Length * boxSize);
+                float bx2 = MathF.Round(startX + (float)(k + 1) / colors.Length * boxSize);
+                Draw.Rect(bx1, boxY, bx2 - bx1, boxSize, colors[k]);
+            }
 
             ActiveFont.DrawOutline(
                 text,
@@ -163,10 +166,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public virtual void Render()
         {
             Draw.Rect(position, width, height, backgroundColor);
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
+            float gx = MathF.Round(position.X + marginH);
+            float gy = MathF.Round(position.Y + margin);
+            float gw = MathF.Round(position.X + width  - marginH) - gx;
+            float gh = MathF.Round(position.Y + height - margin)  - gy;
             DrawGrid(gx, gy, gw, gh);
             DrawYAxisLine(gx, gy, gw, gh);
             DrawBars(gx, gy, gw, gh);

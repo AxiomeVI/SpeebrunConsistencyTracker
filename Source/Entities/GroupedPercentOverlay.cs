@@ -21,7 +21,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             : base(title, labels, primaryValues, secondaryValues, primaryLabel, secondaryLabel, pos) { }
 
         protected override float GetBarHeight(float value, float chartHeight) =>
-            MathF.Floor(value / 100f * chartHeight);
+            chartHeight - MathF.Round(chartHeight - value / 100f * chartHeight);
 
         protected override string FormatBarLabel(float value) =>
             $"{value:0.#}%";
