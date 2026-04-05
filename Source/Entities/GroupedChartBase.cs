@@ -129,6 +129,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected abstract string FormatBarLabel(T value);
         protected abstract void DrawYAxis(float x, float y, float w, float h);
 
+        protected abstract void DrawYAxisGrid(float x, float y, float w, float h);
+
+        protected override void DrawGrid(float x, float y, float w, float h) =>
+            DrawYAxisGrid(x, y, w, h);
+
         protected override void DrawBars(float x, float y, float w, float h)
         {
             if (_primaryValues.Count == 0) return;

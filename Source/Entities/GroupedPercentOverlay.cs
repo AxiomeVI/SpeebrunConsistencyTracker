@@ -26,8 +26,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override string FormatBarLabel(float value) =>
             $"{value:0.#}%";
 
+        protected override void DrawYAxisGrid(float x, float y, float w, float h) =>
+            DrawPercentGrid(x, y, w, h);
+
         protected override void DrawYAxis(float x, float y, float w, float h) =>
-            DrawPercentYAxis(x, y, w, h);
+            DrawPercentYAxisLabels(x, y, w, h);
 
         protected override string BuildHoverLabel(int i, bool isPrimary, bool isSecondary)
         {

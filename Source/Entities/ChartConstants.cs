@@ -51,6 +51,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             internal static readonly Color BackgroundColor = Color.Black * 0.8f;
             internal static readonly Color GridLineColor   = Color.Gray * 0.5f;
             internal static readonly Color BaselineColor   = Color.Gray * 0.6f;
+
+            // LiveSplit delta colors
+            internal static readonly Color AheadGaining = new Color(41,  204, 84);   // strong green: ahead & gained time
+            internal static readonly Color AheadLosing  = new Color(150, 220, 170);  // light green:  ahead but lost time
+            internal static readonly Color BehindGaining = new Color(204, 120, 112); // light red:    behind but gained time
+            internal static readonly Color BehindLosing  = new Color(204, 55,  41);  // strong red:   behind & lost time
         }
 
         internal static class XAxisLabel
@@ -99,6 +105,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             internal const float BrightnessMax        = 0.8f;
             internal const float RightLabelMarginX    = 10f; // x + w + this for right-side axis labels
             internal const float LabelMinSpacingExtra = 4f;  // nudge: minSpacing = labelHeight + this
+            internal const float CoincidentDashLen    = 12f; // dash length for coincident SoB/Best/Last lines
+            internal const int   MaxNudgePasses       = 3;   // multi-pass relaxation limit for right-axis labels
         }
 
         internal static class Interactivity

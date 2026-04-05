@@ -44,9 +44,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float gw = width  - marginH * 2;
             float gh = height - margin  * 2;
 
-            DrawAxes(gx, gy, gw, gh);
-            DrawSeparator(gx, gy, gw, gh);
             DrawGrid(gx, gy, gw, gh);
+            DrawYAxisLine(gx, gy, gw, gh);
+            DrawXAxisLine(gx, gy, gw, gh);
+            Draw.Line(new Vector2(gx + gw, gy), new Vector2(gx + gw, gy + gh), axisColor, ChartConstants.Stroke.OutlineSize);
+            DrawSeparator(gx, gy, gw, gh);
             DrawBoxes(gx, gy, gw, gh);
             DrawLabels(gx, gy, gw, gh);
         }
@@ -84,13 +86,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             maxSeg = sMax + sMargin;
         }
 
-        protected override void DrawAxes(float x, float y, float w, float h)
-        {
-            Draw.Line(new Vector2(x,     y + h), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
-            Draw.Line(new Vector2(x,     y),     new Vector2(x,     y + h), axisColor, ChartConstants.Stroke.OutlineSize);
-            Draw.Line(new Vector2(x + w, y),     new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
-        }
-
         private void DrawSeparator(float x, float y, float w, float h)
         {
             float columnWidth = w / (_roomTimes.Count + 1);
@@ -98,7 +93,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Draw.Line(new Vector2(sepX, y), new Vector2(sepX, y + h), Color.Gray * 0.85f, 1.5f);
         }
 
-        private void DrawGrid(float x, float y, float w, float h)
+        protected override void DrawGrid(float x, float y, float w, float h)
         {
             float columnWidth   = w / (_roomTimes.Count + 1);
             float roomAreaWidth = columnWidth * _roomTimes.Count;
@@ -146,7 +141,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
-        private void DrawBox(List<TimeTicks> times, float centerX, float columnWidth,
+        private static void DrawBox(List<TimeTicks> times, float centerX, float columnWidth,
             float y, float h, long minTick, long maxTick, Color color)
         {
             long tMin   = times[0].Ticks;

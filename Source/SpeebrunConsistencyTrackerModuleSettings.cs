@@ -53,7 +53,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [SettingIgnore]
     public Color TrajectoryBestColorFinal { get; set; } = Color.Gold;
     [SettingIgnore]
-    public Color TrajectoryLastColorFinal { get; set; } = Color.Red;
+    public Color TrajectoryLastColorFinal { get; set; } = Color.MediumOrchid;
     [SettingIgnore]
     public Color TrajectorySobColorFinal  { get; set; } = Color.Turquoise;
 
@@ -66,7 +66,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool GraphProblemRooms { get; set; } = false;
     public bool GraphInconsistentRooms { get; set; } = false;
     public bool GraphTimeLoss { get; set; } = false;
-    public bool GraphRunTrajectory { get; set; } = false;
+    public bool GraphRunTrajectory { get; set; } = true;
     public bool GraphBoxPlot { get; set; } = false;
 
     [SettingIgnore]

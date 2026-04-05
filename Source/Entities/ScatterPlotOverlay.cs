@@ -43,7 +43,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             ComputeMaxValues();
         }
 
-        // Custom render order: axes → grid → data → target line → labels
+        // Custom render order: grid → axes → data → target line → labels
         public override void Render()
         {
             Draw.Rect(position, width, height, backgroundColor);
@@ -53,8 +53,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float graphWidth  = width  - marginH * 2;
             float graphHeight = height - margin  * 2;
 
-            DrawAxes(graphX, graphY, graphWidth, graphHeight);
             DrawGrid(graphX, graphY, graphWidth, graphHeight);
+            DrawScatterAxes(graphX, graphY, graphWidth, graphHeight);
             DrawDataPoints(graphX, graphY, graphWidth, graphHeight);
             DrawTargetLine(graphX, graphY, graphWidth, graphHeight);
             DrawLabels(graphX, graphY, graphWidth, graphHeight);
@@ -104,14 +104,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             maxSegmentTime = maxSegmentTimeRaw + segmentMargin;
         }
 
-        protected override void DrawAxes(float x, float y, float w, float h)
+        private void DrawScatterAxes(float x, float y, float w, float h)
         {
             Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
             Draw.Line(new Vector2(x, y),     new Vector2(x, y + h),     axisColor, ChartConstants.Stroke.OutlineSize);
             Draw.Line(new Vector2(x + w, y), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
         }
 
-        private void DrawGrid(float x, float y, float w, float h)
+        protected override void DrawGrid(float x, float y, float w, float h)
         {
             int totalColumns  = roomDataList.Count + 1;
             float columnWidth = w / totalColumns;

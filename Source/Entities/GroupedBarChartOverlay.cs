@@ -42,6 +42,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override string FormatBarLabel(long value) =>
             "+" + new TimeTicks(value).ToString().TrimStart('0');
 
+        protected override void DrawYAxisGrid(float x, float y, float w, float h)
+        {
+            if (_maxTicks == 0) return;
+            GetFrameAxisSettings(_maxTicks, out long yStep, out int yLabelCount);
+            for (int i = 1; i <= yLabelCount; i++)
+            {
+                long tickValue = yStep * i;
+                if (tickValue > _maxTicks) break;
+                float yPos = y + h - (float)tickValue / _maxTicks * h;
+                Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), ChartConstants.Colors.GridLineColor, 1f);
+            }
+        }
+
         protected override void DrawYAxis(float x, float y, float w, float h)
         {
             GetFrameAxisSettings(_maxTicks, out long yStep, out int yLabelCount);
@@ -59,9 +72,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     new Vector2(0f, 0f),
                     Vector2.One * ChartConstants.FontScale.AxisLabel,
                     Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
-
-                if (i > 0)
-                    Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), ChartConstants.Colors.GridLineColor, 1f);
             }
         }
 

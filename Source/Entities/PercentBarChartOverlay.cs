@@ -53,6 +53,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             this.secondaryLabel  = secondaryLabel;
         }
 
+        protected override void DrawGrid(float x, float y, float w, float h) =>
+            DrawPercentGrid(x, y, w, h);
+
         protected override void DrawBars(float x, float y, float w, float h)
         {
             if (primaryValues.Count == 0) return;
@@ -183,7 +186,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float barWidth = Math.Min(w / Math.Max(labels.Count, 1), MAX_BAR_WIDTH);
 
             DrawTitle();
-            DrawPercentYAxis(x, y, w, h);
+            DrawPercentYAxisLabels(x, y, w, h);
             DrawXAxisStaggeredLabels(x, y, h, labels.Count, barWidth, i => labels[i], Color.LightGray);
 
             float legendY = y + h + ChartConstants.Legend.LegendOffsetY;

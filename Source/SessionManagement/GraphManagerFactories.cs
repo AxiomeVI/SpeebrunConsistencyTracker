@@ -158,10 +158,17 @@ public static partial class GraphManager
 
         if (_dnfPctChart == null)
         {
-            var labels        = Enumerable.Range(1, curRoomCount).Select(i => $"R{i}").ToList();
-            var dnfPcts       = ComputeDnfPcts(curRoomCount);
-            var dnfRates      = dnfPcts.Select(p => (float)p).ToList();
-            var survivalRates = dnfPcts.Select(p => (float)(100.0 - p)).ToList();
+            var labels   = Enumerable.Range(1, curRoomCount).Select(i => $"R{i}").ToList();
+            var dnfPcts  = ComputeDnfPcts(curRoomCount);
+            var dnfRates = dnfPcts.Select(p => (float)p).ToList();
+
+            var survivalRates = new List<float>(curRoomCount);
+            double survival = 100.0;
+            foreach (double dnfPct in dnfPcts)
+            {
+                survivalRates.Add((float)survival);
+                survival *= (1.0 - dnfPct / 100.0);
+            }
 
             _dnfPctChart   = new GroupedPercentOverlay(
                 "DNF Rate per Room & Segment Survival Rate",
@@ -264,7 +271,6 @@ public static partial class GraphManager
             var rankedRstddev = ranked.Select(i => rstddevPcts[i]).ToList();
 
             double maxTotal   = ranked.Count > 0 ? rankedRmad[0] + rankedRstddev[0] : 0.0;
-            // maxTotal == 0 means all values are 0; dividing would produce NaN, so keep them as-is
             List<double> scaledRmad    = maxTotal == 0 ? rankedRmad    : [.. rankedRmad.Select(v => v / maxTotal * 100)];
             List<double> scaledRstddev = maxTotal == 0 ? rankedRstddev : [.. rankedRstddev.Select(v => v / maxTotal * 100)];
 

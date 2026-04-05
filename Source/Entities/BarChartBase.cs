@@ -50,9 +50,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         }
 
         /// <summary>
-        /// Draws a 0–100% Y-axis with grid lines at every 10%.
+        /// Draws horizontal gridlines at every 10% — call from DrawGrid override.
         /// </summary>
-        protected void DrawPercentYAxis(float x, float y, float w, float h)
+        protected void DrawPercentGrid(float x, float y, float w, float h)
+        {
+            for (int i = 1; i <= ChartConstants.Axis.PercentTickCount; i++)
+            {
+                float pct  = i * 10f;
+                float yPos = y + h - (pct / 100f * h);
+                Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos),
+                          ChartConstants.Colors.GridLineColor, 1f);
+            }
+        }
+
+        /// <summary>
+        /// Draws 0–100% Y-axis text labels — call from DrawLabels.
+        /// </summary>
+        protected void DrawPercentYAxisLabels(float x, float y, float w, float h)
         {
             for (int i = 0; i <= ChartConstants.Axis.PercentTickCount; i++)
             {
@@ -67,10 +81,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     new Vector2(0f, 0f),
                     Vector2.One * ChartConstants.FontScale.AxisLabel,
                     Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
-
-                if (i > 0)
-                    Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos),
-                              ChartConstants.Colors.GridLineColor, 1f);
             }
         }
     }

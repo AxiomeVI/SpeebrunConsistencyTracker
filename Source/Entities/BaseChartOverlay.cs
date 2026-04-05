@@ -51,10 +51,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected abstract void DrawBars(float x, float y, float w, float h);
         protected abstract void DrawLabels(float x, float y, float w, float h);
 
-        protected virtual void DrawAxes(float x, float y, float w, float h)
+        protected virtual void DrawGrid(float x, float y, float w, float h) { }
+
+        protected void DrawYAxisLine(float x, float y, float w, float h)
+        {
+            Draw.Line(new Vector2(x, y), new Vector2(x, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
+        }
+
+        protected virtual void DrawXAxisLine(float x, float y, float w, float h)
         {
             Draw.Line(new Vector2(x, y + h), new Vector2(x + w, y + h), axisColor, ChartConstants.Stroke.OutlineSize);
-            Draw.Line(new Vector2(x, y),     new Vector2(x, y + h),     axisColor, ChartConstants.Stroke.OutlineSize);
         }
 
         protected void DrawTitle()
@@ -78,6 +84,27 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float boxY       = y + (textSize.Y / 2f) - (boxSize / 2f);
 
             Draw.Rect(startX, boxY, boxSize, boxSize, color);
+            ActiveFont.DrawOutline(
+                text,
+                new Vector2(startX + boxSize + spacing, y),
+                new Vector2(0f, 0f),
+                Vector2.One * scale,
+                Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
+        }
+
+        protected static void DrawStripedLegendEntry(float x, float y, string text, Color[] colors, float scale, bool right = false)
+        {
+            Vector2 textSize  = ActiveFont.Measure(text) * scale;
+            float   boxSize   = ChartConstants.Legend.LegendBoxSize;
+            float   spacing   = ChartConstants.Legend.LegendBoxTextGap;
+            float   totalWidth = textSize.X + boxSize + spacing;
+            float   startX    = right ? x - totalWidth : x;
+            float   boxY      = y + (textSize.Y / 2f) - (boxSize / 2f);
+
+            float bandW = boxSize / colors.Length;
+            for (int k = 0; k < colors.Length; k++)
+                Draw.Rect(startX + k * bandW, boxY, bandW, boxSize, colors[k]);
+
             ActiveFont.DrawOutline(
                 text,
                 new Vector2(startX + boxSize + spacing, y),
@@ -140,8 +167,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float gy = position.Y + margin;
             float gw = width  - marginH * 2;
             float gh = height - margin  * 2;
-            DrawAxes(gx, gy, gw, gh);
+            DrawGrid(gx, gy, gw, gh);
+            DrawYAxisLine(gx, gy, gw, gh);
             DrawBars(gx, gy, gw, gh);
+            DrawXAxisLine(gx, gy, gw, gh);
             DrawLabels(gx, gy, gw, gh);
         }
     }
