@@ -242,8 +242,8 @@ public static partial class GraphManager
                 if (sorted.Count == 0) return 0.0;
                 TimeTicks median = MetricHelper.ComputePercentile(sorted, 50);
                 if (median.Ticks == 0) return 0.0;
-                TimeTicks mad = MetricHelper.ComputeMAD(sorted);
-                return (double)mad.Ticks / median.Ticks * 100;
+                double scaledMAD = 1.4826 * MetricHelper.ComputeMAD(sorted);
+                return scaledMAD / median.Ticks * 100;
             }).ToList();
 
             var rstddevPcts = Enumerable.Range(0, curRoomCount).Select(i =>
