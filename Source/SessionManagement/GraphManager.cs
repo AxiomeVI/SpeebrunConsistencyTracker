@@ -173,6 +173,7 @@ public static partial class GraphManager
 
     public static void NextGraph()
     {
+        GraphInteractivity.Clear();
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -187,6 +188,7 @@ public static partial class GraphManager
 
     public static void PreviousGraph()
     {
+        GraphInteractivity.Clear();
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -267,6 +269,7 @@ public static partial class GraphManager
 
     public static void HideGraph()
     {
+        GraphInteractivity.Clear();
         _currentOverlay = null;
     }
 }

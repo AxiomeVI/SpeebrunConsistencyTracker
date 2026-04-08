@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Monocle;
@@ -11,6 +12,15 @@ public static class GraphInteractivity
     private static float _mouseHudX;
     private static float _mouseHudY;
 
+    private static readonly List<HoverInfo> _pinnedItems = new();
+    public static IReadOnlyList<HoverInfo> PinnedItems => _pinnedItems;
+
+    private static bool _prevMouseLeft;
+
+    // Cached button rect (set each frame when pins exist, used for hit-test).
+    // Off-screen sentinel prevents (0,0) from accidentally matching on the first frame.
+    private static Microsoft.Xna.Framework.Rectangle _clearButtonRect = new(-9999, -9999, 0, 0);
+
     public static HoverInfo? CurrentHover { get; private set; }
 
     public static void Update()
@@ -20,22 +30,94 @@ public static class GraphInteractivity
         _mouseHudX = (mouse.X - vp.X) * (ChartConstants.Screen.ScreenWidth  / (float)vp.Width);
         _mouseHudY = (mouse.Y - vp.Y) * (ChartConstants.Screen.ScreenHeight / (float)vp.Height);
 
-        CurrentHover = GraphManager.CurrentOverlay?.HitTest(new Vector2(_mouseHudX, _mouseHudY));
+        var mousePos = new Vector2(_mouseHudX, _mouseHudY);
+        var rawHover = GraphManager.CurrentOverlay?.HitTest(mousePos);
+        CurrentHover = rawHover == null ? null : rawHover with { MouseHudPos = mousePos };
+
+        bool leftDown = mouse.LeftButton == Microsoft.Xna.Framework.Input.ButtonState.Pressed;
+        bool clicked  = leftDown && !_prevMouseLeft;
+        _prevMouseLeft = leftDown;
+
+        if (clicked)
+        {
+            var overlay = GraphManager.CurrentOverlay;
+            // Check clear-button first (only active when button is visible)
+            if ((_pinnedItems.Count > 0 || (overlay?.HasPins ?? false)) && _clearButtonRect.Contains((int)_mouseHudX, (int)_mouseHudY))
+            {
+                _pinnedItems.Clear();
+                overlay?.ClearPins();
+            }
+            else if (CurrentHover != null && (overlay?.HandleClick(CurrentHover) ?? false))
+            {
+                // Overlay handled the click itself (e.g. RunTrajectory manages its own pin state)
+            }
+            else if (CurrentHover != null)
+            {
+                int existing = CurrentHover.Key != null
+                    ? _pinnedItems.FindIndex(p => p.Key == CurrentHover.Key)
+                    : _pinnedItems.FindIndex(p => p.MouseHudPos == CurrentHover.MouseHudPos
+                                                 && p.Label      == CurrentHover.Label);
+                if (existing >= 0)
+                {
+                    _pinnedItems.RemoveAt(existing);
+                }
+                else if (CurrentHover.PinGroup != null)
+                {
+                    // Replace any existing pin in the same group (single-pin-per-group rule)
+                    int groupIdx = _pinnedItems.FindIndex(p => p.PinGroup == CurrentHover.PinGroup);
+                    if (groupIdx >= 0)
+                        _pinnedItems[groupIdx] = CurrentHover;
+                    else
+                        _pinnedItems.Add(CurrentHover);
+                }
+                else
+                {
+                    _pinnedItems.Add(CurrentHover);
+                }
+            }
+            // click in void (CurrentHover == null, not on button) — no action
+        }
     }
 
     public static void Clear()
     {
-        CurrentHover = null;
+        CurrentHover     = null;
+        _prevMouseLeft   = false;
+        _clearButtonRect = new(-9999, -9999, 0, 0);
+        _pinnedItems.Clear();
+        GraphManager.CurrentOverlay?.ClearPins();
     }
 
     public static void Render()
     {
+        var overlay = GraphManager.CurrentOverlay;
+
+        // 1. Pinned items
+        foreach (var pinned in _pinnedItems)
+        {
+            overlay?.DrawHighlight(pinned);
+            if (pinned.Label.Length > 0)
+                DrawTooltip(pinned);
+        }
+
+        // 2. Hover
         if (CurrentHover != null)
         {
-            GraphManager.CurrentOverlay?.DrawHighlight();
+            // Overlays that manage their own pins drive DrawHighlight via internal state (no-arg).
+            // Generic overlays use DrawHighlight(HoverInfo) so pinned items can be re-rendered.
+            if (overlay?.ManagesPins == true)
+                overlay.DrawHighlight();
+            else
+                overlay?.DrawHighlight(CurrentHover);
             if (CurrentHover.Label.Length > 0)
                 DrawTooltip(CurrentHover);
         }
+
+        // 3. "✕ Clear pins" button
+        if ((_pinnedItems.Count > 0 || (overlay?.HasPins ?? false)) && overlay != null)
+            DrawClearPinsButton(overlay);
+
+        // 4. Cursor (always on top)
         DrawCursor(_mouseHudX, _mouseHudY);
     }
 
@@ -104,6 +186,39 @@ public static class GraphInteractivity
                 ChartConstants.Stroke.OutlineSize,
                 Color.Black);
         }
+    }
+
+    private static void DrawClearPinsButton(BaseChartOverlay overlay)
+    {
+        const string text  = "✕ Clear pins";
+        const float  scale = ChartConstants.FontScale.AxisLabelSmall;
+        const float  pad   = ChartConstants.Interactivity.TooltipBgPadding;
+
+        var bounds   = overlay.ChartBounds;
+        Vector2 size = ActiveFont.Measure(text) * scale;
+
+        float bgW = size.X + pad * 2f;
+        float bgH = size.Y + pad * 2f;
+        float bgX = bounds.X + bounds.Width  - bgW - 6f;
+        float bgY = bounds.Y + 6f;
+
+        // Cache rect for hit-testing in Update()
+        _clearButtonRect = new Microsoft.Xna.Framework.Rectangle(
+            (int)bgX, (int)bgY, (int)bgW, (int)bgH);
+
+        bool hovered = _clearButtonRect.Contains((int)_mouseHudX, (int)_mouseHudY);
+
+        // Border then background to make the button clearly distinct from the chart background
+        Draw.Rect(bgX - 1f, bgY - 1f, bgW + 2f, bgH + 2f, Color.OrangeRed * 0.9f);
+        Draw.Rect(bgX, bgY, bgW, bgH, hovered ? Color.OrangeRed * 0.35f : Color.Black * 0.92f);
+        ActiveFont.DrawOutline(
+            text,
+            new Vector2(bgX + pad, bgY + pad),
+            Vector2.Zero,
+            Vector2.One * scale,
+            hovered ? Color.White : Color.OrangeRed,
+            ChartConstants.Stroke.OutlineSize,
+            Color.Black);
     }
 
     private static void DrawCursor(float x, float y)

@@ -10,7 +10,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     /// Label is the tooltip text (use \n for multiple lines).
     /// LabelPos is the top-center screen coordinate for the tooltip.
     /// </summary>
-    public sealed record HoverInfo(string Label, Vector2 LabelPos);
+    /// <summary>
+    /// When PinGroup is non-null, at most one pin with this group value is kept at a time.
+    /// Pinning a new item replaces any existing pin in the same group.
+    /// </summary>
+    public sealed record HoverInfo(string Label, Vector2 LabelPos, Vector2 MouseHudPos = default, string? Key = null, string? PinGroup = null);
 
     /// <summary>
     /// Base class for all bar chart / histogram overlays. Handles common layout, rendering pipeline,
@@ -24,6 +28,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected readonly float height          = ChartConstants.Layout.ChartHeight;
         protected readonly float margin          = ChartConstants.Layout.ChartMargin;
         protected readonly float marginH         = ChartConstants.Layout.ChartMarginH;
+        /// <summary>Chart background rect in HUD space, for use by GraphInteractivity.</summary>
+        internal Microsoft.Xna.Framework.Rectangle ChartBounds =>
+            new((int)position.X, (int)position.Y, (int)width, (int)height);
         protected readonly Color backgroundColor = ChartConstants.Colors.BackgroundColor;
         protected readonly Color axisColor       = Color.White;
         protected readonly float MAX_BAR_WIDTH   = ChartConstants.Layout.MaxBarWidth;
@@ -39,6 +46,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         /// <summary>
         /// Returns hover info if the mouse is over an interactive element, null otherwise.
         /// mouseHudPos is in HUD coordinates (1920x1080 space).
+        /// Implementations MUST set internal hover state (_hovered* fields) as a side effect —
+        /// this is required by DrawHighlight(HoverInfo) to restore state for pinned items.
         /// </summary>
         public virtual HoverInfo? HitTest(Vector2 mouseHudPos) => null;
 
@@ -47,6 +56,40 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         /// Only called when HitTest returned non-null on this frame.
         /// </summary>
         public virtual void DrawHighlight() { }
+
+        /// <summary>
+        /// When true, the overlay manages its own pin state via HandleClick/ClearPins/HasPins.
+        /// GraphInteractivity will call DrawHighlight() (no-arg) for hover instead of DrawHighlight(HoverInfo).
+        /// </summary>
+        public virtual bool ManagesPins => false;
+
+        /// <summary>
+        /// Called when the user clicks on a hovered element. Return true if the overlay
+        /// handled the click itself (skips GraphInteractivity's generic pin toggle logic).
+        /// </summary>
+        public virtual bool HandleClick(HoverInfo hover) => false;
+
+        /// <summary>
+        /// Returns true if the overlay has any overlay-managed pins (used to show the clear button).
+        /// </summary>
+        public virtual bool HasPins => false;
+
+        /// <summary>
+        /// Called by GraphInteractivity.Clear() to reset any overlay-managed pin state.
+        /// </summary>
+        public virtual void ClearPins() { }
+
+        /// <summary>
+        /// Draws the highlight for a specific HoverInfo (e.g. a pinned item).
+        /// Default implementation restores internal hover state via HitTest (side effect),
+        /// then calls DrawHighlight(). <paramref name="info"/> must have MouseHudPos set —
+        /// use instances from GraphInteractivity.CurrentHover, not manually constructed ones.
+        /// </summary>
+        public virtual void DrawHighlight(HoverInfo info)
+        {
+            HitTest(info.MouseHudPos); // side effect: sets _hovered* fields on the subclass
+            DrawHighlight();
+        }
 
         protected abstract void DrawBars(float x, float y, float w, float h);
         protected abstract void DrawLabels(float x, float y, float w, float h);
