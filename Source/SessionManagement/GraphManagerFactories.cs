@@ -70,15 +70,26 @@ public static partial class GraphManager
 
         if (_scatterGraph == null)
         {
-            var roomTimes    = Enumerable.Range(0, curRoomCount)
-                .Select(i => SessionManager.CurrentSession.GetRoomTimes(i).ToList())
-                .Where(l => l.Count > 0)
+            var session = SessionManager.CurrentSession;
+            // Build times and parallel attempt-index lists together, then filter rooms with no data.
+            var roomPairs = Enumerable.Range(0, curRoomCount)
+                .Select(i => (times: session.GetRoomTimes(i).ToList(), indices: session.GetRoomAttemptIndices(i).ToList()))
+                .Where(p => p.times.Count > 0)
                 .ToList();
-            var segmentTimes = SessionManager.CurrentSession.GetSegmentTimes().ToList();
+            var roomTimes   = roomPairs.Select(p => p.times).ToList();
+            var roomIndices = roomPairs.Select(p => p.indices).ToList();
+
+            var segmentPairs   = session.Attempts
+                .Select((a, i) => (attempt: a, idx: i))
+                .Where(x => x.attempt.IsCompleted())
+                .ToList();
+            var segmentTimes   = segmentPairs.Select(x => x.attempt.SegmentTime()).ToList();
+            var segmentIndices = segmentPairs.Select(x => x.idx).ToList();
+
             TimeTicks? target = MetricHelper.IsMetricEnabled(SpeebrunConsistencyTrackerModule.Settings.TargetTime, MetricOutput.Overlay)
                 ? MetricEngine.GetTargetTimeTicks() : null;
 
-            _scatterGraph         = new ScatterPlotOverlay(roomTimes, segmentTimes, null, target);
+            _scatterGraph         = new ScatterPlotOverlay(roomTimes, roomIndices, segmentTimes, segmentIndices, null, target);
             _scatterVersion       = curVersion;
             _scatterRoomCount     = curRoomCount;
             _scatterRoomTimerType = curTimerType;

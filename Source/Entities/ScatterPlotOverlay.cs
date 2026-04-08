@@ -22,8 +22,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly RoomData segmentData;
         private readonly TimeTicks? targetTime = null;
 
+        // Parallel to roomDataList[i].Times: global attempt index for each time entry.
+        private readonly List<List<int>> roomAttemptIndices;
+        // Global attempt index for each segment time entry.
+        private readonly List<int> segmentAttemptIndices;
+
         // Cache computed values
-        private List<(Vector2 pos, bool isSegment, float radius, int attemptIndex)> cachedDots = null;
+        private List<(Vector2 pos, bool isSegment, float radius, int globalAttemptIndex)> cachedDots = null;
         private int _hoveredDotIndex = -1;
         private long maxRoomTime;
         private long maxSegmentTime;
@@ -33,15 +38,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         // Scatter-specific colors
         private Color gridColor = ChartConstants.Colors.GridLineColor;
 
-        public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<TimeTicks> segment, Vector2? pos = null, TimeTicks? target = null)
+        public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<List<int>> roomIndices, List<TimeTicks> segment, List<int> segmentIndices, Vector2? pos = null, TimeTicks? target = null)
             : base("Room and Segment Times", pos)
         {
-            // Filter out rooms with no times
-            roomDataList = [.. rooms.Select((room, index) => new RoomData("R" + (index + 1).ToString(), room)).Where(r => r.Times.Count > 0)];
-            segmentData  = new RoomData("Segment", segment);
-            targetTime   = target;
+            // Filter out rooms with no times, keeping index lists in sync
+            var filtered = rooms
+                .Select((room, i) => (room, indices: roomIndices[i]))
+                .Where(x => x.room.Count > 0)
+                .ToList();
+            roomDataList         = filtered.Select((x, i) => new RoomData("R" + (i + 1).ToString(), x.room)).ToList();
+            roomAttemptIndices   = filtered.Select(x => x.indices).ToList();
+            segmentData          = new RoomData("Segment", segment);
+            segmentAttemptIndices = segmentIndices;
+            targetTime           = target;
             ComputeMaxValues();
         }
+
+        public override bool SupportsDeleteRuns => true;
 
         // Custom render order: grid → axes → data → target line → labels
         public override void Render()
@@ -204,10 +217,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
                     for (int t = 0; t < room.Times.Count; t++)
                     {
-                        float normalizedY = roomRange > 0 ? (float)(room.Times[t].Ticks - minRoomTime) / roomRange : 0.5f;
-                        float dotY        = y + h - (normalizedY * h);
-                        float jitterX     = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
-                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius, t));
+                        float normalizedY   = roomRange > 0 ? (float)(room.Times[t].Ticks - minRoomTime) / roomRange : 0.5f;
+                        float dotY          = y + h - (normalizedY * h);
+                        float jitterX       = centerX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
+                        int   globalIdx     = roomAttemptIndices[roomIndex][t];
+                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius, globalIdx));
                     }
                 }
 
@@ -217,7 +231,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float normalizedY = segmentRange > 0 ? (float)(segmentData.Times[t].Ticks - minSegmentTime) / segmentRange : 0.5f;
                     float dotY        = y + h - (normalizedY * h);
                     float jitterX     = segmentCenterX + (float)(random.NextDouble() - 0.5) * (columnWidth * ChartConstants.Scatter.JitterRatio);
-                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius, t));
+                    int   globalIdx   = segmentAttemptIndices[t];
+                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius, globalIdx));
                 }
             }
 
@@ -263,34 +278,36 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             _hoveredDotIndex = bestIdx;
-            var (pos, isSegment, radius, attemptIndex) = cachedDots[bestIdx];
+            var (pos, _, _, globalAttemptIndex) = cachedDots[bestIdx];
 
-            string label;
+            // Find time string by scanning dot list for this dot's position (isSegment drives which list)
+            var (_, isSegment, _, _) = cachedDots[bestIdx];
+            string timeStr;
             if (isSegment)
             {
-                string timeStr = segmentData.Times[attemptIndex].ToString();
-                label = $"Run #{attemptIndex + 1}: {timeStr}";
+                int localIdx = segmentAttemptIndices.IndexOf(globalAttemptIndex);
+                timeStr = localIdx >= 0 ? segmentData.Times[localIdx].ToString() : "?";
             }
             else
             {
+                timeStr = "?";
                 int dotCount = 0;
-                int roomIdx  = -1;
                 for (int r = 0; r < roomDataList.Count; r++)
                 {
                     if (bestIdx < dotCount + roomDataList[r].Times.Count)
                     {
-                        roomIdx = r;
+                        int localIdx = bestIdx - dotCount;
+                        timeStr = roomDataList[r].Times[localIdx].ToString();
                         break;
                     }
                     dotCount += roomDataList[r].Times.Count;
                 }
-                string timeStr  = roomIdx >= 0 ? roomDataList[roomIdx].Times[attemptIndex].ToString() : "?";
-                label = $"Run #{attemptIndex + 1}: {timeStr}";
             }
 
+            string label     = $"Run #{globalAttemptIndex + 1}: {timeStr}";
             float lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
-            float labelY = pos.Y - ChartConstants.Scatter.DotRadius - ChartConstants.Interactivity.TooltipPaddingY - lineHeight - ChartConstants.Interactivity.TooltipBgPadding * 2f;
-            return new HoverInfo(label, new Vector2(pos.X, labelY));
+            float labelY     = pos.Y - ChartConstants.Scatter.DotRadius - ChartConstants.Interactivity.TooltipPaddingY - lineHeight - ChartConstants.Interactivity.TooltipBgPadding * 2f;
+            return new HoverInfo(label, new Vector2(pos.X, labelY), Key: globalAttemptIndex.ToString());
         }
 
         public override void DrawHighlight()

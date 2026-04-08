@@ -77,4 +77,23 @@ public sealed class PracticeSession
         _attempts
             .Where(a => roomIndex < a.Count)
             .Select(a => a.GetRoomTime(roomIndex));
+
+    /// <summary>
+    /// Returns the original attempt indices (into _attempts) for attempts that reached roomIndex.
+    /// Parallel to GetRoomTimes(roomIndex).
+    /// </summary>
+    public IEnumerable<int> GetRoomAttemptIndices(int roomIndex) =>
+        Enumerable.Range(0, _attempts.Count)
+            .Where(i => roomIndex < _attempts[i].Count);
+
+    /// <summary>
+    /// Removes attempts at the given indices. Indices are processed in descending order so
+    /// earlier removals don't shift later ones. Bumps Version afterward.
+    /// </summary>
+    public void RemoveAttempts(IReadOnlyList<int> indices)
+    {
+        foreach (int i in indices.OrderByDescending(x => x))
+            _attempts.RemoveAt(i);
+        Version++;
+    }
 }

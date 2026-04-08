@@ -80,6 +80,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public virtual void ClearPins() { }
 
         /// <summary>
+        /// When true, GraphInteractivity shows a "Delete runs" button next to "Clear pins"
+        /// when at least one item is pinned. The overlay must expose GetPinnedAttemptIndices().
+        /// </summary>
+        public virtual bool SupportsDeleteRuns => false;
+
+        /// <summary>
         /// Draws the highlight for a specific HoverInfo (e.g. a pinned item).
         /// Default implementation restores internal hover state via HitTest (side effect),
         /// then calls DrawHighlight(). <paramref name="info"/> must have MouseHudPos set —
