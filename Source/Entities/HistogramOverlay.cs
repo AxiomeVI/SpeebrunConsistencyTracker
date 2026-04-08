@@ -249,7 +249,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             string minStr = new Domain.Time.TimeTicks(minTick).ToString();
             string maxStr = new Domain.Time.TimeTicks(maxTick).ToString();
             double pct    = times.Count > 0 ? 100.0 * count / times.Count : 0.0;
-            string label  = $"{count} {(count == 1 ? "attempt" : "attempts")} ({pct:F1}%)\n[{minStr}, {maxStr})";
+            string label  = $"{count} {(count == 1 ? "run" : "runs")} ({pct:F1}%)\n[{minStr}, {maxStr})";
 
             float barCenterX = barX + actualBarWidth / 2f;
             int   lineCount  = label.Split('\n').Length;

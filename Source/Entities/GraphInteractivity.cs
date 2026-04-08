@@ -92,15 +92,11 @@ public static class GraphInteractivity
     {
         var overlay = GraphManager.CurrentOverlay;
 
-        // 1. Pinned items
+        // 1. Pinned items — highlights
         foreach (var pinned in _pinnedItems)
-        {
             overlay?.DrawHighlight(pinned);
-            if (pinned.Label.Length > 0)
-                DrawTooltip(pinned);
-        }
 
-        // 2. Hover
+        // 2. Hover — highlight
         if (CurrentHover != null)
         {
             // Overlays that manage their own pins drive DrawHighlight via internal state (no-arg).
@@ -109,15 +105,22 @@ public static class GraphInteractivity
                 overlay.DrawHighlight();
             else
                 overlay?.DrawHighlight(CurrentHover);
-            if (CurrentHover.Label.Length > 0)
-                DrawTooltip(CurrentHover);
         }
 
-        // 3. "✕ Clear pins" button
+        // 3. Tooltips (drawn after all highlights so they appear on top)
+        foreach (var pinned in _pinnedItems)
+        {
+            if (pinned.Label.Length > 0)
+                DrawTooltip(pinned);
+        }
+        if (CurrentHover != null && CurrentHover.Label.Length > 0)
+            DrawTooltip(CurrentHover);
+
+        // 4. "✕ Clear pins" button
         if ((_pinnedItems.Count > 0 || (overlay?.HasPins ?? false)) && overlay != null)
             DrawClearPinsButton(overlay);
 
-        // 4. Cursor (always on top)
+        // 5. Cursor (always on top)
         DrawCursor(_mouseHudX, _mouseHudY);
     }
 
@@ -223,19 +226,17 @@ public static class GraphInteractivity
 
     private static void DrawCursor(float x, float y)
     {
-        // Fixed HUD-space crosshair sized for 1920x1080
-        // Gap of 4px around center, arms 10px long, 3px thick
-        const float gap = 4f;
-        const float arm = 6f;
+        // Fixed HUD-space crosshair. All rects use top-left + size convention.
+        // Thickness 3 → offset -1 from center. Gap 7px each side. Arms 8px long.
+        const float gap  = 7f;
+        const float arm  = 8f;
+        const float half = 1f; // (thickness-1)/2
         Color color = Color.Yellow;
-        for (float d = -1f; d <= 1f; d++)
-        {
-            Draw.Line(x - gap - arm, y + d, x - gap, y + d, color);      // left
-            Draw.Line(x + gap,       y + d, x + gap + arm, y + d, color); // right
-            Draw.Line(x + d, y - gap - arm, x + d, y - gap, color);       // up
-            Draw.Line(x + d, y + gap,       x + d, y + gap + arm, color); // down
-        }
-        // center dot
-        Draw.Rect(x - 1f, y - 1f, 3f, 3f, color);
+
+        Draw.Rect(x - gap - arm, y - half, arm, 3f, color); // left
+        Draw.Rect(x + gap + 1f,  y - half, arm, 3f, color); // right
+        Draw.Rect(x - half, y - gap - arm, 3f, arm, color); // up
+        Draw.Rect(x - half, y + gap + 1f,  3f, arm, color); // down
+        Draw.Rect(x - half, y - half,      3f, 3f, color);  // center
     }
 }

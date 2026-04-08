@@ -933,7 +933,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 DrawLegendEntry(legendX2 - offset2, legendY2, "SoB", sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
             }
 
-            string stats = _attempts.Count == 1 ? "1 Attempt" : $"{_attempts.Count} Attempts";
+            string stats = _attempts.Count == 1 ? "1 Run" : $"{_attempts.Count} Runs";
             Vector2 statsSize = ActiveFont.Measure(stats) * ChartConstants.FontScale.AxisLabelMedium;
             ActiveFont.DrawOutline(stats,
                 new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + ChartConstants.Legend.LegendOffsetY),
