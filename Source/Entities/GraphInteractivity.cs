@@ -193,7 +193,7 @@ public static class GraphInteractivity
 
     private static void DrawClearPinsButton(BaseChartOverlay overlay)
     {
-        const string text  = "✕ Clear pins";
+        const string text  = "Clear pins";
         const float  scale = ChartConstants.FontScale.AxisLabelSmall;
         const float  pad   = ChartConstants.Interactivity.TooltipBgPadding;
 
