@@ -109,16 +109,18 @@ public static class GraphInteractivity
     private static void DrawCursor(float x, float y)
     {
         // Fixed HUD-space crosshair sized for 1920x1080
-        // Gap of 4px around center, arms 10px long, 1px thick
+        // Gap of 4px around center, arms 10px long, 3px thick
         const float gap = 4f;
         const float arm = 6f;
         Color color = Color.Yellow;
-        Draw.Line(x - gap - arm, y, x - gap, y, color);  // left
-        Draw.Line(x + gap,       y, x + gap + arm, y, color);  // right
-        Draw.Line(x, y - gap - arm, x, y - gap, color);  // up
-        Draw.Line(x, y + gap,       x, y + gap + arm, color);  // down
+        for (float d = -1f; d <= 1f; d++)
+        {
+            Draw.Line(x - gap - arm, y + d, x - gap, y + d, color);      // left
+            Draw.Line(x + gap,       y + d, x + gap + arm, y + d, color); // right
+            Draw.Line(x + d, y - gap - arm, x + d, y - gap, color);       // up
+            Draw.Line(x + d, y + gap,       x + d, y + gap + arm, color); // down
+        }
         // center dot
-        Draw.Line(x - 1f, y, x + 1f, y, color);
-        Draw.Line(x, y - 1f, x, y + 1f, color);
+        Draw.Rect(x - 1f, y - 1f, 3f, 3f, color);
     }
 }

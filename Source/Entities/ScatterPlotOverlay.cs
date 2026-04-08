@@ -285,7 +285,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     dotCount += roomDataList[r].Times.Count;
                 }
                 string timeStr  = roomIdx >= 0 ? roomDataList[roomIdx].Times[attemptIndex].ToString() : "?";
-                label = $"Attempt #{attemptIndex + 1}: {timeStr}";
+                label = $"Run #{attemptIndex + 1}: {timeStr}";
             }
 
             float lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;

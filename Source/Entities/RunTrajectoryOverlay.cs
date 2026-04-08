@@ -51,7 +51,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<List<TimeTicks>> roomTimes,
             int totalRooms,
             Vector2? pos = null)
-            : base("Run Trajectory — deviation from average", pos)
+            : base("Run Trajectory — Deviation from average", pos)
         {
             _totalRooms = totalRooms;
 
@@ -903,7 +903,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         if (Math.Abs(diff) < minSpacing)
                         {
                             nudged[i] = nudged[j] + (diff >= 0 ? minSpacing : -minSpacing);
-                            nudged[i] = MathHelper.Clamp(nudged[i], y, y + h);
                             anyNudged = true;
                         }
                     }
