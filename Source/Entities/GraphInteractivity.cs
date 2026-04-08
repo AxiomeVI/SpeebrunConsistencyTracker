@@ -55,8 +55,7 @@ public static class GraphInteractivity
             {
                 int existing = CurrentHover.Key != null
                     ? _pinnedItems.FindIndex(p => p.Key == CurrentHover.Key)
-                    : _pinnedItems.FindIndex(p => p.MouseHudPos == CurrentHover.MouseHudPos
-                                                 && p.Label      == CurrentHover.Label);
+                    : _pinnedItems.FindIndex(p => p.Label == CurrentHover.Label);
                 if (existing >= 0)
                 {
                     _pinnedItems.RemoveAt(existing);

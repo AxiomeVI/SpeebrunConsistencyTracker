@@ -269,7 +269,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (isSegment)
             {
                 string timeStr = segmentData.Times[attemptIndex].ToString();
-                label = $"Segment run #{attemptIndex + 1}: {timeStr}";
+                label = $"Run #{attemptIndex + 1}: {timeStr}";
             }
             else
             {
