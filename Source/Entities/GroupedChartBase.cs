@@ -63,10 +63,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
                 return null;
 
-            int idx = (int)((mouseHudPos.X - gx) / _cachedGroupWidth);
-            idx = System.Math.Clamp(idx, 0, _primaryValues.Count - 1);
+            // Find which column the mouse is in by iterating through column positions
+            float normalW = ComputeNormalGroupWidth(gw);
+            int idx = -1;
+            float colX = gx;
+            for (int j = 0; j < _primaryValues.Count; j++)
+            {
+                float colW = _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+                if (mouseHudPos.X >= colX && mouseHudPos.X < colX + colW) { idx = j; break; }
+                colX += colW;
+            }
+            if (idx < 0) return null;
 
-            float groupX      = gx + idx * _cachedGroupWidth + _cachedGroupSpacing / 2f;
+            if (_hiddenColumns.Contains(idx)) return null;
+
+            float groupX      = GetGroupX(gx, gw, idx) + _cachedGroupSpacing / 2f;
             float primaryTopY = gy + gh - GetBarHeight(_primaryValues[idx], gh);
 
             bool  secondaryExists = idx < _secondaryValues.Count;
@@ -125,6 +136,35 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Draw.HollowRect(_hoveredHighlightX, _hoveredHighlightY, _hoveredHighlightW, _hoveredHighlightH, Color.White * 0.8f);
         }
 
+        public override int? ColumnHitTest(Vector2 mousePos)
+        {
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
+            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
+
+            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
+            {
+                _hoveredColumnIndex = -1;
+                return null;
+            }
+
+            float normalW = ComputeNormalGroupWidth(gw);
+            float colX = gx;
+            for (int i = 0; i < _primaryValues.Count; i++)
+            {
+                float colW = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+                var (stripX, stripW) = ColumnStripRect(colX, colW);
+                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = i; return i; }
+                colX += colW;
+            }
+            _hoveredColumnIndex = -1;
+            return null;
+        }
+
         protected abstract float GetBarHeight(T value, float chartHeight);
         protected abstract string FormatBarLabel(T value);
         protected abstract void DrawYAxis(float x, float y, float w, float h);
@@ -133,6 +173,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         protected override void DrawGrid(float x, float y, float w, float h) =>
             DrawYAxisGrid(x, y, w, h);
+
+        private float ComputeNormalGroupWidth(float gw)
+        {
+            int visibleCount = _primaryValues.Count - _hiddenColumns.Count;
+            if (visibleCount <= 0) return _cachedGroupWidth;
+            float available = gw - _hiddenColumns.Count * ChartConstants.Interactivity.HiddenColumnStubWidth;
+            return System.Math.Min(available / visibleCount, MAX_BAR_WIDTH);
+        }
+
+        private float GetGroupX(float gx, float gw, int i)
+        {
+            float normalW = ComputeNormalGroupWidth(gw);
+            float x = gx;
+            for (int j = 0; j < i; j++)
+                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            return x;
+        }
 
         protected override void DrawBars(float x, float y, float w, float h)
         {
@@ -143,7 +200,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             for (int i = 0; i < _primaryValues.Count; i++)
             {
-                float groupX = x + i * _cachedGroupWidth + _cachedGroupSpacing / 2f;
+                if (_hiddenColumns.Contains(i)) continue;
+
+                float groupX = GetGroupX(x, w, i) + _cachedGroupSpacing / 2f;
 
                 float primaryHeight = GetBarHeight(_primaryValues[i], h);
                 float primaryY      = y + h - primaryHeight;
@@ -190,7 +249,28 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             DrawTitle();
             DrawYAxis(x, y, w, h);
-            DrawXAxisStaggeredLabels(x, y, h, _labels.Count, _cachedGroupWidth, i => _labels[i], Color.LightGray);
+
+            // X-axis labels and column strip highlights
+            float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
+            float normalW2   = ComputeNormalGroupWidth(w);
+            for (int i = 0; i < _labels.Count; i++)
+            {
+                float colW  = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW2;
+                float groupX = GetGroupX(x, w, i);
+                DrawColumnStrip(i, groupX, colW, y + h);
+
+                if (_hiddenColumns.Contains(i)) continue;
+                float labelX   = groupX + normalW2 / 2f;
+                string label   = _labels[i];
+                float labelY   = _labels.Count > ChartConstants.XAxisLabel.StaggerThreshold
+                    ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
+                    : baseLabelY;
+                Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabel;
+                ActiveFont.DrawOutline(label,
+                    new Vector2(labelX - labelSize.X / 2, labelY),
+                    Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
+                    Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
+            }
 
             float legendY = y + h + ChartConstants.Legend.LegendOffsetY;
             float legendX = x + w;

@@ -26,22 +26,25 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int    RoomsCompleted,
             int    ChronologicalIndex);  // 1-based
 
-        // Ordered: regulars (chronological) -> best (if not last) -> last
+        // All attempts in chronological order. _attempts[^1] is always the last attempt.
         private readonly List<AttemptLine> _attempts;
         private readonly AttemptLine       _sobLine;
-        private readonly bool              _lastIsBest;
-        private readonly bool              _sobIsBest;
-        private readonly long              _maxUpwardDeviation;    // magnitude of most-negative cumulative deviation (fastest, goes up)
-        private readonly long              _maxDownwardDeviation;  // magnitude of most-positive cumulative deviation (slowest, goes down)
-        private readonly long              _totalRange;
-        private readonly long              _roomAveragesSum;
-        private readonly long              _bestFinalDeviation;
-        private readonly long              _lastFinalDeviation;
-        private readonly bool              _anyCompleted;
-        private readonly bool              _sobReachesEnd;
-        private readonly bool              _lastReachesEnd;
         private readonly long[]            _roomAverages;   // per-room average ticks
         private readonly long[]            _sobRoomTimes;   // per-room SoB ticks (length = _totalRooms, 0 if no data)
+        private readonly int[]             _bestSoFarIdx;   // per-room index into _attempts of best-so-far run
+
+        // Cached fields — all recomputed by RecomputeCache() whenever _lastVisibleRoom changes.
+        private int  _lastVisibleRoom     = -1;
+        private int  _bestIdx             = -1;   // index into _attempts of best attempt up to _lastVisibleRoom
+        private bool _lastIsBest;                 // _bestIdx == _attempts.Count - 1
+        private bool _sobIsBest;                  // SoB dev == best dev at _lastVisibleRoom
+        private bool _anyCompleted;               // any attempt reaches beyond _lastVisibleRoom
+        private bool _sobReachesEnd;              // SoB reaches beyond _lastVisibleRoom
+        private bool _lastReachesEnd;             // _attempts[^1] reaches beyond _lastVisibleRoom
+        private long _roomAveragesSum;            // sum of _roomAverages[0.._lastVisibleRoom] inclusive
+        private long _maxUpwardDeviation;         // max magnitude of negative cumulative dev up to _lastVisibleRoom (min 1)
+        private long _maxDownwardDeviation;       // max magnitude of positive cumulative dev up to _lastVisibleRoom (min 1)
+        private long _totalRange;                 // _maxUpwardDeviation + _maxDownwardDeviation
 
         // Hover state — index into _attempts, or _attempts.Count for SoB, _attempts.Count+1 for baseline, -1 for none
         private int _hoveredLineIdx = -1;
@@ -61,13 +64,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (attempts.Count == 0 || totalRooms == 0)
             {
-                _attempts            = [];
-                _sobLine             = new AttemptLine([], [], 0, 0);
-                _maxUpwardDeviation  = 1;
-                _maxDownwardDeviation = 1;
-                _totalRange          = 2;
-                _roomAverages         = [];
-                _sobRoomTimes         = [];
+                _attempts     = [];
+                _sobLine      = new AttemptLine([], [], 0, 0);
+                _roomAverages = [];
+                _sobRoomTimes = [];
+                _bestSoFarIdx = [];
+                RecomputeCache();
                 return;
             }
 
@@ -81,12 +83,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return times.Count == 0 ? 0L : (long)times.Average();
             })];
 
-            // Build raw attempt lines in chronological order
-            var raw = attempts.Select((a, chronoIdx) =>
+            // Build attempts in chronological order (flat — no reserved best slot)
+            _attempts = [.. attempts.Select((a, chronoIdx) =>
             {
                 long cumulative = 0;
-                var deviations = new List<long>();
-                var roomTks    = new List<long>();
+                var deviations  = new List<long>();
+                var roomTks     = new List<long>();
                 for (int r = 0; r < a.Count && r < _totalRooms; r++)
                 {
                     long t = a.GetRoomTime(r).Ticks;
@@ -94,45 +96,37 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     cumulative += t - _roomAverages[r];
                     deviations.Add(cumulative);
                 }
-                return (
-                    line: new AttemptLine([.. deviations], [.. roomTks], deviations.Count, chronoIdx + 1),
-                    finalDeviation: deviations.Count > 0 ? deviations[^1] : 0L);
-            }).ToList();
+                return new AttemptLine([.. deviations], [.. roomTks], deviations.Count, chronoIdx + 1);
+            })];
 
-            // Find best: full runs first, then most negative final deviation (fastest)
-            int bestIdx = Enumerable.Range(0, raw.Count)
-                .Where(i => raw[i].line.RoomsCompleted == _totalRooms)
-                .OrderBy(i => raw[i].finalDeviation)
-                .FirstOrDefault(-1);
-
-            if (bestIdx < 0)
-                bestIdx = Enumerable.Range(0, raw.Count)
-                    .OrderByDescending(i => raw[i].line.RoomsCompleted)
-                    .ThenBy(i => raw[i].finalDeviation)
-                    .First();
-
-            int lastIdx  = raw.Count - 1;
-            _lastIsBest  = bestIdx == lastIdx;
-
-            var regulars = Enumerable.Range(0, raw.Count)
-                .Where(i => i != bestIdx && i != lastIdx)
-                .Select(i => raw[i].line);
-
-            _attempts = [.. regulars];
-            if (!_lastIsBest)
-                _attempts.Add(raw[bestIdx].line);
-            _attempts.Add(raw[lastIdx].line);
+            // Per-room best-so-far: index of attempt with lowest CumulativeDeviations[r] among those reaching r
+            _bestSoFarIdx = new int[_totalRooms];
+            for (int r = 0; r < _totalRooms; r++)
+            {
+                int bestI = -1;
+                long bestDev = long.MaxValue;
+                for (int i = 0; i < _attempts.Count - 1; i++)
+                {
+                    if (_attempts[i].RoomsCompleted <= r) continue;
+                    if (_attempts[i].CumulativeDeviations[r] < bestDev)
+                    {
+                        bestDev = _attempts[i].CumulativeDeviations[r];
+                        bestI   = i;
+                    }
+                }
+                _bestSoFarIdx[r] = bestI; // -1 if no attempt reaches r
+            }
 
             // SoB line
-            long sobCumulative  = 0;
-            var sobDeviations   = new long[_totalRooms];
-            _sobRoomTimes       = new long[_totalRooms];
-            int sobRoomsCompleted = 0;
+            long sobCumulative    = 0;
+            var  sobDeviations    = new long[_totalRooms];
+            _sobRoomTimes         = new long[_totalRooms];
+            int  sobRoomsCompleted = 0;
             for (int r = 0; r < _totalRooms; r++)
             {
                 var times = r < roomTimes.Count ? roomTimes[r] : [];
                 if (times.Count == 0) break;
-                long best = times.Min(t => t.Ticks);
+                long best         = times.Min(t => t.Ticks);
                 _sobRoomTimes[r]  = best;
                 sobCumulative    += best - _roomAverages[r];
                 sobDeviations[r]  = sobCumulative;
@@ -140,24 +134,151 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             _sobLine = new AttemptLine(sobDeviations, _sobRoomTimes[..sobRoomsCompleted], sobRoomsCompleted, 0);
 
-            // SoB is always the topmost line (most negative cumulative deviation)
-            _maxUpwardDeviation = Math.Max(sobRoomsCompleted > 0 ? -sobDeviations[sobRoomsCompleted - 1] : 0, 1);
-            _maxDownwardDeviation = Math.Max(
-                _attempts
-                    .SelectMany(a => a.CumulativeDeviations)
-                    .Where(d => d > 0)
-                    .DefaultIfEmpty(1)
-                    .Max(), 1);
+            RecomputeCache();
+        }
 
-            _totalRange          = _maxUpwardDeviation + _maxDownwardDeviation;
-            _roomAveragesSum     = _roomAverages.Sum();
-            _bestFinalDeviation  = raw[bestIdx].finalDeviation;
-            _lastFinalDeviation  = raw[lastIdx].finalDeviation;
-            long sobFinalDev     = sobRoomsCompleted > 0 ? sobDeviations[sobRoomsCompleted - 1] : 0;
-            _sobIsBest           = sobFinalDev == _bestFinalDeviation;
-            _anyCompleted        = _attempts.Any(a => a.RoomsCompleted == _totalRooms);
-            _sobReachesEnd       = _sobLine.RoomsCompleted == _totalRooms;
-            _lastReachesEnd      = _attempts.Count >= 1 && _attempts[^1].RoomsCompleted == _totalRooms;
+        private void RecomputeCache()
+        {
+            // Recompute _lastVisibleRoom
+            int lastVis = -1;
+            for (int r = _totalRooms - 1; r >= 0; r--)
+                if (!_hiddenColumns.Contains(r)) { lastVis = r; break; }
+            _lastVisibleRoom = lastVis;
+
+            if (lastVis < 0 || _attempts.Count == 0)
+            {
+                _bestIdx              = _attempts.Count > 0 ? _attempts.Count - 1 : -1;
+                _lastIsBest           = _bestIdx == _attempts.Count - 1;
+                _sobIsBest            = false;
+                _anyCompleted         = false;
+                _sobReachesEnd        = false;
+                _lastReachesEnd       = false;
+                _roomAveragesSum      = 0;
+                _maxUpwardDeviation   = 1;
+                _maxDownwardDeviation = 1;
+                _totalRange           = 2;
+                return;
+            }
+
+            // --- Best attempt selection ---
+            // Among attempts that reached lastVis, pick lowest cumulative deviation at lastVis.
+            // If none reached lastVis, pick furthest reached, ties broken by lowest final deviation.
+            int best = -1;
+            {
+                var reached = Enumerable.Range(0, _attempts.Count)
+                    .Where(i => _attempts[i].RoomsCompleted > lastVis)
+                    .ToList();
+                if (reached.Count > 0)
+                {
+                    best = reached.OrderBy(i => _attempts[i].CumulativeDeviations[lastVis]).First();
+                }
+                else
+                {
+                    best = Enumerable.Range(0, _attempts.Count)
+                        .OrderByDescending(i => _attempts[i].RoomsCompleted)
+                        .ThenBy(i => _attempts[i].RoomsCompleted > 0 ? _attempts[i].CumulativeDeviations[_attempts[i].RoomsCompleted - 1] : 0)
+                        .First();
+                }
+            }
+            _bestIdx    = best;
+            _lastIsBest = _bestIdx == _attempts.Count - 1;
+
+            // --- Coincidence flags ---
+            long bestDev = DevAtRoom(_attempts[_bestIdx], lastVis);
+            long sobDev  = DevAtRoom(_sobLine,            lastVis);
+            _sobIsBest  = sobDev == bestDev;
+
+            // --- Reach flags ---
+            _anyCompleted   = _attempts.Any(a => a.RoomsCompleted > lastVis);
+            _sobReachesEnd  = _sobLine.RoomsCompleted > lastVis;
+            _lastReachesEnd = _attempts[^1].RoomsCompleted > lastVis;
+
+            // --- Room averages sum ---
+            _roomAveragesSum = 0;
+            for (int r = 0; r <= lastVis; r++) _roomAveragesSum += _roomAverages[r];
+
+            // --- Axis range ---
+            // Hidden rooms in the middle still contribute cumulative deviation;
+            // rooms beyond lastVis are excluded entirely.
+            long maxUp   = 1;
+            long maxDown = 1;
+            foreach (var attempt in _attempts)
+            {
+                int limit = Math.Min(attempt.RoomsCompleted - 1, lastVis);
+                for (int r = 0; r <= limit; r++)
+                {
+                    long d = attempt.CumulativeDeviations[r];
+                    if (d < 0) maxUp   = Math.Max(maxUp,  -d);
+                    else       maxDown = Math.Max(maxDown,  d);
+                }
+            }
+            {
+                int limit = Math.Min(_sobLine.RoomsCompleted - 1, lastVis);
+                for (int r = 0; r <= limit; r++)
+                {
+                    long d = _sobLine.CumulativeDeviations[r];
+                    if (d < 0) maxUp   = Math.Max(maxUp,  -d);
+                    else       maxDown = Math.Max(maxDown,  d);
+                }
+            }
+            _maxUpwardDeviation   = maxUp;
+            _maxDownwardDeviation = maxDown;
+            _totalRange           = maxUp + maxDown;
+        }
+
+        public override void ClearHiddenColumns()
+        {
+            base.ClearHiddenColumns();
+            int newLastVisible = _totalRooms - 1; // after clearing, last room is always visible
+            if (newLastVisible != _lastVisibleRoom)
+                RecomputeCache();
+        }
+
+        public override void ToggleColumn(int columnIndex)
+        {
+            base.ToggleColumn(columnIndex);
+            // Recompute only if the last visible room changed
+            int newLastVisible = -1;
+            for (int r = _totalRooms - 1; r >= 0; r--)
+                if (!_hiddenColumns.Contains(r)) { newLastVisible = r; break; }
+            if (newLastVisible != _lastVisibleRoom)
+                RecomputeCache();
+        }
+
+        // Returns the highest room index that is not hidden, capped at _totalRooms-1. -1 if all hidden.
+        private int LastVisibleRoom()
+        {
+            for (int r = _totalRooms - 1; r >= 0; r--)
+                if (!_hiddenColumns.Contains(r)) return r;
+            return -1;
+        }
+
+        private float ComputeNormalColumnWidth(float gw)
+        {
+            int visibleCount = _totalRooms - _hiddenColumns.Count;
+            if (visibleCount <= 0) return gw / Math.Max(_totalRooms, 1);
+            float available = gw - _hiddenColumns.Count * ChartConstants.Interactivity.HiddenColumnStubWidth;
+            return available / visibleCount;
+        }
+
+        private float GetRoomCenterX(float gx, float gw, int r)
+        {
+            float normalW = ComputeNormalColumnWidth(gw);
+            float x = gx;
+            for (int j = 0; j < r; j++)
+                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            float thisW = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            return x + thisW * 0.5f;
+        }
+
+        // Returns the X at the right edge of room r's column.
+        private float GetRoomRightEdgeX(float gx, float gw, int r)
+        {
+            float normalW = ComputeNormalColumnWidth(gw);
+            float x = gx;
+            for (int j = 0; j <= r; j++)
+                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            return x;
         }
 
         private void DrawAxesLines(float x, float y, float w, float h)
@@ -188,13 +309,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (_totalRooms == 0 || _attempts.Count == 0) return;
 
-            float columnWidth = w / _totalRooms;
-
+            float normalW = ComputeNormalColumnWidth(w);
+            float colX = x;
             for (int r = 0; r < _totalRooms; r++)
-                Draw.Line(
-                    new Vector2(x + r * columnWidth, y),
-                    new Vector2(x + r * columnWidth, y + h),
-                    ChartConstants.Colors.GridLineColor, 1f);
+            {
+                Draw.Line(new Vector2(colX, y), new Vector2(colX, y + h), ChartConstants.Colors.GridLineColor, 1f);
+                colX += _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            }
 
             float baselineY   = y + (float)_maxUpwardDeviation / _totalRange * h;
             float aboveHeight = (float)_maxUpwardDeviation   / _totalRange * h;
@@ -235,7 +356,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         /// <summary>
         /// Returns true if the line at <paramref name="lineIdx"/> should be drawn dimmed.
         /// Dimming applies when either hovering or comparison mode is active, and the line
-        /// is not one of the "active" lines (hovered, main pin, comp pin, or SoB in comparison mode).
+        /// is not one of the "active" lines (hovered, main pin, or comp pin).
         /// </summary>
         private bool IsLineDimmed(int lineIdx)
         {
@@ -248,10 +369,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (comparisonMode)
             {
-                if (lineIdx == _mainPinIdx)  return false; // main pin always lit
-                if (lineIdx == _compPinIdx)  return false; // comp pin always lit
-                // SoB is always lit in comparison mode (index = _attempts.Count)
-                if (lineIdx == _attempts.Count) return false;
+                if (lineIdx == _mainPinIdx) return false; // main pin always lit
+                if (lineIdx == _compPinIdx) return false; // comp pin always lit (or -1 = none)
+                if (_compPinIdx < 0 && lineIdx == _attempts.Count) return false; // default comp is SoB
             }
 
             // If only hovering (no comparison mode), hovered line is handled above; all others dim.
@@ -263,22 +383,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (_attempts.Count == 0) return;
 
-            float columnWidth = w / _totalRooms;
-            float baselineY   = y + (float)_maxUpwardDeviation / _totalRange * h;
-            float devScale    = h / _totalRange;
-            int   total       = _attempts.Count;
-            bool  hovering    = _hoveredLineIdx >= 0;
-            var   s           = SpeebrunConsistencyTrackerModule.Settings;
+            float baselineY = y + (float)_maxUpwardDeviation / _totalRange * h;
+            float devScale  = h / _totalRange;
+            int   total     = _attempts.Count;
+            bool  hovering  = _hoveredLineIdx >= 0;
+            var   s         = SpeebrunConsistencyTrackerModule.Settings;
 
-            int regularCount = _lastIsBest ? total - 1 : total - 2;
-
-            // Regular lines
-            for (int i = 0; i < regularCount; i++)
+            // Regular lines: all attempts except _bestIdx and last (^1).
+            // If _lastIsBest, there is only one special slot (^1); otherwise two (_bestIdx and ^1).
+            for (int i = 0; i < total; i++)
             {
-                bool isHovered = hovering && _hoveredLineIdx == i;
-                bool dimmed    = IsLineDimmed(i);
-                Color color;
+                if (i == _bestIdx || i == total - 1) continue;
+
+                bool  isHovered = hovering && _hoveredLineIdx == i;
+                bool  dimmed    = IsLineDimmed(i);
                 float thickness;
+                Color color;
                 if (!hovering && _mainPinIdx < 0)
                 {
                     float brightness = total <= 1
@@ -310,103 +430,110 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     color     = Color.White * brightness;
                     thickness = 1.5f;
                 }
-                DrawAttemptLine(_attempts[i], x, baselineY, columnWidth, devScale, h, color, thickness);
+                DrawAttemptLine(_attempts[i], x, w, baselineY, devScale, h, color, thickness);
             }
 
-            // --- Special lines: SoB, Best, Last ---
-            Color sobColor2  = s.TrajectorySobColorFinal;
-            Color bestColor2 = s.TrajectoryBestColorFinal;
-            Color lastColor2 = s.TrajectoryLastColorFinal;
+            // Special lines: SoB → Best → Last (drawn on top of regulars, in this order).
+            Color sobColor  = s.TrajectorySobColorFinal;
+            Color bestColor = s.TrajectoryBestColorFinal;
+            Color lastColor = s.TrajectoryLastColorFinal;
             float specialThick = 2f;
+
+            int sobIdx  = total;       // logical index for SoB in hover/pin system
+            int bestIdx = _bestIdx;
+            int lastIdx = total - 1;
 
             if (_sobIsBest && _lastIsBest)
             {
-                int     idx3    = _attempts.Count;
-                bool    h3      = hovering && (_hoveredLineIdx == idx3 || _hoveredLineIdx >= total - 1);
-                bool    pinned3 = IsLinePinned(idx3) || IsLinePinned(total - 1);
-                bool    dimmed3 = IsLineDimmed(idx3) && IsLineDimmed(total - 1);
-                float   t3      = h3 || pinned3 ? 3f : specialThick;
-                Color[] c3      = [sobColor2, bestColor2, lastColor2];
-                Color[] c3Draw  = dimmed3 ? [sobColor2 * 0.35f, bestColor2 * 0.35f, lastColor2 * 0.35f] : c3;
-                DrawDashedAttemptLine(_sobLine, c3Draw, x, baselineY, columnWidth, devScale, h, t3);
+                // SoB == Best == Last: single dashed triple-color line
+                bool  h3      = hovering && (_hoveredLineIdx == sobIdx || _hoveredLineIdx >= lastIdx);
+                bool  pinned3 = IsLinePinned(sobIdx) || IsLinePinned(lastIdx);
+                bool  dimmed3 = IsLineDimmed(sobIdx) && IsLineDimmed(lastIdx);
+                float t3      = h3 || pinned3 ? 3f : specialThick;
+                Color[] c3Draw = dimmed3
+                    ? [sobColor * 0.35f, bestColor * 0.35f, lastColor * 0.35f]
+                    : [sobColor, bestColor, lastColor];
+                DrawDashedAttemptLine(_sobLine, c3Draw, x, w, baselineY, devScale, h, t3);
             }
             else if (_sobIsBest)
             {
-                bool    hSB      = hovering && _hoveredLineIdx == _attempts.Count;
-                bool    pinnedSB = IsLinePinned(_attempts.Count);
-                bool    dimmedSB = IsLineDimmed(_attempts.Count);
-                float   tSB      = hSB || pinnedSB ? 3f : specialThick;
-                Color[] cSB      = [sobColor2, bestColor2];
-                Color[] cSBDraw  = dimmedSB ? [sobColor2 * 0.35f, bestColor2 * 0.35f] : cSB;
-                DrawDashedAttemptLine(_sobLine, cSBDraw, x, baselineY, columnWidth, devScale, h, tSB);
+                // SoB == Best: dashed SoB/Best line, separate Last line
+                bool  hSB      = hovering && _hoveredLineIdx == sobIdx;
+                bool  pinnedSB = IsLinePinned(sobIdx);
+                bool  dimmedSB = IsLineDimmed(sobIdx);
+                float tSB      = hSB || pinnedSB ? 3f : specialThick;
+                Color[] cSBDraw = dimmedSB ? [sobColor * 0.35f, bestColor * 0.35f] : [sobColor, bestColor];
+                DrawDashedAttemptLine(_sobLine, cSBDraw, x, w, baselineY, devScale, h, tSB);
 
-                bool  lastHovered2   = hovering && _hoveredLineIdx == total - 1;
-                bool  lastPinned2    = IsLinePinned(total - 1);
-                bool  dimmedLast2    = IsLineDimmed(total - 1);
-                float lastThickness2 = lastHovered2 || lastPinned2 ? 3f : specialThick;
-                Color lastDrawColor2 = dimmedLast2 ? lastColor2 * 0.35f : lastColor2;
-                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, devScale, h, lastDrawColor2, lastThickness2);
+                bool  hL      = hovering && _hoveredLineIdx == lastIdx;
+                bool  pinnedL = IsLinePinned(lastIdx);
+                bool  dimmedL = IsLineDimmed(lastIdx);
+                float tL      = hL || pinnedL ? 3f : specialThick;
+                Color cLDraw  = dimmedL ? lastColor * 0.35f : lastColor;
+                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, cLDraw, tL);
             }
             else if (_lastIsBest)
             {
-                bool    hBL      = hovering && _hoveredLineIdx >= total - 1;
-                bool    pinnedBL = IsLinePinned(total - 1);
-                bool    dimmedBL = IsLineDimmed(total - 1);
-                float   tBL      = hBL || pinnedBL ? 3f : specialThick;
-                Color[] cBL      = [bestColor2, lastColor2];
-                Color[] cBLDraw  = dimmedBL ? [bestColor2 * 0.35f, lastColor2 * 0.35f] : cBL;
-                DrawDashedAttemptLine(_attempts[^1], cBLDraw, x, baselineY, columnWidth, devScale, h, tBL);
+                // Best == Last: solid SoB, dashed Best/Last line
+                bool  hSob      = hovering && _hoveredLineIdx == sobIdx;
+                bool  pinnedSob = IsLinePinned(sobIdx);
+                bool  dimmedSob = IsLineDimmed(sobIdx);
+                float tSob      = hSob || pinnedSob ? 3f : specialThick;
+                Color cSobDraw  = dimmedSob ? sobColor * 0.35f : sobColor;
+                DrawAttemptLine(_sobLine, x, w, baselineY, devScale, h, cSobDraw, tSob);
 
-                bool  sobHovered2   = hovering && _hoveredLineIdx == _attempts.Count;
-                bool  sobPinned2    = IsLinePinned(_attempts.Count);
-                bool  dimmedSob2    = IsLineDimmed(_attempts.Count);
-                float sobThickness2 = sobHovered2 || sobPinned2 ? 3f : specialThick;
-                Color sobDrawColor2 = dimmedSob2 ? sobColor2 * 0.35f : sobColor2;
-                DrawAttemptLine(_sobLine, x, baselineY, columnWidth, devScale, h, sobDrawColor2, sobThickness2);
+                bool  hBL      = hovering && _hoveredLineIdx == lastIdx;
+                bool  pinnedBL = IsLinePinned(lastIdx);
+                bool  dimmedBL = IsLineDimmed(lastIdx);
+                float tBL      = hBL || pinnedBL ? 3f : specialThick;
+                Color[] cBLDraw = dimmedBL ? [bestColor * 0.35f, lastColor * 0.35f] : [bestColor, lastColor];
+                DrawDashedAttemptLine(_attempts[lastIdx], cBLDraw, x, w, baselineY, devScale, h, tBL);
             }
             else
             {
-                bool  dimmedSob3    = IsLineDimmed(_attempts.Count);
-                bool  sobPinned3    = IsLinePinned(_attempts.Count);
-                float sobThickness3 = (hovering && _hoveredLineIdx == _attempts.Count) || sobPinned3 ? 3f : specialThick;
-                Color sobDrawColor3 = dimmedSob3 ? sobColor2 * 0.35f : sobColor2;
-                DrawAttemptLine(_sobLine, x, baselineY, columnWidth, devScale, h, sobDrawColor3, sobThickness3);
+                // No coincidence: solid SoB, solid Best, solid Last
+                bool  hSob      = hovering && _hoveredLineIdx == sobIdx;
+                bool  pinnedSob = IsLinePinned(sobIdx);
+                bool  dimmedSob = IsLineDimmed(sobIdx);
+                float tSob      = hSob || pinnedSob ? 3f : specialThick;
+                Color cSobDraw  = dimmedSob ? sobColor * 0.35f : sobColor;
+                DrawAttemptLine(_sobLine, x, w, baselineY, devScale, h, cSobDraw, tSob);
 
-                if (!_lastIsBest)
-                {
-                    bool  bestHovered3   = hovering && _hoveredLineIdx == total - 2;
-                    bool  bestPinned3    = IsLinePinned(total - 2);
-                    bool  dimmedBest3    = IsLineDimmed(total - 2);
-                    float bestThickness3 = bestHovered3 || bestPinned3 ? 3f : specialThick;
-                    Color bestDrawColor3 = dimmedBest3 ? bestColor2 * 0.35f : bestColor2;
-                    DrawAttemptLine(_attempts[^2], x, baselineY, columnWidth, devScale, h, bestDrawColor3, bestThickness3);
-                }
+                bool  hBest      = hovering && _hoveredLineIdx == bestIdx;
+                bool  pinnedBest = IsLinePinned(bestIdx);
+                bool  dimmedBest = IsLineDimmed(bestIdx);
+                float tBest      = hBest || pinnedBest ? 3f : specialThick;
+                Color cBestDraw  = dimmedBest ? bestColor * 0.35f : bestColor;
+                DrawAttemptLine(_attempts[bestIdx], x, w, baselineY, devScale, h, cBestDraw, tBest);
 
-                bool  lastHovered3   = hovering && _hoveredLineIdx == total - 1;
-                bool  lastPinned3    = IsLinePinned(total - 1);
-                bool  dimmedLast3    = IsLineDimmed(total - 1);
-                float lastThickness3 = lastHovered3 || lastPinned3 ? 3f : specialThick;
-                Color lastBaseColor3 = _lastIsBest ? bestColor2 : lastColor2;
-                Color lastDrawColor3 = dimmedLast3 ? lastBaseColor3 * 0.35f : lastBaseColor3;
-                DrawAttemptLine(_attempts[^1], x, baselineY, columnWidth, devScale, h, lastDrawColor3, lastThickness3);
+                bool  hLast      = hovering && _hoveredLineIdx == lastIdx;
+                bool  pinnedLast = IsLinePinned(lastIdx);
+                bool  dimmedLast = IsLineDimmed(lastIdx);
+                float tLast      = hLast || pinnedLast ? 3f : specialThick;
+                Color cLastDraw  = dimmedLast ? lastColor * 0.35f : lastColor;
+                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, cLastDraw, tLast);
             }
         }
 
-        private static void DrawAttemptLine(AttemptLine attempt, float x, float baselineY, float columnWidth, float devScale, float h, Color color, float thickness)
+        private void DrawAttemptLine(AttemptLine attempt, float gx, float gw, float baselineY, float devScale, float h, Color color, float thickness)
         {
-            for (int r = 0; r < attempt.RoomsCompleted; r++)
+            // Edge-based model: each visible room r draws from its left edge (deviation[r-1]) to its right edge (deviation[r]).
+            // When rooms are hidden, the next visible room connects from the right edge of prevVisible (deviation[prevVisible]).
+            // Stop at the last visible room — rooms beyond it are not drawn.
+            int lastVisible = LastVisibleRoom();
+            int prevVisible = -1;
+            int limit = Math.Min(attempt.RoomsCompleted - 1, lastVisible);
+            for (int r = 0; r <= limit; r++)
             {
-                float x1 = x + r * columnWidth;
-                float y1 = r == 0
+                if (_hiddenColumns.Contains(r)) continue;
+                float x1 = prevVisible < 0 ? gx : GetRoomRightEdgeX(gx, gw, prevVisible);
+                float y1 = prevVisible < 0
                     ? baselineY
-                    : baselineY + attempt.CumulativeDeviations[r - 1] * devScale;
-                float x2 = x + (r + 1) * columnWidth;
-                float y2 = baselineY + attempt.CumulativeDeviations[r] * devScale;
-
-                y1 = MathHelper.Clamp(y1, baselineY - h, baselineY + h);
-                y2 = MathHelper.Clamp(y2, baselineY - h, baselineY + h);
-
+                    : MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[prevVisible] * devScale, baselineY - h, baselineY + h);
+                float x2 = GetRoomRightEdgeX(gx, gw, r);
+                float y2 = MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[r] * devScale, baselineY - h, baselineY + h);
                 Draw.Line(new Vector2(x1, y1), new Vector2(x2, y2), color, thickness);
+                prevVisible = r;
             }
         }
 
@@ -414,31 +541,34 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         /// Draws an attempt line with a cycling dash pattern across all segments.
         /// colors.Length colors repeat in order; dash length is CoincidentDashLen pixels.
         /// Dash positions are computed in global path space so they never gap at segment boundaries.
+        /// Hidden columns are skipped (the line connects adjacent visible rooms directly).
         /// </summary>
-        private static void DrawDashedAttemptLine(
+        private void DrawDashedAttemptLine(
             AttemptLine attempt, Color[] colors,
-            float x, float baselineY, float columnWidth, float devScale, float h, float thickness)
+            float gx, float gw, float baselineY, float devScale, float h, float thickness)
         {
             float dashLen  = ChartConstants.Trajectory.CoincidentDashLen;
             float cycleLen = dashLen * colors.Length;
             float globalStart = 0f; // global path offset at the start of current segment
 
-            for (int r = 0; r < attempt.RoomsCompleted; r++)
+            int lastVisible2 = LastVisibleRoom();
+            int prevVisible = -1;
+            int limit2 = Math.Min(attempt.RoomsCompleted - 1, lastVisible2);
+            for (int r = 0; r <= limit2; r++)
             {
-                float x1 = x + r * columnWidth;
-                float y1 = r == 0
-                    ? baselineY
-                    : baselineY + attempt.CumulativeDeviations[r - 1] * devScale;
-                float x2 = x + (r + 1) * columnWidth;
-                float y2 = baselineY + attempt.CumulativeDeviations[r] * devScale;
+                if (_hiddenColumns.Contains(r)) continue;
 
-                y1 = MathHelper.Clamp(y1, baselineY - h, baselineY + h);
-                y2 = MathHelper.Clamp(y2, baselineY - h, baselineY + h);
+                float x1 = prevVisible < 0 ? gx : GetRoomRightEdgeX(gx, gw, prevVisible);
+                float y1 = prevVisible < 0
+                    ? baselineY
+                    : MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[prevVisible] * devScale, baselineY - h, baselineY + h);
+                float x2 = GetRoomRightEdgeX(gx, gw, r);
+                float y2 = MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[r] * devScale, baselineY - h, baselineY + h);
 
                 var   segStart = new Vector2(x1, y1);
                 var   segEnd   = new Vector2(x2, y2);
                 float segLen   = Vector2.Distance(segStart, segEnd);
-                if (segLen < 0.5f) { globalStart += segLen; continue; }
+                if (segLen < 0.5f) { globalStart += segLen; prevVisible = r; continue; }
 
                 Vector2 dir      = (segEnd - segStart) / segLen;
                 float   segEndG  = globalStart + segLen; // global offset at end of this segment
@@ -466,15 +596,37 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
 
                 globalStart = segEndG;
+                prevVisible = r;
             }
         }
 
-        // Returns the screen Y of the attempt line at the right edge of column r (x = graphX + (r+1)*colW)
-        private static float LineYAtColumnEnd(AttemptLine attempt, float baselineY, float devScale, float h, int r)
+        public override int? ColumnHitTest(Vector2 mousePos)
         {
-            if (r >= attempt.RoomsCompleted) return float.MaxValue;
-            float y = baselineY + attempt.CumulativeDeviations[r] * devScale;
-            return MathHelper.Clamp(y, baselineY - h, baselineY + h);
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
+            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
+
+            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
+            {
+                _hoveredColumnIndex = -1;
+                return null;
+            }
+
+            float normalW = ComputeNormalColumnWidth(gw);
+            float colX = gx;
+            for (int r = 0; r < _totalRooms; r++)
+            {
+                float colW = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+                var (stripX, stripW) = ColumnStripRect(colX, colW);
+                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = r; return r; }
+                colX += colW;
+            }
+            _hoveredColumnIndex = -1;
+            return null;
         }
 
         public override HoverInfo? HitTest(Vector2 mouseHudPos)
@@ -491,13 +643,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
                 return null;
 
-            float columnWidth = gw / _totalRooms;
             float baselineY   = gy + (float)_maxUpwardDeviation / _totalRange * gh;
             float devScale    = gh / _totalRange;
 
-            // Which column is the mouse in?
-            int col = (int)((mouseHudPos.X - gx) / columnWidth);
-            col = Math.Clamp(col, 0, _totalRooms - 1);
+            // Which column is the mouse in? Walk variable-width columns.
+            int col = _totalRooms - 1;
+            {
+                float normalW = ComputeNormalColumnWidth(gw);
+                float colX = gx;
+                for (int r = 0; r < _totalRooms; r++)
+                {
+                    float colW = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+                    if (mouseHudPos.X < colX + colW) { col = r; break; }
+                    colX += colW;
+                }
+            }
 
             // For each line, lerp the Y at mouseX within this column's segment
             float mouseX  = mouseHudPos.X;
@@ -508,14 +668,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             void Check(AttemptLine line, int idx)
             {
                 if (col >= line.RoomsCompleted) return;
-                float x1 = gx + col * columnWidth;
-                float y1 = col == 0
+                if (_hiddenColumns.Contains(col)) return;
+                // Mirror DrawAttemptLine: edge-based model.
+                // Find prev visible room (or use left grid edge).
+                int prev = -1;
+                for (int j = col - 1; j >= 0; j--)
+                    if (!_hiddenColumns.Contains(j)) { prev = j; break; }
+                float x1 = prev < 0 ? gx : GetRoomRightEdgeX(gx, gw, prev);
+                float y1 = prev < 0
                     ? baselineY
-                    : MathHelper.Clamp(baselineY + line.CumulativeDeviations[col - 1] * devScale, baselineY - gh, baselineY + gh);
-                float x2 = gx + (col + 1) * columnWidth;
+                    : MathHelper.Clamp(baselineY + line.CumulativeDeviations[prev] * devScale, baselineY - gh, baselineY + gh);
+                float x2 = GetRoomRightEdgeX(gx, gw, col);
                 float y2 = MathHelper.Clamp(baselineY + line.CumulativeDeviations[col] * devScale, baselineY - gh, baselineY + gh);
 
-                float t       = (mouseX - x1) / (x2 - x1);
+                float segW = x2 - x1;
+                float t       = segW > 0 ? (mouseX - x1) / segW : 0f;
                 float lerpedY = y1 + t * (y2 - y1);
                 float dist    = Math.Abs(mouseY - lerpedY);
                 if (dist < bestDist)
@@ -584,6 +751,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public override void DrawHighlight()
         {
             if (_hoveredLineIdx < 0) return;
+            // Skip if the hovered line is the main pin — DrawPinnedHighlights already drew its tooltip.
+            // Comp pin (secondary) does not get a persistent tooltip, so show it on hover.
+            if (_hoveredLineIdx == _mainPinIdx) return;
             float gx = position.X + marginH;
             float gy = position.Y + margin;
             float gw = width  - marginH * 2;
@@ -605,13 +775,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float gw = width  - marginH * 2;
             float gh = height - margin  * 2;
             DrawLineTooltips(_mainPinIdx, gx, gy, gw, gh);
-            if (_compPinIdx >= 0 && _compPinIdx != _mainPinIdx)
-                DrawLineTooltips(_compPinIdx, gx, gy, gw, gh);
         }
 
         private void DrawLineTooltips(int lineIdx, float gx, float gy, float gw, float gh)
         {
-            float columnWidth = gw / _totalRooms;
             float baselineY   = gy + (float)_maxUpwardDeviation / _totalRange * gh;
             float devScale    = gh / _totalRange;
 
@@ -620,18 +787,41 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             AttemptLine line = isSob ? _sobLine : isBaseline ? null! : _attempts[lineIdx];
 
             var   s         = SpeebrunConsistencyTrackerModule.Settings;
-            bool  isSpecial = isSob || lineIdx >= (_lastIsBest ? _attempts.Count - 1 : _attempts.Count - 2);
+            int roomCount = isBaseline ? _totalRooms : line.RoomsCompleted;
+            // Cap at last visible room so tooltips don't appear beyond it
+            int lastVis = LastVisibleRoom();
+            if (lastVis < 0) return;
+            int effectiveCount = Math.Min(roomCount, lastVis + 1);
+
+            bool  isLast    = lineIdx == _attempts.Count - 1;
+            bool  isBest    = lineIdx == _bestIdx;
+            bool  isSpecial = isSob || isBest || isLast;
             Color lineColor = isBaseline ? Color.Gray
                 : isSob
                     ? (_sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal)
-                    : isSpecial
-                        ? (_lastIsBest ? s.TrajectoryBestColorFinal : lineIdx == _attempts.Count - 1 ? s.TrajectoryLastColorFinal : s.TrajectoryBestColorFinal)
-                        : Color.White;
+                : isBest && isLast
+                    ? s.TrajectoryBestColorFinal
+                : isBest
+                    ? s.TrajectoryBestColorFinal
+                : isLast
+                    ? s.TrajectoryLastColorFinal
+                : Color.White;
 
-            int roomCount = isBaseline ? _totalRooms : line.RoomsCompleted;
-
-            string lineLabel  = isBaseline ? "Avg" : isSob ? "SoB" : $"#{line.ChronologicalIndex}";
-            int    labelColR  = (roomCount - 1) / 2; // middle column (0-based): even→3rd, odd→4th
+            string lineLabel = isBaseline ? "Avg" : isSob ? "SoB" : $"#{line.ChronologicalIndex}";
+            // Pick the middle visible room for the label — count visible rooms, then walk to the midpoint
+            int visibleCount = 0;
+            for (int r = 0; r < effectiveCount; r++)
+                if (!_hiddenColumns.Contains(r)) visibleCount++;
+            int labelColR = -1;
+            if (visibleCount > 0)
+            {
+                int target = (visibleCount - 1) / 2, seen = 0;
+                for (int r = 0; r < effectiveCount; r++)
+                {
+                    if (_hiddenColumns.Contains(r)) continue;
+                    if (seen++ == target) { labelColR = r; break; }
+                }
+            }
 
             const float scale = ChartConstants.FontScale.AxisLabelSmall;
             const float bgPad = ChartConstants.Interactivity.TooltipBgPadding;
@@ -641,8 +831,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             const float stemW = 1.5f;
 
             long cumul = 0;
-            for (int r = 0; r < roomCount; r++)
+            for (int r = 0; r < effectiveCount; r++)
             {
+                if (_hiddenColumns.Contains(r)) { cumul += isBaseline ? _roomAverages[r] : (r < line.RoomTimes.Length ? line.RoomTimes[r] : 0); continue; }
                 long roomTime = isBaseline ? _roomAverages[r] : line.RoomTimes[r];
                 cumul += roomTime;
 
@@ -654,7 +845,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float  bgW       = textW + bgPad * 2f;
                 float  bgH       = (showLabel ? lineH * 3f : lineH * 2f) + bgPad * 2f;
 
-                float transitionX = gx + (r + 1) * columnWidth;
+                float transitionX = GetRoomRightEdgeX(gx, gw, r);
                 float lineY = isBaseline
                     ? baselineY
                     : MathHelper.Clamp(baselineY + line.CumulativeDeviations[r] * devScale, gy, gy + gh);
@@ -663,15 +854,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 bool  above = lineY - bgH - gap - dotR * 2 >= gy;
                 float bgY   = above ? lineY - bgH - gap - dotR * 2 : lineY + gap + dotR * 2;
 
-                // Dot
-                Draw.Rect(transitionX - dotR, lineY - dotR, dotR * 2, dotR * 2, lineColor);
-
-                // Stem
-                float stemTop    = above ? bgY + bgH : lineY + dotR;
-                float stemBottom = above ? lineY - dotR : bgY;
-                Draw.Line(new Vector2(transitionX, stemTop), new Vector2(transitionX, stemBottom), lineColor, stemW);
-
-                // Tooltip box
+                // Tooltip box (drawn first so stem and dot appear on top)
                 Draw.Rect(bgX, bgY, bgW, bgH, Color.Black * 0.92f);
                 float textY = bgY + bgPad;
                 if (showLabel)
@@ -683,10 +866,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
                 ActiveFont.DrawOutline(cumulStr,
                     new Vector2(bgX + bgPad, textY),
-                    Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    Vector2.Zero, Vector2.One * scale, lineColor, ChartConstants.Stroke.OutlineSize, Color.Black);
                 ActiveFont.DrawOutline(roomStr,
                     new Vector2(bgX + bgPad, textY + lineH),
-                    Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    Vector2.Zero, Vector2.One * scale, lineColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+
+                // Stem
+                float stemTop    = above ? bgY + bgH : lineY + dotR;
+                float stemBottom = above ? lineY - dotR : bgY;
+                Draw.Line(new Vector2(transitionX, stemTop), new Vector2(transitionX, stemBottom), lineColor, stemW);
+
+                // Dot (drawn last so it's always on top)
+                Draw.Rect(transitionX - dotR, lineY - dotR, dotR * 2, dotR * 2, lineColor);
             }
         }
 
@@ -696,75 +887,79 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             bool mainIsSob      = _mainPinIdx == _attempts.Count;
             bool mainIsBaseline = _mainPinIdx == _attempts.Count + 1;
-            if (mainIsBaseline) return;
 
-            AttemptLine mainLine  = mainIsSob ? _sobLine : _attempts[_mainPinIdx];
-            int mainRoomCount     = mainLine.RoomsCompleted;
+            AttemptLine? mainLine  = mainIsBaseline ? null : mainIsSob ? _sobLine : _attempts[_mainPinIdx];
+            int mainRoomCount     = mainIsBaseline ? _totalRooms : mainLine!.RoomsCompleted;
 
-            // "Run #n" is always white; SoB uses its line color
+            // "Run #n" is always white; SoB uses its line color; Avg uses gray
             var   sm        = SpeebrunConsistencyTrackerModule.Settings;
-            Color mainColor = mainIsSob
-                ? (_sobIsBest ? sm.TrajectoryBestColorFinal : sm.TrajectorySobColorFinal)
-                : Color.White;
+            Color mainColor = mainIsBaseline ? Color.Gray
+                : mainIsSob
+                    ? (_sobIsBest ? sm.TrajectoryBestColorFinal : sm.TrajectorySobColorFinal)
+                    : Color.White;
 
             float gx = position.X + marginH;
             float gy = position.Y + margin;
             float gw = width  - marginH * 2;
             float gh = height - margin  * 2;
-            float columnWidth = gw / _totalRooms;
-
             const float scale = ChartConstants.FontScale.AxisLabelMedium;
             const float bgPad = ChartConstants.Interactivity.TooltipBgPadding;
             float lineH = ActiveFont.Measure("A").Y * scale;
 
-            bool refIsAvg = _compPinIdx < 0 || _compPinIdx == _attempts.Count + 1;
-            bool refIsSob = _compPinIdx == _attempts.Count;
-            AttemptLine refLine = refIsAvg ? null : refIsSob ? _sobLine : _attempts[_compPinIdx];
+            // Primary comparison: always vs Best (best-so-far per room)
+            // Secondary comparison: user-clicked line via _compPinIdx; defaults to SoB when no pin set
+            bool hasComp    = _compPinIdx >= 0 && _compPinIdx != _mainPinIdx;
+            bool compIsAvg  = hasComp && _compPinIdx == _attempts.Count + 1;
+            bool compIsSob  = !hasComp || _compPinIdx == _attempts.Count;
+            AttemptLine? compLine  = compIsAvg ? null : compIsSob ? _sobLine : _attempts[_compPinIdx];
+            string compLabel = compIsAvg ? "vs Avg" : compIsSob ? "vs SoB" : $"vs #{compLine!.ChronologicalIndex}";
+            bool showComp   = true;
 
-            string refLabel = refIsAvg ? "vs Avg"
-                : refIsSob ? "vs SoB"
-                : $"vs #{refLine!.ChronologicalIndex}";
+            // Header rows: 0=run label, 1="vs Best", 2=cumul, 3=room, [4=comp label, 5=cumul, 6=room]
+            int bestHeaderRow  = 1;
+            int compHeaderRow  = 4;
+            int totalHeaderRows = 4 + (showComp ? 3 : 0);
 
-            bool showVsSob = !mainIsSob && !refIsSob;
-
-            // Header rows: 0=run label, 1=ref label, 2=cumul, 3=room, [4=vs SoB label, 5=cumul, 6=room]
-            int refHeaderRow    = 1;
-            int vsSobHeaderRow  = 4;
-            int totalHeaderRows = 4 + (showVsSob ? 3 : 0);
-
-            // Value rows: 0=cumul dev ref, 1=room dev ref, [2=empty, 3=cumul dev SoB, 4=room dev SoB]
-            int refValRow    = 0;
-            int vsSobValRow  = 3;
-            int totalValRows = 2 + (showVsSob ? 3 : 0);
+            // Value rows: 0=cumul dev vs Best, 1=room dev vs Best, [2=empty, 3=cumul dev comp, 4=room dev comp]
+            int bestValRow  = 0;
+            int compValRow  = 3;
+            int totalValRows = 2 + (showComp ? 3 : 0);
 
             // Pre-compute widths
             float maxLabelW = 0f, maxValW = 0f;
-            string attemptHeader = mainIsSob ? "SoB" : $"Run #{mainLine.ChronologicalIndex}";
-            var sectionHeaders = new List<string> { attemptHeader, refLabel, "cumul", "room" };
-            if (showVsSob) sectionHeaders.AddRange(["vs SoB", "cumul", "room"]);
+            string attemptHeader = mainIsBaseline ? "Avg" : mainIsSob ? "SoB" : $"Run #{mainLine!.ChronologicalIndex}";
+            var sectionHeaders = new List<string> { attemptHeader, "vs Best Split", "cumul", "room" };
+            if (showComp) sectionHeaders.Add(compLabel);
+            if (showComp) sectionHeaders.AddRange(["cumul", "room"]);
             foreach (var ln in sectionHeaders)
                 maxLabelW = Math.Max(maxLabelW, ActiveFont.Measure(ln).X * scale);
 
-            for (int r = 0; r < mainRoomCount; r++)
+            int lastVisWidth = LastVisibleRoom();
+            int widthLimit   = Math.Min(mainRoomCount, lastVisWidth + 1);
+            for (int r = 0; r < widthLimit; r++)
             {
-                long roomTime      = mainLine.RoomTimes[r];
-                long[] refCumulDevs = refIsAvg ? null! : refLine!.CumulativeDeviations;
-                long   refRoomTime  = refIsAvg ? _roomAverages[r]
-                    : r < refLine!.RoomsCompleted ? refLine.RoomTimes[r] : 0;
-                long refCumulDev = refIsAvg
-                    ? mainLine.CumulativeDeviations[r]
-                    : mainLine.CumulativeDeviations[r] - (r < refCumulDevs.Length ? refCumulDevs[r] : 0);
-                long refRoomDev = refRoomTime > 0 ? roomTime - refRoomTime : 0;
-                maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(refCumulDev)).X * scale);
-                maxValW = Math.Max(maxValW, ActiveFont.Measure(refRoomTime > 0 || refIsAvg ? FormatDev(refRoomDev) : "n/a").X * scale);
+                if (_hiddenColumns.Contains(r)) continue;
+                long roomTime     = mainIsBaseline ? _roomAverages[r] : mainLine!.RoomTimes[r];
+                long mainCumulDev = mainIsBaseline ? 0 : mainLine!.CumulativeDeviations[r];
 
-                if (showVsSob)
+                // vs Best
+                int  bIdx         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
+                bool bestAvailable = bIdx >= 0;
+                long bestCumulDev  = bestAvailable ? mainCumulDev - _attempts[bIdx].CumulativeDeviations[r] : 0;
+                long bestRoomTime  = bestAvailable ? _attempts[bIdx].RoomTimes[r] : 0;
+                long bestRoomDev   = bestAvailable ? roomTime - bestRoomTime : 0;
+                maxValW = Math.Max(maxValW, ActiveFont.Measure(bestAvailable ? FormatDev(bestCumulDev) : "n/a").X * scale);
+                maxValW = Math.Max(maxValW, ActiveFont.Measure(bestAvailable ? FormatDev(bestRoomDev)  : "n/a").X * scale);
+
+                if (showComp)
                 {
-                    long sobCumulDev = r < _sobLine.CumulativeDeviations.Length ? _sobLine.CumulativeDeviations[r] : 0;
-                    long sobRoom     = r < _sobRoomTimes.Length ? _sobRoomTimes[r] : 0;
-                    long sobRoomDev  = sobRoom > 0 ? roomTime - sobRoom : 0;
-                    maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(mainLine.CumulativeDeviations[r] - sobCumulDev)).X * scale);
-                    maxValW = Math.Max(maxValW, ActiveFont.Measure(sobRoom > 0 ? FormatDev(sobRoomDev) : "n/a").X * scale);
+                    long compCumulDev = compIsAvg
+                        ? mainCumulDev
+                        : mainCumulDev - (r < compLine!.CumulativeDeviations.Length ? compLine.CumulativeDeviations[r] : 0);
+                    long compRoomTime = compIsAvg ? _roomAverages[r] : r < compLine!.RoomsCompleted ? compLine.RoomTimes[r] : 0;
+                    long compRoomDev  = roomTime - compRoomTime;
+                    maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(compCumulDev)).X * scale);
+                    maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(compRoomDev)).X * scale);
                 }
             }
 
@@ -772,8 +967,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float valBoxW    = maxValW;
             float headerBoxH = lineH * totalHeaderRows + bgPad * 2f;
             float valBoxH    = lineH * totalValRows    + bgPad * 2f;
-            float headerBoxY = gy + gh - headerBoxH;
-            float valBoxY    = gy + gh - valBoxH;
+            float headerBoxY = gy + gh - 1f - headerBoxH;
+            float valBoxY    = gy + gh - 1f - valBoxH;
 
             // Header column (left of chart)
             {
@@ -782,55 +977,58 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float ty = headerBoxY + bgPad;
                 ActiveFont.DrawOutline(attemptHeader, new Vector2(headerBoxX, ty),
                     Vector2.Zero, Vector2.One * scale, mainColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                ActiveFont.DrawOutline(refLabel, new Vector2(headerBoxX, ty + refHeaderRow * lineH),
+                ActiveFont.DrawOutline("vs Best Split", new Vector2(headerBoxX, ty + bestHeaderRow * lineH),
                     Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
-                if (showVsSob)
-                    ActiveFont.DrawOutline("vs SoB", new Vector2(headerBoxX, ty + vsSobHeaderRow * lineH),
+                if (showComp)
+                    ActiveFont.DrawOutline(compLabel, new Vector2(headerBoxX, ty + compHeaderRow * lineH),
                         Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
-            // Per-column value boxes
-            for (int r = 0; r < mainRoomCount; r++)
+            // Per-column value boxes — skip hidden columns and rooms beyond last visible
+            int lastVisComp = LastVisibleRoom();
+            int compLimit   = Math.Min(mainRoomCount, lastVisComp + 1);
+            for (int r = 0; r < compLimit; r++)
             {
-                long roomTime  = mainLine.RoomTimes[r];
-                float colMidX = gx + (r + 0.5f) * columnWidth;
+                if (_hiddenColumns.Contains(r)) continue;
+                long roomTime2  = mainIsBaseline ? _roomAverages[r] : mainLine!.RoomTimes[r];
+                long mainCumulDev2 = mainIsBaseline ? 0 : mainLine!.CumulativeDeviations[r];
+                float colMidX = GetRoomCenterX(gx, gw, r);
                 float boxX    = colMidX - valBoxW / 2f;
                 Draw.Rect(boxX - bgPad, valBoxY, valBoxW + bgPad * 2f, valBoxH, Color.Black * 0.92f);
 
                 float ty = valBoxY + bgPad;
 
-                long[] refCumulDevs = refIsAvg ? null! : refLine!.CumulativeDeviations;
-                long   refRoomTime  = refIsAvg ? _roomAverages[r]
-                    : r < refLine!.RoomsCompleted ? refLine.RoomTimes[r] : 0;
-                long refCumulDev = refIsAvg
-                    ? mainLine.CumulativeDeviations[r]
-                    : mainLine.CumulativeDeviations[r] - (r < refCumulDevs.Length ? refCumulDevs[r] : 0);
-                long refRoomDev      = refRoomTime > 0 ? roomTime - refRoomTime : 0;
-                bool refRoomAvailable = refIsAvg || refRoomTime > 0;
-                Color cRefColor = DeviationColor(refCumulDev, refRoomAvailable ? refRoomDev : 0);
-                Color rRefColor = refRoomDev <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing;
-                ActiveFont.DrawOutline(FormatDev(refCumulDev),
-                    new Vector2(boxX, ty + refValRow * lineH),
-                    Vector2.Zero, Vector2.One * scale, cRefColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                ActiveFont.DrawOutline(refRoomAvailable ? FormatDev(refRoomDev) : "n/a",
-                    new Vector2(boxX, ty + (refValRow + 1) * lineH),
-                    Vector2.Zero, Vector2.One * scale, refRoomAvailable ? rRefColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                // vs Best
+                int  bIdx2         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
+                bool bestAvail     = bIdx2 >= 0;
+                long bestCumulDev2 = bestAvail ? mainCumulDev2 - _attempts[bIdx2].CumulativeDeviations[r] : 0;
+                long bestRoomTime2 = bestAvail ? _attempts[bIdx2].RoomTimes[r] : 0;
+                long bestRoomDev2  = bestAvail ? roomTime2 - bestRoomTime2 : 0;
+                Color cBestColor   = bestAvail ? DeviationColor(bestCumulDev2, bestRoomDev2) : Color.Gray;
+                Color rBestColor   = bestRoomDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing;
+                ActiveFont.DrawOutline(bestAvail ? FormatDev(bestCumulDev2) : "n/a",
+                    new Vector2(boxX, ty + bestValRow * lineH),
+                    Vector2.Zero, Vector2.One * scale, bestAvail ? cBestColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                ActiveFont.DrawOutline(bestAvail ? FormatDev(bestRoomDev2) : "n/a",
+                    new Vector2(boxX, ty + (bestValRow + 1) * lineH),
+                    Vector2.Zero, Vector2.One * scale, bestAvail ? rBestColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
 
-                if (showVsSob)
+                if (showComp)
                 {
-                    long cumulDev    = mainLine.CumulativeDeviations[r];
-                    long sobCumulDev = r < _sobLine.CumulativeDeviations.Length ? _sobLine.CumulativeDeviations[r] : 0;
-                    long sobRoom     = r < _sobRoomTimes.Length ? _sobRoomTimes[r] : 0;
-                    long sobRoomDev  = sobRoom > 0 ? roomTime - sobRoom : 0;
-                    long vsCumul     = cumulDev - sobCumulDev;
-                    Color cColor = DeviationColor(vsCumul, sobRoom > 0 ? sobRoomDev : 0);
-                    Color rColor = sobRoomDev <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing;
-                    ActiveFont.DrawOutline(FormatDev(vsCumul),
-                        new Vector2(boxX, ty + vsSobValRow * lineH),
-                        Vector2.Zero, Vector2.One * scale, cColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                    ActiveFont.DrawOutline(sobRoom > 0 ? FormatDev(sobRoomDev) : "n/a",
-                        new Vector2(boxX, ty + (vsSobValRow + 1) * lineH),
-                        Vector2.Zero, Vector2.One * scale, sobRoom > 0 ? rColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    long compCumulDev2 = compIsAvg
+                        ? mainCumulDev2
+                        : mainCumulDev2 - (r < compLine!.CumulativeDeviations.Length ? compLine.CumulativeDeviations[r] : 0);
+                    long compRoomTime2 = compIsAvg ? _roomAverages[r] : r < compLine!.RoomsCompleted ? compLine.RoomTimes[r] : 0;
+                    long compRoomDev2  = roomTime2 - compRoomTime2;
+                    bool compRoomAvail = compIsAvg || compRoomTime2 > 0;
+                    Color cCompColor   = DeviationColor(compCumulDev2, compRoomAvail ? compRoomDev2 : 0);
+                    Color rCompColor   = compRoomDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing;
+                    ActiveFont.DrawOutline(FormatDev(compCumulDev2),
+                        new Vector2(boxX, ty + compValRow * lineH),
+                        Vector2.Zero, Vector2.One * scale, cCompColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    ActiveFont.DrawOutline(compRoomAvail ? FormatDev(compRoomDev2) : "n/a",
+                        new Vector2(boxX, ty + (compValRow + 1) * lineH),
+                        Vector2.Zero, Vector2.One * scale, compRoomAvail ? rCompColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
                 }
             }
         }
@@ -866,10 +1064,31 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (_totalRooms == 0 || _attempts.Count == 0) return;
 
-            float columnWidth = w / _totalRooms;
             float baselineY = y + (float)_maxUpwardDeviation / _totalRange * h;
 
-            DrawXAxisStaggeredLabels(x, y, h, _totalRooms, columnWidth, r => $"R{r + 1}", Color.LightGray);
+            // X-axis room labels — skip hidden columns
+            {
+                float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
+                float normalW2   = ComputeNormalColumnWidth(w);
+                for (int r = 0; r < _totalRooms; r++)
+                {
+                    float colW   = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW2;
+                    float centerX = GetRoomCenterX(x, w, r);
+                    DrawColumnStrip(r, centerX - colW * 0.5f, colW, y + h);
+
+                    if (_hiddenColumns.Contains(r)) continue;
+                    float labelX = centerX;
+                    string label = $"R{r + 1}";
+                    Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabel;
+                    float labelY = _totalRooms > ChartConstants.XAxisLabel.StaggerThreshold
+                        ? (r % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
+                        : baseLabelY;
+                    ActiveFont.DrawOutline(label,
+                        new Vector2(labelX - labelSize.X / 2, labelY),
+                        Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
+                        Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                }
+            }
 
             float aboveHeight = (float)_maxUpwardDeviation / _totalRange * h;
             float belowHeight = (float)_maxDownwardDeviation / _totalRange * h;
@@ -894,14 +1113,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (_sobIsBest && _lastIsBest)
             {
-                // Single entry for all three
                 string label3 = "SoB, Best & Last run";
                 Color[] cols3 = [sobLegendColor, bestLegendColor, lastLegendColor];
                 DrawStripedLegendEntry(legendX2, legendY2, label3, cols3, ChartConstants.FontScale.AxisLabel, right: true);
             }
             else if (_sobIsBest)
             {
-                // SoB+Best share one entry; Last is separate
                 string lastLabel2 = "Last run";
                 DrawLegendEntry(legendX2, legendY2, lastLabel2, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                 offset2 = ActiveFont.Measure(lastLabel2).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
@@ -912,7 +1129,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             else if (_lastIsBest)
             {
-                // Best+Last share one entry; SoB is separate
                 string bestLastLabel = "Best & Last run";
                 Color[] colsBL = [bestLegendColor, lastLegendColor];
                 DrawStripedLegendEntry(legendX2, legendY2, bestLastLabel, colsBL, ChartConstants.FontScale.AxisLabel, right: true);
@@ -922,7 +1138,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             else
             {
-                // No coincidence — original single-color entries
                 string lastLabel3 = "Last run";
                 DrawLegendEntry(legendX2, legendY2, lastLabel3, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                 offset2 = ActiveFont.Measure(lastLabel3).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
@@ -991,15 +1206,27 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Color bestColor4  = s4.TrajectoryBestColorFinal;
             Color lastColor4  = s4.TrajectoryLastColorFinal;
 
+            int lastVis = LastVisibleRoom();
+            if (lastVis < 0) return;
+
+            int n = _attempts.Count;
+            var bestLine = _attempts[_bestIdx];
+
+            long bestDevVis = DevAtRoom(bestLine,      lastVis);
+            long lastDevVis = DevAtRoom(_attempts[^1], lastVis);
+            long sobDevVis  = DevAtRoom(_sobLine,      lastVis);
 
             // Build label list in priority order: Avg → Best → SoB → Last
             // Coincident cases merge entries; colors[] has >1 element when lines coincide.
-            // skip=true when the hovered line already draws its own right-axis label in DrawHighlight.
-            int n = _attempts.Count;
+            // skip=true when the line already draws its own right-axis label via tooltip (hovered or main pin).
+            bool pinnedBaseline = _mainPinIdx == n + 1;
+            bool pinnedSob      = _mainPinIdx == n;
+            bool pinnedLast     = _mainPinIdx == n - 1;
+            bool pinnedBest     = !_lastIsBest && _mainPinIdx == _bestIdx;
             bool hovBaseline = _hoveredLineIdx == n + 1;
             bool hovSob      = _hoveredLineIdx == n;
             bool hovLast     = _hoveredLineIdx == n - 1;
-            bool hovBest     = !_lastIsBest && _hoveredLineIdx == n - 2;
+            bool hovBest     = !_lastIsBest && _hoveredLineIdx == _bestIdx;
 
             var labelList = new List<(float yPos, string text, Color[] colors, bool skip)>();
 
@@ -1009,51 +1236,51 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Color[] lastColors = [lastColor4];
 
             if (_anyCompleted)
-                labelList.Add((baselineY, new TimeTicks(_roomAveragesSum).ToString(), avgColors, hovBaseline));
+                labelList.Add((baselineY, new TimeTicks(_roomAveragesSum).ToString(), avgColors, hovBaseline || pinnedBaseline));
 
             if (_sobIsBest && _lastIsBest)
             {
                 if (_sobReachesEnd)
-                    labelList.Add((baselineY + _bestFinalDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum + _bestFinalDeviation).ToString(),
-                                   [sobColor4, bestColor4, lastColor4], hovSob || hovLast));
+                    labelList.Add((baselineY + bestDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
+                                   [sobColor4, bestColor4, lastColor4], hovSob || hovLast || pinnedSob || pinnedLast));
             }
             else if (_sobIsBest)
             {
                 if (_sobReachesEnd)
-                    labelList.Add((baselineY + _bestFinalDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum + _bestFinalDeviation).ToString(),
-                                   [sobColor4, bestColor4], hovSob));
+                    labelList.Add((baselineY + bestDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
+                                   [sobColor4, bestColor4], hovSob || pinnedSob));
                 if (_lastReachesEnd)
-                    labelList.Add((baselineY + _lastFinalDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum + _lastFinalDeviation).ToString(),
-                                   lastColors, hovLast));
+                    labelList.Add((baselineY + lastDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + lastDevVis).ToString(),
+                                   lastColors, hovLast || pinnedLast));
             }
             else if (_lastIsBest)
             {
                 if (_anyCompleted)
-                    labelList.Add((baselineY + _bestFinalDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum + _bestFinalDeviation).ToString(),
-                                   [bestColor4, lastColor4], hovLast));
+                    labelList.Add((baselineY + bestDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
+                                   [bestColor4, lastColor4], hovLast || pinnedLast));
                 if (_sobReachesEnd)
-                    labelList.Add((baselineY - _maxUpwardDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum - _maxUpwardDeviation).ToString(),
-                                   sobColors, hovSob));
+                    labelList.Add((baselineY + sobDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + sobDevVis).ToString(),
+                                   sobColors, hovSob || pinnedSob));
             }
             else
             {
                 if (_anyCompleted)
-                    labelList.Add((baselineY + _bestFinalDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum + _bestFinalDeviation).ToString(),
-                                   bestColors, hovBest));
+                    labelList.Add((baselineY + bestDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
+                                   bestColors, hovBest || pinnedBest));
                 if (_sobReachesEnd)
-                    labelList.Add((baselineY - _maxUpwardDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum - _maxUpwardDeviation).ToString(),
-                                   sobColors, hovSob));
+                    labelList.Add((baselineY + sobDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + sobDevVis).ToString(),
+                                   sobColors, hovSob || pinnedSob));
                 if (_lastReachesEnd)
-                    labelList.Add((baselineY + _lastFinalDeviation * devScale,
-                                   new TimeTicks(_roomAveragesSum + _lastFinalDeviation).ToString(),
-                                   lastColors, hovLast));
+                    labelList.Add((baselineY + lastDevVis * devScale,
+                                   new TimeTicks(_roomAveragesSum + lastDevVis).ToString(),
+                                   lastColors, hovLast || pinnedLast));
             }
 
             var labels = labelList.ToArray();
@@ -1092,6 +1319,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
                     drawColor, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
+        }
+
+        private static long DevAtRoom(AttemptLine line, int room)
+        {
+            if (line.RoomsCompleted == 0) return 0;
+            int idx = Math.Min(line.RoomsCompleted - 1, room);
+            return line.CumulativeDeviations[idx];
         }
     }
 }

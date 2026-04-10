@@ -171,7 +171,7 @@ public static partial class GraphManager
         return _enabledSlots.FindIndex(s => s.Type == type);
     }
 
-    public static void NextGraph()
+    public static void NextGraph(int steps = 1)
     {
         GraphInteractivity.Clear();
         _currentOverlay = null;
@@ -182,11 +182,11 @@ public static partial class GraphManager
             return;
         }
 
-        _currentSlotIndex = (_currentSlotIndex + 1) % _enabledSlots.Count;
+        _currentSlotIndex = (_currentSlotIndex + steps) % _enabledSlots.Count;
         ShowCurrentSlot();
     }
 
-    public static void PreviousGraph()
+    public static void PreviousGraph(int steps = 1)
     {
         GraphInteractivity.Clear();
         _currentOverlay = null;
@@ -197,7 +197,7 @@ public static partial class GraphManager
             return;
         }
 
-        _currentSlotIndex = (_currentSlotIndex - 1 + _enabledSlots.Count) % _enabledSlots.Count;
+        _currentSlotIndex = (_currentSlotIndex - steps + _enabledSlots.Count * steps) % _enabledSlots.Count;
         ShowCurrentSlot();
     }
 

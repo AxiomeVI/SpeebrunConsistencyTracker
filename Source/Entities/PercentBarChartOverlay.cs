@@ -53,6 +53,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             this.secondaryLabel  = secondaryLabel;
         }
 
+        private float ComputeNormalBarWidth(float gw)
+        {
+            int visibleCount = primaryValues.Count - _hiddenColumns.Count;
+            if (visibleCount <= 0) return Math.Min(gw / Math.Max(primaryValues.Count, 1), MAX_BAR_WIDTH);
+            float available = gw - _hiddenColumns.Count * ChartConstants.Interactivity.HiddenColumnStubWidth;
+            return Math.Min(available / visibleCount, MAX_BAR_WIDTH);
+        }
+
+        private float GetBarX(float gx, float gw, int i)
+        {
+            float normalW = ComputeNormalBarWidth(gw);
+            float x = gx;
+            for (int j = 0; j < i; j++)
+                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            return x;
+        }
+
         protected override void DrawGrid(float x, float y, float w, float h) =>
             DrawPercentGrid(x, y, w, h);
 
@@ -63,15 +80,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
             Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
 
-            float barWidth       = Math.Min(w / primaryValues.Count, MAX_BAR_WIDTH);
-            float barSpacing     = barWidth * ChartConstants.BarLayout.GroupSpacingRatio;
-            float actualBarWidth = barWidth - barSpacing;
+            float normalBarW     = ComputeNormalBarWidth(w);
+            float barSpacing     = normalBarW * ChartConstants.BarLayout.GroupSpacingRatio;
+            float actualBarWidth = normalBarW - barSpacing;
 
             for (int i = 0; i < primaryValues.Count; i++)
             {
-                float barX = x + i * barWidth + barSpacing / 2;
+                if (_hiddenColumns.Contains(i)) continue;
 
-                double pct = primaryValues[i];
+                float barX = GetBarX(x, w, i) + barSpacing / 2;
+
+                double pct          = primaryValues[i];
                 float primaryY      = MathF.Round(y + h - (float)(pct / maxValue) * h);
                 float primaryHeight = (y + h) - primaryY;
 
@@ -81,7 +100,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float secondaryHeight = 0;
                 if (secondaryValues != null && i < secondaryValues.Count)
                 {
-                    double secPct = secondaryValues[i];
+                    double secPct    = secondaryValues[i];
                     float secondaryY = MathF.Round(primaryY - (float)(secPct / maxValue) * h);
                     secondaryHeight  = primaryY - secondaryY;
                     if (secondaryHeight > 0)
@@ -91,8 +110,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float totalHeight = primaryHeight + secondaryHeight;
                 if (totalHeight > ChartConstants.BarLayout.StackedLabelMinHeight)
                 {
-                    double totalPct = pct + (secondaryValues != null && i < secondaryValues.Count ? secondaryValues[i] : 0);
-                    string pctText  = $"{totalPct:0.#}%";
+                    double totalPct  = pct + (secondaryValues != null && i < secondaryValues.Count ? secondaryValues[i] : 0);
+                    string pctText   = $"{totalPct:0.#}%";
                     Vector2 textSize = ActiveFont.Measure(pctText) * ChartConstants.FontScale.AxisLabelSmall;
                     float topOfBar   = y + h - totalHeight;
                     ActiveFont.DrawOutline(
@@ -119,14 +138,32 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return null;
             }
 
-            float barWidth   = System.Math.Min(gw / System.Math.Max(primaryValues.Count, 1), MAX_BAR_WIDTH);
-            float barSpacing = barWidth * ChartConstants.BarLayout.GroupSpacingRatio;
-            float actualBarWidth = barWidth - barSpacing;
-            int idx = (int)((mouseHudPos.X - gx) / barWidth);
-            idx = System.Math.Clamp(idx, 0, primaryValues.Count - 1);
+            float normalBarW     = ComputeNormalBarWidth(gw);
+            float barSpacing     = normalBarW * ChartConstants.BarLayout.GroupSpacingRatio;
+            float actualBarWidth = normalBarW - barSpacing;
 
-            // Only hit when inside the actual bar rect (not spacing), and bar has non-zero height
-            float barX      = gx + idx * barWidth + barSpacing / 2f;
+            // Find which column the mouse is in by iterating actual widths
+            int idx = -1;
+            float colX = gx;
+            for (int j = 0; j < primaryValues.Count; j++)
+            {
+                float colW = _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalBarW;
+                if (mouseHudPos.X >= colX && mouseHudPos.X < colX + colW) { idx = j; break; }
+                colX += colW;
+            }
+            if (idx < 0)
+            {
+                _hoveredBarIndex = -1;
+                return null;
+            }
+
+            if (_hiddenColumns.Contains(idx))
+            {
+                _hoveredBarIndex = -1;
+                return null;
+            }
+
+            float barX      = GetBarX(gx, gw, idx) + barSpacing / 2f;
             double totalPct = primaryValues[idx] + (secondaryValues != null && idx < secondaryValues.Count ? secondaryValues[idx] : 0);
             float barTopY   = MathF.Round(gy + gh - (float)(totalPct / maxValue) * gh);
 
@@ -137,14 +174,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             _hoveredBarIndex = idx;
-            _hoveredBarWidth = barWidth;
+            _hoveredBarWidth = normalBarW;
             _hoveredBarTopY  = barTopY;
 
-            float barCenterX = barX + actualBarWidth / 2f;
-            string label = BuildPercentHoverLabel(idx);
-            int    lineCount = label.Split('\n').Length;
+            float barCenterX  = barX + actualBarWidth / 2f;
+            string label      = BuildPercentHoverLabel(idx);
+            int    lineCount  = label.Split('\n').Length;
             float  lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
-            float  labelY = barTopY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
+            float  labelY     = barTopY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
             return new HoverInfo(label, new Vector2(barCenterX, labelY));
         }
 
@@ -167,15 +204,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (_hoveredBarIndex < 0) return;
 
             float gx = position.X + marginH;
-            float gh = height - margin * 2;
             float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
 
-            float barSpacing     = _hoveredBarWidth * ChartConstants.BarLayout.GroupSpacingRatio;
-            float actualBarWidth = _hoveredBarWidth - barSpacing;
-            float barX           = gx + _hoveredBarIndex * _hoveredBarWidth + barSpacing / 2f;
-            float barH           = gy + gh - _hoveredBarTopY;
+            float normalBarW  = ComputeNormalBarWidth(gw);
+            float barSpacing  = normalBarW * ChartConstants.BarLayout.GroupSpacingRatio;
+            float actualBarW  = normalBarW - barSpacing;
+            float barX        = GetBarX(gx, gw, _hoveredBarIndex) + barSpacing / 2f;
+            float barH        = gy + gh - _hoveredBarTopY;
 
-            Draw.HollowRect(barX, _hoveredBarTopY, actualBarWidth, barH, Color.White * 0.8f);
+            Draw.HollowRect(barX, _hoveredBarTopY, actualBarW, barH, Color.White * 0.8f);
         }
 
         protected override void DrawLabels(float x, float y, float w, float h)
@@ -183,11 +222,30 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
             Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
 
-            float barWidth = Math.Min(w / Math.Max(labels.Count, 1), MAX_BAR_WIDTH);
-
             DrawTitle();
             DrawPercentYAxisLabels(x, y, w, h);
-            DrawXAxisStaggeredLabels(x, y, h, labels.Count, barWidth, i => labels[i], Color.LightGray);
+
+            // X-axis labels and strip highlights
+            float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
+            float normalBarW2 = ComputeNormalBarWidth(w);
+            for (int i = 0; i < labels.Count; i++)
+            {
+                float barX2 = GetBarX(x, w, i);
+                float colW  = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalBarW2;
+                DrawColumnStrip(i, barX2, colW, y + h);
+
+                if (_hiddenColumns.Contains(i)) continue;
+                float labelX  = barX2 + normalBarW2 / 2f;
+                string lbl    = labels[i];
+                float labelY  = labels.Count > ChartConstants.XAxisLabel.StaggerThreshold
+                    ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
+                    : baseLabelY;
+                Vector2 labelSize = ActiveFont.Measure(lbl) * ChartConstants.FontScale.AxisLabel;
+                ActiveFont.DrawOutline(lbl,
+                    new Vector2(labelX - labelSize.X / 2, labelY),
+                    Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
+                    Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
+            }
 
             float legendY = y + h + ChartConstants.Legend.LegendOffsetY;
             float legendX = x + w;
@@ -200,6 +258,35 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     : 0;
                 DrawLegendEntry(legendX - offset, legendY, primaryLabel, primaryColor, ChartConstants.FontScale.AxisLabel, right: true);
             }
+        }
+
+        public override int? ColumnHitTest(Vector2 mousePos)
+        {
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
+            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
+
+            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
+            {
+                _hoveredColumnIndex = -1;
+                return null;
+            }
+
+            float normalBarW = ComputeNormalBarWidth(gw);
+            float colX = gx;
+            for (int i = 0; i < primaryValues.Count; i++)
+            {
+                float colW = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalBarW;
+                var (stripX, stripW) = ColumnStripRect(colX, colW);
+                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = i; return i; }
+                colX += colW;
+            }
+            _hoveredColumnIndex = -1;
+            return null;
         }
     }
 }

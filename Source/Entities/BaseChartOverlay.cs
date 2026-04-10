@@ -1,4 +1,5 @@
 #nullable enable
+using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -34,6 +35,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected readonly Color backgroundColor = ChartConstants.Colors.BackgroundColor;
         protected readonly Color axisColor       = Color.White;
         protected readonly float MAX_BAR_WIDTH   = ChartConstants.Layout.MaxBarWidth;
+        protected readonly HashSet<int> _hiddenColumns = new();
+        protected int _hoveredColumnIndex = -1;
 
         protected BaseChartOverlay(string title, Vector2? pos = null)
         {
@@ -78,6 +81,56 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         /// Called by GraphInteractivity.Clear() to reset any overlay-managed pin state.
         /// </summary>
         public virtual void ClearPins() { }
+
+        /// <summary>Clears all hidden columns, restoring full visibility.</summary>
+        public virtual void ClearHiddenColumns() => _hiddenColumns.Clear();
+
+        /// <summary>
+        /// Toggles visibility of the given column index.
+        /// Called by GraphInteractivity when the user clicks the label zone.
+        /// </summary>
+        public virtual void ToggleColumn(int columnIndex)
+        {
+            if (!_hiddenColumns.Remove(columnIndex))
+                _hiddenColumns.Add(columnIndex);
+        }
+
+        /// <summary>
+        /// Returns the column index if mousePos falls in the label-zone strip below the X-axis,
+        /// null otherwise. Override in per-room chart subclasses.
+        /// </summary>
+        public virtual int? ColumnHitTest(Vector2 mousePos) => null;
+
+        /// <summary>
+        /// Draws the tint overlay for a single column's label-zone strip.
+        /// Call once per column inside DrawLabels, after computing colX and colW.
+        /// Stubs are tinted at rest; visible columns are tinted only on hover.
+        /// </summary>
+        // Returns the drawn strip X and width for a column, capped and centered.
+        // Used by both DrawColumnStrip and ColumnHitTest so they stay in sync.
+        protected static (float drawX, float drawW) ColumnStripRect(float colX, float colW)
+        {
+            float drawW = Math.Min(colW, ChartConstants.Interactivity.ColumnStripMaxWidth);
+            float drawX = colX + (colW - drawW) / 2f;
+            return (drawX, drawW);
+        }
+
+        protected void DrawColumnStrip(int columnIndex, float colX, float colW, float axisBottomY)
+        {
+            // Strip spans from the X-axis bottom to the end of the hit zone.
+            const float stripH = ChartConstants.XAxisLabel.BaseOffsetY + ChartConstants.Interactivity.ColumnLabelHitZoneH;
+            bool isHidden  = _hiddenColumns.Contains(columnIndex);
+            bool isHovered = _hoveredColumnIndex == columnIndex;
+
+            float alpha = isHidden
+                ? (isHovered ? 0.35f : 0.15f)   // stub: always visible, brighter on hover
+                : (isHovered ? 0.25f : 0f);      // visible column: tint on hover only
+
+            if (alpha <= 0f) return;
+
+            var (drawX, drawW) = ColumnStripRect(colX, colW);
+            Draw.Rect(drawX, axisBottomY, drawW, stripH, Color.White * alpha);
+        }
 
         /// <summary>
         /// When true, GraphInteractivity shows a "Delete runs" button next to "Clear pins"

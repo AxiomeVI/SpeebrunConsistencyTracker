@@ -13,7 +13,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     /// </summary>
     public class GroupedBarChartOverlay : GroupedChartBase<long>
     {
-        private readonly long _maxTicks;
+        private long _maxTicks;
 
         public GroupedBarChartOverlay(
             string title,
@@ -34,6 +34,31 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             GetFrameAxisSettings(dataMax, out long step, out int count);
             _maxTicks = step * (count + 1);
+        }
+
+        private void RecomputeMaxTicks()
+        {
+            long dataMax = Enumerable.Range(0, _primaryValues.Count)
+                .Where(i => !_hiddenColumns.Contains(i))
+                .Select(i => Math.Max(
+                    _primaryValues[i],
+                    _secondaryValues != null && i < _secondaryValues.Count ? _secondaryValues[i] : 0))
+                .DefaultIfEmpty(0)
+                .Max();
+            GetFrameAxisSettings(dataMax, out long step, out int count);
+            _maxTicks = step * (count + 1);
+        }
+
+        public override void ClearHiddenColumns()
+        {
+            base.ClearHiddenColumns();
+            RecomputeMaxTicks();
+        }
+
+        public override void ToggleColumn(int columnIndex)
+        {
+            base.ToggleColumn(columnIndex);
+            RecomputeMaxTicks();
         }
 
         protected override float GetBarHeight(long value, float chartHeight) =>

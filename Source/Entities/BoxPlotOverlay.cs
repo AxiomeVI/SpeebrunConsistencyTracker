@@ -12,7 +12,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
     {
         private readonly List<List<TimeTicks>> _roomTimes;
         private readonly List<TimeTicks> _segmentTimes;
-        private readonly long _minRoom, _maxRoom;
+        private long _minRoom, _maxRoom;
         private readonly long _minSeg, _maxSeg;
 
         private record BoxGeometry(
@@ -56,11 +56,25 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         // Required by BaseChartOverlay — Render() is fully overridden above
         protected override void DrawBars(float x, float y, float w, float h) { }
 
+        public override void ClearHiddenColumns()
+        {
+            base.ClearHiddenColumns();
+            ComputeRanges(out _minRoom, out _maxRoom, out _, out _);
+        }
+
+        public override void ToggleColumn(int columnIndex)
+        {
+            base.ToggleColumn(columnIndex);
+            ComputeRanges(out _minRoom, out _maxRoom, out _, out _);
+        }
+
         private void ComputeRanges(out long minRoom, out long maxRoom, out long minSeg, out long maxSeg)
         {
             long rMin = long.MaxValue, rMax = 0;
-            foreach (var room in _roomTimes)
+            for (int i = 0; i < _roomTimes.Count; i++)
             {
+                if (_hiddenColumns.Contains(i)) continue;
+                var room = _roomTimes[i];
                 if (room.Count == 0) continue;
                 rMin = Math.Min(rMin, room.Min(t => t.Ticks));
                 rMax = Math.Max(rMax, room.Max(t => t.Ticks));
@@ -86,17 +100,44 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             maxSeg = sMax + sMargin;
         }
 
+        private float ComputeNormalColumnWidth(float gw)
+        {
+            int visibleRooms = _roomTimes.Count - _hiddenColumns.Count;
+            int visibleCols  = visibleRooms + 1; // +1 for segment (never hidden)
+            if (visibleCols <= 0) return gw / Math.Max(_roomTimes.Count + 1, 1);
+            float available = gw - _hiddenColumns.Count * ChartConstants.Interactivity.HiddenColumnStubWidth;
+            return available / visibleCols;
+        }
+
+        // Returns center X for column i (0-based room index, or _roomTimes.Count for segment).
+        // Segment column (i == _roomTimes.Count) is never hidden.
+        private float GetColumnCenterX(float gx, float gw, int i)
+        {
+            float normalW = ComputeNormalColumnWidth(gw);
+            float x = gx;
+            for (int j = 0; j < i; j++)
+                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            float thisW = (i < _roomTimes.Count && _hiddenColumns.Contains(i))
+                ? ChartConstants.Interactivity.HiddenColumnStubWidth
+                : normalW;
+            return x + thisW * 0.5f;
+        }
+
         private void DrawSeparator(float x, float y, float w, float h)
         {
-            float columnWidth = w / (_roomTimes.Count + 1);
-            float sepX = x + columnWidth * _roomTimes.Count;
+            float normalW = ComputeNormalColumnWidth(w);
+            float sepX = x;
+            for (int j = 0; j < _roomTimes.Count; j++)
+                sepX += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
             Draw.Line(new Vector2(sepX, y), new Vector2(sepX, y + h), Color.Gray * 0.85f, 1.5f);
         }
 
         protected override void DrawGrid(float x, float y, float w, float h)
         {
-            float columnWidth   = w / (_roomTimes.Count + 1);
-            float roomAreaWidth = columnWidth * _roomTimes.Count;
+            float normalW = ComputeNormalColumnWidth(w);
+            float roomAreaWidth = 0;
+            for (int j = 0; j < _roomTimes.Count; j++)
+                roomAreaWidth += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
 
             long roomRange = _maxRoom - _minRoom;
             if (roomRange > 0)
@@ -123,21 +164,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void DrawBoxes(float x, float y, float w, float h)
         {
-            int roomCount    = _roomTimes.Count;
-            float columnWidth = w / (roomCount + 1);
+            int   roomCount = _roomTimes.Count;
+            float normalW   = ComputeNormalColumnWidth(w);
 
             for (int r = 0; r < roomCount; r++)
             {
+                if (_hiddenColumns.Contains(r)) continue;
                 var times = _roomTimes[r];
                 if (times.Count == 0) continue;
-                float centerX = x + columnWidth * (r + 0.5f);
-                DrawBox(times, centerX, columnWidth, y, h, _minRoom, _maxRoom, SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal);
+                float centerX = GetColumnCenterX(x, w, r);
+                DrawBox(times, centerX, normalW, y, h, _minRoom, _maxRoom, SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal);
             }
 
             if (_segmentTimes.Count > 0)
             {
-                float segCenterX = x + columnWidth * (roomCount + 0.5f);
-                DrawBox(_segmentTimes, segCenterX, columnWidth, y, h, _minSeg, _maxSeg, SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal);
+                float segCenterX = GetColumnCenterX(x, w, roomCount);
+                DrawBox(_segmentTimes, segCenterX, normalW, y, h, _minSeg, _maxSeg, SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal);
             }
         }
 
@@ -181,13 +223,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             int roomCount    = _roomTimes.Count;
             int totalColumns = roomCount + 1;
-            float columnWidth = w / totalColumns;
             float baseLabelY  = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
 
-            // X-axis room labels (staggered)
+            // X-axis room labels (staggered), with strip highlights
+            float normalW2 = ComputeNormalColumnWidth(w);
             for (int i = 0; i < roomCount; i++)
             {
-                float centerX = x + columnWidth * (i + 0.5f);
+                float colW    = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW2;
+                float centerX = GetColumnCenterX(x, w, i);
+                DrawColumnStrip(i, centerX - colW * 0.5f, colW, y + h);
+
+                if (_hiddenColumns.Contains(i)) continue;
                 string label  = $"R{i + 1}";
                 float labelY  = totalColumns > ChartConstants.XAxisLabel.StaggerThreshold
                     ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
@@ -200,7 +246,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             // Segment label
-            float segX      = x + columnWidth * (totalColumns - 0.5f);
+            float segX      = GetColumnCenterX(x, w, roomCount);
             float segLabelY = totalColumns >= ChartConstants.XAxisLabel.StaggerThreshold
                 ? (roomCount % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                 : baseLabelY;
@@ -253,8 +299,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private BoxGeometry? ComputeBoxGeometry(int columnIndex, float gx, float gy, float gw, float gh)
         {
-            int   totalColumns = _roomTimes.Count + 1;
-            float columnWidth  = gw / totalColumns;
+            float columnWidth  = ComputeNormalColumnWidth(gw);
             bool  isSegment    = columnIndex == _roomTimes.Count;
 
             List<TimeTicks> times;
@@ -281,7 +326,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             var  med   = MetricHelper.ComputePercentile(sorted, 50);
             var  q3    = MetricHelper.ComputePercentile(sorted, 75);
 
-            float centerX  = gx + columnWidth * (columnIndex + 0.5f);
+            float centerX  = GetColumnCenterX(gx, gw, columnIndex);
             float boxHalfW = columnWidth * 0.2f;
             float capHalfW = columnWidth * 0.08f;
 
@@ -316,8 +361,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return null;
 
             int   totalColumns = _roomTimes.Count + 1;
-            float columnWidth  = gw / totalColumns;
-            int   idx          = Math.Clamp((int)((mouseHudPos.X - gx) / columnWidth), 0, totalColumns - 1);
+            float normalW      = ComputeNormalColumnWidth(gw);
+            int   idx          = totalColumns - 1; // default to segment column
+            float colX         = gx;
+            for (int i = 0; i < totalColumns; i++)
+            {
+                float colW = (i < _roomTimes.Count && _hiddenColumns.Contains(i))
+                    ? ChartConstants.Interactivity.HiddenColumnStubWidth
+                    : normalW;
+                if (mouseHudPos.X < colX + colW) { idx = i; break; }
+                colX += colW;
+            }
 
             var times = idx == _roomTimes.Count ? _segmentTimes : _roomTimes[idx];
             if (times.Count == 0) return null;
@@ -375,6 +429,35 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             // Return a sentinel HoverInfo (empty label = DrawTooltip skipped; just triggers DrawHighlight)
             return new HoverInfo("", new Vector2(labelX, nudged[0]));
+        }
+
+        public override int? ColumnHitTest(Vector2 mousePos)
+        {
+            float gx = position.X + marginH;
+            float gy = position.Y + margin;
+            float gw = width  - marginH * 2;
+            float gh = height - margin  * 2;
+
+            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
+            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
+
+            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
+            {
+                _hoveredColumnIndex = -1;
+                return null;
+            }
+
+            float normalW = ComputeNormalColumnWidth(gw);
+            float colX = gx;
+            for (int i = 0; i < _roomTimes.Count; i++) // segment not hideable
+            {
+                float colW = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+                var (stripX, stripW) = ColumnStripRect(colX, colW);
+                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = i; return i; }
+                colX += colW;
+            }
+            _hoveredColumnIndex = -1;
+            return null;
         }
 
         public override void DrawHighlight()
