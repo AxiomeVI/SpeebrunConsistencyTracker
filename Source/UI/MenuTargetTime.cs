@@ -67,13 +67,13 @@ public static partial class ModMenuOptions
                         _settings.MillisecondsThirdDigit  = result.Milliseconds % 10;
                         SyncSlidersFromSettings();
                         SpeebrunConsistencyTrackerModule.PopupMessage(
-                            $"{Dialog.Clean(DialogIds.PopupTargetTimeSetid)} {result:mm\\:ss\\.fff}");
+                            $"{Dialog.Clean(DialogIds.PopupTargetTimeSetId)} {result:mm\\:ss\\.fff}");
                         _instance.SaveSettings();
                     }
                     else
                     {
                         SpeebrunConsistencyTrackerModule.PopupMessage(
-                            Dialog.Clean(DialogIds.PopupInvalidTargetTimeid));
+                            Dialog.Clean(DialogIds.PopupInvalidTargetTimeId));
                     }
                 },
                 9, 0);

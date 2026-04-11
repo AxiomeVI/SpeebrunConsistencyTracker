@@ -11,6 +11,9 @@ public static class SessionManager
     private static readonly Dictionary<string, PracticeSession> _slots = new();
     public static PracticeSession CurrentSession { get; private set; }
 
+    // Set from OnLoadLevel in the module; shared across all slots since all sessions are in the same level.
+    public static string LevelName { get; set; } = "unknown";
+
     public static int RoomCount { get; private set; } = 0;
 
     public static int StartRoomIndex =>

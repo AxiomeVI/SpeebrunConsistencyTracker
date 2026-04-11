@@ -319,12 +319,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (times.Count == 0) return null;
 
-            var sorted = times.OrderBy(t => t).ToList();
-            long tMin  = sorted[0].Ticks;
-            long tMax  = sorted[^1].Ticks;
-            var  q1    = MetricHelper.ComputePercentile(sorted, 25);
-            var  med   = MetricHelper.ComputePercentile(sorted, 50);
-            var  q3    = MetricHelper.ComputePercentile(sorted, 75);
+            // times is already sorted ascending (see constructor).
+            long tMin  = times[0].Ticks;
+            long tMax  = times[^1].Ticks;
+            var  q1    = MetricHelper.ComputePercentile(times, 25);
+            var  med   = MetricHelper.ComputePercentile(times, 50);
+            var  q3    = MetricHelper.ComputePercentile(times, 75);
 
             float centerX  = GetColumnCenterX(gx, gw, columnIndex);
             float boxHalfW = columnWidth * 0.2f;

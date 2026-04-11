@@ -46,6 +46,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [SettingIgnore]
     public Color SecondaryChartColor { get; set; } = Color.CornflowerBlue;
     
+    [SettingIgnore]
     public Color PrimaryChartColorFinal   { get; set; } = Color.IndianRed      * 0.75f;
     [SettingIgnore]
     public Color SecondaryChartColorFinal { get; set; } = Color.CornflowerBlue * 0.75f;
@@ -94,6 +95,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Overlay;
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Off;
+    [SettingIgnore]  // ConsistencyScore metric is forcefully disabled; hide from menu until implementation is ready.
     public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Off;
     public bool MultimodalTest { get; set; } = false;

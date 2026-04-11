@@ -330,8 +330,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private static void DrawYTickGridLines(float x, float y, float w, float baselineY, float sideHeight, int tickCount, bool above)
         {
-            float chartBottom = baselineY + (above ? 0 : sideHeight);
             float minSpacing  = ActiveFont.LineHeight * ChartConstants.FontScale.AxisLabelSmall * 1.1f;
+            float chartBottom = baselineY + sideHeight; // only meaningful when !above
             float lastDrawnY  = above ? float.MaxValue : float.MinValue;
 
             for (int i = 1; i <= tickCount; i++)

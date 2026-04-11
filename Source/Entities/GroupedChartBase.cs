@@ -46,7 +46,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _primaryLabel    = primaryLabel;
             _secondaryLabel  = secondaryLabel;
 
-            ComputeBarLayout(width - margin * 2, _labels.Count,
+            ComputeBarLayout(width - marginH * 2, _labels.Count,
                 out _cachedGroupWidth, out _cachedGroupSpacing, out _cachedBarSpacing, out _cachedBarWidth);
         }
 

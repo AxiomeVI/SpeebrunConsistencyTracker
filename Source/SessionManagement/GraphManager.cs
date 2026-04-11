@@ -264,7 +264,7 @@ public static partial class GraphManager
 
     private static void ShowNoGraphsMessage()
     {
-        SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupNoGraphid));
+        SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupNoGraphId));
     }
 
     public static void HideGraph()

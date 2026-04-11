@@ -41,15 +41,15 @@ public static class DialogIds {
     public const string MillisecondsThird = "MILLISECONDS_THIRD";
 
     // Popup message
-    public const string PopupTargetTimeSetid = "POPUP_TARGET_TIME_SET";
-    public const string PopupInvalidTargetTimeid = "INVALID_TIME_IMPORT";
-    public const string PopupExportToClipBoardid = "EXPORT_TO_CLIPBOARD";
-    public const string PopupInvalidExportid = "INVALID_EXPORT";
-    public const string PopupExportToFileid = "EXPORT_TO_FILE";
-    public const string PopupExportToSheetid = "EXPORT_TO_SHEET";
+    public const string PopupTargetTimeSetId = "POPUP_TARGET_TIME_SET";
+    public const string PopupInvalidTargetTimeId = "INVALID_TIME_IMPORT";
+    public const string PopupExportToClipboardId = "EXPORT_TO_CLIPBOARD";
+    public const string PopupInvalidExportId = "INVALID_EXPORT";
+    public const string PopupExportToFileId = "EXPORT_TO_FILE";
+    public const string PopupExportToSheetId = "EXPORT_TO_SHEET";
     public const string PopupDataClearId = "DATA_CLEAR";
-    public const string PopupNoGraphid = "NO_GRAPH_ERROR";
-    public const string PopupFileNotFoundid = "FILE_NOT_FOUND";
+    public const string PopupNoGraphId = "NO_GRAPH_ERROR";
+    public const string PopupFileNotFoundId = "FILE_NOT_FOUND";
 
     // Text Overlay Menu
     public const string IngameOverlayId = "INGAME_OVERLAY";
@@ -85,7 +85,7 @@ public static class DialogIds {
     public const string ResetShareId = "RESET_SHARE";
     public const string AverageId = "AVERAGE";
     public const string MedianId = "MEDIAN";
-    public const string MadID = "MAD";
+    public const string MadId = "MAD";
     public const string MinimumId = "MINIMUM";
     public const string MaximumId = "MAXIMUM";
     public const string StandardDeviationId = "STANDARD_DEVIATION";
@@ -109,7 +109,7 @@ public static class DialogIds {
     public const string MultimodalTestId = "MULTIMODAL_TEST";
     public const string RoomDependencyId = "ROOM_DEPENDENCY";
     public const string MetricsSubHeaderId = "METRICS_SUBHEADER";
-    public const string RelMadID = "RELATIVE_MAD";
+    public const string RelMadId = "RELATIVE_MAD";
     public const string GoldRateId = "GOLD_RATE";
 
     // Graph Overlay (charts)

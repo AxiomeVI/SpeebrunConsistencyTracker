@@ -5,7 +5,7 @@ using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using System.Collections.Generic;
 
-namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.History
+namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
 {
     public static class SessionHistoryExporter
     {

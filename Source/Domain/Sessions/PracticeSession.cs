@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
-using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 
 public sealed class PracticeSession
 {
-    public string levelName;
     public int MaxRoomCount { get; set; } = 0;
     public uint Version { get; private set; } = 0;
     private readonly List<Attempt> _attempts = [];
@@ -19,11 +17,6 @@ public sealed class PracticeSession
 
     public PracticeSession()
     {
-        if (Engine.Scene is Level level)
-        {
-            string[] parts = level.Session.Area.GetSID().Split('-', 2);
-            levelName = parts.Length > 1 ? parts[1] : "unknown";
-        }
         StartNewAttempt();
     }
 
@@ -51,24 +44,34 @@ public sealed class PracticeSession
     public int TotalDnfs() => _attempts.Count(a => !a.IsCompleted());
     public int TotalCompleted() => _attempts.Count(a => a.IsCompleted());
 
-    public IReadOnlyDictionary<int, int> TotalAttemptsPerRoom =>
-        _attempts
+    // Cached per-room dictionaries — invalidated when Version changes.
+    private uint _cachedVersion = uint.MaxValue;
+    private Dictionary<int, int> _totalAttemptsPerRoom;
+    private Dictionary<int, int> _dnfPerRoom;
+    private Dictionary<int, int> _completedRunsPerRoom;
+
+    private void RefreshPerRoomCaches()
+    {
+        if (_cachedVersion == Version) return;
+        _cachedVersion = Version;
+        _totalAttemptsPerRoom = _attempts
             .SelectMany(a => Enumerable.Range(0, a.TotalRoomCount))
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
-
-    public IReadOnlyDictionary<int, int> DnfPerRoom =>
-        _attempts
+        _dnfPerRoom = _attempts
             .Where(a => !a.IsCompleted())
             .GroupBy(a => a.Count)
             .ToDictionary(g => g.Key, g => g.Count());
-
-    public IReadOnlyDictionary<int, int> CompletedRunsPerRoom =>
-        _attempts
+        _completedRunsPerRoom = _attempts
             .Where(a => a.Count > 0)
             .SelectMany(a => Enumerable.Range(0, a.Count))
             .GroupBy(r => r)
             .ToDictionary(g => g.Key, g => g.Count());
+    }
+
+    public IReadOnlyDictionary<int, int> TotalAttemptsPerRoom { get { RefreshPerRoomCaches(); return _totalAttemptsPerRoom; } }
+    public IReadOnlyDictionary<int, int> DnfPerRoom           { get { RefreshPerRoomCaches(); return _dnfPerRoom; } }
+    public IReadOnlyDictionary<int, int> CompletedRunsPerRoom { get { RefreshPerRoomCaches(); return _completedRunsPerRoom; } }
 
     public IEnumerable<TimeTicks> GetSegmentTimes() =>
         _attempts.Where(a => a.IsCompleted()).Select(a => a.SegmentTime());

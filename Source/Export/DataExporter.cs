@@ -4,7 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
-using Celeste.Mod.SpeebrunConsistencyTracker.Export.History;
+using Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory;
 using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
@@ -80,7 +80,7 @@ public static class DataExporter
 
         if (!File.Exists(settingsPath) || !File.Exists(credentialsPath))
         {
-            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupFileNotFoundid));
+            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupFileNotFoundId));
             return false;
         }
 
@@ -109,7 +109,7 @@ public static class DataExporter
     {
         if (!TryGetExportData(out PracticeSession session))
         {
-            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
+            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportId));
             return;
         }
 
@@ -172,7 +172,7 @@ public static class DataExporter
                 SpreadsheetsResource.ValuesResource.UpdateRequest.ValueInputOptionEnum.USERENTERED;
 
             _ = await request.ExecuteAsync();
-            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToSheetid));
+            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToSheetId));
             await ApplyTableFormatting(service, settings.SpreadsheetId, sheetId, tableRanges, settings.StartRow, settings.StartCol);
         }
         catch (Exception ex)
@@ -185,6 +185,7 @@ public static class DataExporter
         IList<IList<object>> rows, List<TableRange> tableRanges, ref int rowOffset,
         bool addSeparator = true)
     {
+        if (rows.Count == 0) return;
         data.AddRange(rows);
         tableRanges.Add(new TableRange(rowOffset, rowOffset + rows.Count, rows.Max(r => r.Count)));
         if (addSeparator)
@@ -385,7 +386,7 @@ public static class DataExporter
     {
         if (!TryGetExportData(out PracticeSession session))
         {
-            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
+            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportId));
             return;
         }
 
@@ -405,14 +406,14 @@ public static class DataExporter
             _ = sb.Append(SessionHistoryExporter.ExportSessionToCsv(session));
         }
         TextInput.SetClipboardText(sb.ToString());
-        SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipBoardid));
+        SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipboardId));
     }
 
     public static void ExportToFiles()
     {
         if (!TryGetExportData(out PracticeSession session))
         {
-            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportid));
+            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupInvalidExportId));
             return;
         }
 
@@ -422,7 +423,7 @@ public static class DataExporter
         string baseFolder = Path.Combine(
             Everest.PathGame,
             "SCT_Exports",
-            SanitizeFileName(session.levelName)
+            SanitizeFileName(SessionManager.LevelName)
         );
         _ = Directory.CreateDirectory(baseFolder);
         string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
@@ -436,7 +437,7 @@ public static class DataExporter
             writer.WriteLine(SessionHistoryExporter.ExportSessionToCsv(session));
         }
 
-        SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileid));
+        SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileId));
     }
 
     public static string SanitizeFileName(string input)

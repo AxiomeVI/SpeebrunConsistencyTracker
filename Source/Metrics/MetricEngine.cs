@@ -11,7 +11,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
     {
         private static int _settingsHash = 0;
 
-        public static void Clear() { }
+        public static void Clear() { _settingsHash = 0; }
 
         public static void InvalidateSettingsHash()
         {

@@ -75,8 +75,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             .GetProperty("Time", BindingFlags.Public | BindingFlags.Instance);
         if (currentRoomTimerDataField != null && timeProperty != null)
         {
-            var instance = currentRoomTimerDataField.GetValue(null);
-            _getCurrentRoomTime = () => (long)timeProperty.GetValue(instance);
+            // Re-read the field on each invocation so we always access the current instance,
+            // not a snapshot captured at Load() time (SRT may replace the object mid-session).
+            _getCurrentRoomTime = () => (long)timeProperty.GetValue(currentRoomTimerDataField.GetValue(null));
         }
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.Level.Render += LevelOnRender;
@@ -154,9 +155,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     public static void OnClearState()
     {
-        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
         if (!Settings.Enabled)
             return;
+        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
         SessionManager.ClearSlot(slot);
         _lastKnownRoomCount = 0;
     }
@@ -210,6 +211,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private static void OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!isFromLoader) return;
         TextOverlay.Init();
+        string[] parts = level.Session.Area.GetSID().Split('-', 2);
+        SessionManager.LevelName = parts.Length > 1 ? parts[1] : "unknown";
     }
 
     private static void UpdateTextOverlay(Level _) {
@@ -332,10 +335,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             Settings.MillisecondsFirstDigit = result.Milliseconds / 100;
             Settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
             Settings.MillisecondsThirdDigit = result.Milliseconds % 10;
-            PopupMessage($"{Dialog.Clean(DialogIds.PopupTargetTimeSetid)} {result:mm\\:ss\\.fff}");
+            PopupMessage($"{Dialog.Clean(DialogIds.PopupTargetTimeSetId)} {result:mm\\:ss\\.fff}");
             Instance.SaveSettings();
         } else {
-            PopupMessage($"{Dialog.Clean(DialogIds.PopupInvalidTargetTimeid)}");
+            PopupMessage($"{Dialog.Clean(DialogIds.PopupInvalidTargetTimeId)}");
         }
     }
 }

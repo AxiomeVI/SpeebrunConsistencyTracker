@@ -90,6 +90,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             return value switch
             {
+                // bool settings (e.g. ResetShare, MultimodalTest) are export-only by convention.
                 bool b => b && mode == MetricOutput.Export,
                 MetricOutputChoice choice => (FromChoice(choice) & mode) != 0,
                 _ => throw new InvalidOperationException($"Unsupported type {value.GetType()}"),
@@ -219,7 +220,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static double CalculateBC(List<TimeTicks> values, double mean)
         {
             int n = values.Count;
-            
+
             // Moments
             double m2 = 0, m3 = 0, m4 = 0;
             foreach (var x in values)
@@ -231,6 +232,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 m4 += d2 * d2;
             }
             m2 /= n; m3 /= n; m4 /= n;
+
+            // All values are identical — no variance, not bimodal.
+            if (m2 == 0) return 0;
 
             double skew = m3 / Math.Pow(m2, 1.5);
             double kurtosis = (m4 / (m2 * m2)) - 3; // Excess Kurtosis

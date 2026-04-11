@@ -147,7 +147,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             // Y axis tick labels
             int yLabelCount = Math.Max(1, Math.Min(5, maxCount));
-            for (int i = 0; i <= yLabelCount; i++)
+            if (maxCount > 0) for (int i = 0; i <= yLabelCount; i++)
             {
                 int countValue = (int)Math.Round((double)maxCount / yLabelCount * i);
                 float yPos = MathF.Round(y + h - h / yLabelCount * i);

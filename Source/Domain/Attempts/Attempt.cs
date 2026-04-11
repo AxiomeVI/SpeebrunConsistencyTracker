@@ -27,6 +27,8 @@ public sealed class Attempt() : IEquatable<Attempt>
 
     public bool IsCompleted() => VisibleRoomCount >= RoomCount;
 
+    // +1 so that MaxRoomCount always "sees" the room the player is currently in,
+    // even before they complete it. Used only for MaxRoomCount tracking.
     public int TotalRoomCount => VisibleRoomCount + 1;
 
     public int Count => VisibleRoomCount;
