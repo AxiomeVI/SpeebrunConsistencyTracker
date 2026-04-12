@@ -208,6 +208,10 @@ public static class DataExporter
         Border thick = new() { Style = "SOLID", Width = 2 };
         Border none = new() { Style = "NONE" };
 
+        Color navyBlue = new() { Red = 31f / 255f, Green = 78f / 255f, Blue = 121f / 255f };
+        Color white = new() { Red = 1f, Green = 1f, Blue = 1f };
+        Color lightBlue = new() { Red = 207f / 255f, Green = 226f / 255f, Blue = 243f / 255f };
+
         List<Request> requests = [];
 
         // Clear all borders on the sheet first
@@ -232,7 +236,7 @@ public static class DataExporter
             }
         });
 
-        // Clear all bold cells
+        // Clear all formatting (bold, background color, foreground color)
         requests.Add(new Request
         {
             RepeatCell = new RepeatCellRequest
@@ -249,10 +253,15 @@ public static class DataExporter
                 {
                     UserEnteredFormat = new CellFormat
                     {
-                        TextFormat = new TextFormat { Bold = false }
+                        BackgroundColor = new Color { Red = 1f, Green = 1f, Blue = 1f },
+                        TextFormat = new TextFormat
+                        {
+                            Bold = false,
+                            ForegroundColor = new Color { Red = 0f, Green = 0f, Blue = 0f }
+                        }
                     }
                 },
-                Fields = "userEnteredFormat.textFormat.bold"
+                Fields = "userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.foregroundColor"
             }
         });
 
@@ -329,7 +338,7 @@ public static class DataExporter
                 }
             });
 
-            // Bold header row
+            // Header row: navy background, white bold text
             requests.Add(new Request
             {
                 RepeatCell = new RepeatCellRequest
@@ -346,12 +355,46 @@ public static class DataExporter
                     {
                         UserEnteredFormat = new CellFormat
                         {
-                            TextFormat = new TextFormat { Bold = true }
+                            BackgroundColor = navyBlue,
+                            TextFormat = new TextFormat
+                            {
+                                Bold = true,
+                                ForegroundColor = white
+                            }
                         }
                     },
-                    Fields = "userEnteredFormat.textFormat.bold"
+                    Fields = "userEnteredFormat.backgroundColor,userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.foregroundColor"
                 }
             });
+
+            // Alternating row colors for data rows
+            int dataRowCount = table.EndRow - table.StartRow - 1; // exclude header
+            for (int i = 0; i < dataRowCount; i++)
+            {
+                Color rowColor = (i % 2 == 0) ? lightBlue : white;
+                requests.Add(new Request
+                {
+                    RepeatCell = new RepeatCellRequest
+                    {
+                        Range = new GridRange
+                        {
+                            SheetId = sheetId,
+                            StartRowIndex = startRow + table.StartRow + 1 + i,
+                            EndRowIndex = startRow + table.StartRow + 2 + i,
+                            StartColumnIndex = startCol,
+                            EndColumnIndex = startCol + table.ColCount
+                        },
+                        Cell = new CellData
+                        {
+                            UserEnteredFormat = new CellFormat
+                            {
+                                BackgroundColor = rowColor
+                            }
+                        },
+                        Fields = "userEnteredFormat.backgroundColor"
+                    }
+                });
+            }
         }
 
         await service.Spreadsheets.BatchUpdate(
