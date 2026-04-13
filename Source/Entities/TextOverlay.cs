@@ -28,7 +28,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         public static void Clear() {
-            StatText?.Text.Clear();
+            StatText?.Text?.Clear();
             _textVisible = false;
         }
 

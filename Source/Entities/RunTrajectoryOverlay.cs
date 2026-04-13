@@ -915,20 +915,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             string compLabel = compIsAvg ? "vs Avg" : compIsSob ? "vs SoB" : $"vs #{compLine!.ChronologicalIndex}";
             bool showComp   = true;
 
-            // Header rows: 0=run label, 1="vs Best", 2=cumul, 3=room, [4=comp label, 5=cumul, 6=room]
+            // Header rows: 0=run label, 1="vs Best", 2=cumul, [3=comp label, 4=cumul, 5=room]
             int bestHeaderRow  = 1;
-            int compHeaderRow  = 4;
-            int totalHeaderRows = 4 + (showComp ? 3 : 0);
+            int compHeaderRow  = 3;
+            int totalHeaderRows = 3 + (showComp ? 3 : 0);
 
-            // Value rows: 0=cumul dev vs Best, 1=room dev vs Best, [2=empty, 3=cumul dev comp, 4=room dev comp]
+            // Value rows: 0=cumul dev vs Best, [1=empty, 2=cumul dev comp, 3=room dev comp]
+            // Per-room deviation is omitted for "vs Best Split" — the reference switches attempts
+            // per room, so a per-room delta would be meaningless.
             int bestValRow  = 0;
-            int compValRow  = 3;
-            int totalValRows = 2 + (showComp ? 3 : 0);
+            int compValRow  = 2;
+            int totalValRows = 1 + (showComp ? 3 : 0);
 
             // Pre-compute widths
             float maxLabelW = 0f, maxValW = 0f;
             string attemptHeader = mainIsBaseline ? "Avg" : mainIsSob ? "SoB" : $"Run #{mainLine!.ChronologicalIndex}";
-            var sectionHeaders = new List<string> { attemptHeader, "vs Best Split", "cumul", "room" };
+            var sectionHeaders = new List<string> { attemptHeader, "vs Best Split", "cumul" };
             if (showComp) sectionHeaders.Add(compLabel);
             if (showComp) sectionHeaders.AddRange(["cumul", "room"]);
             foreach (var ln in sectionHeaders)
@@ -942,14 +944,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 long roomTime     = mainIsBaseline ? _roomAverages[r] : mainLine!.RoomTimes[r];
                 long mainCumulDev = mainIsBaseline ? 0 : mainLine!.CumulativeDeviations[r];
 
-                // vs Best
+                // vs Best (cumul only — no per-room row)
                 int  bIdx         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
                 bool bestAvailable = bIdx >= 0;
                 long bestCumulDev  = bestAvailable ? mainCumulDev - _attempts[bIdx].CumulativeDeviations[r] : 0;
-                long bestRoomTime  = bestAvailable ? _attempts[bIdx].RoomTimes[r] : 0;
-                long bestRoomDev   = bestAvailable ? roomTime - bestRoomTime : 0;
                 maxValW = Math.Max(maxValW, ActiveFont.Measure(bestAvailable ? FormatDev(bestCumulDev) : "n/a").X * scale);
-                maxValW = Math.Max(maxValW, ActiveFont.Measure(bestAvailable ? FormatDev(bestRoomDev)  : "n/a").X * scale);
 
                 if (showComp)
                 {
@@ -998,20 +997,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
                 float ty = valBoxY + bgPad;
 
-                // vs Best
+                // vs Best (cumul only — per-room omitted: reference switches attempts per room, making it meaningless)
                 int  bIdx2         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
                 bool bestAvail     = bIdx2 >= 0;
                 long bestCumulDev2 = bestAvail ? mainCumulDev2 - _attempts[bIdx2].CumulativeDeviations[r] : 0;
-                long bestRoomTime2 = bestAvail ? _attempts[bIdx2].RoomTimes[r] : 0;
-                long bestRoomDev2  = bestAvail ? roomTime2 - bestRoomTime2 : 0;
-                Color cBestColor   = bestAvail ? DeviationColor(bestCumulDev2, bestRoomDev2) : Color.Gray;
-                Color rBestColor   = bestRoomDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing;
+                Color cBestColor   = bestAvail ? (bestCumulDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing) : Color.Gray;
                 ActiveFont.DrawOutline(bestAvail ? FormatDev(bestCumulDev2) : "n/a",
                     new Vector2(boxX, ty + bestValRow * lineH),
                     Vector2.Zero, Vector2.One * scale, bestAvail ? cBestColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
-                ActiveFont.DrawOutline(bestAvail ? FormatDev(bestRoomDev2) : "n/a",
-                    new Vector2(boxX, ty + (bestValRow + 1) * lineH),
-                    Vector2.Zero, Vector2.One * scale, bestAvail ? rBestColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
 
                 if (showComp)
                 {
