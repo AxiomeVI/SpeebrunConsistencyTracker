@@ -12,9 +12,9 @@ A Celeste mod built for speedrunners to analyze consistency and pinpoint specifi
 
 ## Usage
 
-### 1. Training Workflow
+### 1. Practicce Workflow
 
-* **Set a Save State:** Starting a new training session. Creating or clearing a save state will reset all current session data for that slot
+* **Set a Save State:** Starting a new practice session. Creating or clearing a save state will reset all current session data for that slot
 * **Run the Segment:** Practice the segment as you usually do
 * **Review Performance:** After every completed run, a customizable text overlay displays your session statistics. Cycle through performance charts in-game via your configured keybinds or the navigation arrows on the chart overlay
 
@@ -34,27 +34,21 @@ Configure the overlay to display the metrics that matter most to your current go
 
 All charts are accessible in-game via keybinds and can be individually toggled in the settings menu.
 
-- **Scatter Plot** — outliers and time clusters per room
-- **Room Histogram** — time distribution for a single room
-- **Segment Histogram** — time distribution for the full segment
-- **DNF % per Room** — reset rate and run survival rate by room
-- **Problem Rooms** — combined DNF rate and time-loss per room
-- **Room Inconsistency** — rooms ranked by time variance
-- **Time Loss per Room** — median and average loss vs. session best
-- **Run Trajectory** — cumulative deviation across rooms, with best-split comparison
-- **Box Plot** — time distribution as box-and-whisker with hover details
+- **Scatter Plot:** outliers and time clusters per room
+- **Room Histogram:** time distribution for a single room
+- **Segment Histogram:** time distribution for the full segment
+- **DNF % per Room:** reset rate and run survival rate by room
+- **Problem Rooms:** combined DNF rate and time-loss per room
+- **Room Inconsistency:** rooms ranked by time variance
+- **Time Loss per Room:** median and average loss vs. session best
+- **Run Trajectory:** cumulative deviation across rooms, with best-split comparison
+- **Box Plot:** time distribution as box-and-whisker with hover details
 
 See [docs/charts.md](docs/charts.md) for full descriptions.
 
 ## Metrics
 
-A selection of the available metrics:
-
-- **Average** — mean time across all completed runs
-- **Median** — middle value of the time distribution
-- **Standard Deviation** — spread of times around the average
-
-And [many more](docs/metrics.md).
+A selection of the available metrics: average, median, standard deviation, sum of best and [many more](docs/metrics.md).
 
 ## Docs
 
