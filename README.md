@@ -12,7 +12,7 @@ A Celeste mod built for speedrunners to analyze consistency and pinpoint specifi
 
 ## Usage
 
-### 1. Practicce Workflow
+### 1. Practice Workflow
 
 * **Set a Save State:** Starting a new practice session. Creating or clearing a save state will reset all current session data for that slot
 * **Run the Segment:** Practice the segment as you usually do
