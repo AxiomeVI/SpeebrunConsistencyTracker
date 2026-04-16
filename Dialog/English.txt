@@ -43,7 +43,6 @@ ROOM_HISTOGRAM=                        Room Histograms
 SEGMENT_HISTOGRAM=                     Segment Histogram
 DNF_PERCENT_BAR_CHART=                 DNF % per Room
 PROBLEM_ROOM_BAR_CHART=                Problem Rooms
-INCONSISTENT_ROOM_BAR_CHART=           Inconsistent Rooms
 TIME_LOSS_CHART=                       Time loss per Room
 TRAJECTORY_GRAPH=                      Trajectory graph
 BOX_PLOT_GRAPH=                        Box Plot

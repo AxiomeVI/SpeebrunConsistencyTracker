@@ -13,7 +13,6 @@ public enum GraphType
     SegmentHistogram,
     DnfPercent,
     ProblemRooms,
-    InconsistentRooms,
     TimeLoss,
     RunTrajectory,
     BoxPlot
@@ -140,9 +139,6 @@ public static partial class GraphManager
         if (settings.GraphProblemRooms)
             slots.Add(new GraphSlot(GraphType.ProblemRooms));
 
-        if (settings.GraphInconsistentRooms)
-            slots.Add(new GraphSlot(GraphType.InconsistentRooms));
-
         if (settings.GraphTimeLoss)
             slots.Add(new GraphSlot(GraphType.TimeLoss));
 
@@ -254,7 +250,6 @@ public static partial class GraphManager
             GraphType.SegmentHistogram  => GetOrCreateSegmentHistogram(),
             GraphType.DnfPercent        => GetOrCreateDnfPctChart(),
             GraphType.ProblemRooms      => GetOrCreateProblemRoomsChart(),
-            GraphType.InconsistentRooms => GetOrCreateInconsistentRoomsChart(),
             GraphType.TimeLoss          => GetOrCreateTimeLossChart(),
             GraphType.RunTrajectory     => GetOrCreateRunTrajectoryChart(),
             GraphType.BoxPlot           => GetOrCreateBoxPlotChart(),

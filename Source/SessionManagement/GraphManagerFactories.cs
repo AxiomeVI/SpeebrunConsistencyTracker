@@ -34,11 +34,6 @@ public static partial class GraphManager
     private static int  _problemRoomsRoomCount;
     private static int  _problemRoomsTimerType;
 
-    private static PercentBarChartOverlay _inconsistentRoomsChart;
-    private static uint _inconsistentRoomsVersion;
-    private static int  _inconsistentRoomsRoomCount;
-    private static int  _inconsistentRoomsTimerType;
-
     private static GroupedBarChartOverlay _timeLossChart;
     private static uint _timeLossVersion;
     private static int  _timeLossRoomCount;
@@ -237,65 +232,6 @@ public static partial class GraphManager
         return _problemRoomsChart;
     }
 
-    private static PercentBarChartOverlay GetOrCreateInconsistentRoomsChart()
-    {
-        uint curVersion   = SessionManager.CurrentSession.Version;
-        int  curRoomCount = SessionManager.RoomCount;
-        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
-
-        if (_inconsistentRoomsChart != null && (
-            _inconsistentRoomsVersion   != curVersion   ||
-            _inconsistentRoomsRoomCount != curRoomCount ||
-            _inconsistentRoomsTimerType != curTimerType))
-        {
-            _inconsistentRoomsChart = null;
-        }
-
-        if (_inconsistentRoomsChart == null)
-        {
-            var session  = SessionManager.CurrentSession;
-            var rmadPcts = Enumerable.Range(0, curRoomCount).Select(i =>
-            {
-                var sorted = session.GetRoomTimes(i).OrderBy(t => t).ToList();
-                if (sorted.Count == 0) return 0.0;
-                TimeTicks median = MetricHelper.ComputePercentile(sorted, 50);
-                if (median.Ticks == 0) return 0.0;
-                double scaledMAD = 1.4826 * MetricHelper.ComputeMAD(sorted);
-                return scaledMAD / median.Ticks * 100;
-            }).ToList();
-
-            var rstddevPcts = Enumerable.Range(0, curRoomCount).Select(i =>
-            {
-                var times = session.GetRoomTimes(i).ToList();
-                if (times.Count == 0) return 0.0;
-                double mean = times.Average(t => (double)t.Ticks);
-                if (mean == 0) return 0.0;
-                return MetricHelper.ComputeStdDev(times, mean) / mean * 100;
-            }).ToList();
-
-            var ranked = Enumerable.Range(0, curRoomCount)
-                .OrderByDescending(i => rmadPcts[i] + rstddevPcts[i])
-                .ToList();
-
-            var rankedLabels  = ranked.Select(i => $"R{i + 1}").ToList();
-            var rankedRmad    = ranked.Select(i => rmadPcts[i]).ToList();
-            var rankedRstddev = ranked.Select(i => rstddevPcts[i]).ToList();
-
-            double maxTotal   = ranked.Count > 0 ? rankedRmad[0] + rankedRstddev[0] : 0.0;
-            List<double> scaledRmad    = maxTotal == 0 ? rankedRmad    : [.. rankedRmad.Select(v => v / maxTotal * 100)];
-            List<double> scaledRstddev = maxTotal == 0 ? rankedRstddev : [.. rankedRstddev.Select(v => v / maxTotal * 100)];
-
-            _inconsistentRoomsChart   = new PercentBarChartOverlay(
-                "Room Inconsistency (ranked)",
-                rankedLabels, scaledRmad, scaledRstddev,
-                "RMAD", "RStdDev");
-            _inconsistentRoomsVersion   = curVersion;
-            _inconsistentRoomsRoomCount = curRoomCount;
-            _inconsistentRoomsTimerType = curTimerType;
-        }
-
-        return _inconsistentRoomsChart;
-    }
 
     private static GroupedBarChartOverlay GetOrCreateTimeLossChart()
     {
@@ -459,14 +395,6 @@ public static partial class GraphManager
         _problemRoomsTimerType = 0;
     }
 
-    public static void ClearInconsistentRoomsChart()
-    {
-        _inconsistentRoomsChart   = null;
-        _inconsistentRoomsVersion   = 0;
-        _inconsistentRoomsRoomCount = 0;
-        _inconsistentRoomsTimerType = 0;
-    }
-
     public static void ClearTimeLossChart()
     {
         _timeLossChart   = null;
@@ -498,7 +426,6 @@ public static partial class GraphManager
         ClearSegmentHistogram();
         ClearDnfPctChart();
         ClearProblemRoomsChart();
-        ClearInconsistentRoomsChart();
         ClearTimeLossChart();
         ClearRunTrajectoryChart();
         ClearBoxPlotChart();

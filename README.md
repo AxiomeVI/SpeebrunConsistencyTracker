@@ -39,7 +39,6 @@ All charts are accessible in-game via keybinds and can be individually toggled i
 - **Segment Histogram:** time distribution for the full segment
 - **DNF % per Room:** reset rate and run survival rate by room
 - **Problem Rooms:** combined DNF rate and time-loss per room
-- **Room Inconsistency:** rooms ranked by time variance
 - **Time Loss per Room:** median and average loss vs. session best
 - **Run Trajectory:** cumulative deviation across rooms, with best-split comparison
 - **Box Plot:** time distribution as box-and-whisker with hover details

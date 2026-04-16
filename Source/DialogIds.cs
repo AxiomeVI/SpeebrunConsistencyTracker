@@ -68,7 +68,6 @@ public static class DialogIds {
     public const string GraphSegmentHistogramId = "SEGMENT_HISTOGRAM";
     public const string GraphDnfPercentId = "DNF_PERCENT_BAR_CHART";
     public const string GraphProblemRoomsId = "PROBLEM_ROOM_BAR_CHART";
-    public const string GraphInconsistentRoomsId = "INCONSISTENT_ROOM_BAR_CHART";
     public const string RoomColorId = "ROOM_COLOR";
     public const string SegmentColorId = "SEGMENT_COLOR";
     public const string ChartOpacityId = "CHART_OPACITY";

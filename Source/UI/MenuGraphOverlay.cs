@@ -79,10 +79,6 @@ public static partial class ModMenuOptions
             Dialog.Clean(DialogIds.GraphProblemRoomsId), _settings.GraphProblemRooms)
             .Change(v => { _settings.GraphProblemRooms = v; if (!v) GraphManager.ClearProblemRoomsChart(); RebuildGraphSlots(); });
 
-        TextMenu.OnOff graphInconsistentRooms = (TextMenu.OnOff)new TextMenu.OnOff(
-            Dialog.Clean(DialogIds.GraphInconsistentRoomsId), _settings.GraphInconsistentRooms)
-            .Change(v => { _settings.GraphInconsistentRooms = v; if (!v) GraphManager.ClearInconsistentRoomsChart(); RebuildGraphSlots(); });
-
         TextMenu.OnOff graphTimeLoss = (TextMenu.OnOff)new TextMenu.OnOff(
             Dialog.Clean(DialogIds.GraphTimeLossId), _settings.GraphTimeLoss)
             .Change(v => { _settings.GraphTimeLoss = v; if (!v) GraphManager.ClearTimeLossChart(); RebuildGraphSlots(); });
@@ -105,7 +101,6 @@ public static partial class ModMenuOptions
         sub.Add(graphSegmentHistogram);
         sub.Add(graphDnfPercent);
         sub.Add(graphProblemRooms);
-        sub.Add(graphInconsistentRooms);
         sub.Add(graphTimeLoss);
         sub.Add(graphRunTrajectory);
         sub.Add(graphBoxPlot);

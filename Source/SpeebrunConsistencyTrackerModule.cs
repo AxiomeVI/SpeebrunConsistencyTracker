@@ -92,12 +92,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             );
         }
 
-        _importTargetTimeHotkey = new UI.ComboHotkey(Settings.ButtonKeyImportTargetTime);
-        _statsExportHotkey      = new UI.ComboHotkey(Settings.ButtonKeyStatsExport);
-        _toggleGraphHotkey      = new UI.ComboHotkey(Settings.ButtonToggleGraphOverlay);
-        _nextGraphHotkey        = new UI.ComboHotkey(Settings.ButtonNextGraph);
-        _previousGraphHotkey    = new UI.ComboHotkey(Settings.ButtonPreviousGraph);
-        _clearStatsHotkey       = new UI.ComboHotkey(Settings.ButtonKeyClearStats);
+        _importTargetTimeHotkey = new UI.ComboHotkey(() => Settings.Keybind_ImportTargetTime);
+        _statsExportHotkey      = new UI.ComboHotkey(() => Settings.Keybind_StatsExport);
+        _toggleGraphHotkey      = new UI.ComboHotkey(() => Settings.Keybind_ToggleGraphOverlay);
+        _nextGraphHotkey        = new UI.ComboHotkey(() => Settings.Keybind_NextGraph);
+        _previousGraphHotkey    = new UI.ComboHotkey(() => Settings.Keybind_PreviousGraph);
+        _clearStatsHotkey       = new UI.ComboHotkey(() => Settings.Keybind_ClearStats);
     }
 
     public override void Unload() {

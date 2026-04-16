@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
@@ -7,7 +8,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.UI;
 /// Wraps a ButtonBinding and detects combo presses (all bound keys held simultaneously).
 /// Rising-edge only: Pressed is true for exactly one frame when the combo activates.
 /// Pattern taken from CelesteTAS Hotkeys.cs / SpeedrunTool HotkeyRebase.cs.
-internal class ComboHotkey(ButtonBinding binding) {
+internal class ComboHotkey(Func<ButtonBinding> getBinding) {
     // Shared input states — updated once per frame by UpdateStates()
     private static KeyboardState _kbState;
     private static GamePadState _padState;
@@ -29,9 +30,10 @@ internal class ComboHotkey(ButtonBinding binding) {
     }
 
     private bool IsDown() {
-        if (binding.Keys.Count > 0 && _kbState != default && binding.Keys.All(_kbState.IsKeyDown))
+        var binding = getBinding();
+        if (binding?.Keys is { Count: > 0 } keys && _kbState != default && keys.All(_kbState.IsKeyDown))
             return true;
-        if (binding.Buttons.Count > 0 && _padState != default && binding.Buttons.All(_padState.IsButtonDown))
+        if (binding?.Buttons is { Count: > 0 } buttons && _padState != default && buttons.All(_padState.IsButtonDown))
             return true;
         return false;
     }

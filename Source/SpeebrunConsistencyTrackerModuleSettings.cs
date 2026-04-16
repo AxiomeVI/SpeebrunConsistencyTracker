@@ -65,7 +65,6 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool GraphSegmentHistogram { get; set; } = true;
     public bool GraphDnfPercent { get; set; } = true;
     public bool GraphProblemRooms { get; set; } = false;
-    public bool GraphInconsistentRooms { get; set; } = false;
     public bool GraphTimeLoss { get; set; } = false;
     public bool GraphRunTrajectory { get; set; } = true;
     public bool GraphBoxPlot { get; set; } = false;
@@ -101,37 +100,59 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public bool MultimodalTest { get; set; } = false;
     public bool RoomDependency { get; set; } = false;
 
+    public void OnLoadSettings() {
+        Keybind_ImportTargetTime  ??= new ButtonBinding();
+        Keybind_StatsExport       ??= new ButtonBinding();
+        Keybind_ToggleGraphOverlay ??= new ButtonBinding();
+        Keybind_NextGraph         ??= new ButtonBinding();
+        Keybind_PreviousGraph     ??= new ButtonBinding();
+        Keybind_ClearStats        ??= new ButtonBinding();
+
+        if (Keybind_ImportTargetTime.Keys   == null) Keybind_ImportTargetTime.Keys   = new();
+        if (Keybind_ImportTargetTime.Buttons == null) Keybind_ImportTargetTime.Buttons = new();
+        if (Keybind_StatsExport.Keys        == null) Keybind_StatsExport.Keys        = new();
+        if (Keybind_StatsExport.Buttons     == null) Keybind_StatsExport.Buttons     = new();
+        if (Keybind_ToggleGraphOverlay.Keys    == null) Keybind_ToggleGraphOverlay.Keys    = new();
+        if (Keybind_ToggleGraphOverlay.Buttons == null) Keybind_ToggleGraphOverlay.Buttons = new();
+        if (Keybind_NextGraph.Keys          == null) Keybind_NextGraph.Keys          = new();
+        if (Keybind_NextGraph.Buttons       == null) Keybind_NextGraph.Buttons       = new();
+        if (Keybind_PreviousGraph.Keys      == null) Keybind_PreviousGraph.Keys      = new();
+        if (Keybind_PreviousGraph.Buttons   == null) Keybind_PreviousGraph.Buttons   = new();
+        if (Keybind_ClearStats.Keys         == null) Keybind_ClearStats.Keys         = new();
+        if (Keybind_ClearStats.Buttons      == null) Keybind_ClearStats.Buttons      = new();
+    }
+
     #region Hotkeys
 
     [SettingName(DialogIds.KeyImportTargetTimeId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonKeyImportTargetTime { get; set; }
+    public ButtonBinding Keybind_ImportTargetTime { get; set; }
 
     [SettingName(DialogIds.KeyStatsExportId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonKeyStatsExport { get; set; }
+    public ButtonBinding Keybind_StatsExport { get; set; }
 
     [SettingName(DialogIds.ToggleGraphOverlayId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonToggleGraphOverlay { get; set; }
+    public ButtonBinding Keybind_ToggleGraphOverlay { get; set; }
 
     [SettingName(DialogIds.KeyNextGraphId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonNextGraph { get; set; }
+    public ButtonBinding Keybind_NextGraph { get; set; }
 
     [SettingName(DialogIds.KeyPreviousGraphId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonPreviousGraph { get; set; }
+    public ButtonBinding Keybind_PreviousGraph { get; set; }
 
     [SettingName(DialogIds.KeyClearStatsId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
     [DefaultButtonBinding(0, Keys.None)]
-    public ButtonBinding ButtonKeyClearStats { get; set; }
+    public ButtonBinding Keybind_ClearStats { get; set; }
 
     #endregion
 }

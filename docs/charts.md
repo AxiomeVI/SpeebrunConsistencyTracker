@@ -22,10 +22,6 @@ A grouped bar chart with two series per room: the DNF rate (percentage of all at
 
 A stacked bar chart combining DNF % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your gold, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.
 
-## Room Inconsistency
-
-A normalized stacked bar chart ranking rooms by inconsistency from worst to best. Uses two complementary metrics: Relative Median Absolute Deviation (RMAD) and Relative Standard Deviation (RStdDev) to capture overall spread (with some resistance to outliers). The worst room fills the full bar height, all the others are shown proportionally. Disabled by default.
-
 ## Time Loss per Room
 
 A grouped bar chart showing median and average time lost per room relative to your gold time in that room, allowing quick comparison between typical loss (median) and overall loss (average). Disabled by default.
