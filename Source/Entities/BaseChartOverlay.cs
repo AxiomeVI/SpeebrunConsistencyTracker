@@ -194,30 +194,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
 
-        protected static void DrawStripedLegendEntry(float x, float y, string text, Color[] colors, float scale, bool right = false)
-        {
-            Vector2 textSize  = ActiveFont.Measure(text) * scale;
-            float   boxSize   = ChartConstants.Legend.LegendBoxSize;
-            float   spacing   = ChartConstants.Legend.LegendBoxTextGap;
-            float   totalWidth = textSize.X + boxSize + spacing;
-            float   startX    = right ? x - totalWidth : x;
-            float   boxY      = y + (textSize.Y / 2f) - (boxSize / 2f);
-
-            for (int k = 0; k < colors.Length; k++)
-            {
-                float bx1 = MathF.Round(startX + (float)k       / colors.Length * boxSize);
-                float bx2 = MathF.Round(startX + (float)(k + 1) / colors.Length * boxSize);
-                Draw.Rect(bx1, boxY, bx2 - bx1, boxSize, colors[k]);
-            }
-
-            ActiveFont.DrawOutline(
-                text,
-                new Vector2(startX + boxSize + spacing, y),
-                new Vector2(0f, 0f),
-                Vector2.One * scale,
-                Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
-        }
-
         /// <summary>
         /// Draws X-axis column labels with optional stagger for dense charts (>25 items).
         /// </summary>

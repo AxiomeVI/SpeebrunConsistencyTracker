@@ -445,25 +445,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (_sobIsBest && _lastIsBest)
             {
-                // SoB == Best == Last: single dashed triple-color line
+                // SoB == Best == Last: draw once in lastColor (last > best > sob)
                 bool  h3      = hovering && (_hoveredLineIdx == sobIdx || _hoveredLineIdx >= lastIdx);
                 bool  pinned3 = IsLinePinned(sobIdx) || IsLinePinned(lastIdx);
                 bool  dimmed3 = IsLineDimmed(sobIdx) && IsLineDimmed(lastIdx);
                 float t3      = h3 || pinned3 ? 3f : specialThick;
-                Color[] c3Draw = dimmed3
-                    ? [sobColor * 0.35f, bestColor * 0.35f, lastColor * 0.35f]
-                    : [sobColor, bestColor, lastColor];
-                DrawDashedAttemptLine(_sobLine, c3Draw, x, w, baselineY, devScale, h, t3);
+                Color c3Draw  = dimmed3 ? lastColor * 0.35f : lastColor;
+                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, c3Draw, t3);
             }
             else if (_sobIsBest)
             {
-                // SoB == Best: dashed SoB/Best line, separate Last line
+                // SoB == Best: draw shared line in bestColor (best > sob), Last separate
                 bool  hSB      = hovering && _hoveredLineIdx == sobIdx;
                 bool  pinnedSB = IsLinePinned(sobIdx);
                 bool  dimmedSB = IsLineDimmed(sobIdx);
                 float tSB      = hSB || pinnedSB ? 3f : specialThick;
-                Color[] cSBDraw = dimmedSB ? [sobColor * 0.35f, bestColor * 0.35f] : [sobColor, bestColor];
-                DrawDashedAttemptLine(_sobLine, cSBDraw, x, w, baselineY, devScale, h, tSB);
+                Color cSBDraw  = dimmedSB ? bestColor * 0.35f : bestColor;
+                DrawAttemptLine(_sobLine, x, w, baselineY, devScale, h, cSBDraw, tSB);
 
                 bool  hL      = hovering && _hoveredLineIdx == lastIdx;
                 bool  pinnedL = IsLinePinned(lastIdx);
@@ -474,7 +472,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             else if (_lastIsBest)
             {
-                // Best == Last: solid SoB, dashed Best/Last line
+                // Best == Last: draw shared line in lastColor (last > best), SoB separate
                 bool  hSob      = hovering && _hoveredLineIdx == sobIdx;
                 bool  pinnedSob = IsLinePinned(sobIdx);
                 bool  dimmedSob = IsLineDimmed(sobIdx);
@@ -486,8 +484,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 bool  pinnedBL = IsLinePinned(lastIdx);
                 bool  dimmedBL = IsLineDimmed(lastIdx);
                 float tBL      = hBL || pinnedBL ? 3f : specialThick;
-                Color[] cBLDraw = dimmedBL ? [bestColor * 0.35f, lastColor * 0.35f] : [bestColor, lastColor];
-                DrawDashedAttemptLine(_attempts[lastIdx], cBLDraw, x, w, baselineY, devScale, h, tBL);
+                Color cBLDraw  = dimmedBL ? lastColor * 0.35f : lastColor;
+                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, cBLDraw, tBL);
             }
             else
             {
@@ -533,69 +531,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float x2 = GetRoomRightEdgeX(gx, gw, r);
                 float y2 = MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[r] * devScale, baselineY - h, baselineY + h);
                 Draw.Line(new Vector2(x1, y1), new Vector2(x2, y2), color, thickness);
-                prevVisible = r;
-            }
-        }
-
-        /// <summary>
-        /// Draws an attempt line with a cycling dash pattern across all segments.
-        /// colors.Length colors repeat in order; dash length is CoincidentDashLen pixels.
-        /// Dash positions are computed in global path space so they never gap at segment boundaries.
-        /// Hidden columns are skipped (the line connects adjacent visible rooms directly).
-        /// </summary>
-        private void DrawDashedAttemptLine(
-            AttemptLine attempt, Color[] colors,
-            float gx, float gw, float baselineY, float devScale, float h, float thickness)
-        {
-            float dashLen  = ChartConstants.Trajectory.CoincidentDashLen;
-            float cycleLen = dashLen * colors.Length;
-            float globalStart = 0f; // global path offset at the start of current segment
-
-            int lastVisible2 = LastVisibleRoom();
-            int prevVisible = -1;
-            int limit2 = Math.Min(attempt.RoomsCompleted - 1, lastVisible2);
-            for (int r = 0; r <= limit2; r++)
-            {
-                if (_hiddenColumns.Contains(r)) continue;
-
-                float x1 = prevVisible < 0 ? gx : GetRoomRightEdgeX(gx, gw, prevVisible);
-                float y1 = prevVisible < 0
-                    ? baselineY
-                    : MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[prevVisible] * devScale, baselineY - h, baselineY + h);
-                float x2 = GetRoomRightEdgeX(gx, gw, r);
-                float y2 = MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[r] * devScale, baselineY - h, baselineY + h);
-
-                var   segStart = new Vector2(x1, y1);
-                var   segEnd   = new Vector2(x2, y2);
-                float segLen   = Vector2.Distance(segStart, segEnd);
-                if (segLen < 0.5f) { globalStart += segLen; prevVisible = r; continue; }
-
-                Vector2 dir      = (segEnd - segStart) / segLen;
-                float   segEndG  = globalStart + segLen; // global offset at end of this segment
-
-                for (int k = 0; k < colors.Length; k++)
-                {
-                    // In global space, color k occupies [n*cycleLen + k*dashLen, n*cycleLen + (k+1)*dashLen) for all n.
-                    // Find the first dash start (global) that overlaps [globalStart, segEndG).
-                    float firstDashG = (float)Math.Floor((globalStart - k * dashLen) / cycleLen) * cycleLen + k * dashLen;
-                    if (firstDashG + dashLen <= globalStart)
-                        firstDashG += cycleLen; // advance to first overlapping dash
-
-                    for (float dg = firstDashG; dg < segEndG; dg += cycleLen)
-                    {
-                        // Clip dash to this segment's global range
-                        float clipStart = Math.Max(dg,           globalStart);
-                        float clipEnd   = Math.Min(dg + dashLen, segEndG);
-                        if (clipEnd <= clipStart) continue;
-
-                        // Convert global offsets to local segment offsets, then to positions
-                        float t1 = (clipStart - globalStart) / segLen;
-                        float t2 = (clipEnd   - globalStart) / segLen;
-                        Draw.Line(segStart + dir * (t1 * segLen), segStart + dir * (t2 * segLen), colors[k], thickness);
-                    }
-                }
-
-                globalStart = segEndG;
                 prevVisible = r;
             }
         }
@@ -795,7 +730,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             bool  isLast    = lineIdx == _attempts.Count - 1;
             bool  isBest    = lineIdx == _bestIdx;
-            bool  isSpecial = isSob || isBest || isLast;
             Color lineColor = isBaseline ? Color.Gray
                 : isSob
                     ? (_sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal)
@@ -1102,13 +1036,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             float legendY2 = y + h + ChartConstants.Legend.LegendOffsetY;
             float legendX2 = x + w;
-            float offset2  = 0f;
-
+            float offset2;
             if (_sobIsBest && _lastIsBest)
             {
                 string label3 = "SoB, Best & Last run";
-                Color[] cols3 = [sobLegendColor, bestLegendColor, lastLegendColor];
-                DrawStripedLegendEntry(legendX2, legendY2, label3, cols3, ChartConstants.FontScale.AxisLabel, right: true);
+                DrawLegendEntry(legendX2, legendY2, label3, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
             }
             else if (_sobIsBest)
             {
@@ -1117,14 +1049,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 offset2 = ActiveFont.Measure(lastLabel2).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
 
                 string sobBestLabel = "SoB & Best run";
-                Color[] colsSB = [sobLegendColor, bestLegendColor];
-                DrawStripedLegendEntry(legendX2 - offset2, legendY2, sobBestLabel, colsSB, ChartConstants.FontScale.AxisLabel, right: true);
+                DrawLegendEntry(legendX2 - offset2, legendY2, sobBestLabel, bestLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
             }
             else if (_lastIsBest)
             {
                 string bestLastLabel = "Best & Last run";
-                Color[] colsBL = [bestLegendColor, lastLegendColor];
-                DrawStripedLegendEntry(legendX2, legendY2, bestLastLabel, colsBL, ChartConstants.FontScale.AxisLabel, right: true);
+                DrawLegendEntry(legendX2, legendY2, bestLastLabel, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                 offset2 = ActiveFont.Measure(bestLastLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
 
                 DrawLegendEntry(legendX2 - offset2, legendY2, "SoB", sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
@@ -1236,14 +1166,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (_sobReachesEnd)
                     labelList.Add((baselineY + bestDevVis * devScale,
                                    new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
-                                   [sobColor4, bestColor4, lastColor4], hovSob || hovLast || pinnedSob || pinnedLast));
+                                   [lastColor4], hovSob || hovLast || pinnedSob || pinnedLast));
             }
             else if (_sobIsBest)
             {
                 if (_sobReachesEnd)
                     labelList.Add((baselineY + bestDevVis * devScale,
                                    new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
-                                   [sobColor4, bestColor4], hovSob || pinnedSob));
+                                   [bestColor4], hovSob || pinnedSob));
                 if (_lastReachesEnd)
                     labelList.Add((baselineY + lastDevVis * devScale,
                                    new TimeTicks(_roomAveragesSum + lastDevVis).ToString(),
@@ -1251,10 +1181,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             else if (_lastIsBest)
             {
-                if (_anyCompleted)
+                if (_lastReachesEnd)
                     labelList.Add((baselineY + bestDevVis * devScale,
                                    new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
-                                   [bestColor4, lastColor4], hovLast || pinnedLast));
+                                   [lastColor4], hovLast || pinnedLast));
                 if (_sobReachesEnd)
                     labelList.Add((baselineY + sobDevVis * devScale,
                                    new TimeTicks(_roomAveragesSum + sobDevVis).ToString(),
@@ -1305,8 +1235,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Vector2 labelSize = ActiveFont.Measure(labelText) * ChartConstants.FontScale.AxisLabelSmall;
                 if (labelYPos < y - labelSize.Y / 2 || labelYPos > y + h + labelSize.Y / 2) continue;
 
-                // Coincident lines use white; single-color entries use their own color
-                Color drawColor = labelColors.Length > 1 ? Color.White : labelColors[0];
+                Color drawColor = labelColors[0];
                 ActiveFont.DrawOutline(labelText,
                     new Vector2(rightX, nudged[i] - labelSize.Y / 2),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelSmall,

@@ -105,7 +105,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             internal const float BrightnessMax        = 0.8f;
             internal const float RightLabelMarginX    = 10f; // x + w + this for right-side axis labels
             internal const float LabelMinSpacingExtra = 4f;  // nudge: minSpacing = labelHeight + this
-            internal const float CoincidentDashLen    = 12f; // dash length for coincident SoB/Best/Last lines
             internal const int   MaxNudgePasses       = 3;   // multi-pass relaxation limit for right-axis labels
         }
 
