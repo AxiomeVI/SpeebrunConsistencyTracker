@@ -1,116 +1,116 @@
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 public static class DialogIds {
     // Main Menu
-    public const string SpeebrunConsistencyTracker = "SPEEBRUN_CONSISTENCY_TRACKER";
-    public const string EnabledId = "ENABLE_MOD";
+    public const string SpeebrunConsistencyTracker = "SCT_SPEEBRUN_CONSISTENCY_TRACKER";
+    public const string EnabledId = "SCT_ENABLE_MOD";
 
     // Export submenu
-    public const string SrtExportId = "EXPORT_WITH_SRT";
-    public const string ExportSubMenu = "EXPORT_SUBMENU";
-    public const string ExportModeId = "EXPORT_MOD";
-    public const string ExportPathId = "EXPORT_PATH";
-    public const string SheetExportExplanationId = "SHEET_EXPLANATION";
+    public const string SrtExportId = "SCT_EXPORT_WITH_SRT";
+    public const string ExportSubMenu = "SCT_EXPORT_SUBMENU";
+    public const string ExportModeId = "SCT_EXPORT_MOD";
+    public const string ExportPathId = "SCT_EXPORT_PATH";
+    public const string SheetExportExplanationId = "SCT_SHEET_EXPLANATION";
 
     // Hotkey menu UI
-    public const string KeybindConfigId       = "KEYBIND_CONFIG";
-    public const string KeybindComboSubId     = "KEYBIND_COMBO_SUB";
-    public const string KeyConfigTitle        = "KEY_CONFIG_TITLE";
-    public const string BtnConfigTitle        = "BTN_CONFIG_TITLE";
-    public const string KeyConfigChanging     = "KEY_CONFIG_CHANGING";
-    public const string BtnConfigChanging     = "BTN_CONFIG_CHANGING";
-    public const string BtnConfigNoController = "BTN_CONFIG_NO_CONTROLLER";
+    public const string KeybindConfigId       = "SCT_KEYBIND_CONFIG";
+    public const string KeybindComboSubId     = "SCT_KEYBIND_COMBO_SUB";
+    public const string KeyConfigTitle        = "SCT_KEY_CONFIG_TITLE";
+    public const string BtnConfigTitle        = "SCT_BTN_CONFIG_TITLE";
+    public const string KeyConfigChanging     = "SCT_KEY_CONFIG_CHANGING";
+    public const string BtnConfigChanging     = "SCT_BTN_CONFIG_CHANGING";
+    public const string BtnConfigNoController = "SCT_BTN_CONFIG_NO_CONTROLLER";
 
     // Hotkeys
-    public const string KeyStatsExportId = "KEY_STATS_EXPORT";
-    public const string ToggleGraphOverlayId = "TOGGLE_GRAPH_OVERLAY";
-    public const string KeyClearStatsId = "KEY_CLEAR_STATS";
-    public const string KeyImportTargetTimeId = "KEY_IMPORT_TARGET_TIME";
-    public const string KeyNextGraphId = "KEY_NEXT_GRAPH";
-    public const string KeyPreviousGraphId = "KEY_PREVIOUS_GRAPH";
-    
+    public const string KeyStatsExportId = "SCT_KEY_STATS_EXPORT";
+    public const string ToggleGraphOverlayId = "SCT_TOGGLE_GRAPH_OVERLAY";
+    public const string KeyClearStatsId = "SCT_KEY_CLEAR_STATS";
+    public const string KeyImportTargetTimeId = "SCT_KEY_IMPORT_TARGET_TIME";
+    public const string KeyNextGraphId = "SCT_KEY_NEXT_GRAPH";
+    public const string KeyPreviousGraphId = "SCT_KEY_PREVIOUS_GRAPH";
+
     // Target Time Menu
-    public const string TargetTimeId = "TARGET_TIME";
-    public const string InputTargetTimeId = "INPUT_TARGET_TIME";
-    public const string ResetTargetTimeId = "RESET_TARGET_TIME";
-    public const string TargetTimeFormatId = "TARGET_TIME_FORMAT";
-    public const string Minutes = "MINUTES";
-    public const string Seconds = "SECONDS";
-    public const string Milliseconds = "MILLISECONDS";    
-    public const string MillisecondsFirst = "MILLISECONDS_FIRST";
-    public const string MillisecondsSecond = "MILLISECONDS_SECOND";
-    public const string MillisecondsThird = "MILLISECONDS_THIRD";
+    public const string TargetTimeId = "SCT_TARGET_TIME";
+    public const string InputTargetTimeId = "SCT_INPUT_TARGET_TIME";
+    public const string ResetTargetTimeId = "SCT_RESET_TARGET_TIME";
+    public const string TargetTimeFormatId = "SCT_TARGET_TIME_FORMAT";
+    public const string Minutes = "SCT_MINUTES";
+    public const string Seconds = "SCT_SECONDS";
+    public const string Milliseconds = "SCT_MILLISECONDS";
+    public const string MillisecondsFirst = "SCT_MILLISECONDS_FIRST";
+    public const string MillisecondsSecond = "SCT_MILLISECONDS_SECOND";
+    public const string MillisecondsThird = "SCT_MILLISECONDS_THIRD";
 
     // Popup message
-    public const string PopupTargetTimeSetId = "POPUP_TARGET_TIME_SET";
-    public const string PopupInvalidTargetTimeId = "INVALID_TIME_IMPORT";
-    public const string PopupExportToClipboardId = "EXPORT_TO_CLIPBOARD";
-    public const string PopupInvalidExportId = "INVALID_EXPORT";
-    public const string PopupExportToFileId = "EXPORT_TO_FILE";
-    public const string PopupExportToSheetId = "EXPORT_TO_SHEET";
-    public const string PopupDataClearId = "DATA_CLEAR";
-    public const string PopupNoGraphId = "NO_GRAPH_ERROR";
-    public const string PopupFileNotFoundId = "FILE_NOT_FOUND";
+    public const string PopupTargetTimeSetId = "SCT_POPUP_TARGET_TIME_SET";
+    public const string PopupInvalidTargetTimeId = "SCT_INVALID_TIME_IMPORT";
+    public const string PopupExportToClipboardId = "SCT_EXPORT_TO_CLIPBOARD";
+    public const string PopupInvalidExportId = "SCT_INVALID_EXPORT";
+    public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";
+    public const string PopupExportToSheetId = "SCT_EXPORT_TO_SHEET";
+    public const string PopupDataClearId = "SCT_DATA_CLEAR";
+    public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
+    public const string PopupFileNotFoundId = "SCT_FILE_NOT_FOUND";
 
     // Text Overlay Menu
-    public const string IngameOverlayId = "INGAME_OVERLAY";
-    public const string OverlayEnabledId = "OVERLAY_ENABLED";
-    public const string TextSizeId = "TEXT_SIZE";
-    public const string TextPositionId = "TEXT_POSITION";
-    public const string TextOrientationId = "TEXT_ORIENTATION";
-    public const string TextOverlayId = "TEXT_OVERLAY";
-    public const string GraphOverlayId = "GRAPH_OVERLAY";
-    public const string TextAlphaId = "TEXT_ALPHA";
+    public const string IngameOverlayId = "SCT_INGAME_OVERLAY";
+    public const string OverlayEnabledId = "SCT_OVERLAY_ENABLED";
+    public const string TextSizeId = "SCT_TEXT_SIZE";
+    public const string TextPositionId = "SCT_TEXT_POSITION";
+    public const string TextOrientationId = "SCT_TEXT_ORIENTATION";
+    public const string TextOverlayId = "SCT_TEXT_OVERLAY";
+    public const string GraphOverlayId = "SCT_GRAPH_OVERLAY";
+    public const string TextAlphaId = "SCT_TEXT_ALPHA";
 
     // Graph Overlay Menu
-    public const string GraphEnabledId = "GRAPH_ENABLED";
-    public const string GraphScatterId = "SCATTER";
-    public const string GraphRoomHistogramId = "ROOM_HISTOGRAM";
-    public const string GraphSegmentHistogramId = "SEGMENT_HISTOGRAM";
-    public const string GraphDnfPercentId = "DNF_PERCENT_BAR_CHART";
-    public const string GraphProblemRoomsId = "PROBLEM_ROOM_BAR_CHART";
-    public const string RoomColorId = "ROOM_COLOR";
-    public const string SegmentColorId = "SEGMENT_COLOR";
-    public const string ChartOpacityId = "CHART_OPACITY";
-    public const string TimeLossThresholdId = "TIME_LOSS_THRESHOLD";
-    public const string TimeLossThresholdDescId = "TIME_LOSS_THRESHOLD_DESC";
-    public const string GraphTimeLossId = "TIME_LOSS_CHART";
-    public const string GraphRunTrajectoryId = "TRAJECTORY_GRAPH";
-    
+    public const string GraphEnabledId = "SCT_GRAPH_ENABLED";
+    public const string GraphScatterId = "SCT_SCATTER";
+    public const string GraphRoomHistogramId = "SCT_ROOM_HISTOGRAM";
+    public const string GraphSegmentHistogramId = "SCT_SEGMENT_HISTOGRAM";
+    public const string GraphDnfPercentId = "SCT_DNF_PERCENT_BAR_CHART";
+    public const string GraphProblemRoomsId = "SCT_PROBLEM_ROOM_BAR_CHART";
+    public const string RoomColorId = "SCT_ROOM_COLOR";
+    public const string SegmentColorId = "SCT_SEGMENT_COLOR";
+    public const string ChartOpacityId = "SCT_CHART_OPACITY";
+    public const string TimeLossThresholdId = "SCT_TIME_LOSS_THRESHOLD";
+    public const string TimeLossThresholdDescId = "SCT_TIME_LOSS_THRESHOLD_DESC";
+    public const string GraphTimeLossId = "SCT_TIME_LOSS_CHART";
+    public const string GraphRunTrajectoryId = "SCT_TRAJECTORY_GRAPH";
+
     // Stats Menu
-    public const string StatsSubMenuId = "STATS_SUBMENU";
-    public const string ExportOnlyId = "EXPORT_ONLY";
-    public const string SuccessRateId = "SUCCESS_RATE";
-    public const string ResetRateId = "RESET_RATE";
-    public const string ResetShareId = "RESET_SHARE";
-    public const string AverageId = "AVERAGE";
-    public const string MedianId = "MEDIAN";
-    public const string MadId = "MAD";
-    public const string MinimumId = "MINIMUM";
-    public const string MaximumId = "MAXIMUM";
-    public const string StandardDeviationId = "STANDARD_DEVIATION";
-    public const string CoefficientOfVariationId = "COEFFICIENT_OF_VARIATION";
-    public const string TargetTimeStatId = "TARGET_TIME_STAT";
-    public const string PercentileValueId = "PERCENTILE_VALUE";
-    public const string PercentileId = "PERCENTILE";
-    public const string InterquartileRangeId = "IQR";
-    public const string RunHistoryId = "RUN_HISTORY";
-    public const string SuccessRateSubTextId = "SUCCESS_RATE_SUBTEXT";
-    public const string CompletedRunCountId = "COMPLETED_RUN_COUNT";
-    public const string LinearRegressionId = "LINEAR_REGRESSION";
-    public const string SoBId = "SOB";
-    public const string TotalRunCountId = "TOTAL_RUN_COUNT";
-    public const string DnfCountId = "DNF_COUNT";
-    public const string ConsistencyScoreId = "CONSISTENCY_SCORE";
-    public const string ButtonAllOffId = "ALL_METRICS_OFF_BUTTON";
-    public const string ButtonAllOnId = "ALL_METRICS_ON_BUTTON";
-    public const string AllOnDescId = "ALL_ON_DESC";
-    public const string ButtonResetId = "RESET_METRICS_BUTTON";
-    public const string MultimodalTestId = "MULTIMODAL_TEST";
-    public const string RoomDependencyId = "ROOM_DEPENDENCY";
-    public const string MetricsSubHeaderId = "METRICS_SUBHEADER";
-    public const string RelMadId = "RELATIVE_MAD";
-    public const string GoldRateId = "GOLD_RATE";
+    public const string StatsSubMenuId = "SCT_STATS_SUBMENU";
+    public const string ExportOnlyId = "SCT_EXPORT_ONLY";
+    public const string SuccessRateId = "SCT_SUCCESS_RATE";
+    public const string ResetRateId = "SCT_RESET_RATE";
+    public const string ResetShareId = "SCT_RESET_SHARE";
+    public const string AverageId = "SCT_AVERAGE";
+    public const string MedianId = "SCT_MEDIAN";
+    public const string MadId = "SCT_MAD";
+    public const string MinimumId = "SCT_MINIMUM";
+    public const string MaximumId = "SCT_MAXIMUM";
+    public const string StandardDeviationId = "SCT_STANDARD_DEVIATION";
+    public const string CoefficientOfVariationId = "SCT_COEFFICIENT_OF_VARIATION";
+    public const string TargetTimeStatId = "SCT_TARGET_TIME_STAT";
+    public const string PercentileValueId = "SCT_PERCENTILE_VALUE";
+    public const string PercentileId = "SCT_PERCENTILE";
+    public const string InterquartileRangeId = "SCT_IQR";
+    public const string RunHistoryId = "SCT_RUN_HISTORY";
+    public const string SuccessRateSubTextId = "SCT_SUCCESS_RATE_SUBTEXT";
+    public const string CompletedRunCountId = "SCT_COMPLETED_RUN_COUNT";
+    public const string LinearRegressionId = "SCT_LINEAR_REGRESSION";
+    public const string SoBId = "SCT_SOB";
+    public const string TotalRunCountId = "SCT_TOTAL_RUN_COUNT";
+    public const string DnfCountId = "SCT_DNF_COUNT";
+    public const string ConsistencyScoreId = "SCT_CONSISTENCY_SCORE";
+    public const string ButtonAllOffId = "SCT_ALL_METRICS_OFF_BUTTON";
+    public const string ButtonAllOnId = "SCT_ALL_METRICS_ON_BUTTON";
+    public const string AllOnDescId = "SCT_ALL_ON_DESC";
+    public const string ButtonResetId = "SCT_RESET_METRICS_BUTTON";
+    public const string MultimodalTestId = "SCT_MULTIMODAL_TEST";
+    public const string RoomDependencyId = "SCT_ROOM_DEPENDENCY";
+    public const string MetricsSubHeaderId = "SCT_METRICS_SUBHEADER";
+    public const string RelMadId = "SCT_RELATIVE_MAD";
+    public const string GoldRateId = "SCT_GOLD_RATE";
 
     // Graph Overlay (charts)
-    public const string GraphBoxPlotId = "BOX_PLOT_GRAPH";
+    public const string GraphBoxPlotId = "SCT_BOX_PLOT_GRAPH";
 }
