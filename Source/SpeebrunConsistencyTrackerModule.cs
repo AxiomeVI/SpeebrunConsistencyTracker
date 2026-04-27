@@ -284,7 +284,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
-        if (Settings.Enabled && SessionManager.CurrentSession?.CurrentAttempt != null) {
+        if (Settings.Enabled && SessionManager.CurrentSession?.CurrentAttemptIndex >= 0) {
             long segmentTime = _getCurrentRoomTime?.Invoke() ?? 0;
             if (segmentTime > 0)
                 SessionManager.CompleteRoom(segmentTime);

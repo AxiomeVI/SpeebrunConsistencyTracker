@@ -51,15 +51,18 @@ public static class GraphInteractivity
                 var session = SessionManager.CurrentSession;
                 if (session != null)
                 {
-                    var indices = new System.Collections.Generic.HashSet<int>();
+                    // Segment pins first so room pins on the same attempt become no-ops (dedup).
+                    var deletedAttempts = new System.Collections.Generic.HashSet<int>();
                     foreach (var pin in _pinnedItems)
-                        if (pin.Key != null && int.TryParse(pin.Key.Split(':')[0], out int idx))
-                            indices.Add(idx);
-                    if (indices.Count > 0)
-                    {
-                        session.RemoveAttempts([.. indices]);
-                        GraphManager.ClearScatterGraph();
-                    }
+                        if (PinKey.TryParseSegment(pin.Key, out int attemptIdx))
+                        {
+                            session.DeleteAttempt(attemptIdx);
+                            deletedAttempts.Add(attemptIdx);
+                        }
+                    foreach (var pin in _pinnedItems)
+                        if (PinKey.TryParseRoom(pin.Key, out int attemptIdx, out int roomIdx)
+                            && !deletedAttempts.Contains(attemptIdx))
+                            session.DeleteCell(attemptIdx, roomIdx);
                 }
                 _pinnedItems.Clear();
                 overlay?.ClearPins();
@@ -243,7 +246,7 @@ public static class GraphInteractivity
 
     private static void DrawDeleteRunsButton(BaseChartOverlay overlay)
     {
-        const string text  = "Delete runs";
+        const string text  = "Delete";
         const float  scale = ChartConstants.FontScale.AxisLabelSmall;
         const float  pad   = ChartConstants.Interactivity.TooltipBgPadding;
 
@@ -336,5 +339,31 @@ public static class GraphInteractivity
         Draw.Rect(x - half, y - gap - arm, 3f, arm, color); // up
         Draw.Rect(x - half, y + gap + 1f,  3f, arm, color); // down
         Draw.Rect(x - half, y - half,      3f, 3f, color);  // center
+    }
+}
+
+public static class PinKey
+{
+    private const string SegPrefix  = "seg:";
+    private const string RoomPrefix = "room:";
+
+    public static string ForSegment(int attemptIndex) => $"{SegPrefix}{attemptIndex}";
+    public static string ForRoom(int attemptIndex, int visibleRoomIndex) => $"{RoomPrefix}{attemptIndex}:{visibleRoomIndex}";
+
+    public static bool TryParseSegment(string? key, out int attemptIndex)
+    {
+        attemptIndex = 0;
+        return key != null && key.StartsWith(SegPrefix) && int.TryParse(key.Substring(SegPrefix.Length), out attemptIndex);
+    }
+
+    public static bool TryParseRoom(string? key, out int attemptIndex, out int visibleRoomIndex)
+    {
+        attemptIndex = 0;
+        visibleRoomIndex = 0;
+        if (key == null || !key.StartsWith(RoomPrefix)) return false;
+        var parts = key.Split(':');
+        return parts.Length == 3
+            && int.TryParse(parts[1], out attemptIndex)
+            && int.TryParse(parts[2], out visibleRoomIndex);
     }
 }
