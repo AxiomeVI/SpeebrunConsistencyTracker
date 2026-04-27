@@ -1,4 +1,4 @@
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -54,15 +54,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private int _compPinIdx = -1;
 
         public RunTrajectoryOverlay(
-            IReadOnlyList<Attempt> attempts,
-            List<List<TimeTicks>> roomTimes,
+            PracticeSession session,
             int totalRooms,
             Vector2? pos = null)
             : base("Run Trajectory — Deviation from average", pos)
         {
             _totalRooms = totalRooms;
 
-            if (attempts.Count == 0 || totalRooms == 0)
+            int attemptCount = session.AttemptCount;
+            if (attemptCount == 0 || totalRooms == 0)
             {
                 _attempts     = [];
                 _sobLine      = new AttemptLine([], [], 0, 0);
@@ -76,28 +76,36 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Per-room averages from all attempts that reached each room
             _roomAverages = [.. Enumerable.Range(0, _totalRooms).Select(r =>
             {
-                var times = attempts
-                    .Where(a => a.Count > r)
-                    .Select(a => a.GetRoomTime(r).Ticks)
-                    .ToList();
+                var times = new List<long>();
+                for (int a = 0; a < attemptCount; a++)
+                {
+                    if (session.ContiguousCount(a) > r)
+                    {
+                        var cell = session.GetCell(a, r);
+                        if (cell.HasTime) times.Add(cell.Time.Ticks);
+                    }
+                }
                 return times.Count == 0 ? 0L : (long)times.Average();
             })];
 
-            // Build attempts in chronological order (flat — no reserved best slot)
-            _attempts = [.. attempts.Select((a, chronoIdx) =>
+            // Build attempts in chronological order
+            _attempts = [];
+            for (int a = 0; a < attemptCount; a++)
             {
+                int contiguous = session.ContiguousCount(a);
+                if (contiguous == 0) continue;
                 long cumulative = 0;
-                var deviations  = new List<long>();
-                var roomTks     = new List<long>();
-                for (int r = 0; r < a.Count && r < _totalRooms; r++)
+                var deviations = new List<long>();
+                var roomTks = new List<long>();
+                for (int r = 0; r < contiguous && r < _totalRooms; r++)
                 {
-                    long t = a.GetRoomTime(r).Ticks;
+                    long t = session.GetCell(a, r).Time.Ticks; // safe: ContiguousCount guarantees all cells 0..contiguous-1 are Completed
                     roomTks.Add(t);
                     cumulative += t - _roomAverages[r];
                     deviations.Add(cumulative);
                 }
-                return new AttemptLine([.. deviations], [.. roomTks], deviations.Count, chronoIdx + 1);
-            })];
+                _attempts.Add(new AttemptLine([.. deviations], [.. roomTks], deviations.Count, a + 1));
+            }
 
             // Per-room best-so-far: index of attempt with lowest CumulativeDeviations[r] among those reaching r
             _bestSoFarIdx = new int[_totalRooms];
@@ -105,7 +113,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 int bestI = -1;
                 long bestDev = long.MaxValue;
-                for (int i = 0; i < _attempts.Count - 1; i++)
+                for (int i = 0; i < _attempts.Count - 1; i++) // exclude last attempt — _bestSoFarIdx is used for "vs Best Split" comparison only against prior runs
                 {
                     if (_attempts[i].RoomsCompleted <= r) continue;
                     if (_attempts[i].CumulativeDeviations[r] < bestDev)
@@ -124,7 +132,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int  sobRoomsCompleted = 0;
             for (int r = 0; r < _totalRooms; r++)
             {
-                var times = r < roomTimes.Count ? roomTimes[r] : [];
+                var times = session.GetRoomTimes(r).ToList();
                 if (times.Count == 0) break;
                 long best         = times.Min(t => t.Ticks);
                 _sobRoomTimes[r]  = best;
