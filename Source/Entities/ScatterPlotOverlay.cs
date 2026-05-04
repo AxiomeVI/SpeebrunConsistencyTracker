@@ -218,7 +218,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float totalW = colW * 2 + divW;
 
             float bgX = MathF.Round(position.X + width / 2f - totalW / 2f);
-            float bgY = MathF.Round(position.Y + height - btnH - 8f);
+            float bgY = MathF.Round(position.Y + height - btnH - 6f);
 
             _toggleButtonRect = new Microsoft.Xna.Framework.Rectangle((int)bgX, (int)bgY, (int)totalW, (int)btnH);
 
@@ -552,7 +552,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override void DrawLabels(float x, float y, float w, float h)
         {
             float normalW3   = ComputeNormalColumnWidth(w);
-            float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
+            int totalVisible = roomDataList.Count - _hiddenColumns.Count + 1;
+            bool isStaggered = totalVisible > ChartConstants.XAxisLabel.StaggerThreshold;
+            float baseLabelY = y + h + (isStaggered ? ChartConstants.XAxisLabel.BaseOffsetY / 2f : ChartConstants.XAxisLabel.BaseOffsetY);
 
             // X axis labels (room names) — staggered, with strip highlights
             for (int i = 0; i < roomDataList.Count; i++)
@@ -566,8 +568,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 string label  = roomDataList[i].RoomName;
                 if (label.Length > ChartConstants.Scatter.LabelTruncationLength)
                     label = string.Concat(label.AsSpan(0, ChartConstants.Scatter.LabelTruncationLength), "...");
-                int totalVisible = roomDataList.Count - _hiddenColumns.Count + 1;
-                float labelY  = totalVisible > ChartConstants.XAxisLabel.StaggerThreshold
+                float labelY  = isStaggered
                     ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                     : baseLabelY;
                 Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabel;
@@ -585,8 +586,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             float segStartX2  = GetColumnStartX(x, w, roomDataList.Count);
             float segCenterX2 = segStartX2 + normalW3 * 0.5f;
-            int totalVisible2 = roomDataList.Count - _hiddenColumns.Count + 1;
-            float segmentLabelY = totalVisible2 >= ChartConstants.XAxisLabel.StaggerThreshold
+            float segmentLabelY = isStaggered
                 ? (roomDataList.Count % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                 : baseLabelY;
             Vector2 segLabelSize = ActiveFont.Measure("Segment") * ChartConstants.FontScale.AxisLabel;

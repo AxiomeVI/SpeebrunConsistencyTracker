@@ -62,7 +62,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         internal static class XAxisLabel
         {
             internal const float BaseOffsetY      = 10f;
-            internal const float StaggerOffsetY   = 20f;
+            internal const float StaggerOffsetY   = 18f;
             internal const int   StaggerThreshold = 25;
             internal const float TickEvenLabelY   = 10f;  // histogram X tick label even-index Y offset
             internal const float TickOddLabelY    = 30f;  // histogram X tick label odd-index Y offset
