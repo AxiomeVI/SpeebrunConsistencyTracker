@@ -156,8 +156,12 @@ public sealed class PracticeSession
 
     public int AttemptCount => _matrix.RowCount;
 
-    // Version-cached aggregates
+    // Version-cached aggregates. Keyed on Version, RoomCount, and StartRoomIndex:
+    // segment totals and per-room dictionary sizes depend on the visible segment shape,
+    // and changing SRT NumberOfRooms or RoomTimerType doesn't bump Version.
     private uint _cachedVersion = uint.MaxValue;
+    private int _cachedRoomCount = -1;
+    private int _cachedStartRoomIndex = -1;
     private int _cachedTotalAttempts;
     private int _cachedTotalCompleted;
     private Dictionary<int, int> _totalAttemptsPerRoom;
@@ -166,11 +170,12 @@ public sealed class PracticeSession
 
     private void RefreshPerRoomCaches()
     {
-        if (_cachedVersion == Version) return;
-        _cachedVersion = Version;
-
         int roomCount = RoomCount;
         int start = StartRoomIndex;
+        if (_cachedVersion == Version && _cachedRoomCount == roomCount && _cachedStartRoomIndex == start) return;
+        _cachedVersion = Version;
+        _cachedRoomCount = roomCount;
+        _cachedStartRoomIndex = start;
         int[] totals = new int[roomCount];
         int[] dnfs = new int[roomCount];
         int[] completeds = new int[roomCount];
