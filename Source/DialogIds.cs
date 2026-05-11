@@ -107,6 +107,7 @@ public static class DialogIds {
     public const string ButtonResetId = "SCT_RESET_METRICS_BUTTON";
     public const string MultimodalTestId = "SCT_MULTIMODAL_TEST";
     public const string RoomDependencyId = "SCT_ROOM_DEPENDENCY";
+    public const string BestSplitId = "SCT_BEST_SPLIT";
     public const string MetricsSubHeaderId = "SCT_METRICS_SUBHEADER";
     public const string RelMadId = "SCT_RELATIVE_MAD";
     public const string GoldRateId = "SCT_GOLD_RATE";

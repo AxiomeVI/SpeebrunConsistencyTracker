@@ -98,6 +98,7 @@ SCT_CONSISTENCY_SCORE=                     Consistency Score
 SCT_GOLD_RATE=                             Gold Rate
 SCT_MULTIMODAL_TEST=                       Multimodal Test
 SCT_ROOM_DEPENDENCY=                       Room Dependency
+SCT_BEST_SPLIT=                            Best Split
 SCT_ALL_METRICS_OFF_BUTTON=                Turn off all metrics
 SCT_ALL_METRICS_ON_BUTTON=                 Turn on all metrics
 SCT_ALL_ON_DESC=                           Applied to both text overlay and export

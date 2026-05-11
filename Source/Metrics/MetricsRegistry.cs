@@ -39,6 +39,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 (mode) => MetricHelper.IsMetricEnabled(_settings.Minimum, mode)
             ),
             new MetricDescriptor(
+                "Best Split",
+                "best split",
+                Metrics.BestSplit,
+                (mode) => MetricHelper.IsMetricEnabled(_settings.BestSplit, mode)
+            ),
+            new MetricDescriptor(
                 "Session SoB",
                 "sob",
                 Metrics.SumOfBest,

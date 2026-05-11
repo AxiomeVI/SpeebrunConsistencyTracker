@@ -190,6 +190,44 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(sumTicks.ToString(), roomValues);
         }
 
+        public static MetricResult BestSplit(PracticeSession session, MetricContext context, bool isExport)
+        {
+            if (!isExport)
+                return new MetricResult("", []);
+
+            int roomCount = RoomCount;
+            long[] bestCumul = new long[roomCount];
+            Array.Fill(bestCumul, long.MaxValue);
+
+            for (int a = 0; a < session.AttemptCount; a++)
+            {
+                int contig = session.ContiguousCount(a);
+                int limit  = Math.Min(contig, roomCount);
+                long cumul = 0;
+                for (int r = 0; r < limit; r++)
+                {
+                    cumul += session.GetCell(a, r).Time.Ticks;
+                    if (cumul < bestCumul[r])
+                        bestCumul[r] = cumul;
+                }
+            }
+
+            var roomValues = new List<string>(roomCount);
+            for (int r = 0; r < roomCount; r++)
+                roomValues.Add(bestCumul[r] == long.MaxValue ? "" : new TimeTicks(bestCumul[r]).ToString());
+
+            // Shared keys — GetOrCompute is idempotent, so evaluation order with Best doesn't matter.
+            var segmentSorted = context.GetOrCompute(
+                "segment_values_sorted",
+                () => session.GetSegmentTimes().OrderBy(t => t).ToList()
+            );
+            string segmentValue = segmentSorted.Count == 0
+                ? "0"
+                : context.GetOrCompute("min_segment", () => segmentSorted[0]).ToString();
+
+            return new MetricResult(segmentValue, roomValues);
+        }
+
         public static MetricResult SuccessRate(PracticeSession session, MetricContext context, bool isExport)
         {
             int roomCount = RoomCount;
