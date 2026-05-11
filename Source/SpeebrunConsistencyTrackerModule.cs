@@ -81,7 +81,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         }
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.Level.Render += LevelOnRender;
-        Everest.Events.Level.OnExit += Level_OnLevelExit;
         Everest.Events.Level.OnLoadLevel += OnLoadLevel;
 
         var updateTimerStateMethod = typeof(RoomTimerManager).GetMethod("UpdateTimerState", BindingFlags.Public | BindingFlags.Static);
@@ -104,7 +103,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
         On.Celeste.Level.Render -= LevelOnRender;
-        Everest.Events.Level.OnExit -= Level_OnLevelExit;
         Everest.Events.Level.OnLoadLevel -= OnLoadLevel;
         Clear();
         _updateTimerStateHook?.Dispose();
@@ -284,16 +282,12 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
-        if (Settings.Enabled && SessionManager.CurrentSession?.CurrentAttempt != null) {
+        if (Settings.Enabled && SessionManager.CurrentSession?.CurrentAttemptIndex >= 0) {
             long segmentTime = _getCurrentRoomTime?.Invoke() ?? 0;
             if (segmentTime > 0)
                 SessionManager.CompleteRoom(segmentTime);
         }
         orig(endPoint);
-    }
-
-    private static void Level_OnLevelExit(Level level, LevelExit exit, LevelExit.Mode mode, Session session, HiresSnow snow) {
-        Clear();
     }
 
     public static void Clear()

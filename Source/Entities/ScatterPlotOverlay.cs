@@ -27,9 +27,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly List<List<int>> roomAttemptIndices;
         // Global attempt index for each segment time entry.
         private readonly List<int> segmentAttemptIndices;
+        // Maps filtered roomDataList index → original visible room index (before empty-room filtering).
+        private readonly List<int> _originalRoomIndices;
 
-        // Cache computed values
-        private List<(Vector2 pos, bool isSegment, float radius, int globalAttemptIndex)> cachedDots = null;
+        // Cache computed values (visibleRoomIndex is -1 for segment dots).
+        private List<(Vector2 pos, bool isSegment, float radius, int globalAttemptIndex, int visibleRoomIndex)> cachedDots = null;
         private int _hoveredDotIndex = -1;
         private long maxRoomTime;
         private long maxSegmentTime;
@@ -47,11 +49,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<List<int>> roomIndices, List<TimeTicks> segment, List<int> segmentIndices, Vector2? pos = null, TimeTicks? target = null)
             : base("Room and Segment Times", pos)
         {
-            // Filter out rooms with no times, keeping index lists in sync
+            // Filter out rooms with no times, keeping index lists and original indices in sync
             var filtered = rooms
-                .Select((room, i) => (room, indices: roomIndices[i]))
+                .Select((room, i) => (room, indices: roomIndices[i], originalIndex: i))
                 .Where(x => x.room.Count > 0)
                 .ToList();
+            _originalRoomIndices = filtered.Select(x => x.originalIndex).ToList();
             roomDataList         = filtered.Select((x, i) => new RoomData("R" + (i + 1).ToString(), x.room)).ToList();
             roomAttemptIndices   = filtered.Select(x => x.indices).ToList();
             segmentData          = new RoomData("Segment", segment);
@@ -215,7 +218,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float totalW = colW * 2 + divW;
 
             float bgX = MathF.Round(position.X + width / 2f - totalW / 2f);
-            float bgY = MathF.Round(position.Y + height - btnH - 8f);
+            float bgY = MathF.Round(position.Y + height - btnH - 6f);
 
             _toggleButtonRect = new Microsoft.Xna.Framework.Rectangle((int)bgX, (int)bgY, (int)totalW, (int)btnH);
 
@@ -406,7 +409,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         }
                         float jitterX   = centerX + (float)(random.NextDouble() - 0.5) * (normalW * ChartConstants.Scatter.JitterRatio);
                         int   globalIdx = roomAttemptIndices[roomIndex][t];
-                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius, globalIdx));
+                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius, globalIdx, _originalRoomIndices[roomIndex]));
                     }
                 }
 
@@ -419,11 +422,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float dotY        = y + h - (normalizedY * h);
                     float jitterX     = segCenterX + (float)(random.NextDouble() - 0.5) * (normalW * ChartConstants.Scatter.JitterRatio);
                     int   globalIdx   = segmentAttemptIndices[t];
-                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius, globalIdx));
+                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius, globalIdx, -1));
                 }
             }
 
-            foreach (var (pos, isSegment, radius, _) in cachedDots)
+            foreach (var (pos, isSegment, radius, _, _) in cachedDots)
                 DrawDot(pos, isSegment ? _settings.SegmentColorFinal : _settings.RoomColorFinal, radius);
         }
 
@@ -501,10 +504,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             _hoveredDotIndex = bestIdx;
-            var (pos, _, _, globalAttemptIndex) = cachedDots[bestIdx];
+            var (pos, isSegment, _, globalAttemptIndex, visibleRoomIndex) = cachedDots[bestIdx];
 
-            // Find time string by scanning dot list for this dot's position (isSegment drives which list)
-            var (_, isSegment, _, _) = cachedDots[bestIdx];
             string timeStr;
             if (isSegment)
             {
@@ -531,14 +532,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             string label     = $"Run #{globalAttemptIndex + 1}: {timeStr}";
             float lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
             float labelY     = pos.Y - ChartConstants.Scatter.DotRadius - ChartConstants.Interactivity.TooltipPaddingY - lineHeight - ChartConstants.Interactivity.TooltipBgPadding * 2f;
-            return new HoverInfo(label, new Vector2(pos.X, labelY), Key: $"{globalAttemptIndex}:{bestIdx}");
+            string key = isSegment
+                ? PinKey.ForSegment(globalAttemptIndex)
+                : PinKey.ForRoom(globalAttemptIndex, visibleRoomIndex);
+            return new HoverInfo(label, new Vector2(pos.X, labelY), Key: key);
         }
 
         public override void DrawHighlight()
         {
             if (_hoveredDotIndex < 0 || cachedDots == null) return;
 
-            var (pos, isSegment, radius, _) = cachedDots[_hoveredDotIndex];
+            var (pos, _, _, _, _) = cachedDots[_hoveredDotIndex];
             float highlightRadius = ChartConstants.Interactivity.ScatterSnapRadius;
             int circleCount = (int)Math.Ceiling(highlightRadius * 2);
             for (int i = 0; i < circleCount; i++)
@@ -548,7 +552,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override void DrawLabels(float x, float y, float w, float h)
         {
             float normalW3   = ComputeNormalColumnWidth(w);
-            float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
+            int totalVisible = roomDataList.Count - _hiddenColumns.Count + 1;
+            bool isStaggered = totalVisible > ChartConstants.XAxisLabel.StaggerThreshold;
+            float baseLabelY = y + h + (isStaggered ? ChartConstants.XAxisLabel.BaseOffsetY / 2f : ChartConstants.XAxisLabel.BaseOffsetY);
 
             // X axis labels (room names) — staggered, with strip highlights
             for (int i = 0; i < roomDataList.Count; i++)
@@ -562,8 +568,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 string label  = roomDataList[i].RoomName;
                 if (label.Length > ChartConstants.Scatter.LabelTruncationLength)
                     label = string.Concat(label.AsSpan(0, ChartConstants.Scatter.LabelTruncationLength), "...");
-                int totalVisible = roomDataList.Count - _hiddenColumns.Count + 1;
-                float labelY  = totalVisible > ChartConstants.XAxisLabel.StaggerThreshold
+                float labelY  = isStaggered
                     ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                     : baseLabelY;
                 Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabel;
@@ -581,8 +586,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             float segStartX2  = GetColumnStartX(x, w, roomDataList.Count);
             float segCenterX2 = segStartX2 + normalW3 * 0.5f;
-            int totalVisible2 = roomDataList.Count - _hiddenColumns.Count + 1;
-            float segmentLabelY = totalVisible2 >= ChartConstants.XAxisLabel.StaggerThreshold
+            float segmentLabelY = isStaggered
                 ? (roomDataList.Count % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                 : baseLabelY;
             Vector2 segLabelSize = ActiveFont.Measure("Segment") * ChartConstants.FontScale.AxisLabel;

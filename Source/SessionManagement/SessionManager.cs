@@ -24,7 +24,8 @@ public static class SessionManager
     // Called on SRT OnSaveState: fresh session for this slot, overwrites any prior data.
     public static void SaveSlot(string slotName)
     {
-        var session = new PracticeSession();
+        var session = new PracticeSession(
+            initialColumnCapacity: Math.Max(16, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms + 4));
         _slots[slotName] = session;
         CurrentSession = session;
         UpdateRoomCount();
@@ -36,7 +37,8 @@ public static class SessionManager
     {
         if (!_slots.TryGetValue(slotName, out PracticeSession session))
         {
-            session = new PracticeSession();
+            session = new PracticeSession(
+                initialColumnCapacity: Math.Max(16, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms + 4));
             _slots[slotName] = session;
         }
         CurrentSession = session;
@@ -68,14 +70,10 @@ public static class SessionManager
     public static void CompleteRoom(long ticks)
     {
         if (CurrentSession == null) return;
-        var attempt = CurrentSession.CurrentAttempt;
-        TimeTicks roomTime = new TimeTicks(ticks) - attempt.TotalSegmentTime;
+        TimeTicks roomTime = new TimeTicks(ticks) - CurrentSession.RunningSegmentTime;
         if (roomTime > 0)
         {
-            int roomIndex = attempt.Count; // captured before CompleteRoom mutates Count
-            attempt.CompleteRoom(roomTime);
-            if (roomIndex < RoomCount)
-                CurrentSession.BumpVersion();
+            CurrentSession.CompleteRoom(roomTime);
         }
     }
 
@@ -94,10 +92,7 @@ public static class SessionManager
             CurrentSession.RecomputeMaxRoomCount();
         }
 
-        int attemptRooms = CurrentSession.CurrentAttempt?.TotalRoomCount ?? 0;
-        if (attemptRooms > CurrentSession.MaxRoomCount)
-            CurrentSession.MaxRoomCount = attemptRooms;
-
+        CurrentSession.BumpMaxForActiveAttempt();
         RoomCount = Math.Min(CurrentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
     }
 }

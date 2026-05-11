@@ -18,6 +18,7 @@ public static partial class ModMenuOptions
         TextMenu.OnOff resetShare     = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId),    _settings.ResetShare).Change(b => _settings.ResetShare = b);
         TextMenu.OnOff multimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId),_settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
         TextMenu.OnOff roomDependency = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RoomDependencyId),_settings.RoomDependency).Change(b => _settings.RoomDependency = b);
+        TextMenu.OnOff bestSplit      = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.BestSplitId),     _settings.BestSplit).Change(b => _settings.BestSplit = b);
 
         // Percentile value (special: depends on Percentile slider)
         TextMenu.Slider percentileValue = new(
@@ -51,6 +52,7 @@ public static partial class ModMenuOptions
                 resetShare.Index     = 0; _settings.ResetShare     = false;
                 multimodalTest.Index = 0; _settings.MultimodalTest = false;
                 roomDependency.Index = 0; _settings.RoomDependency = false;
+                bestSplit.Index      = 0; _settings.BestSplit      = false;
                 foreach (MetricDef def in defs)
                 {
                     def.Set(MetricOutputChoice.Off);
@@ -69,6 +71,7 @@ public static partial class ModMenuOptions
                 resetShare.Index     = 1; _settings.ResetShare     = true;
                 multimodalTest.Index = 1; _settings.MultimodalTest = true;
                 roomDependency.Index = 1; _settings.RoomDependency = true;
+                bestSplit.Index      = 1; _settings.BestSplit      = true;
                 foreach (MetricDef def in defs)
                 {
                     MetricOutputChoice best = def.Choices[^1];
@@ -88,6 +91,7 @@ public static partial class ModMenuOptions
                 resetShare.Index     = 0; _settings.ResetShare     = false;
                 multimodalTest.Index = 0; _settings.MultimodalTest = false;
                 roomDependency.Index = 0; _settings.RoomDependency = false;
+                bestSplit.Index      = 1; _settings.BestSplit      = true;
                 foreach (MetricDef def in defs)
                 {
                     def.Set(def.DefaultValue);
@@ -119,6 +123,7 @@ public static partial class ModMenuOptions
         sub.Add(resetShare);
         sub.Add(multimodalTest);
         sub.Add(roomDependency);
+        sub.Add(bestSplit);
 
         sub.Visible = _settings.Enabled;
         return sub;

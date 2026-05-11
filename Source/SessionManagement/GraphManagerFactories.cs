@@ -74,12 +74,8 @@ public static partial class GraphManager
             var roomTimes   = roomPairs.Select(p => p.times).ToList();
             var roomIndices = roomPairs.Select(p => p.indices).ToList();
 
-            var segmentPairs   = session.Attempts
-                .Select((a, i) => (attempt: a, idx: i))
-                .Where(x => x.attempt.IsCompleted())
-                .ToList();
-            var segmentTimes   = segmentPairs.Select(x => x.attempt.SegmentTime()).ToList();
-            var segmentIndices = segmentPairs.Select(x => x.idx).ToList();
+            var segmentIndices = session.GetCompletedAttemptIndices().ToList();
+            var segmentTimes   = segmentIndices.Select(session.SegmentTime).ToList();
 
             TimeTicks? target = MetricHelper.IsMetricEnabled(SpeebrunConsistencyTrackerModule.Settings.TargetTime, MetricOutput.Overlay)
                 ? MetricEngine.GetTargetTimeTicks() : null;
@@ -297,14 +293,10 @@ public static partial class GraphManager
 
         if (_runTrajectoryChart == null)
         {
-            var session      = SessionManager.CurrentSession;
-            var roomTimes    = Enumerable.Range(0, curRoomCount)
-                .Select(i => session.GetRoomTimes(i).ToList())
-                .ToList();
+            var session = SessionManager.CurrentSession;
 
             _runTrajectoryChart   = new RunTrajectoryOverlay(
-                session.Attempts,
-                roomTimes,
+                session,
                 curRoomCount);
             _runTrajectoryVersion   = curVersion;
             _runTrajectoryRoomCount = curRoomCount;

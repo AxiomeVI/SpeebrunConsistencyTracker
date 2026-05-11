@@ -167,7 +167,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float totalW = colW * 2 + divW;
 
             float bgX = MathF.Round(position.X + width / 2f - totalW / 2f);
-            float bgY = MathF.Round(position.Y + height - btnH - 8f);
+            float bgY = MathF.Round(position.Y + height - btnH - 6f);
 
             _toggleButtonRect = new Microsoft.Xna.Framework.Rectangle((int)bgX, (int)bgY, (int)totalW, (int)btnH);
 
@@ -365,7 +365,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             int roomCount    = _roomTimes.Count;
             int totalColumns = roomCount + 1;
-            float baseLabelY  = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
+            bool isStaggered = totalColumns > ChartConstants.XAxisLabel.StaggerThreshold;
+            float baseLabelY  = y + h + (isStaggered ? ChartConstants.XAxisLabel.BaseOffsetY / 2f : ChartConstants.XAxisLabel.BaseOffsetY);
 
             // X-axis room labels (staggered), with strip highlights
             float normalW2 = ComputeNormalColumnWidth(w);

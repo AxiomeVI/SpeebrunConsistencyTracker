@@ -99,6 +99,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Off;
     public bool MultimodalTest { get; set; } = false;
     public bool RoomDependency { get; set; } = false;
+    public bool BestSplit { get; set; } = true;
 
     public void OnLoadSettings() {
         Keybind_ImportTargetTime  ??= new ButtonBinding();
