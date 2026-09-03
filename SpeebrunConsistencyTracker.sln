@@ -1,6 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
+# 
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SpeebrunConsistencyTracker", "Source\SpeebrunConsistencyTracker.csproj", "{472281A7-9373-412A-8E8E-5B603857A9D6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UnitTests", "UnitTests\UnitTests.csproj", "{A577E5A1-83C4-46BC-B845-869A17A755CC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -12,5 +15,9 @@ Global
 		{472281A7-9373-412A-8E8E-5B603857A9D6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{472281A7-9373-412A-8E8E-5B603857A9D6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{472281A7-9373-412A-8E8E-5B603857A9D6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A577E5A1-83C4-46BC-B845-869A17A755CC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A577E5A1-83C4-46BC-B845-869A17A755CC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A577E5A1-83C4-46BC-B845-869A17A755CC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A577E5A1-83C4-46BC-B845-869A17A755CC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
