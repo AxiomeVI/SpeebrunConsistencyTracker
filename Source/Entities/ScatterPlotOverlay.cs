@@ -366,7 +366,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 cachedDots = [];
 
                 float normalW     = ComputeNormalColumnWidth(w);
-                Random random     = new(42);
                 float baseRadius  = ChartConstants.Scatter.DotRadius;
 
                 long roomRange    = maxRoomTime - minRoomTime;
@@ -401,9 +400,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                             float normalizedY = roomRange > 0 ? (float)(room.Times[t].Ticks - minRoomTime) / roomRange : 0.5f;
                             dotY = y + h - (normalizedY * h);
                         }
-                        float jitterX   = centerX + (float)(random.NextDouble() - 0.5) * (normalW * ChartConstants.Scatter.JitterRatio);
+                        float dotX      = ChronologicalX(centerX, normalW, t, room.Times.Count);
                         int   globalIdx = roomAttemptIndices[roomIndex][t];
-                        cachedDots.Add((new Vector2(jitterX, dotY), false, baseRadius, globalIdx, _originalRoomIndices[roomIndex]));
+                        cachedDots.Add((new Vector2(dotX, dotY), false, baseRadius, globalIdx, _originalRoomIndices[roomIndex]));
                     }
                 }
 
@@ -414,14 +413,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 {
                     float normalizedY = segmentRange > 0 ? (float)(segmentData.Times[t].Ticks - minSegmentTime) / segmentRange : 0.5f;
                     float dotY        = y + h - (normalizedY * h);
-                    float jitterX     = segCenterX + (float)(random.NextDouble() - 0.5) * (normalW * ChartConstants.Scatter.JitterRatio);
+                    float dotX        = ChronologicalX(segCenterX, normalW, t, segmentData.Times.Count);
                     int   globalIdx   = segmentAttemptIndices[t];
-                    cachedDots.Add((new Vector2(jitterX, dotY), true, baseRadius, globalIdx, -1));
+                    cachedDots.Add((new Vector2(dotX, dotY), true, baseRadius, globalIdx, -1));
                 }
             }
 
             foreach (var (pos, isSegment, radius, _, _) in cachedDots)
                 DrawDot(pos, isSegment ? _settings.SegmentColorFinal : _settings.RoomColorFinal, radius);
+        }
+
+        // Dots spread chronologically inside their column: oldest left, newest right.
+        private static float ChronologicalX(float centerX, float columnWidth, int index, int count)
+        {
+            if (count <= 1) return centerX;
+            float t = (float)index / (count - 1);
+            return centerX + (t - 0.5f) * columnWidth * ChartConstants.Scatter.SpreadRatio;
         }
 
         private static void DrawDot(Vector2 position, Color color, float radius)

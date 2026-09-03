@@ -94,7 +94,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         internal static class Scatter
         {
             internal const float DotRadius             = 2f;
-            internal const float JitterRatio           = 0.4f;
+            internal const float SpreadRatio           = 0.7f; // fraction of the column width the chronological spread uses
             internal const int   LabelTruncationLength = 10;
         }
 
