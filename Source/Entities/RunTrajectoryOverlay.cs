@@ -8,14 +8,8 @@ using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    /// <summary>
-    /// Line chart showing each attempt as a trajectory relative to the room average baseline.
-    /// Deviation convention: deviation[r] = actualTime[r] - roomAverage[r].
-    ///   Negative = faster than average → line goes UP. Positive = slower → line goes DOWN.
-    /// Cumulative deviation is the running sum across rooms.
-    /// Attempts are ordered: regulars (chronological) -> best (if not last) -> last.
-    /// If best == last, it appears only once at the end in gold.
-    /// </summary>
+    // deviation[r] = actualTime[r] - roomAverage[r], so negative is faster than average and
+    // draws UP. Cumulative deviation is the running sum across rooms.
     public class RunTrajectoryOverlay : BaseChartOverlay
     {
         private readonly int _totalRooms;
@@ -46,10 +40,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private long _maxDownwardDeviation;       // max magnitude of positive cumulative dev up to _lastVisibleRoom (min 1)
         private long _totalRange;                 // _maxUpwardDeviation + _maxDownwardDeviation
 
-        // Hover state — index into _attempts, or _attempts.Count for SoB, _attempts.Count+1 for baseline, -1 for none
+        // Line index: into _attempts, or _attempts.Count for SoB, +1 for baseline, -1 for none.
         private int _hoveredLineIdx = -1;
-        // Pin state: _mainPinIdx is the fixed reference line (-1 = no pin / comparison mode off)
-        // _compPinIdx is the optional secondary comparison line (-1 = compare vs Avg)
+        // Main pin is the fixed reference line (-1 = comparison mode off); comp pin the optional
+        // secondary line (-1 = compare vs Avg).
         private int _mainPinIdx = -1;
         private int _compPinIdx = -1;
 
@@ -73,7 +67,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return;
             }
 
-            // Per-room averages from all attempts that reached each room
             _roomAverages = [.. Enumerable.Range(0, _totalRooms).Select(r =>
             {
                 var times = new List<long>();
@@ -88,7 +81,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return times.Count == 0 ? 0L : (long)times.Average();
             })];
 
-            // Build attempts in chronological order
             _attempts = [];
             for (int a = 0; a < attemptCount; a++)
             {
@@ -107,13 +99,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 _attempts.Add(new AttemptLine([.. deviations], [.. roomTks], deviations.Count, a + 1));
             }
 
-            // Per-room best-so-far: index of attempt with lowest CumulativeDeviations[r] among those reaching r
             _bestSoFarIdx = new int[_totalRooms];
             for (int r = 0; r < _totalRooms; r++)
             {
                 int bestI = -1;
                 long bestDev = long.MaxValue;
-                for (int i = 0; i < _attempts.Count - 1; i++) // exclude last attempt — _bestSoFarIdx is used for "vs Best Split" comparison only against prior runs
+                for (int i = 0; i < _attempts.Count - 1; i++) // "vs Best Split" compares against prior runs only
                 {
                     if (_attempts[i].RoomsCompleted <= r) continue;
                     if (_attempts[i].CumulativeDeviations[r] < bestDev)
@@ -125,7 +116,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 _bestSoFarIdx[r] = bestI; // -1 if no attempt reaches r
             }
 
-            // SoB line
             long sobCumulative    = 0;
             var  sobDeviations    = new long[_totalRooms];
             _sobRoomTimes         = new long[_totalRooms];
@@ -147,7 +137,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void RecomputeCache()
         {
-            // Recompute _lastVisibleRoom
             int lastVis = -1;
             for (int r = _totalRooms - 1; r >= 0; r--)
                 if (!_hiddenColumns.Contains(r)) { lastVis = r; break; }
@@ -168,9 +157,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return;
             }
 
-            // --- Best attempt selection ---
-            // Among attempts that reached lastVis, pick lowest cumulative deviation at lastVis.
-            // If none reached lastVis, pick furthest reached, ties broken by lowest final deviation.
+            // Best = lowest cumulative deviation at lastVis among attempts that reached it;
+            // failing that, the furthest reached, ties broken by lowest final deviation.
             int best = -1;
             {
                 var reached = Enumerable.Range(0, _attempts.Count)
@@ -191,23 +179,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _bestIdx    = best;
             _lastIsBest = _bestIdx == _attempts.Count - 1;
 
-            // --- Coincidence flags ---
             long bestDev = DevAtRoom(_attempts[_bestIdx], lastVis);
             long sobDev  = DevAtRoom(_sobLine,            lastVis);
             _sobIsBest  = sobDev == bestDev;
 
-            // --- Reach flags ---
             _anyCompleted   = _attempts.Any(a => a.RoomsCompleted > lastVis);
             _sobReachesEnd  = _sobLine.RoomsCompleted > lastVis;
             _lastReachesEnd = _attempts[^1].RoomsCompleted > lastVis;
 
-            // --- Room averages sum ---
             _roomAveragesSum = 0;
             for (int r = 0; r <= lastVis; r++) _roomAveragesSum += _roomAverages[r];
 
-            // --- Axis range ---
-            // Hidden rooms in the middle still contribute cumulative deviation;
-            // rooms beyond lastVis are excluded entirely.
+            // Hidden rooms in the middle still contribute cumulative deviation; rooms beyond
+            // lastVis do not.
             long maxUp   = 1;
             long maxDown = 1;
             foreach (var attempt in _attempts)
@@ -245,7 +229,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public override void ToggleColumn(int columnIndex)
         {
             base.ToggleColumn(columnIndex);
-            // Recompute only if the last visible room changed
             int newLastVisible = -1;
             for (int r = _totalRooms - 1; r >= 0; r--)
                 if (!_hiddenColumns.Contains(r)) { newLastVisible = r; break; }
@@ -253,7 +236,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 RecomputeCache();
         }
 
-        // Returns the highest room index that is not hidden, capped at _totalRooms-1. -1 if all hidden.
+        // -1 if every room is hidden.
         private int LastVisibleRoom()
         {
             for (int r = _totalRooms - 1; r >= 0; r--)
@@ -279,7 +262,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             return x + thisW * 0.5f;
         }
 
-        // Returns the X at the right edge of room r's column.
         private float GetRoomRightEdgeX(float gx, float gw, int r)
         {
             float normalW = ComputeNormalColumnWidth(gw);
@@ -361,11 +343,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private bool IsLinePinned(int lineIdx) =>
             lineIdx == _mainPinIdx || lineIdx == _compPinIdx;
 
-        /// <summary>
-        /// Returns true if the line at <paramref name="lineIdx"/> should be drawn dimmed.
-        /// Dimming applies when either hovering or comparison mode is active, and the line
-        /// is not one of the "active" lines (hovered, main pin, or comp pin).
-        /// </summary>
         private bool IsLineDimmed(int lineIdx)
         {
             bool hovering       = _hoveredLineIdx >= 0;
@@ -382,8 +359,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (_compPinIdx < 0 && lineIdx == _attempts.Count) return false; // default comp is SoB
             }
 
-            // If only hovering (no comparison mode), hovered line is handled above; all others dim.
-            // If comparison mode, any line not matching the exemptions above is dimmed.
             return true;
         }
 
@@ -397,8 +372,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             bool  hovering  = _hoveredLineIdx >= 0;
             var   s         = SpeebrunConsistencyTrackerModule.Settings;
 
-            // Regular lines: all attempts except _bestIdx and last (^1).
-            // If _lastIsBest, there is only one special slot (^1); otherwise two (_bestIdx and ^1).
             for (int i = 0; i < total; i++)
             {
                 if (i == _bestIdx || i == total - 1) continue;
@@ -441,7 +414,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 DrawAttemptLine(_attempts[i], x, w, baselineY, devScale, h, color, thickness);
             }
 
-            // Special lines: SoB → Best → Last (drawn on top of regulars, in this order).
+            // SoB, Best and Last draw on top of the regulars, in that order.
             Color sobColor  = s.TrajectorySobColorFinal;
             Color bestColor = s.TrajectoryBestColorFinal;
             Color lastColor = s.TrajectoryLastColorFinal;
@@ -453,8 +426,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (_sobIsBest && _lastIsBest)
             {
-                // SoB == Best == Last: draw once in lastColor (last > best > sob)
-                bool  h3      = hovering && (_hoveredLineIdx == sobIdx || _hoveredLineIdx >= lastIdx);
+                // One line for all three; colour precedence last > best > sob.
+                bool  h3      = hovering && (_hoveredLineIdx == sobIdx || _hoveredLineIdx == lastIdx);
                 bool  pinned3 = IsLinePinned(sobIdx) || IsLinePinned(lastIdx);
                 bool  dimmed3 = IsLineDimmed(sobIdx) && IsLineDimmed(lastIdx);
                 float t3      = h3 || pinned3 ? 3f : specialThick;
@@ -463,7 +436,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             else if (_sobIsBest)
             {
-                // SoB == Best: draw shared line in bestColor (best > sob), Last separate
+                // Shared line takes bestColor (best > sob); Last draws separately.
                 bool  hSB      = hovering && _hoveredLineIdx == sobIdx;
                 bool  pinnedSB = IsLinePinned(sobIdx);
                 bool  dimmedSB = IsLineDimmed(sobIdx);
@@ -480,7 +453,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             else if (_lastIsBest)
             {
-                // Best == Last: draw shared line in lastColor (last > best), SoB separate
+                // Shared line takes lastColor (last > best); SoB draws separately.
                 bool  hSob      = hovering && _hoveredLineIdx == sobIdx;
                 bool  pinnedSob = IsLinePinned(sobIdx);
                 bool  dimmedSob = IsLineDimmed(sobIdx);
@@ -497,7 +470,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
             else
             {
-                // No coincidence: solid SoB, solid Best, solid Last
                 bool  hSob      = hovering && _hoveredLineIdx == sobIdx;
                 bool  pinnedSob = IsLinePinned(sobIdx);
                 bool  dimmedSob = IsLineDimmed(sobIdx);
@@ -523,9 +495,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         private void DrawAttemptLine(AttemptLine attempt, float gx, float gw, float baselineY, float devScale, float h, Color color, float thickness)
         {
-            // Edge-based model: each visible room r draws from its left edge (deviation[r-1]) to its right edge (deviation[r]).
-            // When rooms are hidden, the next visible room connects from the right edge of prevVisible (deviation[prevVisible]).
-            // Stop at the last visible room — rooms beyond it are not drawn.
+            // Edge-based: room r runs from the right edge of the previous *visible* room to its
+            // own right edge, so hidden rooms are bridged. HitTest mirrors this.
             int lastVisible = LastVisibleRoom();
             int prevVisible = -1;
             int limit = Math.Min(attempt.RoomsCompleted - 1, lastVisible);
@@ -589,7 +560,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float baselineY   = gy + (float)_maxUpwardDeviation / _totalRange * gh;
             float devScale    = gh / _totalRange;
 
-            // Which column is the mouse in? Walk variable-width columns.
+            // Columns have variable width (hidden ones are stubs), so walk them.
             int col = _totalRooms - 1;
             {
                 float normalW = ComputeNormalColumnWidth(gw);
@@ -602,7 +573,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
 
-            // For each line, lerp the Y at mouseX within this column's segment
             float mouseX  = mouseHudPos.X;
             float mouseY  = mouseHudPos.Y;
             float bestDist = float.MaxValue;
@@ -612,8 +582,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 if (col >= line.RoomsCompleted) return;
                 if (_hiddenColumns.Contains(col)) return;
-                // Mirror DrawAttemptLine: edge-based model.
-                // Find prev visible room (or use left grid edge).
+                // Mirrors DrawAttemptLine's edge-based model.
                 int prev = -1;
                 for (int j = col - 1; j >= 0; j--)
                     if (!_hiddenColumns.Contains(j)) { prev = j; break; }
@@ -639,7 +608,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Check(_attempts[i], i);
             Check(_sobLine, _attempts.Count);
 
-            // Baseline — horizontal line, snap purely on Y distance
+            // Baseline is horizontal, so snap on Y distance alone.
             float baselineDist = Math.Abs(mouseY - baselineY);
             if (baselineDist < bestDist)
             {
@@ -651,7 +620,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (bestIdx < 0 || bestDist > snapThreshold) return null;
 
             _hoveredLineIdx = bestIdx;
-            // Return non-null to trigger DrawHighlight; label is empty (we draw everything in DrawHighlight)
+            // Empty label: DrawHighlight draws the whole tooltip itself.
             return new HoverInfo("", Vector2.Zero, Key: _hoveredLineIdx.ToString(), PinGroup: "trajectory");
         }
 
@@ -664,7 +633,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (_mainPinIdx < 0)
             {
-                // No main pin yet — first click sets the main pin
                 _mainPinIdx = idx;
                 _compPinIdx = -1;
                 return true;
@@ -672,13 +640,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             if (idx == _mainPinIdx)
             {
-                // Clicking the main line — exit comparison mode entirely
                 _mainPinIdx = -1;
                 _compPinIdx = -1;
                 return true;
             }
 
-            // Clicking any other line — replace (or set) the comparison line
             _compPinIdx = idx == _compPinIdx ? -1 : idx;
             return true;
         }
@@ -690,12 +656,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _hoveredLineIdx = -1;
         }
 
-        // Called by GraphInteractivity when the mouse is hovering a line.
         public override void DrawHighlight()
         {
             if (_hoveredLineIdx < 0) return;
-            // Skip if the hovered line is the main pin — DrawPinnedHighlights already drew its tooltip.
-            // Comp pin (secondary) does not get a persistent tooltip, so show it on hover.
+            // The main pin already has a persistent tooltip from DrawPinnedHighlights.
             if (_hoveredLineIdx == _mainPinIdx) return;
             float gx = position.X + marginH;
             float gy = position.Y + margin;
@@ -709,7 +673,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Never called — RunTrajectory manages its own pins via HandleClick.
         }
 
-        // Called from Render() — draws persistent tooltips for pinned lines, independent of hover.
+        // Persistent tooltips for pinned lines, drawn from Render() regardless of hover.
         private void DrawPinnedHighlights()
         {
             if (_mainPinIdx < 0) return;
@@ -731,7 +695,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             var   s         = SpeebrunConsistencyTrackerModule.Settings;
             int roomCount = isBaseline ? _totalRooms : line.RoomsCompleted;
-            // Cap at last visible room so tooltips don't appear beyond it
             int lastVis = LastVisibleRoom();
             if (lastVis < 0) return;
             int effectiveCount = Math.Min(roomCount, lastVis + 1);
@@ -742,7 +705,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 : isSob
                     ? (_sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal)
                 : isBest && isLast
-                    ? s.TrajectoryBestColorFinal
+                    ? s.TrajectoryLastColorFinal   // DrawBars and the legend both draw the merged line in lastColor
                 : isBest
                     ? s.TrajectoryBestColorFinal
                 : isLast
@@ -750,7 +713,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 : Color.White;
 
             string lineLabel = isBaseline ? "Avg" : isSob ? "SoB" : $"#{line.ChronologicalIndex}";
-            // Pick the middle visible room for the label — count visible rooms, then walk to the midpoint
+            // Label goes on the middle visible room.
             int visibleCount = 0;
             for (int r = 0; r < effectiveCount; r++)
                 if (!_hiddenColumns.Contains(r)) visibleCount++;
@@ -796,7 +759,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 bool  above = lineY - bgH - gap - dotR * 2 >= gy;
                 float bgY   = above ? lineY - bgH - gap - dotR * 2 : lineY + gap + dotR * 2;
 
-                // Tooltip box (drawn first so stem and dot appear on top)
+                // Box first, then stem, then dot: each draws over the last.
                 Draw.Rect(bgX, bgY, bgW, bgH, Color.Black * 0.92f);
                 float textY = bgY + bgPad;
                 if (showLabel)
@@ -813,12 +776,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     new Vector2(bgX + bgPad, textY + lineH),
                     Vector2.Zero, Vector2.One * scale, lineColor, ChartConstants.Stroke.OutlineSize, Color.Black);
 
-                // Stem
                 float stemTop    = above ? bgY + bgH : lineY + dotR;
                 float stemBottom = above ? lineY - dotR : bgY;
                 Draw.Line(new Vector2(transitionX, stemTop), new Vector2(transitionX, stemBottom), lineColor, stemW);
 
-                // Dot (drawn last so it's always on top)
                 Draw.Rect(transitionX - dotR, lineY - dotR, dotR * 2, dotR * 2, lineColor);
             }
         }
@@ -833,7 +794,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             AttemptLine? mainLine  = mainIsBaseline ? null : mainIsSob ? _sobLine : _attempts[_mainPinIdx];
             int mainRoomCount     = mainIsBaseline ? _totalRooms : mainLine!.RoomsCompleted;
 
-            // "Run #n" is always white; SoB uses its line color; Avg uses gray
             var   sm        = SpeebrunConsistencyTrackerModule.Settings;
             Color mainColor = mainIsBaseline ? Color.Gray
                 : mainIsSob
@@ -848,8 +808,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             const float bgPad = ChartConstants.Interactivity.TooltipBgPadding;
             float lineH = ActiveFont.Measure("A").Y * scale;
 
-            // Primary comparison: always vs Best (best-so-far per room)
-            // Secondary comparison: user-clicked line via _compPinIdx; defaults to SoB when no pin set
+            // Primary comparison is always vs Best; the secondary defaults to SoB until pinned.
             bool hasComp    = _compPinIdx >= 0 && _compPinIdx != _mainPinIdx;
             bool compIsAvg  = hasComp && _compPinIdx == _attempts.Count + 1;
             bool compIsSob  = !hasComp || _compPinIdx == _attempts.Count;
@@ -862,14 +821,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int compHeaderRow  = 3;
             int totalHeaderRows = 3 + (showComp ? 3 : 0);
 
-            // Value rows: 0=cumul dev vs Best, [1=empty, 2=cumul dev comp, 3=room dev comp]
-            // Per-room deviation is omitted for "vs Best Split" — the reference switches attempts
-            // per room, so a per-room delta would be meaningless.
+            // Value rows: 0=cumul dev vs Best, [1=empty, 2=cumul dev comp, 3=room dev comp].
+            // "vs Best Split" has no per-room row: its reference switches attempts each room.
             int bestValRow  = 0;
             int compValRow  = 2;
             int totalValRows = 1 + (showComp ? 3 : 0);
 
-            // Pre-compute widths
             float maxLabelW = 0f, maxValW = 0f;
             string attemptHeader = mainIsBaseline ? "Avg" : mainIsSob ? "SoB" : $"Run #{mainLine!.ChronologicalIndex}";
             var sectionHeaders = new List<string> { attemptHeader, "vs Best Split", "cumul" };
@@ -886,7 +843,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 long roomTime     = mainIsBaseline ? _roomAverages[r] : mainLine!.RoomTimes[r];
                 long mainCumulDev = mainIsBaseline ? 0 : mainLine!.CumulativeDeviations[r];
 
-                // vs Best (cumul only — no per-room row)
                 int  bIdx         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
                 bool bestAvailable = bIdx >= 0;
                 long bestCumulDev  = bestAvailable ? mainCumulDev - _attempts[bIdx].CumulativeDeviations[r] : 0;
@@ -925,7 +881,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                         Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
-            // Per-column value boxes — skip hidden columns and rooms beyond last visible
             int lastVisComp = LastVisibleRoom();
             int compLimit   = Math.Min(mainRoomCount, lastVisComp + 1);
             for (int r = 0; r < compLimit; r++)
@@ -939,7 +894,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
                 float ty = valBoxY + bgPad;
 
-                // vs Best (cumul only — per-room omitted: reference switches attempts per room, making it meaningless)
                 int  bIdx2         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
                 bool bestAvail     = bIdx2 >= 0;
                 long bestCumulDev2 = bestAvail ? mainCumulDev2 - _attempts[bIdx2].CumulativeDeviations[r] : 0;
@@ -968,9 +922,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
-        // Returns the LiveSplit delta color for a deviation value.
-        // cumulDev: cumulative deviation (negative = ahead, positive = behind)
-        // roomDev:  per-room deviation  (negative = gained time, positive = lost time)
+        // LiveSplit's four delta colours, from cumulDev (<=0 ahead) and roomDev (<=0 gained).
         private static Color DeviationColor(long cumulDev, long roomDev)
         {
             bool ahead     = cumulDev <= 0;
@@ -984,8 +936,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             };
         }
 
-        // Deviation convention: negative = faster than baseline (goes up), positive = slower (goes down).
-        // Display directly: negative shows as "-1.000s" (gained time), positive as "+0.500s" (lost time).
+        // Signed as stored: negative prints "-1.000s" (gained), positive "+0.500s" (lost).
         private static string FormatDev(long ticks)
         {
             if (ticks == 0) return "±0";
@@ -1001,7 +952,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             float baselineY = y + (float)_maxUpwardDeviation / _totalRange * h;
 
-            // X-axis room labels — skip hidden columns
             {
                 float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
                 float normalW2   = ComputeNormalColumnWidth(w);
@@ -1147,9 +1097,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             long lastDevVis = DevAtRoom(_attempts[^1], lastVis);
             long sobDevVis  = DevAtRoom(_sobLine,      lastVis);
 
-            // Build label list in priority order: Avg → Best → SoB → Last
-            // Coincident cases merge entries; colors[] has >1 element when lines coincide.
-            // skip=true when the line already draws its own right-axis label via tooltip (hovered or main pin).
+            // Priority order Avg → Best → SoB → Last; coincident lines merge into one entry with
+            // several colors, and skip=true when a tooltip already draws that right-axis label.
             bool pinnedBaseline = _mainPinIdx == n + 1;
             bool pinnedSob      = _mainPinIdx == n;
             bool pinnedLast     = _mainPinIdx == n - 1;

@@ -54,43 +54,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             return string.Join("\n", csvLines);
         }
 
-        public static IList<IList<object>> ExportMetricsToSheet(PracticeSession session)
-        {
-            if (session == null || session.TotalAttempts == 0)
-                return [];
-
-            int segmentLength = SessionManager.RoomCount;
-            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
-
-            if (computedMetrics.Count == 0)
-                return [];
-
-            IList<IList<object>> rows = [];
-
-            List<object> headers = [.. computedMetrics.Select(res => (object)res.Item1.CsvHeader())];
-            headers.Insert(0, "Room/Segment");
-            rows.Add(headers);
-
-            List<object> segmentRow = [.. computedMetrics.Select(res => (object)res.Item2.SegmentValue)];
-            segmentRow.Insert(0, "Segment");
-            rows.Add(segmentRow);
-
-            for (int roomIndex = 0; roomIndex < segmentLength; roomIndex++)
-            {
-                List<object> roomRow = [.. computedMetrics.Select(res => (object)(res.Item2.RoomValues.ElementAtOrDefault(roomIndex) ?? ""))];
-                roomRow.Insert(0, $"R{roomIndex + 1}");
-                rows.Add(roomRow);
-            }
-
-            return rows;
-        }
-
         public static bool RefreshTextOverlayIfNecessary(PracticeSession session, out List<string> result)
         {
             result = [];
             int roomCount = SessionManager.RoomCount;
 
-            // Full invalidation if session identity changed (slot switch)
+            // A slot switch changes session identity: invalidate everything.
             if (!ReferenceEquals(session, _lastKnownSession))
             {
                 _lastKnownSession = session;

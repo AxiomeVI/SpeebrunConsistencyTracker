@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
-using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using System.Globalization;
@@ -9,9 +8,13 @@ using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
-    public sealed class MetricContext
+    public sealed class MetricContext(TimeTicks targetTime, int percentile)
     {
         private readonly Dictionary<string, object> _cache = [];
+
+        // Snapshot: read once per MetricEngine.Compute pass.
+        public TimeTicks TargetTime { get; } = targetTime;
+        public int Percentile { get; } = percentile;
 
         public T GetOrCompute<T>(string key, Func<T> compute)
         {
@@ -90,7 +93,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             return value switch
             {
-                // bool settings (e.g. ResetShare, MultimodalTest) are export-only by convention.
+                // bool settings are export-only by convention.
                 bool b => b && mode == MetricOutput.Export,
                 MetricOutputChoice choice => (FromChoice(choice) & mode) != 0,
                 _ => throw new InvalidOperationException($"Unsupported type {value.GetType()}"),
@@ -133,7 +136,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (count == 1)
                 return sortedValues[0];
 
-            // Clamp to [0,100]
             percentile = Math.Max(0, Math.Min(100, percentile));
 
             double position = percentile / 100.0 * (count - 1);
@@ -176,7 +178,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new TimeTicks((long)Math.Round(slope));
         }
 
-        /// <summary>Sample standard deviation of a list of TimeTicks values given a pre-computed mean.</summary>
+        // Sample standard deviation (n-1), from a pre-computed mean.
         public static double ComputeStdDev(IList<TimeTicks> values, double mean) =>
             values.Count < 2
                 ? 0.0
@@ -199,19 +201,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (median <= 0) return 0;
             
-            // 1. Stability: Use a Gaussian curve to provide a 'grace zone' for stability, followed by a sharp drop-off for high variance.
+            // Gaussian: a grace zone for low variance, then a sharp drop-off.
             double stabilityScore = Math.Exp(-50 * Math.Pow(relMAD * stdCV, 2));
 
-            // 2. Floor Proximity: How close is the median to the session pb?
+            // How close the median sits to the session PB.
             double gap = (median - (double)min) / median;
             double floorProximity = Math.Exp(-50 * Math.Pow(gap, 2));
 
-            // 3. Reliability: Don't reset
             double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
             double reliability = completionRate * completionRate; // Penalizes high reset rates heavily
 
-            // FINAL CALCULATION: Multiplicative relationship
-            // If ANY of these are low, the whole score crashes.
+            // Multiplicative on purpose: one low factor sinks the score.
             double finalScore = stabilityScore * floorProximity * reliability;
 
             return Math.Clamp(finalScore, 0, 1.0);
@@ -256,7 +256,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 if (gap > maxGap) maxGap = gap;
             }
 
-            // A gap > 1.2 * SD usually indicates a 'valley' between two strat peaks
+            // A gap over 1.2 SD usually marks the valley between two strat peaks.
             return maxGap > (sd * 1.2);
         }
 
@@ -282,21 +282,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             const double ONE_FRAME = 170000; // one frame
 
-            // 1. Determine how "precise" this segment needs to be
-            // Use 10% of the min or the Freedman-Diaconis rule as a target for bin resolution
+            // Bin resolution: the tighter of 10% of the min and Freedman-Diaconis, floored at
+            // one frame — no bin is narrower than the game's own time quantum.
             double FreedmanDiaconis_width = 2 * iqr * Math.Pow(times.Count, -1.0 / 3.0);
             double heuristic_width = min * 0.1;
-            // 2. Ensure we don't try to be more precise than the natural floor
             double binWidth = Math.Max(Math.Min(heuristic_width, FreedmanDiaconis_width), ONE_FRAME);
             double range = (double)max - (double)min;
-            // 3. Calculate how many bins we need to cover the range at this resolution
-            // We add a +1 and Clamp to ensure we have a valid array size
             int binCount = (int)Math.Ceiling(range / binWidth) + 1;
             binCount = Math.Clamp(binCount, 5, 50); // Keep it within sane limits for performance
-            // 4. Re-calculate actual binWidth to perfectly fit the clamped count
+            // Refit the width to the clamped bin count.
             double finalBinWidth = (binCount > 1) ? range / (binCount - 1) : ONE_FRAME;
 
-            // 1. Histogram / Peak Finding
             int[] bins = new int[binCount];
             foreach (var t in times)
             {
@@ -306,12 +302,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             var localMaxima = FindLocalMaxima(bins, times.Count);
 
-            // 2. Identify the Peak Centers
             double fastVal, slowVal;
             bool activeBimodal = bimodalDetected && localMaxima.Count >= 2;
             if (activeBimodal)
             {
-                // Take the two most significant peaks and sort them by time (index)
+                // Two tallest peaks, then back into time order.
                 var topTwo = localMaxima.OrderByDescending(m => m.count).Take(2).OrderBy(m => m.index).ToList();
                 
                 fastVal = GetRefinedPeak(topTwo[0].index, bins, min, binWidth);
@@ -319,13 +314,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             }
             else
             {
-                // Fallback to the single highest peak
                 var (index, count) = localMaxima.OrderByDescending(m => m.count).FirstOrDefault();
                 fastVal = slowVal = GetRefinedPeak(index, bins, min, binWidth);
             }
 
-            // 3. Clustering
-            // Assign every run to the nearest peak to find Weight and Consistency
+            // Every run joins its nearest peak, which gives Weight and Consistency.
             var fastCluster = new List<double>();
             var slowCluster = new List<double>();
 
@@ -337,21 +330,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                     slowCluster.Add((double)t);
             }
 
-            // 4. Build Metrics
             var report = new PeakReport {
                 IsBimodal = activeBimodal,
                 FastPeak = CreatePeakMetrics(fastCluster, fastVal, times.Count),
                 SlowPeak = activeBimodal ? CreatePeakMetrics(slowCluster, slowVal, times.Count) : new PeakMetrics(),
             };
 
-            // 5. Sanity Check: If one peak is just a tiny outlier, downgrade to Unimodal
+            // A peak lighter than this is an outlier, not a strat: fall back to unimodal.
             double weightThreshold = 0.05; // 5% minimum weight to be considered a "Strat"
             if (report.IsBimodal)
             {
                 if (report.FastPeak.Weight < weightThreshold || report.SlowPeak.Weight < weightThreshold)
                 {
                     report.IsBimodal = false;
-                    // Keep the "heavier" peak as the primary
                     var dominant = report.FastPeak.Weight >= report.SlowPeak.Weight ? report.FastPeak : report.SlowPeak;
                     report.FastPeak = dominant;
                     report.SlowPeak = dominant;
@@ -424,8 +415,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             TimeTicks timeLoss = report.SlowPeak.Value - report.FastPeak.Value;
 
-            return $"Bimodal Detected. Fast: {report.FastPeak.Value} ({FormatPercent(report.FastPeak.Weight)}% weight {FormatPercent(report.FastPeak.Consistency)} consistency). " +
-                $"Backup: {report.SlowPeak.Value} ({FormatPercent(report.SlowPeak.Weight)}% weight {FormatPercent(report.SlowPeak.Consistency)} consistency). Time loss: +{timeLoss}.";
+            return $"Bimodal Detected. Fast: {report.FastPeak.Value} ({FormatPercent(report.FastPeak.Weight)} weight {FormatPercent(report.FastPeak.Consistency)} consistency). " +
+                $"Backup: {report.SlowPeak.Value} ({FormatPercent(report.SlowPeak.Weight)} weight {FormatPercent(report.SlowPeak.Consistency)} consistency). Time loss: +{timeLoss}.";
         }
 
         public static List<string> ComputeRoomValues(
@@ -433,7 +424,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             Func<int, List<TimeTicks>, string> computeValue,
             int minCount = 1, string defaultValue = "0")
         {
-            int roomCount = SessionManager.RoomCount;
+            int roomCount = session.RoomCount;
             var roomValues = new List<string>(roomCount);
             if (!isExport) return roomValues;
             for (int r = 0; r < roomCount; r++)

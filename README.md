@@ -7,7 +7,7 @@ A Celeste mod built for speedrunners to analyze consistency and pinpoint specifi
 - Real-time HUD with statistics displayed after each completed attempt
 - Interactive charts with hover tooltips, clickable data points, and in-chart navigation arrows
 - Support for SpeedrunTool multiple save state slots
-- Data export to clipboard, CSV and Google Sheets
+- Data export to clipboard and CSV
 - Configurable hotkeys (keycombo behavior like SRT)
 
 ## Usage
@@ -28,7 +28,6 @@ Configure the overlay to display the metrics that matter most to your current go
 ### 3. Exporting
 
 * **Data Export:** Export your complete session history and statistics to CSV (files are saved to the `/SCT_Exports` directory within your Celeste installation folder)
-* **Google Sheets Export:** Export directly to a Google Sheets spreadsheet. See [Setting up Google Sheets Export](docs/google-sheets-export-setup.md) for setup instructions.
 
 ## Charts
 
@@ -49,8 +48,40 @@ See [docs/charts.md](docs/charts.md) for full descriptions.
 
 A selection of the available metrics: average, median, standard deviation, sum of best and [many more](docs/metrics.md).
 
+## Building
+
+Requires the .NET 8 SDK.
+
+### With a Celeste install
+
+Clone this repo into the `Mods/` folder of a Celeste installation with Everest. The build
+resolves `Celeste.dll`, `FNA.dll`, and `MMHOOK_Celeste.dll` from three directories above the
+`Source/` folder, which is where they land when the mod sits at `Mods/SpeebrunConsistencyTracker/`.
+
+You also need `SpeedrunTool.dll` (pinned to version `3.26.4` in `everest.yaml`). Extract it from
+`SpeedrunTool.zip` in your `Mods/` folder and place it at `libs/SpeedrunTool.dll`.
+
+Then, from the repo root:
+
+```bash
+dotnet build -c Debug
+```
+
+`-c Release` additionally packages the mod into `SpeebrunConsistencyTracker.zip` at the repo root.
+
+### Without a Celeste install
+
+Point the build at any folder containing `Celeste.dll`, `FNA.dll`, and `MMHOOK_Celeste.dll` by
+overriding `CelestePrefix`:
+
+```bash
+dotnet build -c Debug -p:CelestePrefix=/path/to/the/dlls
+```
+
+`libs/SpeedrunTool.dll` is still required either way. A relative path for `CelestePrefix` is
+resolved against `Source/`, not the repo root — an absolute path avoids the confusion.
+
 ## Docs
 
 - [Charts reference](docs/charts.md)
 - [Metrics reference](docs/metrics.md)
-- [Google Sheets export setup](docs/google-sheets-export-setup.md)

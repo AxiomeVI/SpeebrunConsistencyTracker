@@ -9,7 +9,6 @@ public static class DialogIds {
     public const string ExportSubMenu = "SCT_EXPORT_SUBMENU";
     public const string ExportModeId = "SCT_EXPORT_MOD";
     public const string ExportPathId = "SCT_EXPORT_PATH";
-    public const string SheetExportExplanationId = "SCT_SHEET_EXPLANATION";
 
     // Hotkey menu UI
     public const string KeybindConfigId       = "SCT_KEYBIND_CONFIG";
@@ -46,10 +45,9 @@ public static class DialogIds {
     public const string PopupExportToClipboardId = "SCT_EXPORT_TO_CLIPBOARD";
     public const string PopupInvalidExportId = "SCT_INVALID_EXPORT";
     public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";
-    public const string PopupExportToSheetId = "SCT_EXPORT_TO_SHEET";
+    public const string PopupExportToFileFailedId = "SCT_EXPORT_TO_FILE_FAILED";
     public const string PopupDataClearId = "SCT_DATA_CLEAR";
     public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
-    public const string PopupFileNotFoundId = "SCT_FILE_NOT_FOUND";
 
     // Text Overlay Menu
     public const string IngameOverlayId = "SCT_INGAME_OVERLAY";

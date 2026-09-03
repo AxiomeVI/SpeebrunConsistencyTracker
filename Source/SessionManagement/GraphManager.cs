@@ -22,7 +22,6 @@ public static partial class GraphManager
 {
     private static PracticeSession _lastKnownSession;
 
-    // Cycling state
     private record GraphSlot(GraphType Type, int RoomIndex = -1);
     private static List<GraphSlot> _enabledSlots = [];
     private static int _currentSlotIndex = -1;

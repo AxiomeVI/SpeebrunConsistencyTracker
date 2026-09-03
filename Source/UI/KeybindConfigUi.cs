@@ -99,6 +99,13 @@ internal class KeybindConfigUi : TextMenu {
         Focused = false;
     }
 
+    // Keys.None is not "no key": FNA returns it for any keycode absent from its SDL->XNA table,
+    // which on AZERTY is most of the digit row, and a keyboard state reports it held — so a
+    // binding carrying it fires on all of them at once. F1/F2/F3/F5 stay unbindable: they are
+    // Everest's debug keys, which is what a player needs when a mod misbehaves.
+    private static bool IsBindable(Keys key)
+        => key != Keys.None && key != Keys.F1 && key != Keys.F2 && key != Keys.F3 && key != Keys.F5;
+
     private void ApplyRemap<T>(T input, List<T> list) {
         _remapping = false;
         _inputDelay = 0.25f;
@@ -149,7 +156,7 @@ internal class KeybindConfigUi : TextMenu {
                 Focused = true;
             } else if (IsRemappingKeyboard) {
                 Keys[] pressed = MInput.Keyboard.CurrentState.GetPressedKeys();
-                if (pressed?.LastOrDefault() is { } k && MInput.Keyboard.Pressed(k))
+                if (pressed?.LastOrDefault(IsBindable) is { } k && k != Keys.None && MInput.Keyboard.Pressed(k))
                     ApplyRemap(k);
             } else {
                 var cur  = MInput.GamePads[Input.Gamepad].CurrentState;

@@ -4,10 +4,7 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    /// <summary>
-    /// Abstract base for grouped (side-by-side) two-series bar charts.
-    /// Subclasses provide value-to-height mapping, bar label formatting, and Y-axis drawing.
-    /// </summary>
+    // Grouped, i.e. the two series sit side by side rather than stacked.
     public abstract class GroupedChartBase<T> : BarChartBase
     {
         protected readonly List<string> _labels;
@@ -27,7 +24,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private float _hoveredHighlightW  = 0f;
         private float _hoveredHighlightH  = 0f;
 
-        /// <summary>Returns the tooltip label for group index i. Override in subclasses.</summary>
         protected virtual string BuildHoverLabel(int i, bool isPrimary, bool isSecondary) => "";
 
         protected GroupedChartBase(
@@ -63,7 +59,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
                 return null;
 
-            // Find which column the mouse is in by iterating through column positions
             float normalW = ComputeNormalGroupWidth(gw);
             int idx = -1;
             float colX = gx;
@@ -226,10 +221,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
-        /// <summary>
-        /// Draws value labels above each bar pair. Override to customise label placement
-        /// (e.g. centred across both bars when the values are equal).
-        /// </summary>
+        // Overridden to centre the label across both bars when the values are equal.
         protected virtual void DrawBarPairLabels(
             int i,
             float groupX, float primaryTopY,
@@ -250,7 +242,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             DrawTitle();
             DrawYAxis(x, y, w, h);
 
-            // X-axis labels and column strip highlights
             float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
             float normalW2   = ComputeNormalGroupWidth(w);
             for (int i = 0; i < _labels.Count; i++)

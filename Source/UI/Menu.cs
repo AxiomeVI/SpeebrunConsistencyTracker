@@ -16,10 +16,7 @@ public static partial class ModMenuOptions
 
     private static readonly MetricOutputChoice[] AllChoices = Enum.GetValues<MetricOutputChoice>();
 
-    // ---------------------------------------------------------------------------
-    // Metric definitions — drives sliders AND the Turn All Off / On / Reset buttons
-    // ---------------------------------------------------------------------------
-
+    // This list drives the sliders and the Turn All Off / On / Reset buttons alike.
     private record MetricDef(
         string LabelKey,
         MetricOutputChoice[] Choices,
@@ -50,10 +47,6 @@ new(DialogIds.SuccessRateId,            AllChoices, () => _settings.SuccessRate,
         new(DialogIds.SoBId,                    AllChoices, () => _settings.SoB,                     v => _settings.SoB = v,                     MetricOutputChoice.Overlay),
     ];
 
-    // ---------------------------------------------------------------------------
-    // Helpers
-    // ---------------------------------------------------------------------------
-
     private static TextMenu.Slider MetricSlider(MetricDef def)
     {
         var slider = new TextMenu.Slider(
@@ -68,10 +61,6 @@ new(DialogIds.SuccessRateId,            AllChoices, () => _settings.SuccessRate,
 
     private static string GetTargetTime() =>
         $"{_settings.Minutes}:{_settings.Seconds:D2}.{_settings.MillisecondsFirstDigit}{_settings.MillisecondsSecondDigit}{_settings.MillisecondsThirdDigit}";
-
-    // ---------------------------------------------------------------------------
-    // Public entry point
-    // ---------------------------------------------------------------------------
 
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
@@ -92,6 +81,8 @@ new(DialogIds.SuccessRateId,            AllChoices, () => _settings.SuccessRate,
             Engine.Scene.Add(ui);
             Engine.Scene.OnEndOfFrame += () => Engine.Scene.Entities.UpdateLists();
         });
+        // Change does not fire at construction, so the initial visibility is set here.
+        keybindButton.Visible = _settings.Enabled;
 
         menu.Add(new TextMenu.OnOff(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled).Change(value =>
         {

@@ -46,40 +46,5 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
 
             return sb.ToString();
         }
-
-        public static IList<IList<object>> ExportSessionToSheet(PracticeSession session)
-        {
-            if (session.TotalAttempts == 0)
-                return [];
-
-            int segmentLength = SessionManager.RoomCount;
-            session.RecomputeMaxRoomCount();
-            int columnCount = Math.Max(segmentLength, session.MaxRoomCount);
-            IList<IList<object>> rows = [];
-
-            List<object> header = ["Attempt"];
-            for (int i = 0; i < columnCount; i++)
-                header.Add($"R{i + 1}");
-            header.Add("Segment");
-            rows.Add(header);
-
-            for (int a = 0; a < session.AttemptCount; a++)
-            {
-                List<object> row = [a + 1];
-                bool hasAny = false;
-                for (int r = 0; r < columnCount; r++)
-                {
-                    var cell = session.GetCell(a, r);
-                    if (cell.State == RoomCellState.Completed || cell.State == RoomCellState.DNF) hasAny = true;
-                    row.Add(cell.HasTime ? cell.Time.ToString() : "");
-                }
-                if (!hasAny) continue;
-
-                row.Add(session.IsCompleted(a) ? session.SegmentTime(a).ToString() : "");
-                rows.Add(row);
-            }
-
-            return rows;
-        }
     }
 }

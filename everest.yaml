@@ -1,11 +1,8 @@
 - Name: SpeebrunConsistencyTracker
-  Version: 2.0.0
+  Version: 2.1.0
   DLL: bin/SpeebrunConsistencyTracker.dll
   Dependencies:
     - Name: EverestCore
       Version: 1.5935.0
     - Name: SpeedrunTool
       Version: 3.26.4
-  OptionalDependencies:
-    - Name: SomeSplitButtons
-      Version: 0.5.6

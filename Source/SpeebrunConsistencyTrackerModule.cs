@@ -50,12 +50,17 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
 #if DEBUG
-        // debug builds use verbose logging
-        Logger.SetLogLevel(nameof(SpeebrunConsistencyTrackerModule), LogLevel.Verbose);
+        Logger.SetLogLevel(nameof(SpeebrunConsistencyTracker), LogLevel.Verbose);
 #else
-        // release builds use info logging to reduce spam in log files
-        Logger.SetLogLevel(nameof(SpeebrunConsistencyTrackerModule), LogLevel.Info);
+        Logger.SetLogLevel(nameof(SpeebrunConsistencyTracker), LogLevel.Info);
 #endif
+    }
+
+    // Everest calls this immediately before Load(), the first moment the deserialized settings
+    // exist. OnLoadSettings is our own method, not a framework hook, so it is called by hand.
+    public override void LoadSettings() {
+        base.LoadSettings();
+        (_Settings as SpeebrunConsistencyTrackerModuleSettings)?.OnLoadSettings();
     }
 
     public override void Load() {
@@ -75,9 +80,24 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             .GetProperty("Time", BindingFlags.Public | BindingFlags.Instance);
         if (currentRoomTimerDataField != null && timeProperty != null)
         {
-            // Re-read the field on each invocation so we always access the current instance,
-            // not a snapshot captured at Load() time (SRT may replace the object mid-session).
-            _getCurrentRoomTime = () => (long)timeProperty.GetValue(currentRoomTimerDataField.GetValue(null));
+            // Re-read on every call: SRT can replace the object mid-session, so a snapshot taken
+            // at Load() goes stale. Either GetValue returns null while the timer is unset.
+            _getCurrentRoomTime = () => {
+                object currentRoomTimerData = currentRoomTimerDataField.GetValue(null);
+                if (currentRoomTimerData == null) return 0L;
+                object time = timeProperty.GetValue(currentRoomTimerData);
+                return time == null ? 0L : (long)time;
+            };
+        }
+        else if (currentRoomTimerDataField == null)
+        {
+            Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
+                "SpeedrunTool member not found: RoomTimerManager.CurrentRoomTimerData (non-public static field). Room times cannot be read, every timing feature stays inert.");
+        }
+        else
+        {
+            Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
+                $"SpeedrunTool member not found: property Time (public instance) on {currentRoomTimerDataField.FieldType.FullName}. Room times cannot be read, every timing feature stays inert.");
         }
         On.Celeste.Level.Update += LevelOnUpdate;
         On.Celeste.Level.Render += LevelOnRender;
@@ -85,10 +105,16 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
         var updateTimerStateMethod = typeof(RoomTimerManager).GetMethod("UpdateTimerState", BindingFlags.Public | BindingFlags.Static);
         if (updateTimerStateMethod != null) {
-            _updateTimerStateHook = new Hook(
-                updateTimerStateMethod,
-                typeof(SpeebrunConsistencyTrackerModule).GetMethod("OnUpdateTimerState", BindingFlags.NonPublic | BindingFlags.Static)
-            );
+            var updateTimerStateDetour = typeof(SpeebrunConsistencyTrackerModule)
+                .GetMethod("OnUpdateTimerState", BindingFlags.NonPublic | BindingFlags.Static);
+            if (updateTimerStateDetour == null) {
+                Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
+                    "Own member not found: SpeebrunConsistencyTrackerModule.OnUpdateTimerState (non-public static method). The room timer hook cannot be built.");
+            }
+            _updateTimerStateHook = new Hook(updateTimerStateMethod, updateTimerStateDetour);
+        } else {
+            Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
+                "SpeedrunTool member not found: RoomTimerManager.UpdateTimerState (public static method). The room timer hook is not installed, no room completion is ever recorded.");
         }
 
         _importTargetTimeHotkey = new UI.ComboHotkey(() => Settings.Keybind_ImportTargetTime);
@@ -185,7 +211,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         UpdateTextOverlay(self); // need to before orig() because of RoomTimerIntegration.RoomTimerIsCompleted() behavior
 
         orig(self);
-        // Need to check again because orig(self) can destroy the session
+        // orig(self) can destroy the session, so re-check.
         if (SessionManager.CurrentSession == null) return;
 
         HandleExportButton();
@@ -237,10 +263,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         {
             if (Settings.ExportMode == ExportChoice.Clipboard)
                 ExportDataToClipboard();
-            else if (Settings.ExportMode == ExportChoice.File)
+            else
                 ExportDataToFiles();
-            else 
-                ExportDataToSheet();
         }
     }
 
@@ -312,17 +336,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         DataExporter.ExportToFiles();
     }
 
-    public static async void ExportDataToSheet()
-    {
-        if (!Settings.Enabled) return;
-        await DataExporter.ExportToSheet();
-    }
-
     public static void ImportTargetTimeFromClipboard() {
         if (!Settings.Enabled)
             return;
         string input = TextInput.GetClipboardText()?.Trim();
-        bool success = TimeParser.TryParseTime(input, out TimeSpan result);
+        // an empty clipboard must not silently zero the target time
+        TimeSpan result = TimeSpan.Zero;
+        bool success = !string.IsNullOrEmpty(input) && TimeParser.TryParseTime(input, out result);
         if (success) {
             Settings.Minutes = result.Minutes;
             Settings.Seconds = result.Seconds;

@@ -4,17 +4,11 @@ using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    /// <summary>
-    /// Intermediate base class for grouped and percent bar chart overlays.
-    /// Provides shared bar layout computation, bar label drawing, and percentage Y-axis rendering.
-    /// </summary>
     public abstract class BarChartBase : BaseChartOverlay
     {
         protected BarChartBase(string title, Vector2? pos = null) : base(title, pos) { }
 
-        /// <summary>
-        /// Computes layout dimensions for two-bar-per-group charts.
-        /// </summary>
+        // Two bars per group.
         protected void ComputeBarLayout(
             float w, int itemCount,
             out float groupWidth, out float groupSpacing,
@@ -27,10 +21,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             barWidth     = (usable - barSpacing) / 2f;
         }
 
-        /// <summary>
-        /// Draws a value label above a bar, scaling the font based on bar width.
-        /// Hidden when bars are too narrow to fit text.
-        /// </summary>
+        // Font scales with bar width; the label is dropped when the bar is too narrow.
         protected static void DrawBarLabel(string text, float barCenterX, float barTopY, float barWidth)
         {
             float scale = barWidth > ChartConstants.BarLayout.WideBarThreshold
@@ -49,9 +40,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
 
-        /// <summary>
-        /// Draws horizontal gridlines at every 10% — call from DrawGrid override.
-        /// </summary>
+        // Gridlines every 10%. Call from a DrawGrid override.
         protected void DrawPercentGrid(float x, float y, float w, float h)
         {
             for (int i = 1; i <= ChartConstants.Axis.PercentTickCount; i++)
@@ -63,9 +52,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
-        /// <summary>
-        /// Draws 0–100% Y-axis text labels — call from DrawLabels.
-        /// </summary>
+        // Call from DrawLabels.
         protected void DrawPercentYAxisLabels(float x, float y, float w, float h)
         {
             for (int i = 0; i <= ChartConstants.Axis.PercentTickCount; i++)

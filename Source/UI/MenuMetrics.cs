@@ -13,14 +13,13 @@ public static partial class ModMenuOptions
 
         TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.StatsSubMenuId), false);
 
-        // Boolean options
         TextMenu.OnOff history        = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RunHistoryId),    _settings.History).Change(b => _settings.History = b);
         TextMenu.OnOff resetShare     = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId),    _settings.ResetShare).Change(b => _settings.ResetShare = b);
         TextMenu.OnOff multimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId),_settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
         TextMenu.OnOff roomDependency = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RoomDependencyId),_settings.RoomDependency).Change(b => _settings.RoomDependency = b);
         TextMenu.OnOff bestSplit      = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.BestSplitId),     _settings.BestSplit).Change(b => _settings.BestSplit = b);
 
-        // Percentile value (special: depends on Percentile slider)
+        // Visibility follows the Percentile slider.
         TextMenu.Slider percentileValue = new(
             Dialog.Clean(DialogIds.PercentileValueId),
             i => enumPercentileValues[i].ToString(),
@@ -31,7 +30,6 @@ public static partial class ModMenuOptions
         };
         percentileValue.Change(v => { _settings.PercentileValue = enumPercentileValues[v]; MetricEngine.InvalidateSettingsHash(); });
 
-        // Build all metric sliders from definitions
         List<MetricDef> defs = BuildMetricDefs();
         var sliders = new Dictionary<string, TextMenu.Slider>();
         foreach (MetricDef def in defs)
@@ -41,8 +39,6 @@ public static partial class ModMenuOptions
                 slider.Change(v => percentileValue.Disabled = def.Choices[v] == MetricOutputChoice.Off);
             sliders[def.LabelKey] = slider;
         }
-
-        // --- Bulk action buttons ---
 
         TextMenu.Button turnAllOff = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonAllOffId))
             .Pressed(() =>

@@ -22,7 +22,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
-            MetricContext context = new();
+            MetricContext context = new(GetTargetTimeTicks(), MetricHelper.ToInt(SpeebrunConsistencyTrackerModule.Settings.PercentileValue));
             List<(MetricDescriptor, MetricResult)> result = [];
 
             foreach (MetricDescriptor metric in FilterMetrics(mode))

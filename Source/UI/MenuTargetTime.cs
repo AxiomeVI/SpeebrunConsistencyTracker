@@ -11,7 +11,6 @@ public static partial class ModMenuOptions
     {
         TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.TargetTimeId), false);
 
-        // Sliders
         TextMenu.Slider minutes = new(
             Dialog.Clean(DialogIds.Minutes),
             i => i.ToString(),
@@ -34,7 +33,7 @@ public static partial class ModMenuOptions
         ms2.Change(v =>     { _settings.MillisecondsSecondDigit = v;   MetricEngine.InvalidateSettingsHash(); });
         ms3.Change(v =>     { _settings.MillisecondsThirdDigit = v;    MetricEngine.InvalidateSettingsHash(); });
 
-        // Buttons — declare first so SyncSlidersFromSettings can close over it
+        // Declared first so SyncSlidersFromSettings can close over it.
         TextMenu.Button inputTimeButton = new(Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime());
 
         void SyncSlidersFromSettings()

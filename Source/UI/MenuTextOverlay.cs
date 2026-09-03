@@ -56,6 +56,12 @@ public static partial class ModMenuOptions
         sub.Add(textPosition);
         sub.Add(textOrientation);
 
+        // Change does not fire at construction, so the initial visibility is set here.
+        textSize.Visible        = _settings.OverlayEnabled;
+        textAlpha.Visible       = _settings.OverlayEnabled;
+        textPosition.Visible    = _settings.OverlayEnabled;
+        textOrientation.Visible = _settings.OverlayEnabled;
+
         sub.Visible = _settings.Enabled;
         return sub;
     }

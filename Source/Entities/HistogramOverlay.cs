@@ -14,7 +14,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly List<TimeTicks> times;
         private readonly bool _isSegment;
 
-        // Histogram data (cached)
         private List<(long minTick, long maxTick, int count)> buckets;
         private int maxCount;
 
@@ -44,7 +43,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             long maxTime = sortedTicks[^1].Ticks;
             double range = maxTime - minTime;
 
-            // 1. Determine bin resolution — Freedman-Diaconis or 10% heuristic, min 1 frame
+            // Bin resolution: Freedman-Diaconis or a 10% heuristic, floored at one frame.
             double q1 = MetricHelper.ComputePercentile(sortedTicks, 25);
             double q3 = MetricHelper.ComputePercentile(sortedTicks, 75);
             double iqr = q3 - q1;
@@ -52,7 +51,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             double heuristicWidth = minTime * 0.1;
             double binWidth = Math.Max(Math.Min(heuristicWidth, freedmanDiaconisWidth), ChartConstants.Time.OneFrameTicks);
 
-            // 2. Calculate bin count
             int binCount;
             if (range <= 0)
                 binCount = 1;
@@ -62,10 +60,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 binCount = Math.Clamp(binCount, 5, 50);
             }
 
-            // 3. Recalculate exact bin width to perfectly divide the range
+            // Refit the width so the bins divide the range exactly.
             double finalBinWidth = binCount > 1 ? range / binCount : binWidth;
 
-            // 4. Assign each time to a bin
             int[] bins = new int[binCount];
             foreach (var time in times)
             {
@@ -76,7 +73,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 bins[binIdx]++;
             }
 
-            // 5. Convert to bucket format
             buckets = [];
             for (int i = 0; i < binCount; i++)
             {
@@ -94,7 +90,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (buckets.Count == 0) return;
 
-            // Horizontal count gridlines
             int yLabelCount = Math.Max(1, Math.Min(5, maxCount));
             for (int i = 1; i <= yLabelCount; i++)
             {
@@ -145,7 +140,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             DrawTitle();
 
-            // Y axis tick labels
             int yLabelCount = Math.Max(1, Math.Min(5, maxCount));
             if (maxCount > 0) for (int i = 0; i <= yLabelCount; i++)
             {
@@ -162,7 +156,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
-            // X axis tick labels
             if (buckets.Count > 0)
             {
                 for (int i = 0; i <= buckets.Count; i++)
@@ -183,7 +176,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
 
-            // Stats
             string stats = $"Total: {times.Count}";
             Vector2 statsSize = ActiveFont.Measure(stats) * ChartConstants.FontScale.AxisLabelMedium;
             ActiveFont.DrawOutline(

@@ -1,4 +1,3 @@
-#nullable enable
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
@@ -17,8 +16,8 @@ public static class GraphInteractivity
 
     private static bool _prevMouseLeft;
 
-    // Cached button rects (set each frame when pins exist, used for hit-test).
-    // Off-screen sentinel prevents (0,0) from accidentally matching on the first frame.
+    // Hit-test rects, refreshed each frame. The off-screen sentinel keeps (0,0) from matching
+    // before the first refresh.
     private static Microsoft.Xna.Framework.Rectangle _deleteButtonRect = new(-9999, -9999, 0, 0);
     private static Microsoft.Xna.Framework.Rectangle _prevArrowRect     = new(-9999, -9999, 0, 0);
     private static Microsoft.Xna.Framework.Rectangle _nextArrowRect     = new(-9999, -9999, 0, 0);
@@ -51,7 +50,7 @@ public static class GraphInteractivity
                 var session = SessionManager.CurrentSession;
                 if (session != null)
                 {
-                    // Segment pins first so room pins on the same attempt become no-ops (dedup).
+                    // Segment pins first: room pins on the same attempt then become no-ops.
                     var deletedAttempts = new System.Collections.Generic.HashSet<int>();
                     foreach (var pin in _pinnedItems)
                         if (PinKey.TryParseSegment(pin.Key, out int attemptIdx))
@@ -69,7 +68,6 @@ public static class GraphInteractivity
             }
             else if (CurrentHover != null && (overlay?.HandleClick(CurrentHover) ?? false))
             {
-                // Overlay handled the click itself (e.g. RunTrajectory manages its own pin state)
             }
             else if (CurrentHover != null)
             {
@@ -82,7 +80,7 @@ public static class GraphInteractivity
                 }
                 else if (CurrentHover.PinGroup != null)
                 {
-                    // Replace any existing pin in the same group (single-pin-per-group rule)
+                    // One pin per group: the new one replaces it.
                     int groupIdx = _pinnedItems.FindIndex(p => p.PinGroup == CurrentHover.PinGroup);
                     if (groupIdx >= 0)
                         _pinnedItems[groupIdx] = CurrentHover;
@@ -122,7 +120,6 @@ public static class GraphInteractivity
                     _pinnedItems.Clear();
                     overlay.ClearPins();
                 }
-                // click in void with no column hit — no action
             }
         }
     }
@@ -141,26 +138,23 @@ public static class GraphInteractivity
     {
         var overlay = GraphManager.CurrentOverlay;
 
-        // 1. Pinned items — highlights
         foreach (var pinned in _pinnedItems)
             overlay?.DrawHighlight(pinned);
 
-        // 2. Hover — highlight
         if (CurrentHover != null)
         {
-            // Overlays that manage their own pins drive DrawHighlight via internal state (no-arg).
-            // Generic overlays use DrawHighlight(HoverInfo) so pinned items can be re-rendered.
+            // Self-pinning overlays hold their own hover state; generic ones need the HoverInfo
+            // so pinned items can be re-rendered.
             if (overlay?.ManagesPins == true)
                 overlay.DrawHighlight();
             else
                 overlay?.DrawHighlight(CurrentHover);
         }
 
-        // 3. "Delete runs" button (drawn before tooltips so tooltips appear on top)
+        // Buttons before tooltips, so tooltips land on top.
         if (_pinnedItems.Count > 0 && (overlay?.SupportsDeleteRuns ?? false) && overlay != null)
             DrawDeleteRunsButton(overlay);
 
-        // 4. Tooltips (drawn after buttons so they appear on top)
         foreach (var pinned in _pinnedItems)
         {
             if (pinned.Label.Length > 0)
@@ -169,11 +163,9 @@ public static class GraphInteractivity
         if (CurrentHover != null && CurrentHover.Label.Length > 0)
             DrawTooltip(CurrentHover);
 
-        // 5. Navigation arrows (always shown when a graph is visible)
         if (overlay != null)
             DrawNavigationArrows(overlay);
 
-        // 6. Cursor (always on top)
         DrawCursor(_mouseHudX, _mouseHudY);
     }
 
@@ -327,8 +319,7 @@ public static class GraphInteractivity
 
     private static void DrawCursor(float x, float y)
     {
-        // Fixed HUD-space crosshair. All rects use top-left + size convention.
-        // Thickness 3 → offset -1 from center. Gap 7px each side. Arms 8px long.
+        // HUD-space crosshair. Rects are top-left + size, so thickness 3 offsets -1 from center.
         const float gap  = 7f;
         const float arm  = 8f;
         const float half = 1f; // (thickness-1)/2

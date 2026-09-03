@@ -11,25 +11,26 @@ public sealed class PracticeSession
     public int MaxRoomCount { get; set; } = 0;
     public uint Version { get; private set; } = 0;
 
-    // Active attempt recording state
     public int CurrentAttemptIndex { get; private set; } = -1;
     public int CurrentRoomIndex { get; private set; } = 0;
     public TimeTicks RunningSegmentTime { get; private set; } = TimeTicks.Zero;
 
-    private static int StartRoomIndex => SessionManagement.SessionManager.StartRoomIndex;
-    private static int RoomCount => SessionManagement.SessionManager.RoomCount;
+    private readonly ISegmentShape _segment;
 
-    public PracticeSession(int initialColumnCapacity = 16, int initialRowCapacity = 64)
+    // Read live on every access: the segment shape changes under a running session.
+    private int StartRoomIndex => _segment.StartRoomIndex;
+    public int RoomCount => _segment.RoomCount;
+
+    public PracticeSession(ISegmentShape segment, int initialColumnCapacity = 16, int initialRowCapacity = 64)
     {
+        _segment = segment ?? throw new ArgumentNullException(nameof(segment));
         _matrix = new AttemptMatrix(initialColumnCapacity, initialRowCapacity);
         StartNewAttempt();
     }
 
-    // --- Recording ---
-
     public void StartNewAttempt()
     {
-        // Finalize prior attempt: mark current room as DNF if recording started
+        // Finalize the prior attempt: its current room becomes a DNF.
         if (CurrentAttemptIndex >= 0 && CurrentRoomIndex > 0)
         {
             _matrix.EnsureColumns(CurrentRoomIndex + 1);
@@ -50,11 +51,9 @@ public sealed class PracticeSession
         _matrix.SetCell(CurrentAttemptIndex, CurrentRoomIndex, RoomCell.Completed(time));
         CurrentRoomIndex++;
         RunningSegmentTime += time;
-        // Skip Version bump once we're past the visible segment — downstream caches don't depend on those cells.
+        // Past the visible segment, no downstream cache reads those cells, so skip the bump.
         if (visibleIndex < RoomCount) Version++;
     }
-
-    // --- Cell access ---
 
     public RoomCell GetCell(int attemptIndex, int visibleRoomIndex)
         => _matrix[attemptIndex, StartRoomIndex + visibleRoomIndex];
@@ -83,8 +82,6 @@ public sealed class PracticeSession
         if (changed) Version++;
     }
 
-    // --- Column queries (per-room) ---
-
     public IEnumerable<TimeTicks> GetRoomTimes(int visibleRoomIndex)
     {
         int raw = StartRoomIndex + visibleRoomIndex;
@@ -104,8 +101,6 @@ public sealed class PracticeSession
             i++;
         }
     }
-
-    // --- Row queries (per-attempt) ---
 
     public int ContiguousCount(int attemptIndex)
     {
@@ -152,13 +147,10 @@ public sealed class PracticeSession
         return total;
     }
 
-    // --- Aggregates ---
-
     public int AttemptCount => _matrix.RowCount;
 
-    // Version-cached aggregates. Keyed on Version, RoomCount, and StartRoomIndex:
-    // segment totals and per-room dictionary sizes depend on the visible segment shape,
-    // and changing SRT NumberOfRooms or RoomTimerType doesn't bump Version.
+    // Keyed on the segment shape as well as Version: changing SRT NumberOfRooms or
+    // RoomTimerType moves the shape without bumping Version.
     private uint _cachedVersion = uint.MaxValue;
     private int _cachedRoomCount = -1;
     private int _cachedStartRoomIndex = -1;

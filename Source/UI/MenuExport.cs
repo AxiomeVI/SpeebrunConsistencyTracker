@@ -9,7 +9,8 @@ public static partial class ModMenuOptions
     {
         TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.ExportSubMenu), false);
 
-        ExportChoice[] enumExportChoices = Enum.GetValues<ExportChoice>();
+        // Listed rather than enumerated: ExportChoice still carries the retired Sheet member.
+        ExportChoice[] enumExportChoices = [ExportChoice.Clipboard, ExportChoice.File];
 
         TextMenu.Slider exportMode = new(
             Dialog.Clean(DialogIds.ExportModeId),
@@ -28,10 +29,8 @@ public static partial class ModMenuOptions
                 Audio.Play(ConfirmSfx);
                 if (_settings.ExportMode == ExportChoice.Clipboard)
                     SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
-                else if (_settings.ExportMode == ExportChoice.File)
-                    SpeebrunConsistencyTrackerModule.ExportDataToFiles();
                 else
-                    SpeebrunConsistencyTrackerModule.ExportDataToSheet();  
+                    SpeebrunConsistencyTrackerModule.ExportDataToFiles();
             });
         exportStatsButton.Disabled = !inGame;
 
@@ -40,7 +39,6 @@ public static partial class ModMenuOptions
         sub.Add(exportWithSRT);
 
         exportMode.AddDescription(sub, menu, Dialog.Clean(DialogIds.ExportPathId));
-        exportMode.AddDescription(sub, menu, Dialog.Clean(DialogIds.SheetExportExplanationId));
 
         sub.Visible = _settings.Enabled;
         return sub;

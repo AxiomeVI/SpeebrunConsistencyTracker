@@ -112,7 +112,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             
             if (Orientation == StatTextOrientation.Horizontal)
             {
-                // Single line - render as before
                 Font.DrawOutline(
                     FontFaceSize,
                     string.Join(" | ", Text),
@@ -128,14 +127,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             {
                 if (Text.Count == 0) return;
 
-                // Multi-line - render each line with proper spacing
                 Vector2 sampleSize = ActiveFont.Measure(Text[0]) * Scale;
                 float lineHeight = sampleSize.Y * LineSpacing;
                 
-                // Calculate total height for vertical centering
                 float totalHeight = lineHeight * Text.Count;
                 
-                // Adjust starting Y position based on justify
                 float startY = PosY;
                 if (Justify.Y == 0.5f) // Middle justify
                 {
@@ -146,7 +142,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
                     startY -= totalHeight;
                 }
                 
-                // Render each line
                 for (int i = 0; i < Text.Count; i++)
                 {
                     float currentY = startY + i * lineHeight;

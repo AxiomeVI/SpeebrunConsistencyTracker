@@ -6,7 +6,7 @@
   <li>Real-time HUD with statistics displayed after each completed attempt</li>
   <li>Interactive charts with hover tooltips, clickable data points, and in-chart navigation arrows</li>
   <li>Support for SpeedrunTool multiple save state slots</li>
-  <li>Data export to clipboard, CSV and Google Sheets</li>
+  <li>Data export to clipboard and CSV</li>
   <li>Configurable hotkeys (keycombo behavior like SRT)</li>
 </ul>
 
@@ -29,7 +29,6 @@
 <h3>3. Exporting</h3>
 <ul>
   <li><strong>Data Export:</strong> Export your complete session history and statistics to CSV (files are saved to the <code>/SCT_Exports</code> directory within your Celeste installation folder)</li>
-  <li><strong>Google Sheets Export:</strong> Export directly to a Google Sheets spreadsheet. See the setup instructions below.</li>
 </ul>
 
 <h2>Charts</h2>
@@ -53,58 +52,3 @@
   <li><strong>Standard Deviation</strong> — spread of times around the average</li>
 </ul>
 <p>And many more.</p>
-
-<h2>Google Sheets Export Setup</h2>
-
-<h3>Create a Google Cloud Project</h3>
-<ol>
-  <li>Go to <a href="https://console.cloud.google.com/">https://console.cloud.google.com/</a> and accept the terms of service</li>
-  <li>Click the project dropdown in the top left corner → <strong>New Project</strong></li>
-  <li>Enter a name, e.g. <code>PracticeSessionExporter</code> → <strong>Create</strong></li>
-</ol>
-
-<h3>Enable the Google Sheets API</h3>
-<p><em>Make sure your project is selected.</em></p>
-<ol>
-  <li>Open the navigation menu (top left) → <strong>APIs &amp; Services</strong> → <strong>Library</strong></li>
-  <li>Search for <strong>Google Sheets API</strong> → Click on it → <strong>Enable</strong></li>
-</ol>
-
-<h3>Create a Service Account</h3>
-<ol>
-  <li>Open the navigation menu (top left) → <strong>APIs &amp; Services</strong></li>
-  <li>Go to <strong>Credentials</strong> → <strong>Create Credentials</strong> → <strong>Service Account</strong></li>
-  <li>Enter a name, e.g. <code>PracticeSessionExporter</code> → <strong>Create and Continue</strong></li>
-  <li>Skip the Permissions and Access sections → <strong>Done</strong></li>
-</ol>
-
-<h3>Download your credentials</h3>
-<ol>
-  <li>Click on your newly created Service Account</li>
-  <li>Go to <strong>Keys</strong> → <strong>Add Key</strong> → <strong>Create New Key</strong> → <strong>JSON</strong> → <strong>Create</strong></li>
-  <li>A JSON file will be downloaded automatically</li>
-</ol>
-
-<h3>Give the Service Account access to your sheet</h3>
-<ol>
-  <li>Open the downloaded JSON file, find the <code>client_email</code> field and copy the value (e.g. <code>practicesessionexporter@your-project-name.iam.gserviceaccount.com</code>)</li>
-  <li>Open your sheet → <strong>Share</strong> (top right)</li>
-  <li>Paste the <code>client_email</code> address, set the role to <strong>Editor</strong> → <strong>Send</strong></li>
-</ol>
-
-<h3>Configure Speebrun Consistency Tracker</h3>
-<ol>
-  <li>Rename the downloaded file to <code>credentials.json</code></li>
-  <li>Navigate to your Celeste base folder (Open Olympus → Manage → Browse)</li>
-  <li>Create a folder named <code>SCT_Exports</code> and place <code>credentials.json</code> inside it</li>
-  <li>In the same folder, create a file named <code>settings.json</code></li>
-  <li>Find your Spreadsheet ID in the sheet's URL, between <code>.../spreadsheets/d/</code> and <code>/edit</code></li>
-  <li>Paste the following into <code>settings.json</code>, replacing <code>YOUR_SHEET_ID</code> with your actual ID and adjusting <code>TabName</code> and <code>StartCell</code> as needed:
-    <pre><code>{
-    "SpreadsheetId": "YOUR_SHEET_ID",
-    "TabName": "Session Export",
-    "StartCell": "A1"
-}</code></pre>
-  </li>
-</ol>
-<p>The tab named in <code>TabName</code> will be created automatically if it doesn't exist. <code>StartCell</code> is optional — it controls which cell the export starts from.</p>

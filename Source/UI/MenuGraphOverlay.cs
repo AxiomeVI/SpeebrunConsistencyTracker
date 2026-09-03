@@ -58,7 +58,6 @@ public static partial class ModMenuOptions
             _settings.SecondaryChartColorFinal = _settings.SecondaryChartColor * (v / 100f);
         });
 
-        // Per-graph enable/disable toggles
         TextMenu.OnOff graphScatter = (TextMenu.OnOff)new TextMenu.OnOff(
             Dialog.Clean(DialogIds.GraphScatterId), _settings.GraphScatter)
             .Change(v => { _settings.GraphScatter = v; if (!v) GraphManager.ClearScatterGraph(); RebuildGraphSlots(); });

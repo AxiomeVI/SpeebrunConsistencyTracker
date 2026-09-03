@@ -19,7 +19,6 @@ SCT_EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 SCT_EXPORT_SUBMENU=                        Export Settings
 SCT_EXPORT_MOD=                            Export mode
 SCT_EXPORT_PATH=                           File: CSV files are exported to gamePath/SCT_Exports
-SCT_SHEET_EXPLANATION=                     Sheet: extra config required, see GameBanana page for more info
 
 # ====================== Text Overlay ==========================
 SCT_INGAME_OVERLAY=                        In-game Overlay
@@ -51,6 +50,11 @@ SCT_BOX_PLOT_GRAPH=                        Box Plot
 # ======================= Hotkeys ==============================
 SCT_KEYBIND_CONFIG=                        Hotkeys
 SCT_KEYBIND_COMBO_SUB=                     Binding multiple keys acts as a key combo (all must be held)
+SCT_KEY_CONFIG_TITLE=                      Keyboard
+SCT_BTN_CONFIG_TITLE=                      Controller
+SCT_KEY_CONFIG_CHANGING=                   Press a key for
+SCT_BTN_CONFIG_CHANGING=                   Press a button for
+SCT_BTN_CONFIG_NO_CONTROLLER=              No controller connected
 SCT_KEY_STATS_EXPORT=                      Export data
 SCT_KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
 SCT_TOGGLE_GRAPH_OVERLAY=                  Display/Hide data chart
@@ -64,10 +68,9 @@ SCT_INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Ple
 SCT_EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 SCT_INVALID_EXPORT=                        No data to export
 SCT_EXPORT_TO_FILE=                        Session data exported to file
-SCT_EXPORT_TO_SHEET=                       Session data exported to sheet
+SCT_EXPORT_TO_FILE_FAILED=                 Could not write the export files, see log.txt
 SCT_DATA_CLEAR=                            Session data cleared
 SCT_NO_GRAPH_ERROR=                        No charts enabled
-SCT_FILE_NOT_FOUND=                        settings.json or credentials.json not found
 
 # ======================== Stats ===============================
 SCT_STATS_SUBMENU=                         Metrics Settings

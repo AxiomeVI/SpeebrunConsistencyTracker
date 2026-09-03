@@ -94,64 +94,80 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Overlay;
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Off;
-    [SettingIgnore]  // ConsistencyScore metric is forcefully disabled; hide from menu until implementation is ready.
+    [SettingIgnore]  // hidden until the metric is implemented
     public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Off;
     public bool MultimodalTest { get; set; } = false;
     public bool RoomDependency { get; set; } = false;
     public bool BestSplit { get; set; } = true;
 
+    // Not an Everest hook: nothing calls this on its own. LoadSettings calls it by hand,
+    // right after deserialization.
     public void OnLoadSettings() {
-        Keybind_ImportTargetTime  ??= new ButtonBinding();
-        Keybind_StatsExport       ??= new ButtonBinding();
-        Keybind_ToggleGraphOverlay ??= new ButtonBinding();
-        Keybind_NextGraph         ??= new ButtonBinding();
-        Keybind_PreviousGraph     ??= new ButtonBinding();
-        Keybind_ClearStats        ??= new ButtonBinding();
+        // Migrates a settings file written while the Sheets export still existed.
+        if (ExportMode == ExportChoice.Sheet) ExportMode = ExportChoice.Clipboard;
 
-        if (Keybind_ImportTargetTime.Keys   == null) Keybind_ImportTargetTime.Keys   = new();
-        if (Keybind_ImportTargetTime.Buttons == null) Keybind_ImportTargetTime.Buttons = new();
-        if (Keybind_StatsExport.Keys        == null) Keybind_StatsExport.Keys        = new();
-        if (Keybind_StatsExport.Buttons     == null) Keybind_StatsExport.Buttons     = new();
-        if (Keybind_ToggleGraphOverlay.Keys    == null) Keybind_ToggleGraphOverlay.Keys    = new();
-        if (Keybind_ToggleGraphOverlay.Buttons == null) Keybind_ToggleGraphOverlay.Buttons = new();
-        if (Keybind_NextGraph.Keys          == null) Keybind_NextGraph.Keys          = new();
-        if (Keybind_NextGraph.Buttons       == null) Keybind_NextGraph.Buttons       = new();
-        if (Keybind_PreviousGraph.Keys      == null) Keybind_PreviousGraph.Keys      = new();
-        if (Keybind_PreviousGraph.Buttons   == null) Keybind_PreviousGraph.Buttons   = new();
-        if (Keybind_ClearStats.Keys         == null) Keybind_ClearStats.Keys         = new();
-        if (Keybind_ClearStats.Buttons      == null) Keybind_ClearStats.Buttons      = new();
+        ButtonBinding[] keybinds = {
+            Keybind_ImportTargetTime,
+            Keybind_StatsExport,
+            Keybind_ToggleGraphOverlay,
+            Keybind_NextGraph,
+            Keybind_PreviousGraph,
+            Keybind_ClearStats,
+        };
+
+        foreach (ButtonBinding keybind in keybinds) {
+            // Never create a null binding here: Everest creates it later in OnInputInitialize
+            // and only then reads [DefaultButtonBinding], which it would skip if one exists.
+            if (keybind == null) continue;
+
+            keybind.Keys    ??= new();
+            keybind.Buttons ??= new();
+            // Keys.None is a real key that reads as held, and Everest's own rebind screen lets
+            // it through, so a settings file can carry it however careful our screen is.
+            keybind.Keys.RemoveAll(key => key == Keys.None);
+        }
     }
 
     #region Hotkeys
 
+    // [SettingIgnore] hides these from Everest's key config screen, which presents several
+    // bound keys as alternatives while ComboHotkey reads them as all-held-at-once. Everest
+    // still initializes them: OnInputInitialize ignores the attribute.
+
     [SettingName(DialogIds.KeyImportTargetTimeId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
+    [SettingIgnore]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding Keybind_ImportTargetTime { get; set; }
 
     [SettingName(DialogIds.KeyStatsExportId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
+    [SettingIgnore]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding Keybind_StatsExport { get; set; }
 
     [SettingName(DialogIds.ToggleGraphOverlayId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
+    [SettingIgnore]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding Keybind_ToggleGraphOverlay { get; set; }
 
     [SettingName(DialogIds.KeyNextGraphId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
+    [SettingIgnore]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding Keybind_NextGraph { get; set; }
 
     [SettingName(DialogIds.KeyPreviousGraphId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
+    [SettingIgnore]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding Keybind_PreviousGraph { get; set; }
 
     [SettingName(DialogIds.KeyClearStatsId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]
+    [SettingIgnore]
     [DefaultButtonBinding(0, Keys.None)]
     public ButtonBinding Keybind_ClearStats { get; set; }
 

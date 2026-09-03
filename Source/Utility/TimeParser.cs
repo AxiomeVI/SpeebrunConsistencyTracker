@@ -12,7 +12,6 @@ public static class TimeParser
             return true;
         }
 
-        // Handle pure zero inputs before any trimming
         if (input.Trim() == "0" || input.Trim() == "00")
         {
             result = TimeSpan.Zero;
@@ -43,7 +42,7 @@ public static class TimeParser
             System.Globalization.CultureInfo.InvariantCulture,
             out result);
 
-        // Fallback: pure number treated as milliseconds
+        // A bare number means milliseconds.
         if (!success && int.TryParse(input, out int msResult))
         {
             result = TimeSpan.FromMilliseconds(msResult);

@@ -12,6 +12,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
     public enum ExportChoice {
         Clipboard,
         File,
+        // Dead: kept only so YamlDotNet does not throw on an old settings file saying "Sheet",
+        // which would reset every setting declared after ExportMode. OnLoadSettings rewrites it
+        // to Clipboard, so this can go once players have launched once.
         Sheet
     }
 

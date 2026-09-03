@@ -11,7 +11,7 @@ public static class SessionManager
     private static readonly Dictionary<string, PracticeSession> _slots = new();
     public static PracticeSession CurrentSession { get; private set; }
 
-    // Set from OnLoadLevel in the module; shared across all slots since all sessions are in the same level.
+    // Shared across slots: every session in play is in the same level. Set from OnLoadLevel.
     public static string LevelName { get; set; } = "unknown";
 
     public static int RoomCount { get; private set; } = 0;
@@ -21,23 +21,32 @@ public static class SessionManager
 
     private static RoomTimerType _lastRoomTimerType = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
 
-    // Called on SRT OnSaveState: fresh session for this slot, overwrites any prior data.
+    private sealed class ManagerSegmentShape : ISegmentShape
+    {
+        public int StartRoomIndex => SessionManager.StartRoomIndex;
+        public int RoomCount => SessionManager.RoomCount;
+    }
+
+    private static readonly ISegmentShape _segmentShape = new ManagerSegmentShape();
+
+    // SRT OnSaveState. Overwrites any prior data for the slot.
     public static void SaveSlot(string slotName)
     {
         var session = new PracticeSession(
+            _segmentShape,
             initialColumnCapacity: Math.Max(16, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms + 4));
         _slots[slotName] = session;
         CurrentSession = session;
         UpdateRoomCount();
     }
 
-    // Called on SRT OnLoadState: switch to the slot's session, start a new attempt.
-    // If the slot was never saved in this session, create a fresh session for it.
+    // SRT OnLoadState. An unsaved slot gets a fresh session.
     public static void LoadSlot(string slotName)
     {
         if (!_slots.TryGetValue(slotName, out PracticeSession session))
         {
             session = new PracticeSession(
+                _segmentShape,
                 initialColumnCapacity: Math.Max(16, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms + 4));
             _slots[slotName] = session;
         }
@@ -45,7 +54,7 @@ public static class SessionManager
         CurrentSession.StartNewAttempt();
     }
 
-    // Called on SRT OnClearState: remove slot data, deactivate if it was the current slot.
+    // SRT OnClearState.
     public static void ClearSlot(string slotName)
     {
         if (_slots.TryGetValue(slotName, out PracticeSession clearedSession))
@@ -59,7 +68,7 @@ public static class SessionManager
         }
     }
 
-    // Called on level exit or full clear: wipe everything.
+    // Level exit or full clear.
     public static void ClearAll()
     {
         _slots.Clear();

@@ -5,10 +5,6 @@ using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    /// <summary>
-    /// Bar chart showing percentage values per room, with optional stacked second layer.
-    /// Used for DNF% and the combined DNF% + time-loss% chart.
-    /// </summary>
     public class PercentBarChartOverlay : BarChartBase
     {
         private readonly List<string> labels;
@@ -22,9 +18,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private float _hoveredBarWidth;
         private float _hoveredBarTopY;
 
-        /// <summary>
-        /// Single-layer percentage bar chart (e.g. DNF % only).
-        /// </summary>
+        // Single-layer.
         public PercentBarChartOverlay(
             string title,
             List<string> labels,
@@ -33,9 +27,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Vector2? pos = null)
             : this(title, labels, values, null, legendLabel, null, pos) { }
 
-        /// <summary>
-        /// Stacked percentage bar chart with primary + secondary layers.
-        /// </summary>
+        // Stacked: primary + secondary layers.
         public PercentBarChartOverlay(
             string title,
             List<string> labels,
@@ -142,7 +134,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float barSpacing     = normalBarW * ChartConstants.BarLayout.GroupSpacingRatio;
             float actualBarWidth = normalBarW - barSpacing;
 
-            // Find which column the mouse is in by iterating actual widths
             int idx = -1;
             float colX = gx;
             for (int j = 0; j < primaryValues.Count; j++)
@@ -225,7 +216,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             DrawTitle();
             DrawPercentYAxisLabels(x, y, w, h);
 
-            // X-axis labels and strip highlights
             float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
             float normalBarW2 = ComputeNormalBarWidth(w);
             for (int i = 0; i < labels.Count; i++)

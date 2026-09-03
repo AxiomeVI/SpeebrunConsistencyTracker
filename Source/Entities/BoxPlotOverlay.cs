@@ -60,7 +60,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             DrawToggleButton();
         }
 
-        // Required by BaseChartOverlay — Render() is fully overridden above
+        // Unused: Render() is fully overridden above.
         protected override void DrawBars(float x, float y, float w, float h) { }
 
         public override void ClearHiddenColumns()
@@ -140,8 +140,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             return available / visibleCols;
         }
 
-        // Returns center X for column i (0-based room index, or _roomTimes.Count for segment).
-        // Segment column (i == _roomTimes.Count) is never hidden.
+        // i == _roomTimes.Count is the segment column, which is never hidden.
         private float GetColumnCenterX(float gx, float gw, int i)
         {
             float normalW = ComputeNormalColumnWidth(gw);
@@ -171,10 +170,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             _toggleButtonRect = new Microsoft.Xna.Framework.Rectangle((int)bgX, (int)bgY, (int)totalW, (int)btnH);
 
-            // Outer border
             Draw.Rect(bgX - 1f, bgY - 1f, totalW + 2f, btnH + 2f, Color.White * 0.6f);
 
-            // "Absolute" segment (left)
             bool absHovered = _toggleButtonHovered && !_normalized;
             Draw.Rect(bgX, bgY, colW, btnH,
                 !_normalized ? Color.White * 0.35f
@@ -186,10 +183,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 !_normalized ? Color.White : Color.Gray * 0.8f,
                 ChartConstants.Stroke.OutlineSize, Color.Black);
 
-            // Divider
             Draw.Rect(bgX + colW, bgY, divW, btnH, Color.White * 0.6f);
 
-            // "Relative" segment (right)
             bool relHovered = _toggleButtonHovered && _normalized;
             Draw.Rect(bgX + colW + divW, bgY, colW, btnH,
                 _normalized  ? Color.White * 0.35f
@@ -252,7 +247,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Draw.Line(new Vector2(x, yPos), new Vector2(x + roomAreaWidth, yPos),
                         ChartConstants.Colors.GridLineColor, 1f);
                 }
-                // 100% reference line (median anchor)
+                // 100% is the median anchor.
                 float y100 = ToPixelY(100.0, _minRoomPct, _maxRoomPct, y, h);
                 if (y100 >= y && y100 <= y + h)
                     Draw.Line(new Vector2(x, y100), new Vector2(x + roomAreaWidth, y100),
@@ -368,7 +363,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             bool isStaggered = totalColumns > ChartConstants.XAxisLabel.StaggerThreshold;
             float baseLabelY  = y + h + (isStaggered ? ChartConstants.XAxisLabel.BaseOffsetY / 2f : ChartConstants.XAxisLabel.BaseOffsetY);
 
-            // X-axis room labels (staggered), with strip highlights
             float normalW2 = ComputeNormalColumnWidth(w);
             for (int i = 0; i < roomCount; i++)
             {
@@ -388,7 +382,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
-            // Segment label
             float segX      = GetColumnCenterX(x, w, roomCount);
             float segLabelY = totalColumns >= ChartConstants.XAxisLabel.StaggerThreshold
                 ? (roomCount % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
@@ -399,7 +392,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
                 SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
 
-            // Left Y axis (room times)
             if (_normalized)
             {
                 double rangePct = _maxRoomPct - _minRoomPct;
@@ -437,7 +429,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
 
-            // Right Y axis (segment times)
             long segRange = _maxSeg - _minSeg;
             GetFrameAxisSettings(segRange, out long segStep, out int ySegCount);
             for (int i = 0; i <= ySegCount; i++)
@@ -566,7 +557,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             var b = _hoveredBox;
 
-            // Hit test: must be within whisker X range and Y range
             float hitXMin = b.CenterX - b.BoxHalfW;
             float hitXMax = b.CenterX + b.BoxHalfW;
             float hitYMin = Math.Min(b.PxMin, b.PxMax); // PxMax (slowest) = low Y = screen top
@@ -578,14 +568,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 return null;
             }
 
-            // Build per-stat labels: place each to the right of the box, at the stat's Y position
             const float scale   = ChartConstants.FontScale.AxisLabelMedium;
             const float bgPad   = ChartConstants.Interactivity.TooltipBgPadding;
             float lineH  = ActiveFont.Measure("A").Y * scale;
             float labelX = b.CenterX + b.BoxHalfW + bgPad * 2f;
 
-            // Screen Y: PxMax (slowest) = low Y = top of screen; PxMin (fastest) = high Y = bottom of screen
-            // Stat order top→bottom on screen: Max, Q3, Median, Q1, Min
+            // Y grows downward, so the slowest stat sits highest: Max, Q3, Median, Q1, Min.
             var raw = new (string name, string val, float py)[]
             {
                 ("Max",    new TimeTicks(b.TickMax).ToString(), b.PxMax),
@@ -595,15 +583,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 ("Min",    new TimeTicks(b.TickMin).ToString(), b.PxMin),
             };
 
-            // Nudge labels apart so they don't overlap (min gap = lineH + 2*bgPad)
+            // Two passes to spread overlapping labels, down then back up.
             float minGap  = lineH + bgPad * 2f;
             float[] nudged = new float[raw.Length];
             for (int i = 0; i < raw.Length; i++) nudged[i] = raw[i].py;
-            // Pass 1: push down
             for (int i = 1; i < nudged.Length; i++)
                 if (nudged[i] - nudged[i - 1] < minGap)
                     nudged[i] = nudged[i - 1] + minGap;
-            // Pass 2: push up from bottom
             for (int i = nudged.Length - 2; i >= 0; i--)
                 if (nudged[i + 1] - nudged[i] < minGap)
                     nudged[i] = nudged[i + 1] - minGap;
@@ -612,7 +598,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             for (int i = 0; i < raw.Length; i++)
                 _statLabels.Add(new StatLabel(raw[i].name, raw[i].val, labelX, nudged[i] - lineH / 2f));
 
-            // Return a sentinel HoverInfo (empty label = DrawTooltip skipped; just triggers DrawHighlight)
+            // Empty label skips DrawTooltip; this only triggers DrawHighlight.
             return new HoverInfo("", new Vector2(labelX, nudged[0]));
         }
 

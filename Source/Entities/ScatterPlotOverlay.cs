@@ -30,7 +30,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         // Maps filtered roomDataList index → original visible room index (before empty-room filtering).
         private readonly List<int> _originalRoomIndices;
 
-        // Cache computed values (visibleRoomIndex is -1 for segment dots).
+        // visibleRoomIndex is -1 for segment dots.
         private List<(Vector2 pos, bool isSegment, float radius, int globalAttemptIndex, int visibleRoomIndex)> cachedDots = null;
         private int _hoveredDotIndex = -1;
         private long maxRoomTime;
@@ -43,13 +43,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private Microsoft.Xna.Framework.Rectangle _toggleButtonRect = new(-9999, -9999, 0, 0);
         private double _minRoomPct, _maxRoomPct;
 
-        // Scatter-specific colors
         private Color gridColor = ChartConstants.Colors.GridLineColor;
 
         public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<List<int>> roomIndices, List<TimeTicks> segment, List<int> segmentIndices, Vector2? pos = null, TimeTicks? target = null)
             : base("Room and Segment Times", pos)
         {
-            // Filter out rooms with no times, keeping index lists and original indices in sync
+            // Drops rooms with no times; the index lists must stay in sync with it.
             var filtered = rooms
                 .Select((room, i) => (room, indices: roomIndices[i], originalIndex: i))
                 .Where(x => x.room.Count > 0)
@@ -66,7 +65,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         public override bool SupportsDeleteRuns => true;
 
-        // Custom render order: grid → axes → data → target line → labels
+        // Render order: grid → axes → data → target line → labels.
         public override void Render()
         {
             Draw.Rect(position, width, height, backgroundColor);
@@ -84,7 +83,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             DrawToggleButton();
         }
 
-        // Required by BaseChartOverlay but unused — Render() is fully overridden above
+        // Unused: Render() is fully overridden above.
         protected override void DrawBars(float x, float y, float w, float h) { }
 
         public override void ClearHiddenColumns()
@@ -193,7 +192,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 minSegmentTimeRaw = Math.Min(minSegmentTimeRaw, targetTime.Value.Ticks);
             }
 
-            // Add 10% margin on each side, rounded to nearest frame
+            // 10% margin each side, rounded to a whole frame.
             long roomRange    = maxRoomTimeRaw - minRoomTimeRaw;
             long roomMargin   = Math.Max(ChartConstants.Time.OneFrameTicks, ChartConstants.Time.OneFrameTicks * (long)Math.Round(roomRange * 0.1 / ChartConstants.Time.OneFrameTicks, 0));
             minRoomTime = Math.Max(0, minRoomTimeRaw - roomMargin);
@@ -222,10 +221,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             _toggleButtonRect = new Microsoft.Xna.Framework.Rectangle((int)bgX, (int)bgY, (int)totalW, (int)btnH);
 
-            // Outer border
             Draw.Rect(bgX - 1f, bgY - 1f, totalW + 2f, btnH + 2f, Color.White * 0.6f);
 
-            // "Absolute" segment (left)
             bool absHovered = _toggleButtonHovered && !_normalized;
             Draw.Rect(bgX, bgY, colW, btnH,
                 !_normalized ? Color.White * 0.35f
@@ -237,10 +234,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 !_normalized ? Color.White : Color.Gray * 0.8f,
                 ChartConstants.Stroke.OutlineSize, Color.Black);
 
-            // Divider
             Draw.Rect(bgX + colW, bgY, divW, btnH, Color.White * 0.6f);
 
-            // "Relative" segment (right)
             bool relHovered = _toggleButtonHovered && _normalized;
             Draw.Rect(bgX + colW + divW, bgY, colW, btnH,
                 _normalized  ? Color.White * 0.35f
@@ -273,7 +268,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         protected override void DrawGrid(float x, float y, float w, float h)
         {
-            // Vertical grid lines
             float normalW2 = ComputeNormalColumnWidth(w);
             float colX = x;
             for (int i = 0; i <= roomDataList.Count + 1; i++)
@@ -292,7 +286,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             for (int j = 0; j < roomDataList.Count; j++)
                 roomAreaWidth += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW2;
 
-            // Horizontal lines for rooms (left axis)
+            // Room lines read off the left axis.
             if (_normalized)
             {
                 double rangePct = _maxRoomPct - _minRoomPct;
@@ -304,7 +298,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float yPos = ToPixelY(pctValue, _minRoomPct, _maxRoomPct, y, h);
                     Draw.Line(new Vector2(x, yPos), new Vector2(x + roomAreaWidth, yPos), gridColor, 1f);
                 }
-                // 100% reference line (median anchor)
+                // 100% is the median anchor.
                 float y100 = ToPixelY(100.0, _minRoomPct, _maxRoomPct, y, h);
                 if (y100 >= y && y100 <= y + h)
                     Draw.Line(new Vector2(x, y100), new Vector2(x + roomAreaWidth, y100),
@@ -325,7 +319,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
 
-            // Horizontal lines for segment (right axis)
+            // Segment lines read off the right axis.
             long segmentRange = maxSegmentTime - minSegmentTime;
             if (segmentRange > 0)
             {
@@ -413,7 +407,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     }
                 }
 
-                // Segment column — always visible
+                // The segment column is never hidden.
                 float segStartX  = GetColumnStartX(x, w, roomDataList.Count);
                 float segCenterX = segStartX + normalW * 0.5f;
                 for (int t = 0; t < segmentData.Times.Count; t++)
@@ -556,7 +550,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             bool isStaggered = totalVisible > ChartConstants.XAxisLabel.StaggerThreshold;
             float baseLabelY = y + h + (isStaggered ? ChartConstants.XAxisLabel.BaseOffsetY / 2f : ChartConstants.XAxisLabel.BaseOffsetY);
 
-            // X axis labels (room names) — staggered, with strip highlights
             for (int i = 0; i < roomDataList.Count; i++)
             {
                 float colW   = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW3;
@@ -579,7 +572,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
-            // Segment label — continues the stagger pattern
+            // Continues the stagger pattern.
             float roomAreaWidth = 0;
             for (int j = 0; j < roomDataList.Count; j++)
                 roomAreaWidth += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW3;
@@ -596,7 +589,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Vector2.One * ChartConstants.FontScale.AxisLabel,
                 _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
 
-            // Left Y axis labels (room times or percentages)
             if (_normalized)
             {
                 double rangePct = _maxRoomPct - _minRoomPct;
@@ -637,7 +629,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
 
-            // Right Y axis labels (segment times)
             long segmentRange = maxSegmentTime - minSegmentTime;
             if (segmentRange > 0)
             {

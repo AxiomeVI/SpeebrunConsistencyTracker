@@ -3,15 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
-using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using System.Globalization;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
     public static partial class Metrics
     {
-        private static int RoomCount => SessionManager.RoomCount;
-
         public static MetricResult Average(PracticeSession session, MetricContext context, bool isExport)
         {
             var segmentTimes = session.GetSegmentTimes().ToList();
@@ -171,7 +168,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult SumOfBest(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             var roomValues = new List<string>(roomCount);
             TimeTicks sumTicks = TimeTicks.Zero;
 
@@ -195,7 +192,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (!isExport)
                 return new MetricResult("", []);
 
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             long[] bestCumul = new long[roomCount];
             Array.Fill(bestCumul, long.MaxValue);
 
@@ -230,12 +227,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult SuccessRate(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             List<TimeTicks> segmentTimes = [.. session.GetSegmentTimes()];
             if (segmentTimes.Count == 0)
                 return new MetricResult("", []);
 
-            TimeTicks targetTime = MetricEngine.GetTargetTimeTicks();
+            TimeTicks targetTime = context.TargetTime;
             double successRate = segmentTimes.Count(s => s <= targetTime) / (double)session.TotalCompleted;
 
             var roomValues = new List<string>();
@@ -248,7 +245,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult Percentile(PracticeSession session, MetricContext context, bool isExport)
         {
-            int percentile = MetricHelper.ToInt(SpeebrunConsistencyTrackerModule.Settings.PercentileValue);
+            int percentile = context.Percentile;
 
             var segmentSorted = context.GetOrCompute(
                 "segment_values_sorted",
@@ -285,7 +282,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult CompletedRunCount(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             string segmentValue = session.TotalCompleted.ToString();
             List<string> roomValues = new(roomCount);
             if (isExport)
@@ -297,7 +294,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult TotalRunCount(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             string segmentValue = session.TotalAttempts.ToString();
             List<string> roomValues = new(roomCount);
             if (isExport)
@@ -309,7 +306,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult DnfCount(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             string segmentValue = session.TotalDnfs.ToString();
             List<string> roomValues = new(roomCount);
             if (isExport)
@@ -321,7 +318,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult ResetRate(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             int dnfCount = session.TotalDnfs;
             int runCount = session.TotalAttempts;
             string segmentValue = "";
@@ -351,7 +348,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult ResetShare(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             if (!isExport)
                 return new MetricResult("", []);
 
@@ -368,7 +365,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult TrendSlope(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             var segmentTimes = session.GetSegmentTimes().ToList();
             string segmentValue = MetricHelper.LinearRegression(segmentTimes).ToString();
 
@@ -382,7 +379,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult ConsistencyScore(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             if (session.TotalCompleted < 2)
                 return new MetricResult("100%", []);
 
@@ -429,7 +426,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult MultimodalTest(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             if (!isExport)
                 return new MetricResult("", []);
             if (session.TotalCompleted < 10)
@@ -459,7 +456,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                     $"room_{r}_values_sorted",
                     () => session.GetRoomTimes(r).OrderBy(t => t).ToList()
                 );
-                if (roomTimes.Count < 2) { roomValues.Add(""); continue; }
+                // BC needs n >= 4: its sample correction divides by (n-2)(n-3).
+                if (roomTimes.Count < 4) { roomValues.Add(""); continue; }
                 double roomAvg = context.GetOrCompute($"avg_room_{r}", () => roomTimes.Average(t => t.Ticks));
                 double stdRoom = context.GetOrCompute($"std_room_{r}", () => Math.Sqrt(roomTimes.Sum(t => Math.Pow(t.Ticks - roomAvg, 2)) / (roomTimes.Count - 1)));
                 TimeTicks maxRoom = context.GetOrCompute($"max_room_{r}", () => roomTimes[^1]);
@@ -501,7 +499,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         public static MetricResult RoomDependency(PracticeSession session, MetricContext context, bool isExport)
         {
-            int roomCount = RoomCount;
+            int roomCount = session.RoomCount;
             if (!isExport)
                 return new MetricResult("", []);
             if (session.TotalAttempts < 10)
