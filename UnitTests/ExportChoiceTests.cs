@@ -8,8 +8,8 @@ public class ExportChoiceTests
 {
     // YamlDotNet resolves an enum by name and throws when the name is absent, aborting the rest
     // of the document: dropping Sheet would cost a stale settings file the 67 properties declared
-    // after ExportMode, plus the keybinds. Remove the member a version after OnLoadSettings has
-    // rewritten the value, not because this test is in the way.
+    // after ExportMode, the six keybinds among them. Remove the member a version after
+    // OnLoadSettings has rewritten the value, not because this test is in the way.
     [Fact]
     public void Sheet_still_resolves_by_name_so_an_old_settings_file_still_loads()
     {

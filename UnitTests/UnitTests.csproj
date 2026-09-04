@@ -14,6 +14,41 @@
         <IsPublishable>false</IsPublishable>
     </PropertyGroup>
 
+    <!--
+      SpeebrunConsistencyTrackerModuleSettings derives from EverestModuleSettings (Celeste.dll)
+      and some of its own properties are FNA/Everest types (Color, ButtonBinding), so merely
+      naming the type — typeof(...), even with reflection's DeclaredOnly — forces the CLR to
+      resolve those assemblies. Source/*.csproj marks all game references Private="false" (they
+      are supplied by the real Everest install at runtime), so none of them are copied here.
+      These two constants let PersistedEnumMembersTests point an AssemblyLoadContext.Resolving
+      hook at the same CelestePrefix the build already uses, purely to satisfy type loading —
+      nothing under test executes any Celeste/FNA code.
+    -->
+    <PropertyGroup>
+        <CelestePrefix Condition="'$(CelestePrefix)' == '' And Exists('..\..\..\Celeste.dll')">..\..\..</CelestePrefix>
+        <CelestePrefix Condition="'$(CelestePrefix)' == ''">lib-stripped</CelestePrefix>
+        <!-- Path.Combine ignores the first argument when the second is already rooted, so this
+             resolves correctly whether CelestePrefix was passed absolute (-p:CelestePrefix=...)
+             or left relative (the two Exists()-based defaults above). -->
+        <CelestePrefixAbsolute>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '$(CelestePrefix)'))))</CelestePrefixAbsolute>
+        <LibsDirAbsolute>$([System.IO.Path]::GetFullPath($([System.IO.Path]::Combine('$(MSBuildProjectDirectory)', '..\libs'))))</LibsDirAbsolute>
+    </PropertyGroup>
+    <ItemGroup>
+        <AssemblyMetadata Include="CelestePrefix" Value="$(CelestePrefixAbsolute)" />
+        <AssemblyMetadata Include="LibsDir" Value="$(LibsDirAbsolute)" />
+    </ItemGroup>
+
+    <!--
+      Compile-time reference so test source can NAME Celeste types (ButtonBinding). It adds no
+      prerequisite: this project already has a ProjectReference to Source, which does not build
+      without Celeste.dll either. Private="false" for the same reason as Source's own references —
+      the real Everest install supplies it at runtime, and the resolver above finds it here.
+    -->
+    <ItemGroup>
+        <Reference Include="$(CelestePrefix)\Celeste.dll" Private="false" />
+        <Reference Include="$(CelestePrefix)\FNA.dll" Private="false" />
+    </ItemGroup>
+
     <ItemGroup>
         <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
         <PackageReference Include="xunit" Version="2.9.2" />

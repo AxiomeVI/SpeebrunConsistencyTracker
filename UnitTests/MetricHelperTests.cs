@@ -184,4 +184,58 @@ public class MetricHelperTests
     {
         Assert.Equal(0, MetricHelper.LinearRegression(Ticks(50, 50, 50)).Ticks);
     }
+
+    [Fact]
+    public void GetFullPeakAnalysis_finds_the_peak_at_the_last_bin_for_a_monotonically_rising_sample()
+    {
+        // Bin counts rise monotonically (1,2,3,4,10): the true mode sits at the last bin, which
+        // the pre-fix scan could never record — it only looked at interior bins and required a
+        // drop-off after the hill, and the last bin has nothing to drop off into.
+        const long baseTicks = 1_000_000;
+        const long binWidth = 127_500; // range/(5-1), see below
+        int[] counts = [1, 2, 3, 4, 10];
+
+        var times = new List<TimeTicks>();
+        for (int bin = 0; bin < counts.Length; bin++)
+            for (int sample = 0; sample < counts[bin]; sample++)
+                times.Add(new TimeTicks(baseTicks + bin * binWidth + sample * 1000));
+
+        var min = new TimeTicks(baseTicks);
+        // A small range with a zero IQR floors the bin width at one frame (170_000), which
+        // pushes the raw bin count under the 5-bin floor, forcing the clamp to exactly 5 bins.
+        var max = new TimeTicks(baseTicks + 3 * 170_000);
+
+        var report = MetricHelper.GetFullPeakAnalysis(times, min, max, TimeTicks.Zero, bimodalDetected: false);
+
+        Assert.False(report.NoDominantPeak);
+        Assert.False(report.IsBimodal);
+        // The peak must land near the tall last bin, not near the first bin the old
+        // FirstOrDefault-on-empty bug would have defaulted to.
+        Assert.True(report.FastPeak.Value.Ticks > baseTicks + 300_000);
+        Assert.StartsWith("Single peak at", report.Summary);
+    }
+
+    [Fact]
+    public void GetFullPeakAnalysis_reports_no_dominant_peak_when_every_bin_is_below_the_noise_floor()
+    {
+        // 50 bins (forced via a large range with a zero IQR, which floors the bin width at one
+        // frame), 4 samples evenly in each: 4/200 = 2% of the total, under the 3% noise floor
+        // everywhere, so no bin ever qualifies as a hill.
+        const long baseTicks = 1_000_000;
+        const long binWidth = 1_000_000;
+
+        var times = new List<TimeTicks>();
+        for (int bin = 0; bin < 50; bin++)
+            for (int sample = 0; sample < 4; sample++)
+                times.Add(new TimeTicks(baseTicks + bin * binWidth + sample * 250_000));
+
+        var min = new TimeTicks(baseTicks);
+        var max = new TimeTicks(baseTicks + 49 * binWidth);
+
+        var report = MetricHelper.GetFullPeakAnalysis(times, min, max, TimeTicks.Zero, bimodalDetected: false);
+
+        Assert.True(report.NoDominantPeak);
+        Assert.False(report.IsBimodal);
+        Assert.Equal("No dominant peak detected.", report.Summary);
+    }
 }
