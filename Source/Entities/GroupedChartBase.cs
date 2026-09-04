@@ -131,34 +131,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Draw.HollowRect(_hoveredHighlightX, _hoveredHighlightY, _hoveredHighlightW, _hoveredHighlightH, Color.White * 0.8f);
         }
 
-        public override int? ColumnHitTest(Vector2 mousePos)
-        {
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
-
-            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
-            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
-
-            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
-            {
-                _hoveredColumnIndex = -1;
-                return null;
-            }
-
-            float normalW = ComputeNormalGroupWidth(gw);
-            float colX = gx;
-            for (int i = 0; i < _primaryValues.Count; i++)
-            {
-                float colW = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-                var (stripX, stripW) = ColumnStripRect(colX, colW);
-                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = i; return i; }
-                colX += colW;
-            }
-            _hoveredColumnIndex = -1;
-            return null;
-        }
+        public override int? ColumnHitTest(Vector2 mousePos) =>
+            HitTestColumnStrip(mousePos, _primaryValues.Count, ComputeNormalGroupWidth(width - marginH * 2));
 
         protected abstract float GetBarHeight(T value, float chartHeight);
         protected abstract string FormatBarLabel(T value);

@@ -27,10 +27,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             $"{value:0.#}%";
 
         protected override void DrawYAxisGrid(float x, float y, float w, float h) =>
-            DrawPercentGrid(x, y, w, h);
+            PercentAxis.DrawPercentGrid(x, y, w, h);
 
         protected override void DrawYAxis(float x, float y, float w, float h) =>
-            DrawPercentYAxisLabels(x, y, w, h);
+            PercentAxis.DrawPercentYAxisLabels(x, y, w, h);
 
         protected override string BuildHoverLabel(int i, bool isPrimary, bool isSecondary)
         {

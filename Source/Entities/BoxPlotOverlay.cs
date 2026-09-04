@@ -1,5 +1,6 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
@@ -10,25 +11,27 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
     public class BoxPlotOverlay : BaseChartOverlay
     {
+        private readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
+
         private readonly List<List<TimeTicks>> _roomTimes;
         private readonly List<TimeTicks> _segmentTimes;
         private long _minRoom, _maxRoom;
         private readonly long _minSeg, _maxSeg;
         private double _minRoomPct, _maxRoomPct;
 
-        private record BoxGeometry(
+        private readonly record struct BoxGeometry(
             float CenterX, float BoxHalfW, float CapHalfW,
             float PxMin, float PxMax, float PxQ1, float PxQ3, float PxMed,
             long TickMin, long TickMax, long TickQ1, long TickQ3, long TickMed);
 
         private BoxGeometry? _hoveredBox = null;
 
-        private bool _normalized = true;
-        private bool _toggleButtonHovered = false;
-        private Microsoft.Xna.Framework.Rectangle _toggleButtonRect = new(-9999, -9999, 0, 0);
+        private readonly NormalizationToggle _toggle = new(normalized: true);
 
-        private record StatLabel(string Left, string Right, float X, float Y);
-        private List<StatLabel> _statLabels = [];
+        // A struct, and the list is reused rather than replaced: the hit-test path rewrites it
+        // every frame while the box plot is on screen, and DrawHighlight reads it back.
+        private readonly record struct StatLabel(string Left, string Right, float X, float Y);
+        private readonly List<StatLabel> _statLabels = [];
 
         public BoxPlotOverlay(
             List<List<TimeTicks>> roomTimes,
@@ -39,7 +42,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _roomTimes    = [.. roomTimes.Select(r => (List<TimeTicks>)[.. r.OrderBy(t => t)])];
             _segmentTimes = [.. segmentTimes.OrderBy(t => t)];
             ComputeRanges(out _minRoom, out _maxRoom, out _minSeg, out _maxSeg);
-            ComputeRelativeRanges(out _minRoomPct, out _maxRoomPct);
+            RecomputeRelativeRanges();
         }
 
         public override void Render()
@@ -57,7 +60,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             DrawSeparator(gx, gy, gw, gh);
             DrawBoxes(gx, gy, gw, gh);
             DrawLabels(gx, gy, gw, gh);
-            DrawToggleButton();
+            _toggle.Render(position, width, height);
         }
 
         // Unused: Render() is fully overridden above.
@@ -67,14 +70,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             base.ClearHiddenColumns();
             ComputeRanges(out _minRoom, out _maxRoom, out _, out _);
-            ComputeRelativeRanges(out _minRoomPct, out _maxRoomPct);
+            RecomputeRelativeRanges();
         }
 
         public override void ToggleColumn(int columnIndex)
         {
             base.ToggleColumn(columnIndex);
             ComputeRanges(out _minRoom, out _maxRoom, out _, out _);
-            ComputeRelativeRanges(out _minRoomPct, out _maxRoomPct);
+            RecomputeRelativeRanges();
         }
 
         private void ComputeRanges(out long minRoom, out long maxRoom, out long minSeg, out long maxSeg)
@@ -109,27 +112,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             maxSeg = sMax + sMargin;
         }
 
-        private void ComputeRelativeRanges(out double minRoomPct, out double maxRoomPct)
-        {
-            double pMin = double.MaxValue, pMax = double.MinValue;
-            for (int i = 0; i < _roomTimes.Count; i++)
-            {
-                if (_hiddenColumns.Contains(i)) continue;
-                var room = _roomTimes[i];
-                if (room.Count == 0) continue;
-                long medTicks = MetricHelper.ComputePercentile(room, 50).Ticks;
-                if (medTicks == 0) continue;
-                double roomMinPct = (double)room[0].Ticks  / medTicks * 100.0;
-                double roomMaxPct = (double)room[^1].Ticks / medTicks * 100.0;
-                pMin = Math.Min(pMin, roomMinPct);
-                pMax = Math.Max(pMax, roomMaxPct);
-            }
-            if (pMin == double.MaxValue) { pMin = 90.0; pMax = 110.0; }
-            double pRange  = pMax - pMin;
-            double pMargin = Math.Max(1.0, pRange * 0.1);
-            minRoomPct = Math.Max(0, pMin - pMargin);
-            maxRoomPct = pMax + pMargin;
-        }
+        private void RecomputeRelativeRanges() =>
+            ComputeRelativeRanges(_roomTimes.Count, i => _roomTimes[i], out _minRoomPct, out _maxRoomPct);
 
         private float ComputeNormalColumnWidth(float gw)
         {
@@ -153,59 +137,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             return x + thisW * 0.5f;
         }
 
-        private void DrawToggleButton()
-        {
-            const float scale  = ChartConstants.FontScale.AxisLabelSmall;
-            const float pad    = ChartConstants.Interactivity.TooltipBgPadding;
-            const float divW   = 2f; // divider between segments
-
-            Vector2 sizeAbs = ActiveFont.Measure("Absolute") * scale;
-            Vector2 sizeRel = ActiveFont.Measure("Relative")  * scale;
-            float colW   = Math.Max(sizeAbs.X, sizeRel.X) + pad * 2f;
-            float btnH   = Math.Max(sizeAbs.Y, sizeRel.Y) + pad * 2f;
-            float totalW = colW * 2 + divW;
-
-            float bgX = MathF.Round(position.X + width / 2f - totalW / 2f);
-            float bgY = MathF.Round(position.Y + height - btnH - 6f);
-
-            _toggleButtonRect = new Microsoft.Xna.Framework.Rectangle((int)bgX, (int)bgY, (int)totalW, (int)btnH);
-
-            Draw.Rect(bgX - 1f, bgY - 1f, totalW + 2f, btnH + 2f, Color.White * 0.6f);
-
-            bool absHovered = _toggleButtonHovered && !_normalized;
-            Draw.Rect(bgX, bgY, colW, btnH,
-                !_normalized ? Color.White * 0.35f
-                : absHovered  ? Color.White * 0.15f
-                              : Color.Black * 0.92f);
-            ActiveFont.DrawOutline("Absolute",
-                new Vector2(bgX + colW / 2f - sizeAbs.X / 2f, bgY + pad),
-                Vector2.Zero, Vector2.One * scale,
-                !_normalized ? Color.White : Color.Gray * 0.8f,
-                ChartConstants.Stroke.OutlineSize, Color.Black);
-
-            Draw.Rect(bgX + colW, bgY, divW, btnH, Color.White * 0.6f);
-
-            bool relHovered = _toggleButtonHovered && _normalized;
-            Draw.Rect(bgX + colW + divW, bgY, colW, btnH,
-                _normalized  ? Color.White * 0.35f
-                : relHovered ? Color.White * 0.15f
-                             : Color.Black * 0.92f);
-            ActiveFont.DrawOutline("Relative",
-                new Vector2(bgX + colW + divW + colW / 2f - sizeRel.X / 2f, bgY + pad),
-                Vector2.Zero, Vector2.One * scale,
-                _normalized ? Color.White : Color.Gray * 0.8f,
-                ChartConstants.Stroke.OutlineSize, Color.Black);
-        }
-
-        public override bool HandleClick(HoverInfo hover)
-        {
-            if (_toggleButtonHovered)
-            {
-                _normalized = !_normalized;
-                return true;
-            }
-            return false;
-        }
+        public override bool HandleClick(HoverInfo hover) => _toggle.HandleClick();
 
         private void DrawSeparator(float x, float y, float w, float h)
         {
@@ -216,18 +148,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Draw.Line(new Vector2(sepX, y), new Vector2(sepX, y + h), Color.Gray * 0.85f, 1.5f);
         }
 
-        private static void GetPercentageAxisSettings(double rangePct, out double stepPct, out int count)
-        {
-            if (rangePct <= 0) { stepPct = 5.0; count = 1; return; }
-            double[] candidates = [1, 2, 5, 10, 20, 25, 50];
-            stepPct = candidates[^1];
-            foreach (double c in candidates)
-            {
-                if (rangePct / c <= ChartConstants.Axis.MaxTickMarks) { stepPct = c; break; }
-            }
-            count = Math.Min((int)Math.Ceiling(rangePct / stepPct), ChartConstants.Axis.MaxTickMarks);
-        }
-
         protected override void DrawGrid(float x, float y, float w, float h)
         {
             float normalW = ComputeNormalColumnWidth(w);
@@ -235,7 +155,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             for (int j = 0; j < _roomTimes.Count; j++)
                 roomAreaWidth += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
 
-            if (_normalized)
+            if (_toggle.Normalized)
             {
                 double rangePct = _maxRoomPct - _minRoomPct;
                 GetPercentageAxisSettings(rangePct, out double stepPct, out int count);
@@ -281,79 +201,45 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
+        // ComputeBoxGeometry is the single source of the quartiles: the render pass and the
+        // hit test must not derive them separately.
         private void DrawBoxes(float x, float y, float w, float h)
         {
-            int   roomCount = _roomTimes.Count;
-            float normalW   = ComputeNormalColumnWidth(w);
+            int roomCount = _roomTimes.Count;
 
             for (int r = 0; r < roomCount; r++)
             {
                 if (_hiddenColumns.Contains(r)) continue;
-                var times = _roomTimes[r];
-                if (times.Count == 0) continue;
-                float centerX = GetColumnCenterX(x, w, r);
-                double? normalizeBy = null;
-                double minVal, maxVal;
-                if (_normalized)
-                {
-                    long medTicks = MetricHelper.ComputePercentile(times, 50).Ticks;
-                    if (medTicks == 0) continue;
-                    normalizeBy = (double)medTicks;
-                    minVal = _minRoomPct;
-                    maxVal = _maxRoomPct;
-                }
-                else
-                {
-                    minVal = (double)_minRoom;
-                    maxVal = (double)_maxRoom;
-                }
-                DrawBox(times, centerX, normalW, y, h, minVal, maxVal, normalizeBy,
-                    SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal);
+                var box = ComputeBoxGeometry(r, x, y, w, h);
+                if (box == null) continue;
+                DrawBox(box.Value, _settings.RoomColorFinal);
             }
 
             if (_segmentTimes.Count > 0)
             {
-                float segCenterX = GetColumnCenterX(x, w, roomCount);
-                DrawBox(_segmentTimes, segCenterX, normalW, y, h,
-                    (double)_minSeg, (double)_maxSeg, null,
-                    SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal);
+                var segBox = ComputeBoxGeometry(roomCount, x, y, w, h);
+                if (segBox != null)
+                    DrawBox(segBox.Value, _settings.SegmentColorFinal);
             }
         }
 
-        private static void DrawBox(List<TimeTicks> times, float centerX, float columnWidth,
-            float y, float h, double minVal, double maxVal, double? normalizeByTicks, Color color)
+        private static void DrawBox(BoxGeometry box, Color color)
         {
-            long tMin  = times[0].Ticks;
-            long tMax  = times[^1].Ticks;
-            TimeTicks q1  = MetricHelper.ComputePercentile(times, 25);
-            TimeTicks med = MetricHelper.ComputePercentile(times, 50);
-            TimeTicks q3  = MetricHelper.ComputePercentile(times, 75);
+            float boxLeft  = MathF.Round(box.CenterX - box.BoxHalfW);
+            float boxRight = MathF.Round(box.CenterX + box.BoxHalfW);
+            float capLeft  = MathF.Round(box.CenterX - box.CapHalfW);
+            float capRight = MathF.Round(box.CenterX + box.CapHalfW);
 
-            double ToVal(long t) => normalizeByTicks.HasValue
-                ? (double)t / normalizeByTicks.Value * 100.0
-                : (double)t;
+            Draw.Line(new Vector2(box.CenterX, box.PxMax), new Vector2(box.CenterX, box.PxMin), color, 1.5f);
+            Draw.Line(new Vector2(capLeft,  box.PxMin), new Vector2(capRight, box.PxMin), color, 1.5f);
+            Draw.Line(new Vector2(capLeft,  box.PxMax), new Vector2(capRight, box.PxMax), color, 1.5f);
 
-            float pxBest  = ToPixelY(ToVal(tMin),      minVal, maxVal, y, h);
-            float pxWorst = ToPixelY(ToVal(tMax),      minVal, maxVal, y, h);
-            float pxQ1    = ToPixelY(ToVal(q1.Ticks),  minVal, maxVal, y, h);
-            float pxMed   = ToPixelY(ToVal(med.Ticks), minVal, maxVal, y, h);
-            float pxQ3    = ToPixelY(ToVal(q3.Ticks),  minVal, maxVal, y, h);
-
-            float boxLeft  = MathF.Round(centerX - columnWidth * 0.2f);
-            float boxRight = MathF.Round(centerX + columnWidth * 0.2f);
-            float capLeft  = MathF.Round(centerX - columnWidth * 0.08f);
-            float capRight = MathF.Round(centerX + columnWidth * 0.08f);
-
-            Draw.Line(new Vector2(centerX, pxWorst), new Vector2(centerX, pxBest), color, 1.5f);
-            Draw.Line(new Vector2(capLeft,  pxBest),  new Vector2(capRight, pxBest),  color, 1.5f);
-            Draw.Line(new Vector2(capLeft,  pxWorst), new Vector2(capRight, pxWorst), color, 1.5f);
-
-            float boxTop    = Math.Min(pxQ1, pxQ3);
-            float boxBottom = Math.Max(pxQ1, pxQ3);
+            float boxTop    = Math.Min(box.PxQ1, box.PxQ3);
+            float boxBottom = Math.Max(box.PxQ1, box.PxQ3);
             float boxHeight = Math.Max(1f, boxBottom - boxTop);
             Draw.Rect(boxLeft, boxTop, boxRight - boxLeft, boxHeight, color);
 
-            Draw.Line(new Vector2(boxLeft, pxMed), new Vector2(boxRight, pxMed), Color.White, 2.5f);
+            Draw.Line(new Vector2(boxLeft, box.PxMed), new Vector2(boxRight, box.PxMed), Color.White, 2.5f);
         }
 
         protected override void DrawLabels(float x, float y, float w, float h)
@@ -371,7 +257,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 DrawColumnStrip(i, centerX - colW * 0.5f, colW, y + h);
 
                 if (_hiddenColumns.Contains(i)) continue;
-                string label  = $"R{i + 1}";
+                string label  = RoomLabels.For(i);
                 float labelY  = totalColumns > ChartConstants.XAxisLabel.StaggerThreshold
                     ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                     : baseLabelY;
@@ -379,7 +265,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 ActiveFont.DrawOutline(label,
                     new Vector2(centerX - labelSize.X / 2, labelY),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
-                    SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             float segX      = GetColumnCenterX(x, w, roomCount);
@@ -390,67 +276,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             ActiveFont.DrawOutline("Segment",
                 new Vector2(segX - segLabelSize.X / 2, segLabelY),
                 Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
-                SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
 
-            if (_normalized)
-            {
-                double rangePct = _maxRoomPct - _minRoomPct;
-                GetPercentageAxisSettings(rangePct, out double stepPct, out int yCount);
-                for (int i = 0; i <= yCount; i++)
-                {
-                    double pctValue = _minRoomPct + i * stepPct;
-                    if (pctValue > _maxRoomPct + 1e-9) break;
-                    float  yPos      = ToPixelY(pctValue, _minRoomPct, _maxRoomPct, y, h);
-                    string timeLabel = $"{pctValue:F0}%";
-                    Vector2 lSize    = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
-                    ActiveFont.DrawOutline(timeLabel,
-                        new Vector2(x - lSize.X - ChartConstants.Axis.YLabelMarginX, yPos - lSize.Y / 2),
-                        Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                        SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal,
-                        ChartConstants.Stroke.OutlineSize, Color.Black);
-                }
-            }
+            if (_toggle.Normalized)
+                DrawPercentageAxisLabels(x, y, w, h, _minRoomPct, _maxRoomPct, _settings.RoomColorFinal);
             else
-            {
-                long roomRange = _maxRoom - _minRoom;
-                GetFrameAxisSettings(roomRange, out long roomStep, out int yRoomCount);
-                for (int i = 0; i <= yRoomCount; i++)
-                {
-                    long    timeValue   = _minRoom + i * roomStep;
-                    float   normalizedY = (float)(i * roomStep) / roomRange;
-                    float   yPos        = y + h - (normalizedY * h);
-                    string  timeLabel   = new TimeTicks(timeValue).ToString();
-                    Vector2 lSize       = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
-                    ActiveFont.DrawOutline(timeLabel,
-                        new Vector2(x - lSize.X - ChartConstants.Axis.YLabelMarginX, yPos - lSize.Y / 2),
-                        Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                        SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal,
-                        ChartConstants.Stroke.OutlineSize, Color.Black);
-                }
-            }
+                DrawFrameAxisLabels(x, y, w, h, _minRoom, _maxRoom, YAxisSide.Left, _settings.RoomColorFinal);
 
-            long segRange = _maxSeg - _minSeg;
-            GetFrameAxisSettings(segRange, out long segStep, out int ySegCount);
-            for (int i = 0; i <= ySegCount; i++)
-            {
-                long timeValue    = _minSeg + i * segStep;
-                float normalizedY = (float)(i * segStep) / segRange;
-                float yPos        = y + h - (normalizedY * h);
-                string timeLabel  = new TimeTicks(timeValue).ToString();
-                Vector2 lSize     = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelMedium;
-                ActiveFont.DrawOutline(timeLabel,
-                    new Vector2(x + w + ChartConstants.Trajectory.RightLabelMarginX, yPos - lSize.Y / 2),
-                    Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                    SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
-            }
+            DrawFrameAxisLabels(x, y, w, h, _minSeg, _maxSeg, YAxisSide.Right, _settings.SegmentColorFinal);
 
             DrawTitle();
-        }
-
-        private static float ToPixelY(double value, double minVal, double maxVal, float y, float h)
-        {
-            if (maxVal == minVal) return y + h / 2;
-            return y + h - (float)((value - minVal) / (maxVal - minVal)) * h;
         }
 
         private BoxGeometry? ComputeBoxGeometry(int columnIndex, float gx, float gy, float gw, float gh)
@@ -471,7 +306,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             else
             {
                 times = _roomTimes[columnIndex];
-                if (_normalized)
+                if (_toggle.Normalized)
                 {
                     long medTicks = MetricHelper.ComputePercentile(times, 50).Ticks;
                     if (medTicks == 0) return null;
@@ -525,11 +360,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float gw = width  - marginH * 2;
             float gh = height - margin  * 2;
 
-            _hoveredBox          = null;
-            _statLabels          = [];
-            _toggleButtonHovered = _toggleButtonRect.Contains((int)mouseHudPos.X, (int)mouseHudPos.Y);
+            _hoveredBox = null;
+            _statLabels.Clear();
 
-            if (_toggleButtonHovered)
+            if (_toggle.UpdateHover(mouseHudPos))
                 return new HoverInfo("", mouseHudPos);
 
             if (mouseHudPos.X < gx || mouseHudPos.X > gx + gw ||
@@ -555,7 +389,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _hoveredBox = ComputeBoxGeometry(idx, gx, gy, gw, gh);
             if (_hoveredBox == null) return null;
 
-            var b = _hoveredBox;
+            var b = _hoveredBox.Value;
 
             float hitXMin = b.CenterX - b.BoxHalfW;
             float hitXMax = b.CenterX + b.BoxHalfW;
@@ -594,7 +428,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (nudged[i + 1] - nudged[i] < minGap)
                     nudged[i] = nudged[i + 1] - minGap;
 
-            _statLabels = [];
+            _statLabels.Clear();
             for (int i = 0; i < raw.Length; i++)
                 _statLabels.Add(new StatLabel(raw[i].name, raw[i].val, labelX, nudged[i] - lineH / 2f));
 
@@ -602,40 +436,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             return new HoverInfo("", new Vector2(labelX, nudged[0]));
         }
 
-        public override int? ColumnHitTest(Vector2 mousePos)
-        {
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
-
-            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
-            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
-
-            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
-            {
-                _hoveredColumnIndex = -1;
-                return null;
-            }
-
-            float normalW = ComputeNormalColumnWidth(gw);
-            float colX = gx;
-            for (int i = 0; i < _roomTimes.Count; i++) // segment not hideable
-            {
-                float colW = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-                var (stripX, stripW) = ColumnStripRect(colX, colW);
-                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = i; return i; }
-                colX += colW;
-            }
-            _hoveredColumnIndex = -1;
-            return null;
-        }
+        // The segment column is never hideable, so it stays out of the count.
+        public override int? ColumnHitTest(Vector2 mousePos) =>
+            HitTestColumnStrip(mousePos, _roomTimes.Count, ComputeNormalColumnWidth(width - marginH * 2));
 
         public override void DrawHighlight()
         {
             if (_hoveredBox == null) return;
 
-            var   b      = _hoveredBox;
+            var   b      = _hoveredBox.Value;
             Color c      = Color.White * 0.85f;
             float boxTop = Math.Min(b.PxQ1, b.PxQ3);
             float boxBot = Math.Max(b.PxQ1, b.PxQ3);
@@ -654,7 +463,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             const float scale  = ChartConstants.FontScale.AxisLabelMedium;
             const float bgPad  = ChartConstants.Interactivity.TooltipBgPadding;
-            const float colGap = 8f;
+            const float colGap = ChartConstants.Interactivity.TooltipColumnGap;
             float lineH = ActiveFont.Measure("A").Y * scale;
 
             float maxLeftW = 0f, maxRightW = 0f;
@@ -670,7 +479,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float bgX = sl.X - bgPad;
                 float bgY = sl.Y - bgPad;
 
-                Draw.Rect(bgX, bgY, totalW + bgPad * 2f, lineH + bgPad * 2f, Color.Black * 0.92f);
+                Draw.Rect(bgX, bgY, totalW + bgPad * 2f, lineH + bgPad * 2f, ChartConstants.Colors.PanelBackgroundColor);
                 ActiveFont.DrawOutline(sl.Left,  new Vector2(sl.X, sl.Y), Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
                 float rw = ActiveFont.Measure(sl.Right).X * scale;
                 ActiveFont.DrawOutline(sl.Right, new Vector2(sl.X + maxLeftW + colGap + maxRightW - rw, sl.Y), Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);

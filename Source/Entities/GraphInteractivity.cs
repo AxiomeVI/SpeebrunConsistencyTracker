@@ -2,9 +2,20 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Monocle;
-using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities;
+
+// What one frame of mouse interaction asked for, left to the caller to apply. GraphInteractivity
+// returns an intent instead of driving the graph manager itself, so this folder stays free of a
+// dependency on SessionManagement.
+// NavigationSteps is signed: positive moves forward through the graph slots, negative back.
+public readonly record struct GraphInteraction(int NavigationSteps, bool DeleteRequested)
+{
+    public static readonly GraphInteraction None   = new(0, false);
+    public static readonly GraphInteraction Delete = new(0, true);
+
+    public static GraphInteraction Navigate(int steps) => new(steps, false);
+}
 
 public static class GraphInteractivity
 {
@@ -26,7 +37,7 @@ public static class GraphInteractivity
 
     public static HoverInfo? CurrentHover { get; private set; }
 
-    public static void Update()
+    public static GraphInteraction Update(BaseChartOverlay overlay)
     {
         var mouse = Mouse.GetState();
         var vp    = Engine.Viewport;
@@ -34,110 +45,91 @@ public static class GraphInteractivity
         _mouseHudY = (mouse.Y - vp.Y) * (ChartConstants.Screen.ScreenHeight / (float)vp.Height);
 
         var mousePos  = new Vector2(_mouseHudX, _mouseHudY);
-        var rawHover  = GraphManager.CurrentOverlay?.HitTest(mousePos);
+        var rawHover  = overlay?.HitTest(mousePos);
         CurrentHover  = rawHover == null ? null : rawHover with { MouseHudPos = mousePos };
-        int? hoveredCol = GraphManager.CurrentOverlay?.ColumnHitTest(mousePos); // updates _hoveredColumnIndex for strip tinting
+        int? hoveredCol = overlay?.ColumnHitTest(mousePos); // updates _hoveredColumnIndex for strip tinting
 
         bool leftDown = mouse.LeftButton == Microsoft.Xna.Framework.Input.ButtonState.Pressed;
         bool clicked  = leftDown && !_prevMouseLeft;
         _prevMouseLeft = leftDown;
 
-        if (clicked)
+        if (!clicked)
+            return GraphInteraction.None;
+
+        // The caller deletes the pinned runs and then calls ClearPins, keeping the order this
+        // branch used to run inline.
+        if (_pinnedItems.Count > 0 && (overlay?.SupportsDeleteRuns ?? false) && _deleteButtonRect.Contains((int)_mouseHudX, (int)_mouseHudY))
+            return GraphInteraction.Delete;
+
+        if (CurrentHover != null && (overlay?.HandleClick(CurrentHover) ?? false))
+            return GraphInteraction.None;
+
+        if (CurrentHover != null)
         {
-            var overlay = GraphManager.CurrentOverlay;
-            if (_pinnedItems.Count > 0 && (overlay?.SupportsDeleteRuns ?? false) && _deleteButtonRect.Contains((int)_mouseHudX, (int)_mouseHudY))
+            int existing = CurrentHover.Key != null
+                ? _pinnedItems.FindIndex(p => p.Key == CurrentHover.Key)
+                : _pinnedItems.FindIndex(p => p.Label == CurrentHover.Label);
+            if (existing >= 0)
             {
-                var session = SessionManager.CurrentSession;
-                if (session != null)
-                {
-                    // Segment pins first: room pins on the same attempt then become no-ops.
-                    var deletedAttempts = new System.Collections.Generic.HashSet<int>();
-                    foreach (var pin in _pinnedItems)
-                        if (PinKey.TryParseSegment(pin.Key, out int attemptIdx))
-                        {
-                            session.DeleteAttempt(attemptIdx);
-                            deletedAttempts.Add(attemptIdx);
-                        }
-                    foreach (var pin in _pinnedItems)
-                        if (PinKey.TryParseRoom(pin.Key, out int attemptIdx, out int roomIdx)
-                            && !deletedAttempts.Contains(attemptIdx))
-                            session.DeleteCell(attemptIdx, roomIdx);
-                }
-                _pinnedItems.Clear();
-                overlay?.ClearPins();
+                _pinnedItems.RemoveAt(existing);
             }
-            else if (CurrentHover != null && (overlay?.HandleClick(CurrentHover) ?? false))
+            else if (CurrentHover.PinGroup != null)
             {
-            }
-            else if (CurrentHover != null)
-            {
-                int existing = CurrentHover.Key != null
-                    ? _pinnedItems.FindIndex(p => p.Key == CurrentHover.Key)
-                    : _pinnedItems.FindIndex(p => p.Label == CurrentHover.Label);
-                if (existing >= 0)
-                {
-                    _pinnedItems.RemoveAt(existing);
-                }
-                else if (CurrentHover.PinGroup != null)
-                {
-                    // One pin per group: the new one replaces it.
-                    int groupIdx = _pinnedItems.FindIndex(p => p.PinGroup == CurrentHover.PinGroup);
-                    if (groupIdx >= 0)
-                        _pinnedItems[groupIdx] = CurrentHover;
-                    else
-                        _pinnedItems.Add(CurrentHover);
-                }
+                // One pin per group: the new one replaces it.
+                int groupIdx = _pinnedItems.FindIndex(p => p.PinGroup == CurrentHover.PinGroup);
+                if (groupIdx >= 0)
+                    _pinnedItems[groupIdx] = CurrentHover;
                 else
-                {
                     _pinnedItems.Add(CurrentHover);
-                }
-            }
-            else if (_prevSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            {
-                GraphManager.PreviousGraph(3);
-                _prevMouseLeft = true;
-            }
-            else if (_prevArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            {
-                GraphManager.PreviousGraph();
-                _prevMouseLeft = true; // Clear() runs inside PreviousGraph and resets this; restore it
-            }
-            else if (_nextArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            {
-                GraphManager.NextGraph();
-                _prevMouseLeft = true; // Clear() runs inside NextGraph and resets this; restore it
-            }
-            else if (_nextSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            {
-                GraphManager.NextGraph(3);
-                _prevMouseLeft = true;
             }
             else
             {
-                if (hoveredCol.HasValue)
-                {
-                    overlay!.ToggleColumn(hoveredCol.Value);
-                    _pinnedItems.Clear();
-                    overlay.ClearPins();
-                }
+                _pinnedItems.Add(CurrentHover);
             }
+            return GraphInteraction.None;
         }
+
+        if (_prevSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
+            return GraphInteraction.Navigate(-3);
+
+        if (_prevArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
+            return GraphInteraction.Navigate(-1);
+
+        if (_nextArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
+            return GraphInteraction.Navigate(1);
+
+        if (_nextSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
+            return GraphInteraction.Navigate(3);
+
+        if (hoveredCol.HasValue)
+        {
+            overlay!.ToggleColumn(hoveredCol.Value);
+            ClearPins(overlay);
+        }
+
+        return GraphInteraction.None;
     }
 
-    public static void Clear()
+    public static void Clear(BaseChartOverlay overlay)
     {
         CurrentHover      = null;
-        _prevMouseLeft    = false;
         _deleteButtonRect = new(-9999, -9999, 0, 0);
         _pinnedItems.Clear();
-        GraphManager.CurrentOverlay?.ClearPins();
-        GraphManager.CurrentOverlay?.ClearHiddenColumns();
+        overlay?.ClearPins();
+        overlay?.ClearHiddenColumns();
     }
 
-    public static void Render()
+    public static void ClearPins(BaseChartOverlay overlay)
     {
-        var overlay = GraphManager.CurrentOverlay;
+        _pinnedItems.Clear();
+        overlay?.ClearPins();
+    }
 
+    // _prevMouseLeft is physical input state, rewritten every Update. Clear() deliberately leaves
+    // it alone: zeroing it on a graph change made a held button read as a fresh click next frame.
+
+    public static void Render(BaseChartOverlay overlay)
+    {
         foreach (var pinned in _pinnedItems)
             overlay?.DrawHighlight(pinned);
 
@@ -182,7 +174,7 @@ public static class GraphInteractivity
         bool twoColumn = System.Array.TrueForAll(lines, l => l.Contains('\t'));
         if (twoColumn)
         {
-            const float colGap = 12f;
+            const float colGap = ChartConstants.Interactivity.TooltipColumnGap;
             string[] leftParts  = new string[lines.Length];
             string[] rightParts = new string[lines.Length];
             float maxLeftW = 0f, maxRightW = 0f;
@@ -197,7 +189,7 @@ public static class GraphInteractivity
             float totalW = maxLeftW + colGap + maxRightW;
             float totalH = lineHeight * lines.Length;
             float bgX    = labelX - totalW / 2f - bgPad;
-            Draw.Rect(bgX, labelY - bgPad, totalW + bgPad * 2f, totalH + bgPad * 2f, Color.Black * 0.92f);
+            Draw.Rect(bgX, labelY - bgPad, totalW + bgPad * 2f, totalH + bgPad * 2f, ChartConstants.Colors.PanelBackgroundColor);
             float leftX  = labelX - totalW / 2f;
             float rightX = leftX + maxLeftW + colGap;
             for (int i = 0; i < lines.Length; i++)
@@ -220,7 +212,7 @@ public static class GraphInteractivity
             labelY - bgPad,
             maxWidth + bgPad * 2f,
             totalHeight + bgPad * 2f,
-            Color.Black * 0.92f);
+            ChartConstants.Colors.PanelBackgroundColor);
 
         for (int i = 0; i < lines.Length; i++)
         {
@@ -256,7 +248,7 @@ public static class GraphInteractivity
         bool hovered = _deleteButtonRect.Contains((int)_mouseHudX, (int)_mouseHudY);
 
         Draw.Rect(bgX - 1f, bgY - 1f, bgW + 2f, bgH + 2f, Color.Crimson * 0.9f);
-        Draw.Rect(bgX, bgY, bgW, bgH, hovered ? Color.Crimson * 0.5f : Color.Black * 0.92f);
+        Draw.Rect(bgX, bgY, bgW, bgH, hovered ? Color.Crimson * 0.5f : ChartConstants.Colors.PanelBackgroundColor);
         ActiveFont.DrawOutline(
             text,
             new Vector2(bgX + pad, bgY + pad),
@@ -306,7 +298,7 @@ public static class GraphInteractivity
     {
         const float scale = ChartConstants.FontScale.AxisLabelSmall;
         Draw.Rect(x - 1f, y - 1f, w + 2f, h + 2f, Color.White * 0.6f);
-        Draw.Rect(x, y, w, h, hovered ? Color.White * 0.25f : Color.Black * 0.92f);
+        Draw.Rect(x, y, w, h, hovered ? Color.White * 0.25f : ChartConstants.Colors.PanelBackgroundColor);
         ActiveFont.DrawOutline(
             label,
             new Vector2(x + w / 2f, y + h / 2f),

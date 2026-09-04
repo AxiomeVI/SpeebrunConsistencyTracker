@@ -271,6 +271,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public struct PeakReport
         {
             public bool IsBimodal;
+            public bool NoDominantPeak; // No bin cleared the noise floor - see GetFullPeakAnalysis.
             public PeakMetrics FastPeak;
             public PeakMetrics SlowPeak;
             public string Summary;
@@ -304,17 +305,25 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             double fastVal, slowVal;
             bool activeBimodal = bimodalDetected && localMaxima.Count >= 2;
+            // No bin cleared the noise floor as a hill: nothing in this distribution stands out
+            // enough to call a peak. Distinct from activeBimodal being false — that just means
+            // one dominant cluster, not none.
+            bool noDominantPeak = !activeBimodal && localMaxima.Count == 0;
             if (activeBimodal)
             {
                 // Two tallest peaks, then back into time order.
                 var topTwo = localMaxima.OrderByDescending(m => m.count).Take(2).OrderBy(m => m.index).ToList();
-                
+
                 fastVal = GetRefinedPeak(topTwo[0].index, bins, min, binWidth);
                 slowVal = GetRefinedPeak(topTwo[1].index, bins, min, binWidth);
             }
+            else if (noDominantPeak)
+            {
+                fastVal = slowVal = 0; // Unused: no peak means no cluster/consistency to attach it to.
+            }
             else
             {
-                var (index, count) = localMaxima.OrderByDescending(m => m.count).FirstOrDefault();
+                var (index, count) = localMaxima.OrderByDescending(m => m.count).First();
                 fastVal = slowVal = GetRefinedPeak(index, bins, min, binWidth);
             }
 
@@ -332,12 +341,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             var report = new PeakReport {
                 IsBimodal = activeBimodal,
-                FastPeak = CreatePeakMetrics(fastCluster, fastVal, times.Count),
+                NoDominantPeak = noDominantPeak,
+                FastPeak = noDominantPeak ? new PeakMetrics() : CreatePeakMetrics(fastCluster, fastVal, times.Count),
                 SlowPeak = activeBimodal ? CreatePeakMetrics(slowCluster, slowVal, times.Count) : new PeakMetrics(),
             };
 
             // A peak lighter than this is an outlier, not a strat: fall back to unimodal.
-            double weightThreshold = 0.05; // 5% minimum weight to be considered a "Strat"
+            double weightThreshold = 0.05;
             if (report.IsBimodal)
             {
                 if (report.FastPeak.Weight < weightThreshold || report.SlowPeak.Weight < weightThreshold)
@@ -359,16 +369,22 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             var maxima = new List<(int, int)>();
             double noiseFloor = totalCount * 0.03;
 
-            for (int i = 1; i < bins.Length - 1; i++)
+            // Bin 0 and the last bin are scanned like any other: each treats its missing outer
+            // neighbour as -infinity, so a genuine mode sitting at an extreme bin (e.g. a
+            // monotonically rising or falling sample) is recorded instead of silently requiring
+            // a rise before it and a drop-off after, which no edge bin can ever have.
+            for (int i = 0; i < bins.Length; i++)
             {
                 if (bins[i] < noiseFloor) continue;
 
-                if (bins[i] > bins[i - 1]) // Start of a hill
+                int left = (i == 0) ? int.MinValue : bins[i - 1];
+                if (bins[i] > left) // Start of a hill
                 {
                     int j = i;
                     while (j < bins.Length - 1 && bins[j + 1] == bins[i]) j++; // Handle plateaus
 
-                    if (j < bins.Length - 1 && bins[i] > bins[j + 1]) // It drops off
+                    int right = (j == bins.Length - 1) ? int.MinValue : bins[j + 1];
+                    if (bins[i] > right) // It drops off, or nothing follows it
                     {
                         maxima.Add(((i + j) / 2, bins[i]));
                         i = j;
@@ -408,6 +424,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         private static string GenerateNarrative(PeakReport report)
         {
+            if (report.NoDominantPeak)
+            {
+                return "No dominant peak detected.";
+            }
+
             if (!report.IsBimodal)
             {
                 return $"Single peak at {report.FastPeak.Value}.";
@@ -419,6 +440,90 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 $"Backup: {report.SlowPeak.Value} ({FormatPercent(report.SlowPeak.Weight)} weight {FormatPercent(report.SlowPeak.Consistency)} consistency). Time loss: +{timeLoss}.";
         }
 
+        // Cache-key accessors. Each owns exactly one MetricContext key, so a metric never
+        // hand-writes the string — the one place a key is spelled is here. GetOrCompute is
+        // idempotent, so composing an accessor from another (e.g. RoomStdDev from
+        // RoomAverage) costs nothing extra: the dependency's own key is computed once per
+        // MetricContext pass and every further call is a dictionary lookup.
+
+        public static List<TimeTicks> SortedSegmentValues(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("segment_values_sorted", () => session.GetSegmentTimes().OrderBy(t => t).ToList());
+
+        public static double SegmentAverage(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("avg_segment", () => session.GetSegmentTimes().Average(t => t.Ticks));
+
+        public static double SegmentStdDev(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("std_segment", () => ComputeStdDev(session.GetSegmentTimes().ToList(), SegmentAverage(session, context)));
+
+        public static TimeTicks SegmentMedian(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("med_segment", () => ComputePercentile(SortedSegmentValues(session, context), 50));
+
+        public static TimeTicks SegmentMAD(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("mad_segment", () => ComputeMAD(SortedSegmentValues(session, context)));
+
+        public static TimeTicks SegmentQ1(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("q1_segment", () => ComputePercentile(SortedSegmentValues(session, context), 25));
+
+        public static TimeTicks SegmentQ3(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("q3_segment", () => ComputePercentile(SortedSegmentValues(session, context), 75));
+
+        public static TimeTicks SegmentMin(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("min_segment", () => SortedSegmentValues(session, context)[0]);
+
+        public static TimeTicks SegmentMax(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("max_segment", () => SortedSegmentValues(session, context)[^1]);
+
+        // Unguarded — callers check for a zero denominator before calling this (see RelativeMAD).
+        public static double SegmentRelativeMAD(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("relmad_segment", () => (double)SegmentMAD(session, context) / SegmentMedian(session, context));
+
+        // Unguarded — callers check for a zero denominator before calling this (see CoefVariation).
+        public static double SegmentCV(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("cv_segment", () => SegmentStdDev(session, context) / SegmentAverage(session, context));
+
+        // Unguarded — callers check for a zero run count before calling this (see ResetRate).
+        public static double SegmentResetRate(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("resetRate_segment", () => (double)session.TotalDnfs / session.TotalAttempts);
+
+        public static List<TimeTicks> SortedRoomValues(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"room_{r}_values_sorted", () => session.GetRoomTimes(r).OrderBy(t => t).ToList());
+
+        public static double RoomAverage(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"avg_room_{r}", () => SortedRoomValues(session, context, r).Average(t => t.Ticks));
+
+        public static double RoomStdDev(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"std_room_{r}", () => ComputeStdDev(SortedRoomValues(session, context, r), RoomAverage(session, context, r)));
+
+        public static TimeTicks RoomMedian(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"med_room_{r}", () => ComputePercentile(SortedRoomValues(session, context, r), 50));
+
+        public static TimeTicks RoomMAD(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"mad_room_{r}", () => ComputeMAD(SortedRoomValues(session, context, r)));
+
+        public static TimeTicks RoomQ1(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"q1_room_{r}", () => ComputePercentile(SortedRoomValues(session, context, r), 25));
+
+        public static TimeTicks RoomQ3(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"q3_room_{r}", () => ComputePercentile(SortedRoomValues(session, context, r), 75));
+
+        public static TimeTicks RoomMin(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"min_room_{r}", () => SortedRoomValues(session, context, r)[0]);
+
+        public static TimeTicks RoomMax(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"max_room_{r}", () => SortedRoomValues(session, context, r)[^1]);
+
+        // Unguarded — callers check for a zero denominator before calling this (see RelativeMAD).
+        public static double RoomRelativeMAD(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"relmad_room_{r}", () => (double)RoomMAD(session, context, r) / RoomMedian(session, context, r));
+
+        // Unguarded — callers check for a zero denominator before calling this (see CoefVariation).
+        public static double RoomCV(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"cv_room_{r}", () => RoomStdDev(session, context, r) / RoomAverage(session, context, r));
+
+        // Unguarded — callers check for a zero run count before calling this (see ResetRate).
+        public static double RoomResetRate(PracticeSession session, MetricContext context, int r) =>
+            context.GetOrCompute($"resetRate_room_{r}", () => (double)session.DnfPerRoom.GetValueOrDefault(r) / session.TotalAttemptsPerRoom.GetValueOrDefault(r));
+
         public static List<string> ComputeRoomValues(
             bool isExport, PracticeSession session, MetricContext context,
             Func<int, List<TimeTicks>, string> computeValue,
@@ -429,10 +534,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (!isExport) return roomValues;
             for (int r = 0; r < roomCount; r++)
             {
-                var roomTimes = context.GetOrCompute(
-                    $"room_{r}_values_sorted",
-                    () => session.GetRoomTimes(r).OrderBy(t => t).ToList()
-                );
+                var roomTimes = SortedRoomValues(session, context, r);
                 roomValues.Add(roomTimes.Count < minCount ? defaultValue : computeValue(r, roomTimes));
             }
             return roomValues;

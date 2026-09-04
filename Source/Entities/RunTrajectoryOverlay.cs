@@ -1,51 +1,48 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
-using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
-    // deviation[r] = actualTime[r] - roomAverage[r], so negative is faster than average and
-    // draws UP. Cumulative deviation is the running sum across rooms.
-    public class RunTrajectoryOverlay : BaseChartOverlay
+    // The chart proper: the derived dataset it draws, the column geometry, the attempt lines,
+    // the hit test and the pin contract. Everything drawn around the lines — axes, grid, axis
+    // text, tooltips, comparison table — is in RunTrajectoryOverlayAnnotations.cs.
+    public partial class RunTrajectoryOverlay : BaseChartOverlay
     {
         private readonly int _totalRooms;
 
-        private record AttemptLine(
-            long[] CumulativeDeviations,
-            long[] RoomTimes,            // actual room ticks per room (length = RoomsCompleted)
-            int    RoomsCompleted,
-            int    ChronologicalIndex);  // 1-based
+        // The dataset is derived, not raw, and neither half touches XNA: TrajectoryModel builds
+        // it from the session, TrajectoryScope holds everything that depends on which columns
+        // are hidden. Both live under Source/Metrics/ and are unit-tested there.
+        private readonly TrajectoryModel _model;
+        private readonly TrajectoryScope _scope;
 
-        // All attempts in chronological order. _attempts[^1] is always the last attempt.
-        private readonly List<AttemptLine> _attempts;
-        private readonly AttemptLine       _sobLine;
-        private readonly long[]            _roomAverages;   // per-room average ticks
-        private readonly long[]            _sobRoomTimes;   // per-room SoB ticks (length = _totalRooms, 0 if no data)
-        private readonly int[]             _bestSoFarIdx;   // per-room index into _attempts of best-so-far run
+        // Plot rect. position/width/height/margin/marginH are readonly, so it never moves.
+        private readonly float _gx, _gy, _gw, _gh;
 
-        // Cached fields — all recomputed by RecomputeCache() whenever _lastVisibleRoom changes.
-        private int  _lastVisibleRoom     = -1;
-        private int  _bestIdx             = -1;   // index into _attempts of best attempt up to _lastVisibleRoom
-        private bool _lastIsBest;                 // _bestIdx == _attempts.Count - 1
-        private bool _sobIsBest;                  // SoB dev == best dev at _lastVisibleRoom
-        private bool _anyCompleted;               // any attempt reaches beyond _lastVisibleRoom
-        private bool _sobReachesEnd;              // SoB reaches beyond _lastVisibleRoom
-        private bool _lastReachesEnd;             // _attempts[^1] reaches beyond _lastVisibleRoom
-        private long _roomAveragesSum;            // sum of _roomAverages[0.._lastVisibleRoom] inclusive
-        private long _maxUpwardDeviation;         // max magnitude of negative cumulative dev up to _lastVisibleRoom (min 1)
-        private long _maxDownwardDeviation;       // max magnitude of positive cumulative dev up to _lastVisibleRoom (min 1)
-        private long _totalRange;                 // _maxUpwardDeviation + _maxDownwardDeviation
+        // Deviation-to-pixel mapping, refreshed by RecomputeCache(): the scope's
+        // MaxUpwardDeviation and TotalRange move only there. Not a per-Render() local — HitTest
+        // and ColumnHitTest read it from Update, outside Render.
+        private float _baselineY;                 // Y of the zero-deviation line
+        private float _devScale;                  // pixels per tick of deviation
 
-        // Line index: into _attempts, or _attempts.Count for SoB, +1 for baseline, -1 for none.
-        private int _hoveredLineIdx = -1;
-        // Main pin is the fixed reference line (-1 = comparison mode off); comp pin the optional
-        // secondary line (-1 = compare vs Avg).
-        private int _mainPinIdx = -1;
-        private int _compPinIdx = -1;
+        // Column geometry, rebuilt by RebuildColumnLayout() on every toggle.
+        private readonly bool[]  _colHidden;
+        private readonly float[] _colRightEdge;    // X of column r's right edge
+        private readonly float[] _colCenterX;      // X of column r's centre
+        private readonly int[]   _colPrevVisible;  // nearest visible column before r, -1 if none
+        private float _colNormalWidth;             // width of a visible column
+
+        private LineId _hoveredLine = LineId.None;
+        // Main pin is the fixed reference line (None = comparison mode off); comp pin the
+        // optional secondary line (None = compare vs Avg).
+        private LineId _mainPin = LineId.None;
+        private LineId _compPin = LineId.None;
+
+        private LineId SobLineId      => LineId.Sob(_model.Attempts.Count);
+        private LineId BaselineLineId => LineId.Baseline(_model.Attempts.Count);
 
         public RunTrajectoryOverlay(
             PracticeSession session,
@@ -54,341 +51,147 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             : base("Run Trajectory — Deviation from average", pos)
         {
             _totalRooms = totalRooms;
+            _gx = position.X + marginH;
+            _gy = position.Y + margin;
+            _gw = width  - marginH * 2;
+            _gh = height - margin  * 2;
+            _colHidden      = new bool[_totalRooms];
+            _colRightEdge   = new float[_totalRooms];
+            _colCenterX     = new float[_totalRooms];
+            _colPrevVisible = new int[_totalRooms];
+            RebuildColumnLayout();
 
-            int attemptCount = session.AttemptCount;
-            if (attemptCount == 0 || totalRooms == 0)
-            {
-                _attempts     = [];
-                _sobLine      = new AttemptLine([], [], 0, 0);
-                _roomAverages = [];
-                _sobRoomTimes = [];
-                _bestSoFarIdx = [];
-                RecomputeCache();
-                return;
-            }
-
-            _roomAverages = [.. Enumerable.Range(0, _totalRooms).Select(r =>
-            {
-                var times = new List<long>();
-                for (int a = 0; a < attemptCount; a++)
-                {
-                    if (session.ContiguousCount(a) > r)
-                    {
-                        var cell = session.GetCell(a, r);
-                        if (cell.HasTime) times.Add(cell.Time.Ticks);
-                    }
-                }
-                return times.Count == 0 ? 0L : (long)times.Average();
-            })];
-
-            _attempts = [];
-            for (int a = 0; a < attemptCount; a++)
-            {
-                int contiguous = session.ContiguousCount(a);
-                if (contiguous == 0) continue;
-                long cumulative = 0;
-                var deviations = new List<long>();
-                var roomTks = new List<long>();
-                for (int r = 0; r < contiguous && r < _totalRooms; r++)
-                {
-                    long t = session.GetCell(a, r).Time.Ticks; // safe: ContiguousCount guarantees all cells 0..contiguous-1 are Completed
-                    roomTks.Add(t);
-                    cumulative += t - _roomAverages[r];
-                    deviations.Add(cumulative);
-                }
-                _attempts.Add(new AttemptLine([.. deviations], [.. roomTks], deviations.Count, a + 1));
-            }
-
-            _bestSoFarIdx = new int[_totalRooms];
-            for (int r = 0; r < _totalRooms; r++)
-            {
-                int bestI = -1;
-                long bestDev = long.MaxValue;
-                for (int i = 0; i < _attempts.Count - 1; i++) // "vs Best Split" compares against prior runs only
-                {
-                    if (_attempts[i].RoomsCompleted <= r) continue;
-                    if (_attempts[i].CumulativeDeviations[r] < bestDev)
-                    {
-                        bestDev = _attempts[i].CumulativeDeviations[r];
-                        bestI   = i;
-                    }
-                }
-                _bestSoFarIdx[r] = bestI; // -1 if no attempt reaches r
-            }
-
-            long sobCumulative    = 0;
-            var  sobDeviations    = new long[_totalRooms];
-            _sobRoomTimes         = new long[_totalRooms];
-            int  sobRoomsCompleted = 0;
-            for (int r = 0; r < _totalRooms; r++)
-            {
-                var times = session.GetRoomTimes(r).ToList();
-                if (times.Count == 0) break;
-                long best         = times.Min(t => t.Ticks);
-                _sobRoomTimes[r]  = best;
-                sobCumulative    += best - _roomAverages[r];
-                sobDeviations[r]  = sobCumulative;
-                sobRoomsCompleted = r + 1;
-            }
-            _sobLine = new AttemptLine(sobDeviations, _sobRoomTimes[..sobRoomsCompleted], sobRoomsCompleted, 0);
-
+            _model = TrajectoryModel.Build(session, totalRooms);
+            _scope = new TrajectoryScope(_model);
             RecomputeCache();
         }
 
         private void RecomputeCache()
         {
-            int lastVis = -1;
-            for (int r = _totalRooms - 1; r >= 0; r--)
-                if (!_hiddenColumns.Contains(r)) { lastVis = r; break; }
-            _lastVisibleRoom = lastVis;
-
-            if (lastVis < 0 || _attempts.Count == 0)
-            {
-                _bestIdx              = _attempts.Count > 0 ? _attempts.Count - 1 : -1;
-                _lastIsBest           = _bestIdx == _attempts.Count - 1;
-                _sobIsBest            = false;
-                _anyCompleted         = false;
-                _sobReachesEnd        = false;
-                _lastReachesEnd       = false;
-                _roomAveragesSum      = 0;
-                _maxUpwardDeviation   = 1;
-                _maxDownwardDeviation = 1;
-                _totalRange           = 2;
-                return;
-            }
-
-            // Best = lowest cumulative deviation at lastVis among attempts that reached it;
-            // failing that, the furthest reached, ties broken by lowest final deviation.
-            int best = -1;
-            {
-                var reached = Enumerable.Range(0, _attempts.Count)
-                    .Where(i => _attempts[i].RoomsCompleted > lastVis)
-                    .ToList();
-                if (reached.Count > 0)
-                {
-                    best = reached.OrderBy(i => _attempts[i].CumulativeDeviations[lastVis]).First();
-                }
-                else
-                {
-                    best = Enumerable.Range(0, _attempts.Count)
-                        .OrderByDescending(i => _attempts[i].RoomsCompleted)
-                        .ThenBy(i => _attempts[i].RoomsCompleted > 0 ? _attempts[i].CumulativeDeviations[_attempts[i].RoomsCompleted - 1] : 0)
-                        .First();
-                }
-            }
-            _bestIdx    = best;
-            _lastIsBest = _bestIdx == _attempts.Count - 1;
-
-            long bestDev = DevAtRoom(_attempts[_bestIdx], lastVis);
-            long sobDev  = DevAtRoom(_sobLine,            lastVis);
-            _sobIsBest  = sobDev == bestDev;
-
-            _anyCompleted   = _attempts.Any(a => a.RoomsCompleted > lastVis);
-            _sobReachesEnd  = _sobLine.RoomsCompleted > lastVis;
-            _lastReachesEnd = _attempts[^1].RoomsCompleted > lastVis;
-
-            _roomAveragesSum = 0;
-            for (int r = 0; r <= lastVis; r++) _roomAveragesSum += _roomAverages[r];
-
-            // Hidden rooms in the middle still contribute cumulative deviation; rooms beyond
-            // lastVis do not.
-            long maxUp   = 1;
-            long maxDown = 1;
-            foreach (var attempt in _attempts)
-            {
-                int limit = Math.Min(attempt.RoomsCompleted - 1, lastVis);
-                for (int r = 0; r <= limit; r++)
-                {
-                    long d = attempt.CumulativeDeviations[r];
-                    if (d < 0) maxUp   = Math.Max(maxUp,  -d);
-                    else       maxDown = Math.Max(maxDown,  d);
-                }
-            }
-            {
-                int limit = Math.Min(_sobLine.RoomsCompleted - 1, lastVis);
-                for (int r = 0; r <= limit; r++)
-                {
-                    long d = _sobLine.CumulativeDeviations[r];
-                    if (d < 0) maxUp   = Math.Max(maxUp,  -d);
-                    else       maxDown = Math.Max(maxDown,  d);
-                }
-            }
-            _maxUpwardDeviation   = maxUp;
-            _maxDownwardDeviation = maxDown;
-            _totalRange           = maxUp + maxDown;
+            _scope.Recompute(_colHidden);
+            RefreshDeviationScale();
         }
+
+        private void RefreshDeviationScale()
+        {
+            _baselineY = _gy + (float)_scope.MaxUpwardDeviation / _scope.TotalRange * _gh;
+            _devScale  = _gh / _scope.TotalRange;
+        }
+
+        // Two invalidation keys, not one: hiding a middle room changes every column width and
+        // leaves _scope.LastVisibleRoom alone, so this must not hang off RecomputeCache()'s guard.
+        private void RebuildColumnLayout()
+        {
+            const float stub = ChartConstants.Interactivity.HiddenColumnStubWidth;
+            int visibleCount = _totalRooms - _hiddenColumns.Count;
+            _colNormalWidth = visibleCount <= 0
+                ? _gw / Math.Max(_totalRooms, 1)
+                : (_gw - _hiddenColumns.Count * stub) / visibleCount;
+
+            float x = _gx;
+            int prevVisible = -1;
+            for (int r = 0; r < _totalRooms; r++)
+            {
+                bool  hidden = _hiddenColumns.Contains(r);
+                float colW   = hidden ? stub : _colNormalWidth;
+                _colHidden[r]      = hidden;
+                _colCenterX[r]     = x + colW * 0.5f;
+                _colPrevVisible[r] = prevVisible;
+                x += colW;
+                _colRightEdge[r] = x;
+                if (!hidden) prevVisible = r;
+            }
+        }
+
+        private float ColumnWidth(int r) =>
+            _colHidden[r] ? ChartConstants.Interactivity.HiddenColumnStubWidth : _colNormalWidth;
 
         public override void ClearHiddenColumns()
         {
             base.ClearHiddenColumns();
+            RebuildColumnLayout();
             int newLastVisible = _totalRooms - 1; // after clearing, last room is always visible
-            if (newLastVisible != _lastVisibleRoom)
+            if (newLastVisible != _scope.LastVisibleRoom)
                 RecomputeCache();
         }
 
         public override void ToggleColumn(int columnIndex)
         {
             base.ToggleColumn(columnIndex);
+            RebuildColumnLayout();
             int newLastVisible = -1;
             for (int r = _totalRooms - 1; r >= 0; r--)
-                if (!_hiddenColumns.Contains(r)) { newLastVisible = r; break; }
-            if (newLastVisible != _lastVisibleRoom)
+                if (!_colHidden[r]) { newLastVisible = r; break; }
+            if (newLastVisible != _scope.LastVisibleRoom)
                 RecomputeCache();
-        }
-
-        // -1 if every room is hidden.
-        private int LastVisibleRoom()
-        {
-            for (int r = _totalRooms - 1; r >= 0; r--)
-                if (!_hiddenColumns.Contains(r)) return r;
-            return -1;
-        }
-
-        private float ComputeNormalColumnWidth(float gw)
-        {
-            int visibleCount = _totalRooms - _hiddenColumns.Count;
-            if (visibleCount <= 0) return gw / Math.Max(_totalRooms, 1);
-            float available = gw - _hiddenColumns.Count * ChartConstants.Interactivity.HiddenColumnStubWidth;
-            return available / visibleCount;
-        }
-
-        private float GetRoomCenterX(float gx, float gw, int r)
-        {
-            float normalW = ComputeNormalColumnWidth(gw);
-            float x = gx;
-            for (int j = 0; j < r; j++)
-                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-            float thisW = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-            return x + thisW * 0.5f;
-        }
-
-        private float GetRoomRightEdgeX(float gx, float gw, int r)
-        {
-            float normalW = ComputeNormalColumnWidth(gw);
-            float x = gx;
-            for (int j = 0; j <= r; j++)
-                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-            return x;
-        }
-
-        private void DrawAxesLines(float x, float y, float w, float h)
-        {
-            Draw.Line(new Vector2(x - 1, y + h), new Vector2(x + w + 1, y + h), axisColor, 2f);
-            Draw.Line(new Vector2(x, y),     new Vector2(x, y + h),     axisColor, 2f);
-            float baselineY = y + (float)_maxUpwardDeviation / _totalRange * h;
-            Draw.Line(new Vector2(x, baselineY), new Vector2(x + w, baselineY), ChartConstants.Colors.BaselineColor, ChartConstants.Stroke.OutlineSize);
         }
 
         public override void Render()
         {
             Draw.Rect(position, width, height, backgroundColor);
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
 
-            DrawGrid(gx, gy, gw, gh);
-            DrawAxesLines(gx, gy, gw, gh);
-            DrawBars(gx, gy, gw, gh);
-            DrawLabels(gx, gy, gw, gh);
+            DrawGrid(_gx, _gy, _gw, _gh);
+            DrawAxesLines();
+            DrawBars(_gx, _gy, _gw, _gh);
+            DrawLabels(_gx, _gy, _gw, _gh);
             DrawPinnedHighlights();
             DrawComparisonTable();
         }
 
-        protected override void DrawGrid(float x, float y, float w, float h)
+        private bool IsHovered(LineId id) => !_hoveredLine.IsNone && _hoveredLine == id;
+
+        private bool IsLinePinned(LineId id) => id == _mainPin || id == _compPin;
+
+        private bool IsLineDimmed(LineId id)
         {
-            if (_totalRooms == 0 || _attempts.Count == 0) return;
-
-            float normalW = ComputeNormalColumnWidth(w);
-            float colX = x;
-            for (int r = 0; r < _totalRooms; r++)
-            {
-                Draw.Line(new Vector2(colX, y), new Vector2(colX, y + h), ChartConstants.Colors.GridLineColor, 1f);
-                colX += _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-            }
-
-            float baselineY   = y + (float)_maxUpwardDeviation / _totalRange * h;
-            float aboveHeight = (float)_maxUpwardDeviation   / _totalRange * h;
-            float belowHeight = (float)_maxDownwardDeviation / _totalRange * h;
-            int totalTicks = ChartConstants.Trajectory.TotalYTicks;
-            int ticksAbove = Math.Max(1, (int)Math.Round((double)aboveHeight / h * totalTicks));
-            int ticksBelow = Math.Max(1, totalTicks - ticksAbove);
-
-            DrawYTickGridLines(x, y, w, baselineY, aboveHeight, ticksAbove, true);
-            DrawYTickGridLines(x, y, w, baselineY, belowHeight, ticksBelow, false);
-        }
-
-        private static void DrawYTickGridLines(float x, float y, float w, float baselineY, float sideHeight, int tickCount, bool above)
-        {
-            float minSpacing  = ActiveFont.LineHeight * ChartConstants.FontScale.AxisLabelSmall * 1.1f;
-            float chartBottom = baselineY + sideHeight; // only meaningful when !above
-            float lastDrawnY  = above ? float.MaxValue : float.MinValue;
-
-            for (int i = 1; i <= tickCount; i++)
-            {
-                float yPos = above
-                    ? baselineY - (float)i / tickCount * sideHeight
-                    : baselineY + (float)i / tickCount * sideHeight;
-
-                if (above  && yPos < y)                       continue;
-                if (!above && yPos > chartBottom)              continue;
-                if (above  && lastDrawnY - yPos < minSpacing) continue;
-                if (!above && yPos - lastDrawnY  < minSpacing) continue;
-
-                Draw.Line(new Vector2(x, yPos), new Vector2(x + w, yPos), ChartConstants.Colors.GridLineColor, 1f);
-                lastDrawnY = yPos;
-            }
-        }
-
-        private bool IsLinePinned(int lineIdx) =>
-            lineIdx == _mainPinIdx || lineIdx == _compPinIdx;
-
-        private bool IsLineDimmed(int lineIdx)
-        {
-            bool hovering       = _hoveredLineIdx >= 0;
-            bool comparisonMode = _mainPinIdx >= 0;
+            bool hovering       = !_hoveredLine.IsNone;
+            bool comparisonMode = !_mainPin.IsNone;
             if (!hovering && !comparisonMode) return false;
 
-            bool isHovered = hovering && _hoveredLineIdx == lineIdx;
-            if (isHovered) return false;
+            if (IsHovered(id)) return false;
 
             if (comparisonMode)
             {
-                if (lineIdx == _mainPinIdx) return false; // main pin always lit
-                if (lineIdx == _compPinIdx) return false; // comp pin always lit (or -1 = none)
-                if (_compPinIdx < 0 && lineIdx == _attempts.Count) return false; // default comp is SoB
+                if (id == _mainPin) return false;  // main pin always lit
+                if (id == _compPin) return false;  // comp pin always lit (or None = no comp pin)
+                if (_compPin.IsNone && id.IsSob) return false; // default comp is SoB
             }
 
             return true;
         }
 
+        // One line may carry two identities when SoB, Best and Last coincide. It thickens when
+        // either is hovered or pinned, and dims only when *both* are dim — hence && here against
+        // the || above.
+        private void DrawSpecialLine(AttemptLine line, LineId a, LineId b, Color color)
+        {
+            bool lit    = IsHovered(a) || IsHovered(b) || IsLinePinned(a) || IsLinePinned(b);
+            bool dimmed = IsLineDimmed(a) && IsLineDimmed(b);
+            DrawAttemptLine(line,
+                dimmed ? color * ChartConstants.Trajectory.DimFactor : color,
+                lit ? ChartConstants.Trajectory.SpecialLineHitThickness
+                    : ChartConstants.Trajectory.SpecialLineThickness);
+        }
+
         protected override void DrawBars(float x, float y, float w, float h)
         {
-            if (_attempts.Count == 0) return;
+            if (_model.Attempts.Count == 0) return;
 
-            float baselineY = y + (float)_maxUpwardDeviation / _totalRange * h;
-            float devScale  = h / _totalRange;
-            int   total     = _attempts.Count;
-            bool  hovering  = _hoveredLineIdx >= 0;
+            int   total     = _model.Attempts.Count;
             var   s         = SpeebrunConsistencyTrackerModule.Settings;
 
             for (int i = 0; i < total; i++)
             {
-                if (i == _bestIdx || i == total - 1) continue;
+                if (i == _scope.BestIdx || i == total - 1) continue;
 
-                bool  isHovered = hovering && _hoveredLineIdx == i;
-                bool  dimmed    = IsLineDimmed(i);
+                LineId id       = LineId.Attempt(i);
+                bool  isHovered = IsHovered(id);
+                bool  dimmed    = IsLineDimmed(id);
                 float thickness;
                 Color color;
-                if (!hovering && _mainPinIdx < 0)
-                {
-                    float brightness = total <= 1
-                        ? ChartConstants.Trajectory.BrightnessMax
-                        : MathHelper.Lerp(ChartConstants.Trajectory.BrightnessMin, ChartConstants.Trajectory.BrightnessMax, (float)i / (total - 1));
-                    color     = Color.White * brightness;
-                    thickness = 1.5f;
-                }
-                else if (isHovered)
+                // With nothing hovered and no main pin, nothing is hovered, dimmed or pinned,
+                // so the plain brightness ramp below is the only reachable case.
+                if (isHovered)
                 {
                     color     = Color.White;
                     thickness = 2.5f;
@@ -398,7 +201,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     color     = Color.White * ChartConstants.Trajectory.BrightnessMin;
                     thickness = 1f;
                 }
-                else if (IsLinePinned(i))
+                else if (IsLinePinned(id))
                 {
                     color     = Color.White;
                     thickness = 2.5f;
@@ -411,800 +214,168 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     color     = Color.White * brightness;
                     thickness = 1.5f;
                 }
-                DrawAttemptLine(_attempts[i], x, w, baselineY, devScale, h, color, thickness);
+                DrawAttemptLine(_model.Attempts[i], color, thickness);
             }
 
             // SoB, Best and Last draw on top of the regulars, in that order.
             Color sobColor  = s.TrajectorySobColorFinal;
             Color bestColor = s.TrajectoryBestColorFinal;
             Color lastColor = s.TrajectoryLastColorFinal;
-            float specialThick = 2f;
 
-            int sobIdx  = total;       // logical index for SoB in hover/pin system
-            int bestIdx = _bestIdx;
-            int lastIdx = total - 1;
+            LineId sob  = SobLineId;
+            LineId best = LineId.Attempt(_scope.BestIdx);
+            LineId last = LineId.Attempt(total - 1);
 
-            if (_sobIsBest && _lastIsBest)
+            switch (_scope.Coincidence)
             {
-                // One line for all three; colour precedence last > best > sob.
-                bool  h3      = hovering && (_hoveredLineIdx == sobIdx || _hoveredLineIdx == lastIdx);
-                bool  pinned3 = IsLinePinned(sobIdx) || IsLinePinned(lastIdx);
-                bool  dimmed3 = IsLineDimmed(sobIdx) && IsLineDimmed(lastIdx);
-                float t3      = h3 || pinned3 ? 3f : specialThick;
-                Color c3Draw  = dimmed3 ? lastColor * 0.35f : lastColor;
-                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, c3Draw, t3);
-            }
-            else if (_sobIsBest)
-            {
-                // Shared line takes bestColor (best > sob); Last draws separately.
-                bool  hSB      = hovering && _hoveredLineIdx == sobIdx;
-                bool  pinnedSB = IsLinePinned(sobIdx);
-                bool  dimmedSB = IsLineDimmed(sobIdx);
-                float tSB      = hSB || pinnedSB ? 3f : specialThick;
-                Color cSBDraw  = dimmedSB ? bestColor * 0.35f : bestColor;
-                DrawAttemptLine(_sobLine, x, w, baselineY, devScale, h, cSBDraw, tSB);
+                case LineCoincidence.AllThree:
+                    // One line for all three; colour precedence last > best > sob.
+                    DrawSpecialLine(_model.Attempts[last.Value], sob, last, lastColor);
+                    break;
 
-                bool  hL      = hovering && _hoveredLineIdx == lastIdx;
-                bool  pinnedL = IsLinePinned(lastIdx);
-                bool  dimmedL = IsLineDimmed(lastIdx);
-                float tL      = hL || pinnedL ? 3f : specialThick;
-                Color cLDraw  = dimmedL ? lastColor * 0.35f : lastColor;
-                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, cLDraw, tL);
-            }
-            else if (_lastIsBest)
-            {
-                // Shared line takes lastColor (last > best); SoB draws separately.
-                bool  hSob      = hovering && _hoveredLineIdx == sobIdx;
-                bool  pinnedSob = IsLinePinned(sobIdx);
-                bool  dimmedSob = IsLineDimmed(sobIdx);
-                float tSob      = hSob || pinnedSob ? 3f : specialThick;
-                Color cSobDraw  = dimmedSob ? sobColor * 0.35f : sobColor;
-                DrawAttemptLine(_sobLine, x, w, baselineY, devScale, h, cSobDraw, tSob);
+                case LineCoincidence.SobIsBest:
+                    // Shared line takes bestColor (best > sob); Last draws separately.
+                    DrawSpecialLine(_model.SobLine, sob, sob, bestColor);
+                    DrawSpecialLine(_model.Attempts[last.Value], last, last, lastColor);
+                    break;
 
-                bool  hBL      = hovering && _hoveredLineIdx == lastIdx;
-                bool  pinnedBL = IsLinePinned(lastIdx);
-                bool  dimmedBL = IsLineDimmed(lastIdx);
-                float tBL      = hBL || pinnedBL ? 3f : specialThick;
-                Color cBLDraw  = dimmedBL ? lastColor * 0.35f : lastColor;
-                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, cBLDraw, tBL);
-            }
-            else
-            {
-                bool  hSob      = hovering && _hoveredLineIdx == sobIdx;
-                bool  pinnedSob = IsLinePinned(sobIdx);
-                bool  dimmedSob = IsLineDimmed(sobIdx);
-                float tSob      = hSob || pinnedSob ? 3f : specialThick;
-                Color cSobDraw  = dimmedSob ? sobColor * 0.35f : sobColor;
-                DrawAttemptLine(_sobLine, x, w, baselineY, devScale, h, cSobDraw, tSob);
+                case LineCoincidence.LastIsBest:
+                    // Shared line takes lastColor (last > best); SoB draws separately.
+                    DrawSpecialLine(_model.SobLine, sob, sob, sobColor);
+                    DrawSpecialLine(_model.Attempts[last.Value], last, last, lastColor);
+                    break;
 
-                bool  hBest      = hovering && _hoveredLineIdx == bestIdx;
-                bool  pinnedBest = IsLinePinned(bestIdx);
-                bool  dimmedBest = IsLineDimmed(bestIdx);
-                float tBest      = hBest || pinnedBest ? 3f : specialThick;
-                Color cBestDraw  = dimmedBest ? bestColor * 0.35f : bestColor;
-                DrawAttemptLine(_attempts[bestIdx], x, w, baselineY, devScale, h, cBestDraw, tBest);
-
-                bool  hLast      = hovering && _hoveredLineIdx == lastIdx;
-                bool  pinnedLast = IsLinePinned(lastIdx);
-                bool  dimmedLast = IsLineDimmed(lastIdx);
-                float tLast      = hLast || pinnedLast ? 3f : specialThick;
-                Color cLastDraw  = dimmedLast ? lastColor * 0.35f : lastColor;
-                DrawAttemptLine(_attempts[lastIdx], x, w, baselineY, devScale, h, cLastDraw, tLast);
+                default:
+                    DrawSpecialLine(_model.SobLine, sob, sob, sobColor);
+                    DrawSpecialLine(_model.Attempts[best.Value], best, best, bestColor);
+                    DrawSpecialLine(_model.Attempts[last.Value], last, last, lastColor);
+                    break;
             }
         }
 
-        private void DrawAttemptLine(AttemptLine attempt, float gx, float gw, float baselineY, float devScale, float h, Color color, float thickness)
+        // Where a line sits at the right edge of room r. The clamp is a no-op — every deviation
+        // drawn is inside [-_scope.MaxUpwardDeviation, _scope.MaxDownwardDeviation], which maps to exactly
+        // [_gy, _gy + _gh] — and is kept as a guard against a stale scale.
+        private float PointY(AttemptLine line, int room) =>
+            MathHelper.Clamp(_baselineY + line.CumulativeDeviations[room] * _devScale,
+                             _baselineY - _gh, _baselineY + _gh);
+
+        // Edge-based: room r runs from the right edge of the previous *visible* room to its own
+        // right edge, so hidden rooms are bridged; the first visible room starts on the Y axis at
+        // the baseline. Drawing and the hit test share this, because a second copy that drifts
+        // stops the hit test pointing at the line the player sees. Tooltips place a dot per room
+        // and go straight to PointY.
+        private (Vector2 From, Vector2 To) SegmentFor(AttemptLine line, int room)
         {
-            // Edge-based: room r runs from the right edge of the previous *visible* room to its
-            // own right edge, so hidden rooms are bridged. HitTest mirrors this.
-            int lastVisible = LastVisibleRoom();
-            int prevVisible = -1;
-            int limit = Math.Min(attempt.RoomsCompleted - 1, lastVisible);
+            int prev = _colPrevVisible[room];
+            Vector2 from = prev < 0
+                ? new Vector2(_gx, _baselineY)
+                : new Vector2(_colRightEdge[prev], PointY(line, prev));
+            return (from, new Vector2(_colRightEdge[room], PointY(line, room)));
+        }
+
+        private void DrawAttemptLine(AttemptLine attempt, Color color, float thickness)
+        {
+            int limit = Math.Min(attempt.RoomsCompleted - 1, _scope.LastVisibleRoom);
             for (int r = 0; r <= limit; r++)
             {
-                if (_hiddenColumns.Contains(r)) continue;
-                float x1 = prevVisible < 0 ? gx : GetRoomRightEdgeX(gx, gw, prevVisible);
-                float y1 = prevVisible < 0
-                    ? baselineY
-                    : MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[prevVisible] * devScale, baselineY - h, baselineY + h);
-                float x2 = GetRoomRightEdgeX(gx, gw, r);
-                float y2 = MathHelper.Clamp(baselineY + attempt.CumulativeDeviations[r] * devScale, baselineY - h, baselineY + h);
-                Draw.Line(new Vector2(x1, y1), new Vector2(x2, y2), color, thickness);
-                prevVisible = r;
+                if (_colHidden[r]) continue;
+                var (from, to) = SegmentFor(attempt, r);
+                Draw.Line(from, to, color, thickness);
             }
         }
 
-        public override int? ColumnHitTest(Vector2 mousePos)
-        {
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
-
-            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
-            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
-
-            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
-            {
-                _hoveredColumnIndex = -1;
-                return null;
-            }
-
-            float normalW = ComputeNormalColumnWidth(gw);
-            float colX = gx;
-            for (int r = 0; r < _totalRooms; r++)
-            {
-                float colW = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-                var (stripX, stripW) = ColumnStripRect(colX, colW);
-                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = r; return r; }
-                colX += colW;
-            }
-            _hoveredColumnIndex = -1;
-            return null;
-        }
+        public override int? ColumnHitTest(Vector2 mousePos) =>
+            HitTestColumnStrip(mousePos, _totalRooms, _colNormalWidth);
 
         public override HoverInfo? HitTest(Vector2 mouseHudPos)
         {
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
+            _hoveredLine = LineId.None;
 
-            _hoveredLineIdx = -1;
-
-            if (_attempts.Count == 0 || _totalRooms == 0) return null;
-            if (mouseHudPos.X < gx || mouseHudPos.X > gx + gw ||
-                mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
+            if (_model.Attempts.Count == 0 || _totalRooms == 0) return null;
+            if (mouseHudPos.X < _gx || mouseHudPos.X > _gx + _gw ||
+                mouseHudPos.Y < _gy || mouseHudPos.Y > _gy + _gh)
                 return null;
 
-            float baselineY   = gy + (float)_maxUpwardDeviation / _totalRange * gh;
-            float devScale    = gh / _totalRange;
-
-            // Columns have variable width (hidden ones are stubs), so walk them.
+            // Columns have variable width (hidden ones are stubs), so find the one the mouse
+            // falls in from the edge table.
             int col = _totalRooms - 1;
-            {
-                float normalW = ComputeNormalColumnWidth(gw);
-                float colX = gx;
-                for (int r = 0; r < _totalRooms; r++)
-                {
-                    float colW = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-                    if (mouseHudPos.X < colX + colW) { col = r; break; }
-                    colX += colW;
-                }
-            }
+            for (int r = 0; r < _totalRooms; r++)
+                if (mouseHudPos.X < _colRightEdge[r]) { col = r; break; }
 
             float mouseX  = mouseHudPos.X;
             float mouseY  = mouseHudPos.Y;
-            float bestDist = float.MaxValue;
-            int   bestIdx  = -1;
+            float  nearestDist = float.MaxValue;
+            LineId nearest     = LineId.None;
 
-            void Check(AttemptLine line, int idx)
+            void Check(AttemptLine line, LineId id)
             {
                 if (col >= line.RoomsCompleted) return;
-                if (_hiddenColumns.Contains(col)) return;
-                // Mirrors DrawAttemptLine's edge-based model.
-                int prev = -1;
-                for (int j = col - 1; j >= 0; j--)
-                    if (!_hiddenColumns.Contains(j)) { prev = j; break; }
-                float x1 = prev < 0 ? gx : GetRoomRightEdgeX(gx, gw, prev);
-                float y1 = prev < 0
-                    ? baselineY
-                    : MathHelper.Clamp(baselineY + line.CumulativeDeviations[prev] * devScale, baselineY - gh, baselineY + gh);
-                float x2 = GetRoomRightEdgeX(gx, gw, col);
-                float y2 = MathHelper.Clamp(baselineY + line.CumulativeDeviations[col] * devScale, baselineY - gh, baselineY + gh);
+                if (_colHidden[col]) return;
+                var (from, to) = SegmentFor(line, col);
 
-                float segW = x2 - x1;
-                float t       = segW > 0 ? (mouseX - x1) / segW : 0f;
-                float lerpedY = y1 + t * (y2 - y1);
+                float segW    = to.X - from.X;
+                float t       = segW > 0 ? (mouseX - from.X) / segW : 0f;
+                float lerpedY = from.Y + t * (to.Y - from.Y);
                 float dist    = Math.Abs(mouseY - lerpedY);
-                if (dist < bestDist)
+                if (dist < nearestDist)
                 {
-                    bestDist = dist;
-                    bestIdx  = idx;
+                    nearestDist = dist;
+                    nearest     = id;
                 }
             }
 
-            for (int i = 0; i < _attempts.Count; i++)
-                Check(_attempts[i], i);
-            Check(_sobLine, _attempts.Count);
+            for (int i = 0; i < _model.Attempts.Count; i++)
+                Check(_model.Attempts[i], LineId.Attempt(i));
+            Check(_model.SobLine, SobLineId);
 
             // Baseline is horizontal, so snap on Y distance alone.
-            float baselineDist = Math.Abs(mouseY - baselineY);
-            if (baselineDist < bestDist)
+            float baselineDist = Math.Abs(mouseY - _baselineY);
+            if (baselineDist < nearestDist)
             {
-                bestDist = baselineDist;
-                bestIdx  = _attempts.Count + 1;
+                nearestDist = baselineDist;
+                nearest     = BaselineLineId;
             }
 
             const float snapThreshold = 4f;
-            if (bestIdx < 0 || bestDist > snapThreshold) return null;
+            if (nearest.IsNone || nearestDist > snapThreshold) return null;
 
-            _hoveredLineIdx = bestIdx;
+            _hoveredLine = nearest;
             // Empty label: DrawHighlight draws the whole tooltip itself.
-            return new HoverInfo("", Vector2.Zero, Key: _hoveredLineIdx.ToString(), PinGroup: "trajectory");
+            return new HoverInfo("", Vector2.Zero, Key: _hoveredLine.ToKey(), PinGroup: "trajectory");
         }
 
         public override bool ManagesPins => true;
-        public override bool HasPins => _mainPinIdx >= 0;
+        public override bool HasPins => !_mainPin.IsNone;
 
         public override bool HandleClick(HoverInfo hover)
         {
-            if (!int.TryParse(hover.Key, out int idx)) return false;
+            LineId id = LineId.FromKey(hover.Key, _model.Attempts.Count);
+            if (id.IsNone) return false;
 
-            if (_mainPinIdx < 0)
+            if (_mainPin.IsNone)
             {
-                _mainPinIdx = idx;
-                _compPinIdx = -1;
+                _mainPin = id;
+                _compPin = LineId.None;
                 return true;
             }
 
-            if (idx == _mainPinIdx)
+            if (id == _mainPin)
             {
-                _mainPinIdx = -1;
-                _compPinIdx = -1;
+                _mainPin = LineId.None;
+                _compPin = LineId.None;
                 return true;
             }
 
-            _compPinIdx = idx == _compPinIdx ? -1 : idx;
+            _compPin = id == _compPin ? LineId.None : id;
             return true;
         }
 
         public override void ClearPins()
         {
-            _mainPinIdx     = -1;
-            _compPinIdx     = -1;
-            _hoveredLineIdx = -1;
-        }
-
-        public override void DrawHighlight()
-        {
-            if (_hoveredLineIdx < 0) return;
-            // The main pin already has a persistent tooltip from DrawPinnedHighlights.
-            if (_hoveredLineIdx == _mainPinIdx) return;
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
-            DrawLineTooltips(_hoveredLineIdx, gx, gy, gw, gh);
-        }
-
-        public override void DrawHighlight(HoverInfo info)
-        {
-            // Never called — RunTrajectory manages its own pins via HandleClick.
-        }
-
-        // Persistent tooltips for pinned lines, drawn from Render() regardless of hover.
-        private void DrawPinnedHighlights()
-        {
-            if (_mainPinIdx < 0) return;
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
-            DrawLineTooltips(_mainPinIdx, gx, gy, gw, gh);
-        }
-
-        private void DrawLineTooltips(int lineIdx, float gx, float gy, float gw, float gh)
-        {
-            float baselineY   = gy + (float)_maxUpwardDeviation / _totalRange * gh;
-            float devScale    = gh / _totalRange;
-
-            bool isSob      = lineIdx == _attempts.Count;
-            bool isBaseline = lineIdx == _attempts.Count + 1;
-            AttemptLine line = isSob ? _sobLine : isBaseline ? null! : _attempts[lineIdx];
-
-            var   s         = SpeebrunConsistencyTrackerModule.Settings;
-            int roomCount = isBaseline ? _totalRooms : line.RoomsCompleted;
-            int lastVis = LastVisibleRoom();
-            if (lastVis < 0) return;
-            int effectiveCount = Math.Min(roomCount, lastVis + 1);
-
-            bool  isLast    = lineIdx == _attempts.Count - 1;
-            bool  isBest    = lineIdx == _bestIdx;
-            Color lineColor = isBaseline ? Color.Gray
-                : isSob
-                    ? (_sobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal)
-                : isBest && isLast
-                    ? s.TrajectoryLastColorFinal   // DrawBars and the legend both draw the merged line in lastColor
-                : isBest
-                    ? s.TrajectoryBestColorFinal
-                : isLast
-                    ? s.TrajectoryLastColorFinal
-                : Color.White;
-
-            string lineLabel = isBaseline ? "Avg" : isSob ? "SoB" : $"#{line.ChronologicalIndex}";
-            // Label goes on the middle visible room.
-            int visibleCount = 0;
-            for (int r = 0; r < effectiveCount; r++)
-                if (!_hiddenColumns.Contains(r)) visibleCount++;
-            int labelColR = -1;
-            if (visibleCount > 0)
-            {
-                int target = (visibleCount - 1) / 2, seen = 0;
-                for (int r = 0; r < effectiveCount; r++)
-                {
-                    if (_hiddenColumns.Contains(r)) continue;
-                    if (seen++ == target) { labelColR = r; break; }
-                }
-            }
-
-            const float scale = ChartConstants.FontScale.AxisLabelSmall;
-            const float bgPad = ChartConstants.Interactivity.TooltipBgPadding;
-            float lineH = ActiveFont.Measure("A").Y * scale;
-            const float gap   = 4f;
-            const float dotR  = 3f;
-            const float stemW = 1.5f;
-
-            long cumul = 0;
-            for (int r = 0; r < effectiveCount; r++)
-            {
-                if (_hiddenColumns.Contains(r)) { cumul += isBaseline ? _roomAverages[r] : (r < line.RoomTimes.Length ? line.RoomTimes[r] : 0); continue; }
-                long roomTime = isBaseline ? _roomAverages[r] : line.RoomTimes[r];
-                cumul += roomTime;
-
-                bool   showLabel = r == labelColR;
-                string cumulStr  = new TimeTicks(cumul).ToString();
-                string roomStr   = new TimeTicks(roomTime).ToString();
-                float  dataW     = Math.Max(ActiveFont.Measure(cumulStr).X, ActiveFont.Measure(roomStr).X) * scale;
-                float  textW     = showLabel ? Math.Max(dataW, ActiveFont.Measure(lineLabel).X * scale) : dataW;
-                float  bgW       = textW + bgPad * 2f;
-                float  bgH       = (showLabel ? lineH * 3f : lineH * 2f) + bgPad * 2f;
-
-                float transitionX = GetRoomRightEdgeX(gx, gw, r);
-                float lineY = isBaseline
-                    ? baselineY
-                    : MathHelper.Clamp(baselineY + line.CumulativeDeviations[r] * devScale, gy, gy + gh);
-
-                float bgX   = transitionX - bgW / 2f;
-                bool  above = lineY - bgH - gap - dotR * 2 >= gy;
-                float bgY   = above ? lineY - bgH - gap - dotR * 2 : lineY + gap + dotR * 2;
-
-                // Box first, then stem, then dot: each draws over the last.
-                Draw.Rect(bgX, bgY, bgW, bgH, Color.Black * 0.92f);
-                float textY = bgY + bgPad;
-                if (showLabel)
-                {
-                    ActiveFont.DrawOutline(lineLabel,
-                        new Vector2(bgX + bgPad, textY),
-                        Vector2.Zero, Vector2.One * scale, lineColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                    textY += lineH;
-                }
-                ActiveFont.DrawOutline(cumulStr,
-                    new Vector2(bgX + bgPad, textY),
-                    Vector2.Zero, Vector2.One * scale, lineColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                ActiveFont.DrawOutline(roomStr,
-                    new Vector2(bgX + bgPad, textY + lineH),
-                    Vector2.Zero, Vector2.One * scale, lineColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-
-                float stemTop    = above ? bgY + bgH : lineY + dotR;
-                float stemBottom = above ? lineY - dotR : bgY;
-                Draw.Line(new Vector2(transitionX, stemTop), new Vector2(transitionX, stemBottom), lineColor, stemW);
-
-                Draw.Rect(transitionX - dotR, lineY - dotR, dotR * 2, dotR * 2, lineColor);
-            }
-        }
-
-        private void DrawComparisonTable()
-        {
-            if (_mainPinIdx < 0) return;
-
-            bool mainIsSob      = _mainPinIdx == _attempts.Count;
-            bool mainIsBaseline = _mainPinIdx == _attempts.Count + 1;
-
-            AttemptLine? mainLine  = mainIsBaseline ? null : mainIsSob ? _sobLine : _attempts[_mainPinIdx];
-            int mainRoomCount     = mainIsBaseline ? _totalRooms : mainLine!.RoomsCompleted;
-
-            var   sm        = SpeebrunConsistencyTrackerModule.Settings;
-            Color mainColor = mainIsBaseline ? Color.Gray
-                : mainIsSob
-                    ? (_sobIsBest ? sm.TrajectoryBestColorFinal : sm.TrajectorySobColorFinal)
-                    : Color.White;
-
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
-            const float scale = ChartConstants.FontScale.AxisLabelMedium;
-            const float bgPad = ChartConstants.Interactivity.TooltipBgPadding;
-            float lineH = ActiveFont.Measure("A").Y * scale;
-
-            // Primary comparison is always vs Best; the secondary defaults to SoB until pinned.
-            bool hasComp    = _compPinIdx >= 0 && _compPinIdx != _mainPinIdx;
-            bool compIsAvg  = hasComp && _compPinIdx == _attempts.Count + 1;
-            bool compIsSob  = !hasComp || _compPinIdx == _attempts.Count;
-            AttemptLine? compLine  = compIsAvg ? null : compIsSob ? _sobLine : _attempts[_compPinIdx];
-            string compLabel = compIsAvg ? "vs Avg" : compIsSob ? "vs SoB" : $"vs #{compLine!.ChronologicalIndex}";
-            bool showComp   = true;
-
-            // Header rows: 0=run label, 1="vs Best", 2=cumul, [3=comp label, 4=cumul, 5=room]
-            int bestHeaderRow  = 1;
-            int compHeaderRow  = 3;
-            int totalHeaderRows = 3 + (showComp ? 3 : 0);
-
-            // Value rows: 0=cumul dev vs Best, [1=empty, 2=cumul dev comp, 3=room dev comp].
-            // "vs Best Split" has no per-room row: its reference switches attempts each room.
-            int bestValRow  = 0;
-            int compValRow  = 2;
-            int totalValRows = 1 + (showComp ? 3 : 0);
-
-            float maxLabelW = 0f, maxValW = 0f;
-            string attemptHeader = mainIsBaseline ? "Avg" : mainIsSob ? "SoB" : $"Run #{mainLine!.ChronologicalIndex}";
-            var sectionHeaders = new List<string> { attemptHeader, "vs Best Split", "cumul" };
-            if (showComp) sectionHeaders.Add(compLabel);
-            if (showComp) sectionHeaders.AddRange(["cumul", "room"]);
-            foreach (var ln in sectionHeaders)
-                maxLabelW = Math.Max(maxLabelW, ActiveFont.Measure(ln).X * scale);
-
-            int lastVisWidth = LastVisibleRoom();
-            int widthLimit   = Math.Min(mainRoomCount, lastVisWidth + 1);
-            for (int r = 0; r < widthLimit; r++)
-            {
-                if (_hiddenColumns.Contains(r)) continue;
-                long roomTime     = mainIsBaseline ? _roomAverages[r] : mainLine!.RoomTimes[r];
-                long mainCumulDev = mainIsBaseline ? 0 : mainLine!.CumulativeDeviations[r];
-
-                int  bIdx         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
-                bool bestAvailable = bIdx >= 0;
-                long bestCumulDev  = bestAvailable ? mainCumulDev - _attempts[bIdx].CumulativeDeviations[r] : 0;
-                maxValW = Math.Max(maxValW, ActiveFont.Measure(bestAvailable ? FormatDev(bestCumulDev) : "n/a").X * scale);
-
-                if (showComp)
-                {
-                    long compCumulDev = compIsAvg
-                        ? mainCumulDev
-                        : mainCumulDev - (r < compLine!.CumulativeDeviations.Length ? compLine.CumulativeDeviations[r] : 0);
-                    long compRoomTime = compIsAvg ? _roomAverages[r] : r < compLine!.RoomsCompleted ? compLine.RoomTimes[r] : 0;
-                    long compRoomDev  = roomTime - compRoomTime;
-                    maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(compCumulDev)).X * scale);
-                    maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(compRoomDev)).X * scale);
-                }
-            }
-
-            float headerBoxW = maxLabelW;
-            float valBoxW    = maxValW;
-            float headerBoxH = lineH * totalHeaderRows + bgPad * 2f;
-            float valBoxH    = lineH * totalValRows    + bgPad * 2f;
-            float headerBoxY = gy + gh - 1f - headerBoxH;
-            float valBoxY    = gy + gh - 1f - valBoxH;
-
-            // Header column (left of chart)
-            {
-                float headerBoxX = gx - headerBoxW - bgPad * 2f;
-                Draw.Rect(headerBoxX - bgPad, headerBoxY, headerBoxW + bgPad * 2f, headerBoxH, Color.Black * 0.92f);
-                float ty = headerBoxY + bgPad;
-                ActiveFont.DrawOutline(attemptHeader, new Vector2(headerBoxX, ty),
-                    Vector2.Zero, Vector2.One * scale, mainColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                ActiveFont.DrawOutline("vs Best Split", new Vector2(headerBoxX, ty + bestHeaderRow * lineH),
-                    Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
-                if (showComp)
-                    ActiveFont.DrawOutline(compLabel, new Vector2(headerBoxX, ty + compHeaderRow * lineH),
-                        Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
-            }
-
-            int lastVisComp = LastVisibleRoom();
-            int compLimit   = Math.Min(mainRoomCount, lastVisComp + 1);
-            for (int r = 0; r < compLimit; r++)
-            {
-                if (_hiddenColumns.Contains(r)) continue;
-                long roomTime2  = mainIsBaseline ? _roomAverages[r] : mainLine!.RoomTimes[r];
-                long mainCumulDev2 = mainIsBaseline ? 0 : mainLine!.CumulativeDeviations[r];
-                float colMidX = GetRoomCenterX(gx, gw, r);
-                float boxX    = colMidX - valBoxW / 2f;
-                Draw.Rect(boxX - bgPad, valBoxY, valBoxW + bgPad * 2f, valBoxH, Color.Black * 0.92f);
-
-                float ty = valBoxY + bgPad;
-
-                int  bIdx2         = _bestSoFarIdx.Length > r ? _bestSoFarIdx[r] : -1;
-                bool bestAvail     = bIdx2 >= 0;
-                long bestCumulDev2 = bestAvail ? mainCumulDev2 - _attempts[bIdx2].CumulativeDeviations[r] : 0;
-                Color cBestColor   = bestAvail ? (bestCumulDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing) : Color.Gray;
-                ActiveFont.DrawOutline(bestAvail ? FormatDev(bestCumulDev2) : "n/a",
-                    new Vector2(boxX, ty + bestValRow * lineH),
-                    Vector2.Zero, Vector2.One * scale, bestAvail ? cBestColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
-
-                if (showComp)
-                {
-                    long compCumulDev2 = compIsAvg
-                        ? mainCumulDev2
-                        : mainCumulDev2 - (r < compLine!.CumulativeDeviations.Length ? compLine.CumulativeDeviations[r] : 0);
-                    long compRoomTime2 = compIsAvg ? _roomAverages[r] : r < compLine!.RoomsCompleted ? compLine.RoomTimes[r] : 0;
-                    long compRoomDev2  = roomTime2 - compRoomTime2;
-                    bool compRoomAvail = compIsAvg || compRoomTime2 > 0;
-                    Color cCompColor   = DeviationColor(compCumulDev2, compRoomAvail ? compRoomDev2 : 0);
-                    Color rCompColor   = compRoomDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing;
-                    ActiveFont.DrawOutline(FormatDev(compCumulDev2),
-                        new Vector2(boxX, ty + compValRow * lineH),
-                        Vector2.Zero, Vector2.One * scale, cCompColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                    ActiveFont.DrawOutline(compRoomAvail ? FormatDev(compRoomDev2) : "n/a",
-                        new Vector2(boxX, ty + (compValRow + 1) * lineH),
-                        Vector2.Zero, Vector2.One * scale, compRoomAvail ? rCompColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
-                }
-            }
-        }
-
-        // LiveSplit's four delta colours, from cumulDev (<=0 ahead) and roomDev (<=0 gained).
-        private static Color DeviationColor(long cumulDev, long roomDev)
-        {
-            bool ahead     = cumulDev <= 0;
-            bool gainedRoom = roomDev <= 0;
-            return (ahead, gainedRoom) switch
-            {
-                (true,  true)  => ChartConstants.Colors.AheadGaining,
-                (true,  false) => ChartConstants.Colors.AheadLosing,
-                (false, true)  => ChartConstants.Colors.BehindGaining,
-                (false, false) => ChartConstants.Colors.BehindLosing,
-            };
-        }
-
-        // Signed as stored: negative prints "-1.000s" (gained), positive "+0.500s" (lost).
-        private static string FormatDev(long ticks)
-        {
-            if (ticks == 0) return "±0";
-            string sign = ticks > 0 ? "+" : "-";
-            return sign + new TimeTicks(Math.Abs(ticks)).ToString();
-        }
-
-        protected override void DrawLabels(float x, float y, float w, float h)
-        {
-            DrawTitle();
-
-            if (_totalRooms == 0 || _attempts.Count == 0) return;
-
-            float baselineY = y + (float)_maxUpwardDeviation / _totalRange * h;
-
-            {
-                float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
-                float normalW2   = ComputeNormalColumnWidth(w);
-                for (int r = 0; r < _totalRooms; r++)
-                {
-                    float colW   = _hiddenColumns.Contains(r) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW2;
-                    float centerX = GetRoomCenterX(x, w, r);
-                    DrawColumnStrip(r, centerX - colW * 0.5f, colW, y + h);
-
-                    if (_hiddenColumns.Contains(r)) continue;
-                    float labelX = centerX;
-                    string label = $"R{r + 1}";
-                    Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabel;
-                    float labelY = _totalRooms > ChartConstants.XAxisLabel.StaggerThreshold
-                        ? (r % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
-                        : baseLabelY;
-                    ActiveFont.DrawOutline(label,
-                        new Vector2(labelX - labelSize.X / 2, labelY),
-                        Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
-                        Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
-                }
-            }
-
-            float aboveHeight = (float)_maxUpwardDeviation / _totalRange * h;
-            float belowHeight = (float)_maxDownwardDeviation / _totalRange * h;
-            int totalTicks  = ChartConstants.Trajectory.TotalYTicks;
-            int ticksAbove  = Math.Max(1, (int)Math.Round((double)aboveHeight / h * totalTicks));
-            int ticksBelow  = Math.Max(1, totalTicks - ticksAbove);
-
-            DrawYTicks(x, y, baselineY, aboveHeight, _maxUpwardDeviation, ticksAbove, true);
-            DrawYBaseline(x, baselineY);
-            DrawYTicks(x, y, baselineY, belowHeight, _maxDownwardDeviation, ticksBelow, false);
-
-            DrawRightAxisLabels(x, y, w, h, baselineY);
-
-            var s3 = SpeebrunConsistencyTrackerModule.Settings;
-            Color sobLegendColor  = s3.TrajectorySobColorFinal;
-            Color bestLegendColor = s3.TrajectoryBestColorFinal;
-            Color lastLegendColor = s3.TrajectoryLastColorFinal;
-
-            float legendY2 = y + h + ChartConstants.Legend.LegendOffsetY;
-            float legendX2 = x + w;
-            float offset2;
-            if (_sobIsBest && _lastIsBest)
-            {
-                string label3 = "SoB, Best & Last run";
-                DrawLegendEntry(legendX2, legendY2, label3, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-            }
-            else if (_sobIsBest)
-            {
-                string lastLabel2 = "Last run";
-                DrawLegendEntry(legendX2, legendY2, lastLabel2, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-                offset2 = ActiveFont.Measure(lastLabel2).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
-
-                string sobBestLabel = "SoB & Best run";
-                DrawLegendEntry(legendX2 - offset2, legendY2, sobBestLabel, bestLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-            }
-            else if (_lastIsBest)
-            {
-                string bestLastLabel = "Best & Last run";
-                DrawLegendEntry(legendX2, legendY2, bestLastLabel, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-                offset2 = ActiveFont.Measure(bestLastLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
-
-                DrawLegendEntry(legendX2 - offset2, legendY2, "SoB", sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-            }
-            else
-            {
-                string lastLabel3 = "Last run";
-                DrawLegendEntry(legendX2, legendY2, lastLabel3, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-                offset2 = ActiveFont.Measure(lastLabel3).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
-
-                DrawLegendEntry(legendX2 - offset2, legendY2, "Best run", bestLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-                offset2 += ActiveFont.Measure("Best run").X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
-
-                DrawLegendEntry(legendX2 - offset2, legendY2, "SoB", sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-            }
-
-            string stats = _attempts.Count == 1 ? "1 Run" : $"{_attempts.Count} Runs";
-            Vector2 statsSize = ActiveFont.Measure(stats) * ChartConstants.FontScale.AxisLabelMedium;
-            ActiveFont.DrawOutline(stats,
-                new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + ChartConstants.Legend.LegendOffsetY),
-                Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
-                Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
-        }
-
-        private static void DrawYTicks(float x, float y, float baselineY, float sideHeight, long maxDeviation, int tickCount, bool above)
-        {
-            string prefix    = above ? "-" : "+";
-            float chartBottom = baselineY + (above ? 0 : sideHeight);
-            float minSpacing  = ActiveFont.LineHeight * ChartConstants.FontScale.AxisLabelSmall * 1.1f;
-            float lastDrawnY  = above ? float.MaxValue : float.MinValue;
-
-            for (int i = 1; i <= tickCount; i++)
-            {
-                long  tickDeviation = maxDeviation / tickCount * i;
-                float yPos = above
-                    ? baselineY - (float)i / tickCount * sideHeight
-                    : baselineY + (float)i / tickCount * sideHeight;
-
-                if (above  && yPos < y)           continue;
-                if (!above && yPos > chartBottom)  continue;
-                if (above  && lastDrawnY - yPos < minSpacing) continue;
-                if (!above && yPos - lastDrawnY  < minSpacing) continue;
-
-                string timeLabel  = prefix + new TimeTicks(tickDeviation).ToString();
-                Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelSmall;
-                ActiveFont.DrawOutline(timeLabel,
-                    new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, yPos - labelSize.Y / 2),
-                    Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
-                    Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
-                lastDrawnY = yPos;
-            }
-        }
-
-        private static void DrawYBaseline(float x, float baselineY)
-        {
-            string timeLabel  = "±0";
-            Vector2 labelSize = ActiveFont.Measure(timeLabel) * ChartConstants.FontScale.AxisLabelSmall;
-            ActiveFont.DrawOutline(timeLabel,
-                new Vector2(x - labelSize.X - ChartConstants.Axis.YLabelMarginX, baselineY - labelSize.Y / 2),
-                Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
-                Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
-        }
-
-        private void DrawRightAxisLabels(float x, float y, float w, float h, float baselineY)
-        {
-            float devScale    = h / _totalRange;
-            float labelHeight = ActiveFont.Measure("0").Y * ChartConstants.FontScale.AxisLabelSmall;
-            float minSpacing  = labelHeight + ChartConstants.Trajectory.LabelMinSpacingExtra;
-            float rightX      = x + w + ChartConstants.Trajectory.RightLabelMarginX;
-            var   s4          = SpeebrunConsistencyTrackerModule.Settings;
-            Color sobColor4   = s4.TrajectorySobColorFinal;
-            Color bestColor4  = s4.TrajectoryBestColorFinal;
-            Color lastColor4  = s4.TrajectoryLastColorFinal;
-
-            int lastVis = LastVisibleRoom();
-            if (lastVis < 0) return;
-
-            int n = _attempts.Count;
-            var bestLine = _attempts[_bestIdx];
-
-            long bestDevVis = DevAtRoom(bestLine,      lastVis);
-            long lastDevVis = DevAtRoom(_attempts[^1], lastVis);
-            long sobDevVis  = DevAtRoom(_sobLine,      lastVis);
-
-            // Priority order Avg → Best → SoB → Last; coincident lines merge into one entry with
-            // several colors, and skip=true when a tooltip already draws that right-axis label.
-            bool pinnedBaseline = _mainPinIdx == n + 1;
-            bool pinnedSob      = _mainPinIdx == n;
-            bool pinnedLast     = _mainPinIdx == n - 1;
-            bool pinnedBest     = !_lastIsBest && _mainPinIdx == _bestIdx;
-            bool hovBaseline = _hoveredLineIdx == n + 1;
-            bool hovSob      = _hoveredLineIdx == n;
-            bool hovLast     = _hoveredLineIdx == n - 1;
-            bool hovBest     = !_lastIsBest && _hoveredLineIdx == _bestIdx;
-
-            var labelList = new List<(float yPos, string text, Color[] colors, bool skip)>();
-
-            Color[] avgColors  = [Color.Gray];
-            Color[] bestColors = [bestColor4];
-            Color[] sobColors  = [sobColor4];
-            Color[] lastColors = [lastColor4];
-
-            if (_anyCompleted)
-                labelList.Add((baselineY, new TimeTicks(_roomAveragesSum).ToString(), avgColors, hovBaseline || pinnedBaseline));
-
-            if (_sobIsBest && _lastIsBest)
-            {
-                if (_sobReachesEnd)
-                    labelList.Add((baselineY + bestDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
-                                   [lastColor4], hovSob || hovLast || pinnedSob || pinnedLast));
-            }
-            else if (_sobIsBest)
-            {
-                if (_sobReachesEnd)
-                    labelList.Add((baselineY + bestDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
-                                   [bestColor4], hovSob || pinnedSob));
-                if (_lastReachesEnd)
-                    labelList.Add((baselineY + lastDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + lastDevVis).ToString(),
-                                   lastColors, hovLast || pinnedLast));
-            }
-            else if (_lastIsBest)
-            {
-                if (_lastReachesEnd)
-                    labelList.Add((baselineY + bestDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
-                                   [lastColor4], hovLast || pinnedLast));
-                if (_sobReachesEnd)
-                    labelList.Add((baselineY + sobDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + sobDevVis).ToString(),
-                                   sobColors, hovSob || pinnedSob));
-            }
-            else
-            {
-                if (_anyCompleted)
-                    labelList.Add((baselineY + bestDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + bestDevVis).ToString(),
-                                   bestColors, hovBest || pinnedBest));
-                if (_sobReachesEnd)
-                    labelList.Add((baselineY + sobDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + sobDevVis).ToString(),
-                                   sobColors, hovSob || pinnedSob));
-                if (_lastReachesEnd)
-                    labelList.Add((baselineY + lastDevVis * devScale,
-                                   new TimeTicks(_roomAveragesSum + lastDevVis).ToString(),
-                                   lastColors, hovLast || pinnedLast));
-            }
-
-            var labels = labelList.ToArray();
-            float[] nudged = new float[labels.Length];
-            for (int i = 0; i < labels.Length; i++) nudged[i] = labels[i].yPos;
-
-            for (int pass = 0; pass < ChartConstants.Trajectory.MaxNudgePasses; pass++)
-            {
-                bool anyNudged = false;
-                for (int i = 1; i < nudged.Length; i++)
-                {
-                    for (int j = 0; j < i; j++)
-                    {
-                        float diff = nudged[i] - nudged[j];
-                        if (Math.Abs(diff) < minSpacing)
-                        {
-                            nudged[i] = nudged[j] + (diff >= 0 ? minSpacing : -minSpacing);
-                            anyNudged = true;
-                        }
-                    }
-                }
-                if (!anyNudged) break;
-            }
-
-            for (int i = 0; i < labels.Length; i++)
-            {
-                var (labelYPos, labelText, labelColors, skip) = labels[i];
-                if (skip) continue;
-                Vector2 labelSize = ActiveFont.Measure(labelText) * ChartConstants.FontScale.AxisLabelSmall;
-                if (labelYPos < y - labelSize.Y / 2 || labelYPos > y + h + labelSize.Y / 2) continue;
-
-                Color drawColor = labelColors[0];
-                ActiveFont.DrawOutline(labelText,
-                    new Vector2(rightX, nudged[i] - labelSize.Y / 2),
-                    Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelSmall,
-                    drawColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-            }
-        }
-
-        private static long DevAtRoom(AttemptLine line, int room)
-        {
-            if (line.RoomsCompleted == 0) return 0;
-            int idx = Math.Min(line.RoomsCompleted - 1, room);
-            return line.CumulativeDeviations[idx];
+            _mainPin     = LineId.None;
+            _compPin     = LineId.None;
+            _hoveredLine = LineId.None;
         }
     }
 }

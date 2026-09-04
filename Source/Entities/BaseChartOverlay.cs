@@ -1,3 +1,5 @@
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -68,6 +70,38 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float drawW = Math.Min(colW, ChartConstants.Interactivity.ColumnStripMaxWidth);
             float drawX = colX + (colW - drawW) / 2f;
             return (drawX, drawW);
+        }
+
+        // The shared body of every ColumnHitTest: walk the columns left to right inside the label
+        // strip below the X-axis. Hidden columns shrink to a stub but stay hittable, so a column
+        // can be toggled back on. normalWidth is the width of a visible column; the caller owns
+        // the count and how that width is computed. Sets _hoveredColumnIndex as a side effect.
+        protected int? HitTestColumnStrip(Vector2 mousePos, int count, float normalWidth)
+        {
+            // Mirrors Render()'s rounding, so the strip is hit-tested where it was drawn.
+            float gx = MathF.Round(position.X + marginH);
+            float gy = MathF.Round(position.Y + margin);
+            float gh = MathF.Round(position.Y + height - margin) - gy;
+
+            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
+            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
+
+            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
+            {
+                _hoveredColumnIndex = -1;
+                return null;
+            }
+
+            float colX = gx;
+            for (int i = 0; i < count; i++)
+            {
+                float colW = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalWidth;
+                var (stripX, stripW) = ColumnStripRect(colX, colW);
+                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = i; return i; }
+                colX += colW;
+            }
+            _hoveredColumnIndex = -1;
+            return null;
         }
 
         protected void DrawColumnStrip(int columnIndex, float colX, float colW, float axisBottomY)
@@ -141,31 +175,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
         }
 
-        protected void DrawXAxisStaggeredLabels(
-            float x, float y, float h,
-            int itemCount, float columnWidth,
-            Func<int, string> getLabel,
-            Color labelColor)
-        {
-            float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
-            for (int i = 0; i < itemCount; i++)
-            {
-                float labelX = x + i * columnWidth + columnWidth / 2f;
-                string label = getLabel(i);
-                Vector2 labelSize = ActiveFont.Measure(label) * ChartConstants.FontScale.AxisLabel;
-                float labelY = itemCount > ChartConstants.XAxisLabel.StaggerThreshold
-                    ? (i % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
-                    : baseLabelY;
-
-                ActiveFont.DrawOutline(
-                    label,
-                    new Vector2(labelX - labelSize.X / 2, labelY),
-                    new Vector2(0f, 0f),
-                    Vector2.One * ChartConstants.FontScale.AxisLabel,
-                    labelColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-            }
-        }
-
         // Steps are whole frames, so ticks land on frame boundaries.
         protected static void GetFrameAxisSettings(long range, out long step, out int count)
         {
@@ -180,6 +189,99 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (framesPerTick <= 0) framesPerTick = 1;
             step  = framesPerTick * ChartConstants.Time.OneFrameTicks;
             count = (int)(range / step);
+        }
+
+        // Percentage axis: the step comes from a fixed candidate list so the labels stay round.
+        protected static void GetPercentageAxisSettings(double rangePct, out double stepPct, out int count)
+        {
+            if (rangePct <= 0) { stepPct = 5.0; count = 1; return; }
+            double[] candidates = [1, 2, 5, 10, 20, 25, 50];
+            stepPct = candidates[^1];
+            foreach (double c in candidates)
+            {
+                if (rangePct / c <= ChartConstants.Axis.MaxTickMarks) { stepPct = c; break; }
+            }
+            count = Math.Min((int)Math.Ceiling(rangePct / stepPct), ChartConstants.Axis.MaxTickMarks);
+        }
+
+        protected static float ToPixelY(double value, double minVal, double maxVal, float y, float h)
+        {
+            if (maxVal == minVal) return y + h / 2;
+            return y + h - (float)((value - minVal) / (maxVal - minVal)) * h;
+        }
+
+        // Median-normalised Y range over the visible columns: every column's own median is 100%,
+        // so columns of different absolute lengths overlay. sortedTimesOf must return the column's
+        // times in ascending order.
+        protected void ComputeRelativeRanges(
+            int columnCount, Func<int, List<TimeTicks>> sortedTimesOf,
+            out double minPct, out double maxPct)
+        {
+            double pMin = double.MaxValue, pMax = double.MinValue;
+            for (int i = 0; i < columnCount; i++)
+            {
+                if (_hiddenColumns.Contains(i)) continue;
+                var times = sortedTimesOf(i);
+                if (times.Count == 0) continue;
+                long medTicks = MetricHelper.ComputePercentile(times, 50).Ticks;
+                if (medTicks == 0) continue;
+                pMin = Math.Min(pMin, (double)times[0].Ticks  / medTicks * 100.0);
+                pMax = Math.Max(pMax, (double)times[^1].Ticks / medTicks * 100.0);
+            }
+            if (pMin == double.MaxValue) { pMin = 90.0; pMax = 110.0; }
+            double pRange  = pMax - pMin;
+            double pMargin = Math.Max(1.0, pRange * 0.1);
+            minPct = Math.Max(0, pMin - pMargin);
+            maxPct = pMax + pMargin;
+        }
+
+        // Which side of the plot a Y-axis tick label sits on. A left label is right-aligned
+        // against the axis; a right label starts past the plot's right edge.
+        protected enum YAxisSide { Left, Right }
+
+        private static void DrawYAxisTickLabel(string text, float yPos, float x, float w, YAxisSide side, Color color)
+        {
+            Vector2 size = ActiveFont.Measure(text) * ChartConstants.FontScale.AxisLabelMedium;
+            float labelX = side == YAxisSide.Left
+                ? x - size.X - ChartConstants.Axis.YLabelMarginX
+                : x + w + ChartConstants.Axis.RightLabelMarginX;
+            ActiveFont.DrawOutline(text,
+                new Vector2(labelX, yPos - size.Y / 2),
+                Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabelMedium,
+                color, ChartConstants.Stroke.OutlineSize, Color.Black);
+        }
+
+        // Frame-stepped tick labels over [min, max]. A non-positive range draws nothing: the
+        // tick position divides by it, and a column set that is empty or entirely hidden can
+        // leave a range computed with no data fallback negative.
+        protected static void DrawFrameAxisLabels(
+            float x, float y, float w, float h, long min, long max, YAxisSide side, Color color)
+        {
+            long range = max - min;
+            if (range <= 0) return;
+            GetFrameAxisSettings(range, out long step, out int count);
+            for (int i = 0; i <= count; i++)
+            {
+                float normalizedY = (float)(i * step) / range;
+                float yPos        = y + h - (normalizedY * h);
+                DrawYAxisTickLabel(new TimeTicks(min + i * step).ToString(), yPos, x, w, side, color);
+            }
+        }
+
+        // Percentage tick labels over [minPct, maxPct]. Always the left axis: the right axis
+        // carries absolute segment times, which are never median-normalised.
+        protected static void DrawPercentageAxisLabels(
+            float x, float y, float w, float h, double minPct, double maxPct, Color color)
+        {
+            double rangePct = maxPct - minPct;
+            GetPercentageAxisSettings(rangePct, out double stepPct, out int count);
+            for (int i = 0; i <= count; i++)
+            {
+                double pctValue = minPct + i * stepPct;
+                if (pctValue > maxPct + 1e-9) break;
+                float yPos = ToPixelY(pctValue, minPct, maxPct, y, h);
+                DrawYAxisTickLabel($"{pctValue:F0}%", yPos, x, w, YAxisSide.Left, color);
+            }
         }
 
         public virtual void Render()

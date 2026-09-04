@@ -63,7 +63,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         }
 
         protected override void DrawGrid(float x, float y, float w, float h) =>
-            DrawPercentGrid(x, y, w, h);
+            PercentAxis.DrawPercentGrid(x, y, w, h);
 
         protected override void DrawBars(float x, float y, float w, float h)
         {
@@ -214,7 +214,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
 
             DrawTitle();
-            DrawPercentYAxisLabels(x, y, w, h);
+            PercentAxis.DrawPercentYAxisLabels(x, y, w, h);
 
             float baseLabelY = y + h + ChartConstants.XAxisLabel.BaseOffsetY;
             float normalBarW2 = ComputeNormalBarWidth(w);
@@ -250,33 +250,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
-        public override int? ColumnHitTest(Vector2 mousePos)
-        {
-            float gx = position.X + marginH;
-            float gy = position.Y + margin;
-            float gw = width  - marginH * 2;
-            float gh = height - margin  * 2;
-
-            float hitZoneTop    = gy + gh + ChartConstants.XAxisLabel.BaseOffsetY;
-            float hitZoneBottom = hitZoneTop + ChartConstants.Interactivity.ColumnLabelHitZoneH;
-
-            if (mousePos.Y < hitZoneTop || mousePos.Y > hitZoneBottom)
-            {
-                _hoveredColumnIndex = -1;
-                return null;
-            }
-
-            float normalBarW = ComputeNormalBarWidth(gw);
-            float colX = gx;
-            for (int i = 0; i < primaryValues.Count; i++)
-            {
-                float colW = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalBarW;
-                var (stripX, stripW) = ColumnStripRect(colX, colW);
-                if (mousePos.X >= stripX && mousePos.X < stripX + stripW) { _hoveredColumnIndex = i; return i; }
-                colX += colW;
-            }
-            _hoveredColumnIndex = -1;
-            return null;
-        }
+        public override int? ColumnHitTest(Vector2 mousePos) =>
+            HitTestColumnStrip(mousePos, primaryValues.Count, ComputeNormalBarWidth(width - marginH * 2));
     }
 }

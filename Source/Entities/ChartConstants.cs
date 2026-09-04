@@ -26,9 +26,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         internal static class Axis
         {
-            internal const int   MaxTickMarks    = 13;
-            internal const int   PercentTickCount = 10;
-            internal const float YLabelMarginX   = 10f; // horizontal gap between axis line and Y labels
+            internal const int   MaxTickMarks       = 13;
+            internal const int   PercentTickCount   = 10;
+            internal const float YLabelMarginX      = 10f; // horizontal gap between axis line and Y labels
+            internal const float RightLabelMarginX  = 10f; // x + w + this for right-side axis labels
         }
 
         internal static class FontScale
@@ -48,9 +49,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         internal static class Colors
         {
-            internal static readonly Color BackgroundColor = Color.Black * 0.8f;
-            internal static readonly Color GridLineColor   = Color.Gray * 0.5f;
-            internal static readonly Color BaselineColor   = Color.Gray * 0.6f;
+            internal static readonly Color BackgroundColor       = Color.Black * 0.8f;
+            internal static readonly Color GridLineColor         = Color.Gray * 0.5f;
+            internal static readonly Color BaselineColor         = Color.Gray * 0.6f;
+            internal static readonly Color PanelBackgroundColor  = Color.Black * 0.92f; // tooltip/stat-panel/button background
 
             // LiveSplit delta colors
             internal static readonly Color AheadGaining = new Color(41,  204, 84);   // strong green: ahead & gained time
@@ -103,15 +105,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             internal const int   TotalYTicks          = 12;
             internal const float BrightnessMin        = 0.1f;
             internal const float BrightnessMax        = 0.8f;
-            internal const float RightLabelMarginX    = 10f; // x + w + this for right-side axis labels
             internal const float LabelMinSpacingExtra = 4f;  // nudge: minSpacing = labelHeight + this
             internal const int   MaxNudgePasses       = 3;   // multi-pass relaxation limit for right-axis labels
+            internal const float SpecialLineThickness    = 2f;    // SoB / Best / Last at rest
+            internal const float SpecialLineHitThickness = 3f;    // ... while hovered or pinned
+            internal const float DimFactor               = 0.35f; // applied to a dimmed special line
         }
 
         internal static class Interactivity
         {
             internal const float TooltipPaddingY      = 8f;   // gap between hovered element top and tooltip bottom
             internal const float TooltipBgPadding     = 6f;   // padding around tooltip text background rect
+            internal const float TooltipColumnGap     = 12f;  // gap between left/right columns in a two-column tooltip
             internal const float ScatterSnapRadius    = 4f;  // DotRadius (2f) * 2 — max distance to snap to a dot
             internal const float HiddenColumnStubWidth  = 6f;
             internal const float ColumnLabelHitZoneH    = 30f;
