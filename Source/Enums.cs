@@ -72,4 +72,20 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         MadelineRed,
         BadelinePurple
     }
+
+    // Persisted as Settings.LastShownGraph. Member names must stay byte-identical to what a
+    // settings file already holds — YamlDotNet resolves an enum by name and throws on an unknown
+    // one, aborting the rest of the document (see ExportChoice.Sheet above for the incident this
+    // guards against).
+    public enum GraphType
+    {
+        Scatter,
+        RoomHistogram,
+        SegmentHistogram,
+        DnfPercent,
+        ProblemRooms,
+        TimeLoss,
+        RunTrajectory,
+        BoxPlot
+    }
 }

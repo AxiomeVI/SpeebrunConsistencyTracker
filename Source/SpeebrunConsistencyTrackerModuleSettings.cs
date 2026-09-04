@@ -1,7 +1,9 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
+using System.Reflection;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -107,19 +109,25 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         // Migrates a settings file written while the Sheets export still existed.
         if (ExportMode == ExportChoice.Sheet) ExportMode = ExportChoice.Clipboard;
 
-        ButtonBinding[] keybinds = {
-            Keybind_ImportTargetTime,
-            Keybind_StatsExport,
-            Keybind_ToggleGraphOverlay,
-            Keybind_NextGraph,
-            Keybind_PreviousGraph,
-            Keybind_ClearStats,
-        };
+        // Reflected, not listed. A hand-written array of the same six bindings was a second copy
+        // of the keybind set, and the KeybindConfigUi table is a third: a seventh keybind added to
+        // one and forgotten here would never get Keys.None stripped from it. Runs once, at load.
+        //
+        // IsAssignableFrom, not ==, because that is what Everest's own OnInputInitialize uses to
+        // decide which properties it initializes; matching it keeps the two enumerations from
+        // drifting apart over a ButtonBinding subclass. DeclaredOnly is safe only because
+        // EverestModuleSettings declares nothing itself — a base class holding a keybind would be
+        // skipped here and still initialized by Everest. The two guards are what the hand-written
+        // array gave for free: an indexer or a write-only property typed ButtonBinding would make
+        // GetValue(this) throw at load, and the compiler can no longer catch that for us.
+        foreach (PropertyInfo property in GetType().GetProperties(
+                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)) {
+            if (!typeof(ButtonBinding).IsAssignableFrom(property.PropertyType)) continue;
+            if (property.GetIndexParameters().Length > 0 || !property.CanRead) continue;
 
-        foreach (ButtonBinding keybind in keybinds) {
             // Never create a null binding here: Everest creates it later in OnInputInitialize
             // and only then reads [DefaultButtonBinding], which it would skip if one exists.
-            if (keybind == null) continue;
+            if (property.GetValue(this) is not ButtonBinding keybind) continue;
 
             keybind.Keys    ??= new();
             keybind.Buttons ??= new();

@@ -15,10 +15,9 @@ internal sealed class ChartCache<T> where T : class
     private int _timerType;
     private int _extra;
 
+    // keyOnRoomCount: false for per-room charts — one matrix column, unaffected by room count.
+    // extraKey: read live on every Get, for charts also keyed on a player-changeable setting.
     // build receives the room count the key was read with, so both see the same value.
-    // keyOnRoomCount is false for a per-room chart: its data is one matrix column, which the
-    // visible room count does not change. extraKey is read live on every Get, for a chart built
-    // from a setting too — without it the chart keeps a value the player has already changed.
     public ChartCache(Func<int, T> build, bool keyOnRoomCount = true, Func<int> extraKey = null)
     {
         _build          = build;

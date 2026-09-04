@@ -7,6 +7,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
 public static partial class ModMenuOptions
 {
+    // Drives the five export-only toggles below from one list, the same way MetricDef drives
+    // the sliders — so a sixth toggle means adding one entry here, not remembering three
+    // hand-written blocks in turnAllOff/turnAllOn/resetAll.
+    private record ToggleDef(TextMenu.OnOff Item, Action<bool> Set, bool Default);
+
     private static TextMenuExt.SubMenu CreateMetricsSubMenu(TextMenu menu)
     {
         PercentileChoice[] enumPercentileValues = Enum.GetValues<PercentileChoice>();
@@ -18,6 +23,15 @@ public static partial class ModMenuOptions
         TextMenu.OnOff multimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId),_settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
         TextMenu.OnOff roomDependency = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RoomDependencyId),_settings.RoomDependency).Change(b => _settings.RoomDependency = b);
         TextMenu.OnOff bestSplit      = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.BestSplitId),     _settings.BestSplit).Change(b => _settings.BestSplit = b);
+
+        List<ToggleDef> toggles =
+        [
+            new(history,        b => _settings.History        = b, false),
+            new(resetShare,     b => _settings.ResetShare     = b, false),
+            new(multimodalTest, b => _settings.MultimodalTest = b, false),
+            new(roomDependency, b => _settings.RoomDependency = b, false),
+            new(bestSplit,      b => _settings.BestSplit      = b, true),
+        ];
 
         // Visibility follows the Percentile slider.
         TextMenu.Slider percentileValue = new(
@@ -44,11 +58,7 @@ public static partial class ModMenuOptions
             .Pressed(() =>
             {
                 Audio.Play(ConfirmSfx);
-                history.Index        = 0; _settings.History        = false;
-                resetShare.Index     = 0; _settings.ResetShare     = false;
-                multimodalTest.Index = 0; _settings.MultimodalTest = false;
-                roomDependency.Index = 0; _settings.RoomDependency = false;
-                bestSplit.Index      = 0; _settings.BestSplit      = false;
+                foreach (ToggleDef t in toggles) { t.Item.Index = 0; t.Set(false); }
                 foreach (MetricDef def in defs)
                 {
                     def.Set(MetricOutputChoice.Off);
@@ -63,11 +73,7 @@ public static partial class ModMenuOptions
             .Pressed(() =>
             {
                 Audio.Play(ConfirmSfx);
-                history.Index        = 1; _settings.History        = true;
-                resetShare.Index     = 1; _settings.ResetShare     = true;
-                multimodalTest.Index = 1; _settings.MultimodalTest = true;
-                roomDependency.Index = 1; _settings.RoomDependency = true;
-                bestSplit.Index      = 1; _settings.BestSplit      = true;
+                foreach (ToggleDef t in toggles) { t.Item.Index = 1; t.Set(true); }
                 foreach (MetricDef def in defs)
                 {
                     MetricOutputChoice best = def.Choices[^1];
@@ -83,11 +89,7 @@ public static partial class ModMenuOptions
             .Pressed(() =>
             {
                 Audio.Play(ConfirmSfx);
-                history.Index        = 0; _settings.History        = false;
-                resetShare.Index     = 0; _settings.ResetShare     = false;
-                multimodalTest.Index = 0; _settings.MultimodalTest = false;
-                roomDependency.Index = 0; _settings.RoomDependency = false;
-                bestSplit.Index      = 1; _settings.BestSplit      = true;
+                foreach (ToggleDef t in toggles) { t.Item.Index = t.Default ? 1 : 0; t.Set(t.Default); }
                 foreach (MetricDef def in defs)
                 {
                     def.Set(def.DefaultValue);
@@ -115,11 +117,8 @@ public static partial class ModMenuOptions
         turnAllOn.AddDescription(sub, menu, Dialog.Clean(DialogIds.AllOnDescId));
 
         sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ExportOnlyId), false));
-        sub.Add(history);
-        sub.Add(resetShare);
-        sub.Add(multimodalTest);
-        sub.Add(roomDependency);
-        sub.Add(bestSplit);
+        foreach (ToggleDef t in toggles)
+            sub.Add(t.Item);
 
         sub.Visible = _settings.Enabled;
         return sub;

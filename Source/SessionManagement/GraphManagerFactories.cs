@@ -9,42 +9,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
 public static partial class GraphManager
 {
-    private static readonly ChartCache<ScatterPlotOverlay>     _scatterGraph       = new(BuildScatter, extraKey: ScatterTargetKey);
-    private static readonly ChartCache<HistogramOverlay>       _segmentHistogram   = new(BuildSegmentHistogram);
-    private static readonly ChartCache<GroupedPercentOverlay>  _dnfPctChart        = new(BuildDnfPctChart);
-    private static readonly ChartCache<PercentBarChartOverlay> _problemRoomsChart  = new(BuildProblemRoomsChart);
-    private static readonly ChartCache<GroupedBarChartOverlay> _timeLossChart      = new(BuildTimeLossChart);
-    private static readonly ChartCache<RunTrajectoryOverlay>   _runTrajectoryChart = new(BuildRunTrajectoryChart);
-    private static readonly ChartCache<BoxPlotOverlay>         _boxPlotChart       = new(BuildBoxPlotChart);
-
-    private static readonly Dictionary<int, ChartCache<HistogramOverlay>> _roomHistograms = [];
-
     // The scatter's target-time line follows a setting no other chart reads. Keying on it beats
-    // a Clear() in each of the six setters that can move the target.
+    // a Clear() in every place that can move the target — sliders, typed input, reset, import.
     private static int ScatterTargetKey()
     {
         var s = SpeebrunConsistencyTrackerModule.Settings;
         bool enabled = MetricHelper.IsMetricEnabled(s.TargetTime, MetricOutput.Overlay);
         return System.HashCode.Combine(enabled, MetricEngine.GetTargetTimeTicks().Ticks);
-    }
-
-    private static ScatterPlotOverlay     GetOrCreateScatter()           => _scatterGraph.Get();
-    private static HistogramOverlay       GetOrCreateSegmentHistogram()  => _segmentHistogram.Get();
-    private static GroupedPercentOverlay  GetOrCreateDnfPctChart()       => _dnfPctChart.Get();
-    private static PercentBarChartOverlay GetOrCreateProblemRoomsChart() => _problemRoomsChart.Get();
-    private static GroupedBarChartOverlay GetOrCreateTimeLossChart()     => _timeLossChart.Get();
-    private static RunTrajectoryOverlay   GetOrCreateRunTrajectoryChart()=> _runTrajectoryChart.Get();
-    private static BoxPlotOverlay         GetOrCreateBoxPlotChart()      => _boxPlotChart.Get();
-
-    private static HistogramOverlay GetOrCreateRoomHistogram(int roomIndex)
-    {
-        if (!_roomHistograms.TryGetValue(roomIndex, out ChartCache<HistogramOverlay> cache))
-        {
-            cache = new ChartCache<HistogramOverlay>(_ => BuildRoomHistogram(roomIndex), keyOnRoomCount: false);
-            _roomHistograms[roomIndex] = cache;
-        }
-
-        return cache.Get();
     }
 
     private static ScatterPlotOverlay BuildScatter(int roomCount)
@@ -177,26 +148,5 @@ public static partial class GraphManager
             if (reached == 0) return 0.0;
             return (double)session.DnfPerRoom.GetValueOrDefault(i) / reached * 100;
         })];
-    }
-
-    public static void ClearScatterGraph()       => _scatterGraph.Clear();
-    public static void ClearRoomHistograms()     => _roomHistograms.Clear();
-    public static void ClearSegmentHistogram()   => _segmentHistogram.Clear();
-    public static void ClearDnfPctChart()        => _dnfPctChart.Clear();
-    public static void ClearProblemRoomsChart()  => _problemRoomsChart.Clear();
-    public static void ClearTimeLossChart()      => _timeLossChart.Clear();
-    public static void ClearRunTrajectoryChart() => _runTrajectoryChart.Clear();
-    public static void ClearBoxPlotChart()       => _boxPlotChart.Clear();
-
-    private static void ClearAllCharts()
-    {
-        ClearScatterGraph();
-        ClearRoomHistograms();
-        ClearSegmentHistogram();
-        ClearDnfPctChart();
-        ClearProblemRoomsChart();
-        ClearTimeLossChart();
-        ClearRunTrajectoryChart();
-        ClearBoxPlotChart();
     }
 }

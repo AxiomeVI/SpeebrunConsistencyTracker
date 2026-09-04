@@ -110,8 +110,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             if (updateTimerStateDetour == null) {
                 Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
                     "Own member not found: SpeebrunConsistencyTrackerModule.OnUpdateTimerState (non-public static method). The room timer hook cannot be built.");
+            } else {
+                _updateTimerStateHook = new Hook(updateTimerStateMethod, updateTimerStateDetour);
             }
-            _updateTimerStateHook = new Hook(updateTimerStateMethod, updateTimerStateDetour);
         } else {
             Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
                 "SpeedrunTool member not found: RoomTimerManager.UpdateTimerState (public static method). The room timer hook is not installed, no room completion is ever recorded.");
@@ -219,7 +220,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         UpdateGraphOverlay(self);
         HandlePauseHide(self);
         if (Settings.Enabled && GraphManager.IsShowing())
-            GraphInteractivity.Update();
+            GraphManager.UpdateInteractivity();
     }
 
     private static void LevelOnRender(On.Celeste.Level.orig_Render orig, Level self) {

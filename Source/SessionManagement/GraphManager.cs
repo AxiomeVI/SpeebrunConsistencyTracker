@@ -1,22 +1,11 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
-
-public enum GraphType
-{
-    Scatter,
-    RoomHistogram,
-    SegmentHistogram,
-    DnfPercent,
-    ProblemRooms,
-    TimeLoss,
-    RunTrajectory,
-    BoxPlot
-}
 
 public static partial class GraphManager
 {
@@ -48,7 +37,7 @@ public static partial class GraphManager
         _currentSlotIndex = -1;
         _enabledSlots.Clear();
         ClearAllCharts();
-        GraphInteractivity.Clear();
+        GraphInteractivity.Clear(_currentOverlay);
     }
 
     public static bool IsShowing() => _currentOverlay != null;
@@ -79,7 +68,30 @@ public static partial class GraphManager
             InvalidateIfSessionChanged();
             ShowCurrentSlot();
             _currentOverlay?.Render();
-            GraphInteractivity.Render();
+            GraphInteractivity.Render(_currentOverlay);
+        }
+    }
+
+    // Single entry point for one frame of mouse interaction, called while a graph is showing.
+    // GraphInteractivity hands back an intent rather than calling into this namespace; applying it
+    // here, with nothing in between, keeps the frame order it used to run inline.
+    public static void UpdateInteractivity()
+    {
+        GraphInteraction interaction = GraphInteractivity.Update(_currentOverlay);
+
+        if (interaction.DeleteRequested)
+        {
+            SessionManager.DeletePinned([.. GraphInteractivity.PinnedItems.Select(p => p.Key)]);
+            GraphInteractivity.ClearPins(_currentOverlay);
+        }
+
+        if (interaction.NavigationSteps > 0)
+        {
+            NextGraph(interaction.NavigationSteps);
+        }
+        else if (interaction.NavigationSteps < 0)
+        {
+            PreviousGraph(-interaction.NavigationSteps);
         }
     }
 
@@ -113,36 +125,14 @@ public static partial class GraphManager
 
     private static List<GraphSlot> BuildSlots()
     {
-        var settings = SpeebrunConsistencyTrackerModule.Settings;
-        var slots    = new List<GraphSlot>();
+        var slots = new List<GraphSlot>();
 
-        if (settings.GraphScatter)
-            slots.Add(new GraphSlot(GraphType.Scatter));
-
-        if (settings.GraphBoxPlot)
-            slots.Add(new GraphSlot(GraphType.BoxPlot));
-
-        if (settings.GraphRoomHistogram && SessionManager.CurrentSession != null)
+        foreach (ChartDefinition chart in _chartDefinitions)
         {
-            int roomCount = SessionManager.RoomCount;
-            for (int i = 0; i < roomCount; i++)
-                slots.Add(new GraphSlot(GraphType.RoomHistogram, i));
+            if (!chart.Get(Settings)) continue;
+            foreach (int room in chart.Slots())
+                slots.Add(new GraphSlot(chart.Type, room));
         }
-
-        if (settings.GraphSegmentHistogram)
-            slots.Add(new GraphSlot(GraphType.SegmentHistogram));
-
-        if (settings.GraphDnfPercent)
-            slots.Add(new GraphSlot(GraphType.DnfPercent));
-
-        if (settings.GraphProblemRooms)
-            slots.Add(new GraphSlot(GraphType.ProblemRooms));
-
-        if (settings.GraphTimeLoss)
-            slots.Add(new GraphSlot(GraphType.TimeLoss));
-
-        if (settings.GraphRunTrajectory)
-            slots.Add(new GraphSlot(GraphType.RunTrajectory));
 
         return slots;
     }
@@ -168,7 +158,7 @@ public static partial class GraphManager
 
     public static void NextGraph(int steps = 1)
     {
-        GraphInteractivity.Clear();
+        GraphInteractivity.Clear(_currentOverlay);
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -183,7 +173,7 @@ public static partial class GraphManager
 
     public static void PreviousGraph(int steps = 1)
     {
-        GraphInteractivity.Clear();
+        GraphInteractivity.Clear(_currentOverlay);
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -242,18 +232,8 @@ public static partial class GraphManager
 
         LastShownType = slot.Type;
 
-        _currentOverlay = slot.Type switch
-        {
-            GraphType.Scatter           => GetOrCreateScatter(),
-            GraphType.RoomHistogram     => GetOrCreateRoomHistogram(slot.RoomIndex),
-            GraphType.SegmentHistogram  => GetOrCreateSegmentHistogram(),
-            GraphType.DnfPercent        => GetOrCreateDnfPctChart(),
-            GraphType.ProblemRooms      => GetOrCreateProblemRoomsChart(),
-            GraphType.TimeLoss          => GetOrCreateTimeLossChart(),
-            GraphType.RunTrajectory     => GetOrCreateRunTrajectoryChart(),
-            GraphType.BoxPlot           => GetOrCreateBoxPlotChart(),
-            _                           => null
-        };
+        ChartDefinition chart = DefinitionFor(slot.Type);
+        _currentOverlay = chart == null ? null : GetOrCreate(chart, slot.RoomIndex);
     }
 
     private static void ShowNoGraphsMessage()
@@ -263,7 +243,7 @@ public static partial class GraphManager
 
     public static void HideGraph()
     {
-        GraphInteractivity.Clear();
+        GraphInteractivity.Clear(_currentOverlay);
         _currentOverlay = null;
     }
 }

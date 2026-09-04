@@ -1,7 +1,7 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Microsoft.Xna.Framework;
 
-namespace Celeste.Mod.SpeebrunConsistencyTracker;
+namespace Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 
 public static class ColorHelper
 {

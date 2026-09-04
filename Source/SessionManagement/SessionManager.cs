@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
@@ -84,6 +85,26 @@ public static class SessionManager
         {
             CurrentSession.CompleteRoom(roomTime);
         }
+    }
+
+    // Drops whatever the given pin keys name. Segment pins first: room pins on the same attempt
+    // then become no-ops.
+    public static void DeletePinned(IReadOnlyList<string> pinKeys)
+    {
+        PracticeSession session = CurrentSession;
+        if (session == null) return;
+
+        var deletedAttempts = new HashSet<int>();
+        foreach (string key in pinKeys)
+            if (PinKey.TryParseSegment(key, out int attemptIdx))
+            {
+                session.DeleteAttempt(attemptIdx);
+                deletedAttempts.Add(attemptIdx);
+            }
+        foreach (string key in pinKeys)
+            if (PinKey.TryParseRoom(key, out int attemptIdx, out int roomIdx)
+                && !deletedAttempts.Contains(attemptIdx))
+                session.DeleteCell(attemptIdx, roomIdx);
     }
 
     public static void UpdateRoomCount()

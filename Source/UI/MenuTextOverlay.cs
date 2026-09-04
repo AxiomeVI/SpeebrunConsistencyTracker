@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Monocle;
@@ -22,7 +23,7 @@ public static partial class ModMenuOptions
             Dialog.Clean(DialogIds.TextAlphaId),
             0, 100,
             _settings.TextAlpha,
-            v => (v / 100f).ToString("0.00"));
+            v => (v / 100f).ToString("0.00", CultureInfo.InvariantCulture));
 
         TextMenu.Slider textPosition = new(
             Dialog.Clean(DialogIds.TextPositionId),

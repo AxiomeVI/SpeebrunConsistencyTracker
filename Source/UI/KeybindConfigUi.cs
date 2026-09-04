@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Monocle;
@@ -8,35 +9,25 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.UI;
 
 [Tracked]
 internal class KeybindConfigUi : TextMenu {
-    private enum Slot {
-        ImportTargetTimeKeyboard, ImportTargetTimeController,
-        StatsExportKeyboard,       StatsExportController,
-        ToggleGraphKeyboard,       ToggleGraphController,
-        NextGraphKeyboard,         NextGraphController,
-        PreviousGraphKeyboard,     PreviousGraphController,
-        ClearStatsKeyboard,        ClearStatsController,
-    }
+    // One row per logical keybind, and the row is the whole declaration: the label, the binding it
+    // remaps, and its position in both lists. This replaces a twelve-value Slot enum that had to be
+    // enumerated six times — twice in Reload(), once in each ApplyRemap overload, and twice more to
+    // decide keyboard-versus-controller and to label the remap prompt. Four of those six ended in a
+    // `_ => throw` standing in for an exhaustiveness C# does not give over an enum. A seventh
+    // keybind is now one row, and a row cannot name the wrong binding without saying so out loud.
+    internal sealed record KeybindDef(
+        string LabelKey,
+        Func<SpeebrunConsistencyTrackerModuleSettings, ButtonBinding> Binding);
 
-    private bool _closing;
-    private float _inputDelay;
-    private bool _remapping;
-    private float _remappingEase;
-    private Slot _remappingSlot;
-    private float _timeout;
-
-    private bool IsRemappingKeyboard => _remappingSlot is
-        Slot.ImportTargetTimeKeyboard or Slot.StatsExportKeyboard or
-        Slot.ToggleGraphKeyboard or Slot.NextGraphKeyboard or
-        Slot.PreviousGraphKeyboard or Slot.ClearStatsKeyboard;
-
-    private string RemappingLabel => Dialog.Clean(_remappingSlot switch {
-        Slot.ImportTargetTimeKeyboard or Slot.ImportTargetTimeController => DialogIds.KeyImportTargetTimeId,
-        Slot.StatsExportKeyboard       or Slot.StatsExportController      => DialogIds.KeyStatsExportId,
-        Slot.ToggleGraphKeyboard       or Slot.ToggleGraphController       => DialogIds.ToggleGraphOverlayId,
-        Slot.NextGraphKeyboard         or Slot.NextGraphController         => DialogIds.KeyNextGraphId,
-        Slot.PreviousGraphKeyboard     or Slot.PreviousGraphController     => DialogIds.KeyPreviousGraphId,
-        _                                                                  => DialogIds.KeyClearStatsId,
-    });
+    internal static readonly KeybindDef[] Keybinds =
+    [
+        new(DialogIds.KeyImportTargetTimeId, s => s.Keybind_ImportTargetTime),
+        new(DialogIds.KeyStatsExportId,      s => s.Keybind_StatsExport),
+        new(DialogIds.ToggleGraphOverlayId,  s => s.Keybind_ToggleGraphOverlay),
+        new(DialogIds.KeyNextGraphId,        s => s.Keybind_NextGraph),
+        new(DialogIds.KeyPreviousGraphId,    s => s.Keybind_PreviousGraph),
+        new(DialogIds.KeyClearStatsId,       s => s.Keybind_ClearStats),
+    ];
 
     private static readonly Buttons[] AllButtons = {
         Buttons.A, Buttons.B, Buttons.X, Buttons.Y,
@@ -46,6 +37,16 @@ internal class KeybindConfigUi : TextMenu {
         Buttons.LeftStick, Buttons.RightStick,
         Buttons.DPadUp, Buttons.DPadDown, Buttons.DPadLeft, Buttons.DPadRight,
     };
+
+    private bool _closing;
+    private float _inputDelay;
+    private bool _remapping;
+    private float _remappingEase;
+    private KeybindDef _remappingBind;
+    private bool _remappingKeyboard;
+    private float _timeout;
+
+    private string RemappingLabel => Dialog.Clean(_remappingBind.LabelKey);
 
     public KeybindConfigUi() {
         Reload();
@@ -62,41 +63,24 @@ internal class KeybindConfigUi : TextMenu {
         Add(new Header(Dialog.Clean(DialogIds.KeybindConfigId)));
 
         Add(new SubHeader(Dialog.Clean(DialogIds.KeyConfigTitle)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyImportTargetTimeId), s.Keybind_ImportTargetTime.Keys)
-            .Pressed(() => StartRemap(Slot.ImportTargetTimeKeyboard)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyStatsExportId), s.Keybind_StatsExport.Keys)
-            .Pressed(() => StartRemap(Slot.StatsExportKeyboard)));
-        Add(new Setting(Dialog.Clean(DialogIds.ToggleGraphOverlayId), s.Keybind_ToggleGraphOverlay.Keys)
-            .Pressed(() => StartRemap(Slot.ToggleGraphKeyboard)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyNextGraphId), s.Keybind_NextGraph.Keys)
-            .Pressed(() => StartRemap(Slot.NextGraphKeyboard)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyPreviousGraphId), s.Keybind_PreviousGraph.Keys)
-            .Pressed(() => StartRemap(Slot.PreviousGraphKeyboard)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyClearStatsId), s.Keybind_ClearStats.Keys)
-            .Pressed(() => StartRemap(Slot.ClearStatsKeyboard)));
+        foreach (KeybindDef bind in Keybinds)
+            Add(new Setting(Dialog.Clean(bind.LabelKey), bind.Binding(s).Keys)
+                .Pressed(() => StartRemap(bind, keyboard: true)));
 
         Add(new SubHeader(Dialog.Clean(DialogIds.BtnConfigTitle)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyImportTargetTimeId), s.Keybind_ImportTargetTime.Buttons)
-            .Pressed(() => StartRemap(Slot.ImportTargetTimeController)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyStatsExportId), s.Keybind_StatsExport.Buttons)
-            .Pressed(() => StartRemap(Slot.StatsExportController)));
-        Add(new Setting(Dialog.Clean(DialogIds.ToggleGraphOverlayId), s.Keybind_ToggleGraphOverlay.Buttons)
-            .Pressed(() => StartRemap(Slot.ToggleGraphController)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyNextGraphId), s.Keybind_NextGraph.Buttons)
-            .Pressed(() => StartRemap(Slot.NextGraphController)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyPreviousGraphId), s.Keybind_PreviousGraph.Buttons)
-            .Pressed(() => StartRemap(Slot.PreviousGraphController)));
-        Add(new Setting(Dialog.Clean(DialogIds.KeyClearStatsId), s.Keybind_ClearStats.Buttons)
-            .Pressed(() => StartRemap(Slot.ClearStatsController)));
+        foreach (KeybindDef bind in Keybinds)
+            Add(new Setting(Dialog.Clean(bind.LabelKey), bind.Binding(s).Buttons)
+                .Pressed(() => StartRemap(bind, keyboard: false)));
 
         if (index >= 0) Selection = index;
     }
 
-    private void StartRemap(Slot slot) {
-        _remapping = true;
-        _remappingSlot = slot;
-        _timeout = 5f;
-        Focused = false;
+    private void StartRemap(KeybindDef bind, bool keyboard) {
+        _remapping         = true;
+        _remappingBind     = bind;
+        _remappingKeyboard = keyboard;
+        _timeout           = 5f;
+        Focused            = false;
     }
 
     // Keys.None is not "no key": FNA returns it for any keycode absent from its SDL->XNA table,
@@ -113,31 +97,8 @@ internal class KeybindConfigUi : TextMenu {
         Reload(Selection);
     }
 
-    private void ApplyRemap(Keys key) {
-        var s = SpeebrunConsistencyTrackerModule.Settings;
-        List<Keys> list = _remappingSlot switch {
-            Slot.ImportTargetTimeKeyboard => s.Keybind_ImportTargetTime.Keys,
-            Slot.StatsExportKeyboard      => s.Keybind_StatsExport.Keys,
-            Slot.ToggleGraphKeyboard      => s.Keybind_ToggleGraphOverlay.Keys,
-            Slot.NextGraphKeyboard        => s.Keybind_NextGraph.Keys,
-            Slot.PreviousGraphKeyboard    => s.Keybind_PreviousGraph.Keys,
-            _                             => s.Keybind_ClearStats.Keys,
-        };
-        ApplyRemap(key, list);
-    }
-
-    private void ApplyRemap(Buttons button) {
-        var s = SpeebrunConsistencyTrackerModule.Settings;
-        List<Buttons> list = _remappingSlot switch {
-            Slot.ImportTargetTimeController => s.Keybind_ImportTargetTime.Buttons,
-            Slot.StatsExportController      => s.Keybind_StatsExport.Buttons,
-            Slot.ToggleGraphController      => s.Keybind_ToggleGraphOverlay.Buttons,
-            Slot.NextGraphController        => s.Keybind_NextGraph.Buttons,
-            Slot.PreviousGraphController    => s.Keybind_PreviousGraph.Buttons,
-            _                               => s.Keybind_ClearStats.Buttons,
-        };
-        ApplyRemap(button, list);
-    }
+    private ButtonBinding RemappingBinding
+        => _remappingBind.Binding(SpeebrunConsistencyTrackerModule.Settings);
 
     public override void Update() {
         base.Update();
@@ -154,15 +115,15 @@ internal class KeybindConfigUi : TextMenu {
                 Input.ESC.ConsumePress();
                 _remapping = false;
                 Focused = true;
-            } else if (IsRemappingKeyboard) {
+            } else if (_remappingKeyboard) {
                 Keys[] pressed = MInput.Keyboard.CurrentState.GetPressedKeys();
                 if (pressed?.LastOrDefault(IsBindable) is { } k && k != Keys.None && MInput.Keyboard.Pressed(k))
-                    ApplyRemap(k);
+                    ApplyRemap(k, RemappingBinding.Keys);
             } else {
                 var cur  = MInput.GamePads[Input.Gamepad].CurrentState;
                 var prev = MInput.GamePads[Input.Gamepad].PreviousState;
                 foreach (var btn in AllButtons)
-                    if (cur.IsButtonDown(btn) && !prev.IsButtonDown(btn)) { ApplyRemap(btn); break; }
+                    if (cur.IsButtonDown(btn) && !prev.IsButtonDown(btn)) { ApplyRemap(btn, RemappingBinding.Buttons); break; }
             }
             _timeout -= Engine.DeltaTime;
         }
@@ -182,14 +143,14 @@ internal class KeybindConfigUi : TextMenu {
         Draw.Rect(-10f, -10f, 1940f, 1100f, Color.Black * 0.95f * Ease.CubeInOut(_remappingEase));
         Vector2 pos = new Vector2(1920f, 1080f) * 0.5f;
 
-        if (IsRemappingKeyboard || Input.GuiInputController()) {
+        if (_remappingKeyboard || Input.GuiInputController()) {
             ActiveFont.Draw(
                 Dialog.Clean(DialogIds.KeybindComboSubId),
                 pos + new Vector2(0f, -32f),
                 new Vector2(0.5f, 2f), Vector2.One * 0.7f,
                 Color.LightGray * Ease.CubeIn(_remappingEase));
             ActiveFont.Draw(
-                Dialog.Clean(IsRemappingKeyboard ? DialogIds.KeyConfigChanging : DialogIds.BtnConfigChanging),
+                Dialog.Clean(_remappingKeyboard ? DialogIds.KeyConfigChanging : DialogIds.BtnConfigChanging),
                 pos + new Vector2(0f, -8f),
                 new Vector2(0.5f, 1f), Vector2.One * 0.7f,
                 Color.LightGray * Ease.CubeIn(_remappingEase));

@@ -9,8 +9,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
 public static partial class ModMenuOptions
 {
-    private static readonly SpeebrunConsistencyTrackerModuleSettings _settings = SpeebrunConsistencyTrackerModule.Settings;
-    private static readonly SpeebrunConsistencyTrackerModule _instance = SpeebrunConsistencyTrackerModule.Instance;
+    private static SpeebrunConsistencyTrackerModuleSettings _settings => SpeebrunConsistencyTrackerModule.Settings;
+    private static SpeebrunConsistencyTrackerModule _instance => SpeebrunConsistencyTrackerModule.Instance;
 
     private const string ConfirmSfx = "event:/ui/main/button_select";
 
