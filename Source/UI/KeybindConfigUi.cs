@@ -61,16 +61,19 @@ internal class KeybindConfigUi : TextMenu {
         var s = SpeebrunConsistencyTrackerModule.Settings;
 
         Add(new Header(Dialog.Clean(DialogIds.KeybindConfigId)));
+        Add(new SubHeader(Dialog.Clean(DialogIds.KeybindClearSubId)));
 
         Add(new SubHeader(Dialog.Clean(DialogIds.KeyConfigTitle)));
         foreach (KeybindDef bind in Keybinds)
             Add(new Setting(Dialog.Clean(bind.LabelKey), bind.Binding(s).Keys)
-                .Pressed(() => StartRemap(bind, keyboard: true)));
+                .Pressed(() => StartRemap(bind, keyboard: true))
+                .AltPressed(() => ClearBinding(bind, keyboard: true)));
 
         Add(new SubHeader(Dialog.Clean(DialogIds.BtnConfigTitle)));
         foreach (KeybindDef bind in Keybinds)
             Add(new Setting(Dialog.Clean(bind.LabelKey), bind.Binding(s).Buttons)
-                .Pressed(() => StartRemap(bind, keyboard: false)));
+                .Pressed(() => StartRemap(bind, keyboard: false))
+                .AltPressed(() => ClearBinding(bind, keyboard: false)));
 
         if (index >= 0) Selection = index;
     }
@@ -94,6 +97,26 @@ internal class KeybindConfigUi : TextMenu {
         _remapping = false;
         _inputDelay = 0.25f;
         if (!list.Remove(input)) list.Add(input);
+        Reload(Selection);
+    }
+
+    // Clearing a whole row is the Journal action, which vanilla spells Tab by default and wires
+    // the same way (KeyboardConfigUI.AddMapForceLabel -> AltPressed -> Clear). Naming the action
+    // rather than the key is the point: a player who rebound Journal keeps one gesture for "clear
+    // a binding" across the game and every mod that uses Everest's screen.
+    //
+    // Nothing here refreshes the ButtonBinding's VirtualButton, for the same reason ApplyRemap
+    // does not: ComboHotkey reads the Keys list directly every frame and no VirtualButton is on
+    // its path. A mod whose hotkeys went through Input would need that refresh here.
+    private void ClearBinding(KeybindDef bind, bool keyboard) {
+        ButtonBinding binding = bind.Binding(SpeebrunConsistencyTrackerModule.Settings);
+        // Already empty: say so the way vanilla says it, rather than redrawing an identical list.
+        if ((keyboard ? binding.Keys.Count : binding.Buttons.Count) == 0) {
+            Audio.Play("event:/ui/main/button_invalid");
+            return;
+        }
+        if (keyboard) binding.Keys.Clear();
+        else binding.Buttons.Clear();
         Reload(Selection);
     }
 
@@ -127,6 +150,15 @@ internal class KeybindConfigUi : TextMenu {
             }
             _timeout -= Engine.DeltaTime;
         }
+
+        // Journal already clears the selected row: TextMenu.Update dispatches OnAltPressed on
+        // Input.MenuJournal.Pressed, inside its own `if (Focused)`, so it cannot fire mid-remap.
+        // This only widens the gesture to Delete and Backspace, which is what SpeedrunTool's
+        // HotkeyConfigUi does -- but through the row's own closure rather than its positional
+        // lookup (`Selection - 3`), which breaks silently the moment a header moves.
+        if (Focused && !_remapping && !_closing && Current?.OnAltPressed != null
+            && (MInput.Keyboard.Pressed(Keys.Delete) || MInput.Keyboard.Pressed(Keys.Back)))
+            Current.OnAltPressed();
 
         Alpha = Calc.Approach(Alpha, _closing ? 0f : 1f, Engine.DeltaTime * 8f);
         if (!_closing || Alpha > 0f) return;

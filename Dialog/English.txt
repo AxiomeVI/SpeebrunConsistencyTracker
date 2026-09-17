@@ -50,6 +50,7 @@ SCT_BOX_PLOT_GRAPH=                        Box Plot
 # ======================= Hotkeys ==============================
 SCT_KEYBIND_CONFIG=                        Hotkeys
 SCT_KEYBIND_COMBO_SUB=                     Binding multiple keys acts as a key combo (all must be held)
+SCT_KEYBIND_CLEAR_SUB=                     Press Journal (Tab) or Delete to clear the selected hotkey
 SCT_KEY_CONFIG_TITLE=                      Keyboard
 SCT_BTN_CONFIG_TITLE=                      Controller
 SCT_KEY_CONFIG_CHANGING=                   Press a key for

@@ -13,6 +13,7 @@ public static class DialogIds {
     // Hotkey menu UI
     public const string KeybindConfigId       = "SCT_KEYBIND_CONFIG";
     public const string KeybindComboSubId     = "SCT_KEYBIND_COMBO_SUB";
+    public const string KeybindClearSubId     = "SCT_KEYBIND_CLEAR_SUB";
     public const string KeyConfigTitle        = "SCT_KEY_CONFIG_TITLE";
     public const string BtnConfigTitle        = "SCT_BTN_CONFIG_TITLE";
     public const string KeyConfigChanging     = "SCT_KEY_CONFIG_CHANGING";
