@@ -16,12 +16,12 @@ public static partial class ModMenuOptions
 
         TextMenu.Slider roomColor = new(
             Dialog.Clean(DialogIds.RoomColorId),
-            i => enumColors[i].ToString(), 0, enumColors.Length - 1,
+            i => Utility.EnumLabels.For(enumColors[i]), 0, enumColors.Length - 1,
             Array.IndexOf(enumColors, _settings.RoomColor));
 
         TextMenu.Slider segmentColor = new(
             Dialog.Clean(DialogIds.SegmentColorId),
-            i => enumColors[i].ToString(), 0, enumColors.Length - 1,
+            i => Utility.EnumLabels.For(enumColors[i]), 0, enumColors.Length - 1,
             Array.IndexOf(enumColors, _settings.SegmentColor));
 
         FormattedIntSlider graphOpacity = new(
@@ -34,7 +34,7 @@ public static partial class ModMenuOptions
             Dialog.Clean(DialogIds.TimeLossThresholdId),
             1, 118,
             (int)Math.Round(_settings.TimeLossThresholdMs / 17.0),
-            v => $"{v * 17}ms");
+            v => $"{v}f / {v * 17}ms");
 
         roomColor.Change(v =>
         {
@@ -60,10 +60,20 @@ public static partial class ModMenuOptions
             _settings.SecondaryChartColorFinal = _settings.SecondaryChartColor * (v / 100f);
         });
 
+        TextMenu.OnOff targetLine = new(
+            Dialog.Clean(DialogIds.ShowTargetLineId),
+            Metrics.MetricHelper.IsMetricEnabled(_settings.TargetTime, Enums.MetricOutput.Overlay));
+        targetLine.Change(v =>
+        {
+            _settings.TargetTime = v ? Enums.MetricOutputChoice.Overlay : Enums.MetricOutputChoice.Off;
+            GraphManager.ClearChart(GraphType.Scatter);
+        });
+
         sub.Add(roomColor);
         sub.Add(segmentColor);
         sub.Add(graphOpacity);
         sub.Add(timeLossThreshold);
+        sub.Add(targetLine);
         sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphEnabledId), false));
 
         // One toggle per row of GraphManager.ChartDefinitions, in table order — which is also the
@@ -88,7 +98,7 @@ public static partial class ModMenuOptions
 
     private static void RebuildGraphSlots()
     {
-        if (!GraphManager.IsInitialized) return;
+        if (!GraphManager.HasSession) return;
         GraphManager.RebuildEnabledSlots();
     }
 }

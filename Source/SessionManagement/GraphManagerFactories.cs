@@ -21,10 +21,13 @@ public static partial class GraphManager
     private static ScatterPlotOverlay BuildScatter(int roomCount)
     {
         var session = SessionManager.CurrentSession;
-        // The parallel attempt-index lists must be built and filtered alongside the times.
+        // Every room, empty ones included. ScatterPlotOverlay drops the empty ones itself and
+        // keeps their original indices for the labels and the pins; filtering here as well made
+        // that map an identity over an already-filtered list, so once a middle room had every
+        // time deleted the later columns were labelled one room low and a pin's Delete targeted
+        // an already-deleted cell.
         var roomPairs = Enumerable.Range(0, roomCount)
             .Select(i => (times: session.GetRoomTimes(i).ToList(), indices: session.GetRoomAttemptIndices(i).ToList()))
-            .Where(p => p.times.Count > 0)
             .ToList();
         var roomTimes   = roomPairs.Select(p => p.times).ToList();
         var roomIndices = roomPairs.Select(p => p.indices).ToList();
@@ -40,22 +43,22 @@ public static partial class GraphManager
 
     private static HistogramOverlay BuildRoomHistogram(int roomIndex)
         => new(
-            $"Room {roomIndex + 1}",
+            Utility.RoomLabels.For(roomIndex),
             SessionManager.CurrentSession.GetRoomTimes(roomIndex).ToList(),
             isSegment: false);
 
     private static HistogramOverlay BuildSegmentHistogram(int roomCount)
     {
-        string label = roomCount == 1 ? "1 room" : $"{roomCount} rooms";
+        string label = Utility.DialogText.Count(roomCount, DialogIds.ChartOneRoom, DialogIds.ChartRoomsFmt);
         return new HistogramOverlay(
-            $"Segment ({label})",
+            Utility.DialogText.Format(DialogIds.ChartSegmentRoomsFmt, label),
             SessionManager.CurrentSession.GetSegmentTimes().ToList(),
             isSegment: true);
     }
 
     private static GroupedPercentOverlay BuildDnfPctChart(int roomCount)
     {
-        var labels   = Enumerable.Range(1, roomCount).Select(i => $"R{i}").ToList();
+        var labels   = Enumerable.Range(0, roomCount).Select(Utility.RoomLabels.For).ToList();
         var dnfPcts  = ComputeDnfPcts(roomCount);
         var dnfRates = dnfPcts.Select(p => (float)p).ToList();
 
@@ -68,15 +71,15 @@ public static partial class GraphManager
         }
 
         return new GroupedPercentOverlay(
-            "DNF Rate per Room & Segment Survival Rate",
+            Dialog.Clean(DialogIds.ChartResetSurvivalTitle),
             labels, dnfRates, survivalRates,
-            "DNF rate", "Remaining (%)");
+            Dialog.Clean(DialogIds.ChartResetRate), Dialog.Clean(DialogIds.ChartRunsAlive));
     }
 
     private static PercentBarChartOverlay BuildProblemRoomsChart(int roomCount)
     {
         var settings     = SpeebrunConsistencyTrackerModule.Settings;
-        var labels       = Enumerable.Range(1, roomCount).Select(i => $"R{i}").ToList();
+        var labels       = Enumerable.Range(0, roomCount).Select(Utility.RoomLabels.For).ToList();
         long threshold   = settings.TimeLossThresholdMs * 10000L;
         var dnfPcts      = ComputeDnfPcts(roomCount);
         var session      = SessionManager.CurrentSession;
@@ -92,37 +95,38 @@ public static partial class GraphManager
         }).ToList();
 
         return new PercentBarChartOverlay(
-            $"Problem Rooms (threshold: {settings.TimeLossThresholdMs}ms)",
+            Utility.DialogText.Format(DialogIds.ChartProblemRoomsTitleFmt, settings.TimeLossThresholdMs),
             labels, dnfPcts, timeLossPcts,
-            "DNF rate", $">{settings.TimeLossThresholdMs}ms over gold");
+            Dialog.Clean(DialogIds.ChartResetRate), Utility.DialogText.Format(DialogIds.ChartOverThresholdFmt, settings.TimeLossThresholdMs));
     }
 
     private static GroupedBarChartOverlay BuildTimeLossChart(int roomCount)
     {
         var session = SessionManager.CurrentSession;
-        var labels  = Enumerable.Range(1, roomCount).Select(i => $"R{i}").ToList();
+        var labels  = Enumerable.Range(0, roomCount).Select(Utility.RoomLabels.For).ToList();
 
-        var medianTicks = Enumerable.Range(0, roomCount).Select(i =>
+        // One walk of each room's times: both series are derived from the same list.
+        var medianTicks  = new List<long>(roomCount);
+        var averageTicks = new List<long>(roomCount);
+        for (int i = 0; i < roomCount; i++)
         {
             var times = session.GetRoomTimes(i).ToList();
-            if (times.Count == 0) return 0L;
-            long gold = times.Min(t => t.Ticks);
-            List<TimeTicks> losses = [.. times.Select(t => new TimeTicks(t.Ticks - gold)).OrderBy(t => t)];
-            return MetricHelper.ComputePercentile(losses, 50).Ticks;
-        }).ToList();
-
-        var averageTicks = Enumerable.Range(0, roomCount).Select(i =>
-        {
-            var times = session.GetRoomTimes(i).ToList();
-            if (times.Count == 0) return 0L;
-            long gold = times.Min(t => t.Ticks);
-            return (long)times.Average(t => (double)(t.Ticks - gold));
-        }).ToList();
+            if (times.Count == 0)
+            {
+                medianTicks.Add(0L);
+                averageTicks.Add(0L);
+                continue;
+            }
+            long best = times.Min(t => t.Ticks);
+            List<TimeTicks> losses = [.. times.Select(t => new TimeTicks(t.Ticks - best)).OrderBy(t => t)];
+            medianTicks.Add(MetricHelper.ComputePercentile(losses, 50).Ticks);
+            averageTicks.Add((long)times.Average(t => (double)(t.Ticks - best)));
+        }
 
         return new GroupedBarChartOverlay(
-            "Time Loss per Room",
+            Dialog.Clean(DialogIds.ChartTimeLossTitle),
             labels, medianTicks, averageTicks,
-            "Median loss", "Avg loss");
+            Dialog.Clean(DialogIds.ChartMedianLoss), Dialog.Clean(DialogIds.ChartAvgLoss));
     }
 
     private static RunTrajectoryOverlay BuildRunTrajectoryChart(int roomCount)

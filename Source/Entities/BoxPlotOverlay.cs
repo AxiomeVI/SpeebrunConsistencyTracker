@@ -37,7 +37,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<List<TimeTicks>> roomTimes,
             List<TimeTicks> segmentTimes,
             Vector2? pos = null)
-            : base("Room and Segment Box Plot", pos)
+            : base(Dialog.Clean(DialogIds.ChartBoxPlotTitle), pos)
         {
             _roomTimes    = [.. roomTimes.Select(r => (List<TimeTicks>)[.. r.OrderBy(t => t)])];
             _segmentTimes = [.. segmentTimes.OrderBy(t => t)];
@@ -69,6 +69,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public override void ClearHiddenColumns()
         {
             base.ClearHiddenColumns();
+            InvalidateColumnOffsets();
             ComputeRanges(out _minRoom, out _maxRoom, out _, out _);
             RecomputeRelativeRanges();
         }
@@ -76,6 +77,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         public override void ToggleColumn(int columnIndex)
         {
             base.ToggleColumn(columnIndex);
+            InvalidateColumnOffsets();
             ComputeRanges(out _minRoom, out _maxRoom, out _, out _);
             RecomputeRelativeRanges();
         }
@@ -124,36 +126,56 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             return available / visibleCols;
         }
 
+        // Left edge of each column as an offset from the plot's own left edge, plus one past the
+        // end. Offsets and not absolute X, so a chart that moves does not invalidate them.
+        // Everything that used to walk every previous column reads this: GetColumnCenterX per
+        // column per frame was O(n^2) on a chart drawn every frame.
+        private float[] _columnOffsets;
+        private float _columnOffsetsFor = float.NaN;
+
+        private float[] ColumnOffsets(float gw)
+        {
+            if (_columnOffsets != null && _columnOffsetsFor == gw) return _columnOffsets;
+
+            int cols = _roomTimes.Count + 1; // + the segment column, which is never hidden
+            float normalW = ComputeNormalColumnWidth(gw);
+            float[] offsets = new float[cols + 1];
+            for (int j = 0; j < cols; j++)
+                offsets[j + 1] = offsets[j] + ColumnWidth(j, normalW);
+
+            _columnOffsets = offsets;
+            _columnOffsetsFor = gw;
+            return offsets;
+        }
+
+        private float ColumnWidth(int i, float normalW)
+            => i < _roomTimes.Count && _hiddenColumns.Contains(i)
+                ? ChartConstants.Interactivity.HiddenColumnStubWidth
+                : normalW;
+
+        private void InvalidateColumnOffsets() => _columnOffsetsFor = float.NaN;
+
         // i == _roomTimes.Count is the segment column, which is never hidden.
         private float GetColumnCenterX(float gx, float gw, int i)
         {
-            float normalW = ComputeNormalColumnWidth(gw);
-            float x = gx;
-            for (int j = 0; j < i; j++)
-                x += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
-            float thisW = (i < _roomTimes.Count && _hiddenColumns.Contains(i))
-                ? ChartConstants.Interactivity.HiddenColumnStubWidth
-                : normalW;
-            return x + thisW * 0.5f;
+            float[] offsets = ColumnOffsets(gw);
+            return gx + (offsets[i] + offsets[i + 1]) * 0.5f;
         }
+
+        // Width of the room half of the plot: where the separator goes, and where the room grid ends.
+        private float RoomAreaWidth(float gw) => ColumnOffsets(gw)[_roomTimes.Count];
 
         public override bool HandleClick(HoverInfo hover) => _toggle.HandleClick();
 
         private void DrawSeparator(float x, float y, float w, float h)
         {
-            float normalW = ComputeNormalColumnWidth(w);
-            float sepX = x;
-            for (int j = 0; j < _roomTimes.Count; j++)
-                sepX += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            float sepX = x + RoomAreaWidth(w);
             Draw.Line(new Vector2(sepX, y), new Vector2(sepX, y + h), Color.Gray * 0.85f, 1.5f);
         }
 
         protected override void DrawGrid(float x, float y, float w, float h)
         {
-            float normalW = ComputeNormalColumnWidth(w);
-            float roomAreaWidth = 0;
-            for (int j = 0; j < _roomTimes.Count; j++)
-                roomAreaWidth += _hiddenColumns.Contains(j) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW;
+            float roomAreaWidth = RoomAreaWidth(w);
 
             if (_toggle.Normalized)
             {
@@ -249,10 +271,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             bool isStaggered = totalColumns > ChartConstants.XAxisLabel.StaggerThreshold;
             float baseLabelY  = y + h + (isStaggered ? ChartConstants.XAxisLabel.BaseOffsetY / 2f : ChartConstants.XAxisLabel.BaseOffsetY);
 
-            float normalW2 = ComputeNormalColumnWidth(w);
+            float[] offsets = ColumnOffsets(w);
             for (int i = 0; i < roomCount; i++)
             {
-                float colW    = _hiddenColumns.Contains(i) ? ChartConstants.Interactivity.HiddenColumnStubWidth : normalW2;
+                float colW    = offsets[i + 1] - offsets[i];
                 float centerX = GetColumnCenterX(x, w, i);
                 DrawColumnStrip(i, centerX - colW * 0.5f, colW, y + h);
 
@@ -272,8 +294,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float segLabelY = totalColumns >= ChartConstants.XAxisLabel.StaggerThreshold
                 ? (roomCount % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                 : baseLabelY;
-            Vector2 segLabelSize = ActiveFont.Measure("Segment") * ChartConstants.FontScale.AxisLabel;
-            ActiveFont.DrawOutline("Segment",
+            Vector2 segLabelSize = ActiveFont.Measure(Dialog.Clean(DialogIds.ChartSegment)) * ChartConstants.FontScale.AxisLabel;
+            ActiveFont.DrawOutline(Dialog.Clean(DialogIds.ChartSegment),
                 new Vector2(segX - segLabelSize.X / 2, segLabelY),
                 Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
                 _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
@@ -370,18 +392,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 mouseHudPos.Y < gy || mouseHudPos.Y > gy + gh)
                 return null;
 
-            int   totalColumns = _roomTimes.Count + 1;
-            float normalW      = ComputeNormalColumnWidth(gw);
-            int   idx          = totalColumns - 1; // default to segment column
-            float colX         = gx;
+            int totalColumns = _roomTimes.Count + 1;
+            float[] columnOffsets = ColumnOffsets(gw);
+            int idx = totalColumns - 1; // default to segment column
             for (int i = 0; i < totalColumns; i++)
-            {
-                float colW = (i < _roomTimes.Count && _hiddenColumns.Contains(i))
-                    ? ChartConstants.Interactivity.HiddenColumnStubWidth
-                    : normalW;
-                if (mouseHudPos.X < colX + colW) { idx = i; break; }
-                colX += colW;
-            }
+                if (mouseHudPos.X < gx + columnOffsets[i + 1]) { idx = i; break; }
+
+            // A hidden column keeps a 6 px stub, and hovering it used to draw a ghost box and a
+            // full stats tooltip for a room the player had just asked not to see.
+            if (idx < _roomTimes.Count && _hiddenColumns.Contains(idx)) return null;
 
             var times = idx == _roomTimes.Count ? _segmentTimes : _roomTimes[idx];
             if (times.Count == 0) return null;
@@ -410,11 +429,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Y grows downward, so the slowest stat sits highest: Max, Q3, Median, Q1, Min.
             var raw = new (string name, string val, float py)[]
             {
-                ("Max",    new TimeTicks(b.TickMax).ToString(), b.PxMax),
+                (Dialog.Clean(DialogIds.ChartStatMax),    new TimeTicks(b.TickMax).ToString(), b.PxMax),
                 ("Q3",     new TimeTicks(b.TickQ3).ToString(),  Math.Min(b.PxQ1, b.PxQ3)),
-                ("Median", new TimeTicks(b.TickMed).ToString(), b.PxMed),
+                (Dialog.Clean(DialogIds.ChartStatMedian), new TimeTicks(b.TickMed).ToString(), b.PxMed),
                 ("Q1",     new TimeTicks(b.TickQ1).ToString(),  Math.Max(b.PxQ1, b.PxQ3)),
-                ("Min",    new TimeTicks(b.TickMin).ToString(), b.PxMin),
+                (Dialog.Clean(DialogIds.ChartStatMin),    new TimeTicks(b.TickMin).ToString(), b.PxMin),
             };
 
             // Two passes to spread overlapping labels, down then back up.
@@ -424,16 +443,26 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             for (int i = 1; i < nudged.Length; i++)
                 if (nudged[i] - nudged[i - 1] < minGap)
                     nudged[i] = nudged[i - 1] + minGap;
-            for (int i = nudged.Length - 2; i >= 0; i--)
-                if (nudged[i + 1] - nudged[i] < minGap)
-                    nudged[i] = nudged[i + 1] - minGap;
+
+            // Spreading only ever pushes down, so the bottom label could end up under the plot.
+            // The block slides back up as a whole, then is clamped at the top -- the pass that
+            // used to sit here walked back up asking whether the gaps were big enough, which the
+            // loop above has just guaranteed, so it never moved anything.
+            float overshoot = nudged[^1] + lineH / 2f - (gy + gh);
+            if (overshoot > 0f)
+                for (int i = 0; i < nudged.Length; i++) nudged[i] -= overshoot;
+            float undershoot = gy - (nudged[0] - lineH / 2f);
+            if (undershoot > 0f)
+                for (int i = 0; i < nudged.Length; i++) nudged[i] += undershoot;
 
             _statLabels.Clear();
             for (int i = 0; i < raw.Length; i++)
                 _statLabels.Add(new StatLabel(raw[i].name, raw[i].val, labelX, nudged[i] - lineH / 2f));
 
-            // Empty label skips DrawTooltip; this only triggers DrawHighlight.
-            return new HoverInfo("", new Vector2(labelX, nudged[0]));
+            // Empty label skips DrawTooltip; this only triggers DrawHighlight. The key is the
+            // column: pins are matched on the label when there is no key, and every box here has
+            // the same empty one, so pinning a second box unpinned the first.
+            return new HoverInfo("", new Vector2(labelX, nudged[0]), Key: $"box:{idx}");
         }
 
         // The segment column is never hideable, so it stays out of the count.

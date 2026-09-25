@@ -15,7 +15,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly int maxValue = 100;
 
         private int   _hoveredBarIndex = -1;
-        private float _hoveredBarWidth;
         private float _hoveredBarTopY;
 
         // Single-layer.
@@ -165,7 +164,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             _hoveredBarIndex = idx;
-            _hoveredBarWidth = normalBarW;
             _hoveredBarTopY  = barTopY;
 
             float barCenterX  = barX + actualBarWidth / 2f;
@@ -173,7 +171,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int    lineCount  = label.Split('\n').Length;
             float  lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
             float  labelY     = barTopY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
-            return new HoverInfo(label, new Vector2(barCenterX, labelY));
+            return new HoverInfo(label, new Vector2(barCenterX, labelY), Key: $"bar:{idx}");
         }
 
         private string BuildPercentHoverLabel(int i)
@@ -182,12 +180,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (secondaryValues != null && i < secondaryValues.Count)
             {
                 double secPct = secondaryValues[i];
-                string pLabel = primaryLabel  ?? "Primary";
-                string sLabel = secondaryLabel ?? "Secondary";
-                return $"{sLabel}: {secPct:0.#}%\n{pLabel}: {pct:0.#}%";
+                string pLabel = primaryLabel  ?? Dialog.Clean(DialogIds.ChartPrimary);
+                string sLabel = secondaryLabel ?? Dialog.Clean(DialogIds.ChartSecondary);
+                return Utility.DialogText.LabelValue(sLabel, $"{secPct:0.#}%") + "\n" + Utility.DialogText.LabelValue(pLabel, $"{pct:0.#}%");
             }
-            string lbl = primaryLabel ?? "Value";
-            return $"{lbl}: {pct:0.#}%";
+            string lbl = primaryLabel ?? Dialog.Clean(DialogIds.ChartValue);
+            return Utility.DialogText.LabelValue(lbl, $"{pct:0.#}%");
         }
 
         public override void DrawHighlight()

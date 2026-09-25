@@ -182,7 +182,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 return new MetricResult("", []);
 
             TimeTicks targetTime = context.TargetTime;
-            double successRate = segmentTimes.Count(s => s <= targetTime) / (double)session.TotalCompleted;
+            // Denominator from the same list as the numerator. TotalCompleted agrees with it
+            // today, but it is counted by a different pass over the matrix.
+            double successRate = segmentTimes.Count(s => s <= targetTime) / (double)segmentTimes.Count;
 
             var roomValues = new List<string>();
             if (isExport)
@@ -286,7 +288,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 return new MetricResult("", []);
 
             int dnfCount = session.TotalDnfs;
-            string segmentValue = dnfCount == 0 ? "0%" : "100%";
+            // The share of resets is per room; the segment column has nothing to hold, and the
+            // 100% it used to print read as a statistic.
+            string segmentValue = "";
             List<string> roomValues = new(roomCount);
             for (int index = 0; index < roomCount; index++)
             {
@@ -348,7 +352,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (!isExport)
                 return new MetricResult("", []);
             if (session.TotalCompleted < 10)
-                return new MetricResult("Insufficent data", []);
+                return new MetricResult("Insufficient data", []);
 
             var segmentValues = MetricHelper.SortedSegmentValues(session, context);
             double avgSegment = MetricHelper.SegmentAverage(session, context);
@@ -362,7 +366,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             bool hasPhysicalGap = MetricHelper.DetectSignificantGap(segmentValues, stdSegment);
             bool isBimodal = bc > 0.555 && hasPhysicalGap;
             MetricHelper.PeakReport peak = MetricHelper.GetFullPeakAnalysis(segmentValues, segmentMin, segmentMax, segmentQ3 - segmentQ1, isBimodal);
-            string segmentValue = bc.ToString("F3") + "; " + peak.Summary;
+            string segmentValue = bc.ToString("F3", CultureInfo.InvariantCulture) + "; " + peak.Summary;
 
             var roomValues = new List<string>(roomCount);
             for (int r = 0; r < roomCount; r++)
@@ -380,7 +384,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 bool hasPhysicalGapRoom = MetricHelper.DetectSignificantGap(roomTimes, stdRoom);
                 bool isBimodalRoom = bcRoom > 0.555 && hasPhysicalGapRoom;
                 MetricHelper.PeakReport peakRoom = MetricHelper.GetFullPeakAnalysis(roomTimes, minRoom, maxRoom, roomQ3 - roomQ1, isBimodalRoom);
-                roomValues.Add(bcRoom.ToString("F3") + "; " + peakRoom.Summary);
+                roomValues.Add(bcRoom.ToString("F3", CultureInfo.InvariantCulture) + "; " + peakRoom.Summary);
             }
 
             return new MetricResult(segmentValue, roomValues);
@@ -415,7 +419,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (!isExport)
                 return new MetricResult("", []);
             if (session.TotalAttempts < 10)
-                return new MetricResult("Insufficent data", []);
+                return new MetricResult("Insufficient data", []);
 
             var roomValues = new List<string> { "" };
 

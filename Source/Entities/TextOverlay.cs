@@ -9,6 +9,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         private static TextComponent StatText;
         private static bool _textVisible = false;
 
+        // The Text Overlay submenu is built on the title screen too, and its Change handlers land
+        // here, but StatText only exists once a level has loaded -- it needs Dialog.Language's
+        // font. Every setter returns early until then; Init() calls ApplyModSettings(), which
+        // replays whatever was changed in the meantime out of the settings themselves.
+        private static bool Ready => StatText != null;
+
         public static void Init() {
             StatText ??= new TextComponent(StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f) {
                 Font = Dialog.Language.Font,
@@ -28,15 +34,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         public static void Clear() {
-            StatText?.Text?.Clear();
+            // Assigned, not cleared in place: TextComponent joins the lines when Text is set.
+            if (Ready) StatText.Text = null;
             _textVisible = false;
         }
 
         public static void SetTextOrientation(StatTextOrientation orientation) {
+            if (!Ready) return;
             StatText.Orientation = orientation;
         }
 
         public static void SetTextAlpha(float alpha) {
+            if (!Ready) return;
             StatText.SetAlpha((float)alpha/100);
         }
 
@@ -47,30 +56,35 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         public static void SetText(List<string> text) {
+            if (!Ready) return;
             StatText.Text = text;
         }
 
         public static void SetTextPosition(StatTextPosition pos) {
+            if (!Ready) return;
             StatText.SetPosition(pos);
         }
 
         public static void SetTextOffsetX(int offset) {
+            if (!Ready) return;
             StatText.OffsetX = offset;
             StatText.SetPosition();
         }
 
         public static void SetTextOffsetY(int offset) {
+            if (!Ready) return;
             StatText.OffsetY = offset;
             StatText.SetPosition();
         }
 
         // size in percent as int
         public static void SetTextSize(int size) {
+            if (!Ready) return;
             StatText.Scale = (float)size / 100;
         }
 
         public static void Render() {
-            if (SpeebrunConsistencyTrackerModule.Settings.OverlayEnabled && _textVisible)
+            if (Ready && SpeebrunConsistencyTrackerModule.Settings.OverlayEnabled && _textVisible)
             {
                 StatText.Render();
             }

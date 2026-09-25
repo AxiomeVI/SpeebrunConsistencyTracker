@@ -238,4 +238,30 @@ public class MetricHelperTests
         Assert.False(report.IsBimodal);
         Assert.Equal("No dominant peak detected.", report.Summary);
     }
+
+    // The bins are filled with the width refitted to the clamped bin count, so the peak index has
+    // to be converted back to a time with that same width. Reading it with the pre-clamp width
+    // reported a peak five times faster than any run in the sample.
+    [Fact]
+    public void GetFullPeakAnalysis_reports_the_peak_at_the_time_the_runs_are_actually_at()
+    {
+        // A 50 M-tick range with a zero IQR floors the raw width at one frame, so the raw bin
+        // count (295) is clamped down to 50 and the refit width is ~6x the raw one.
+        const long baseTicks = 1_000_000;
+        const long range = 50_000_000;
+        const long clusterOffset = 25_000_000;
+
+        var times = new List<TimeTicks> { new(baseTicks), new(baseTicks + range) };
+        for (int i = 0; i < 30; i++)
+            times.Add(new TimeTicks(baseTicks + clusterOffset + i * 10_000));
+
+        var report = MetricHelper.GetFullPeakAnalysis(
+            times, new TimeTicks(baseTicks), new TimeTicks(baseTicks + range),
+            TimeTicks.Zero, bimodalDetected: false);
+
+        Assert.False(report.NoDominantPeak);
+        // Within two refit bins (range/49 each) of where the 30 runs sit.
+        long expected = baseTicks + clusterOffset;
+        Assert.InRange(report.FastPeak.Value.Ticks, expected - 2 * range / 49, expected + 2 * range / 49);
+    }
 }

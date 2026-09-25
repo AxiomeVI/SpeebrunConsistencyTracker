@@ -14,21 +14,21 @@ A time distribution histogram for a single room. Shows how frequently each time 
 
 Same as the room histogram but for the full segment time. Enabled by default.
 
-## DNF % per Room & Segment Survival Rate
+## Reset % per Room & Segment Survival Rate
 
-A grouped bar chart with two series per room: the DNF rate (percentage of all attempts that reset in that room) and the survival rate (percentage of attempts still alive after passing through that room). The survival bar shows how many runs made it through. Enabled by default.
+A grouped bar chart with two series per room: the reset rate (percentage of all attempts that reset in that room) and the survival rate (percentage of attempts still alive when they *enter* that room). The survival bar is the share of runs that reached the room, before that room's own resets are taken off. Enabled by default.
 
 ## Problem Rooms
 
-A stacked bar chart combining DNF % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your gold, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.
+A stacked bar chart combining reset % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your session best for that room, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.
 
 ## Time Loss per Room
 
-A grouped bar chart showing median and average time lost per room relative to your gold time in that room, allowing quick comparison between typical loss (median) and overall loss (average). Disabled by default.
+A grouped bar chart showing median and average time lost per room relative to your session best in that room, allowing quick comparison between typical loss (median) and overall loss (average). Disabled by default.
 
 ## Run Trajectory
 
-A line chart where each attempt is drawn as a line showing cumulative deviation from the per-room average. Lines go up when a room is faster than average and down when slower. The X axis represents the cumulative sum of per-room averages (a run that matches the average in every room follows it exactly). Older attempts are drawn in dark grey and fade toward white as they approach the most recent run, making it easy to see how your trajectory has evolved over the session. Your best attempt, your most recent attempt, and the Sum of Best are highlighted. A comparison line shows how the current run tracks against the best recorded split time per room. Disabled by default.
+A line chart where each attempt is drawn as a line showing cumulative deviation from the per-room average. Lines go up when a room is faster than average and down when slower. The X axis represents the cumulative sum of per-room averages (a run that matches the average in every room follows it exactly). Older attempts are drawn in dark grey and fade toward white as they approach the most recent run, making it easy to see how your trajectory has evolved over the session. Your best attempt, your most recent attempt, and the Sum of Best are highlighted. A comparison line shows how the current run tracks against the best recorded split time per room. Enabled by default.
 
 ## Box Plot
 

@@ -48,7 +48,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             PracticeSession session,
             int totalRooms,
             Vector2? pos = null)
-            : base("Run Trajectory — Deviation from average", pos)
+            : base(Dialog.Clean(DialogIds.ChartTrajectoryTitle), pos)
         {
             _totalRooms = totalRooms;
             _gx = position.X + marginH;
@@ -178,7 +178,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (_model.Attempts.Count == 0) return;
 
             int   total     = _model.Attempts.Count;
-            var   s         = SpeebrunConsistencyTrackerModule.Settings;
 
             for (int i = 0; i < total; i++)
             {
@@ -196,11 +195,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     color     = Color.White;
                     thickness = 2.5f;
                 }
-                else if (dimmed)
-                {
-                    color     = Color.White * ChartConstants.Trajectory.BrightnessMin;
-                    thickness = 1f;
-                }
                 else if (IsLinePinned(id))
                 {
                     color     = Color.White;
@@ -211,17 +205,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     float brightness = total <= 1
                         ? ChartConstants.Trajectory.BrightnessMax
                         : MathHelper.Lerp(ChartConstants.Trajectory.BrightnessMin, ChartConstants.Trajectory.BrightnessMax, (float)i / (total - 1));
+                    // Dimming scales the line's own place on the ramp, the way DrawSpecialLine
+                    // does. A flat BrightnessMin put every dimmed line at exactly the brightness
+                    // of the oldest undimmed one, so the two could not be told apart.
+                    if (dimmed) brightness *= ChartConstants.Trajectory.DimFactor;
                     color     = Color.White * brightness;
-                    thickness = 1.5f;
+                    thickness = dimmed ? 1f : 1.5f;
                 }
                 DrawAttemptLine(_model.Attempts[i], color, thickness);
             }
 
-            // SoB, Best and Last draw on top of the regulars, in that order.
-            Color sobColor  = s.TrajectorySobColorFinal;
-            Color bestColor = s.TrajectoryBestColorFinal;
-            Color lastColor = s.TrajectoryLastColorFinal;
-
+            // SoB, Best and Last draw on top of the regulars, in that order. Colours come from
+            // LineColor so the line, its tooltip and the comparison table cannot disagree.
             LineId sob  = SobLineId;
             LineId best = LineId.Attempt(_scope.BestIdx);
             LineId last = LineId.Attempt(total - 1);
@@ -230,32 +225,34 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             {
                 case LineCoincidence.AllThree:
                     // One line for all three; colour precedence last > best > sob.
-                    DrawSpecialLine(_model.Attempts[last.Value], sob, last, lastColor);
+                    DrawSpecialLine(_model.Attempts[last.Value], sob, last, LineColor(last));
                     break;
 
                 case LineCoincidence.SobIsBest:
-                    // Shared line takes bestColor (best > sob); Last draws separately.
-                    DrawSpecialLine(_model.SobLine, sob, sob, bestColor);
-                    DrawSpecialLine(_model.Attempts[last.Value], last, last, lastColor);
+                    // Shared line takes bestColor (best > sob); Last draws separately. Both ids,
+                    // not sob twice: HitTest checks the attempt lines before the SoB line, so
+                    // hovering this one resolves to Best and the line read as not-hovered and dimmed.
+                    DrawSpecialLine(_model.SobLine, sob, best, LineColor(sob));
+                    DrawSpecialLine(_model.Attempts[last.Value], last, last, LineColor(last));
                     break;
 
                 case LineCoincidence.LastIsBest:
                     // Shared line takes lastColor (last > best); SoB draws separately.
-                    DrawSpecialLine(_model.SobLine, sob, sob, sobColor);
-                    DrawSpecialLine(_model.Attempts[last.Value], last, last, lastColor);
+                    DrawSpecialLine(_model.SobLine, sob, sob, LineColor(sob));
+                    DrawSpecialLine(_model.Attempts[last.Value], last, last, LineColor(last));
                     break;
 
                 default:
-                    DrawSpecialLine(_model.SobLine, sob, sob, sobColor);
-                    DrawSpecialLine(_model.Attempts[best.Value], best, best, bestColor);
-                    DrawSpecialLine(_model.Attempts[last.Value], last, last, lastColor);
+                    DrawSpecialLine(_model.SobLine, sob, sob, LineColor(sob));
+                    DrawSpecialLine(_model.Attempts[best.Value], best, best, LineColor(best));
+                    DrawSpecialLine(_model.Attempts[last.Value], last, last, LineColor(last));
                     break;
             }
         }
 
-        // Where a line sits at the right edge of room r. The clamp is a no-op — every deviation
-        // drawn is inside [-_scope.MaxUpwardDeviation, _scope.MaxDownwardDeviation], which maps to exactly
-        // [_gy, _gy + _gh] — and is kept as a guard against a stale scale.
+        // Where a line sits at the right edge of room r. The clamp is to baseline +- _gh, which is
+        // wider than the plot: it guards a stale scale, it does not keep the point inside the plot
+        // rectangle. Every deviation drawn is inside the scope's own range, which does.
         private float PointY(AttemptLine line, int room) =>
             MathHelper.Clamp(_baselineY + line.CumulativeDeviations[room] * _devScale,
                              _baselineY - _gh, _baselineY + _gh);
@@ -342,7 +339,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             _hoveredLine = nearest;
             // Empty label: DrawHighlight draws the whole tooltip itself.
-            return new HoverInfo("", Vector2.Zero, Key: _hoveredLine.ToKey(), PinGroup: "trajectory");
+            return new HoverInfo("", Vector2.Zero, Key: _hoveredLine.ToKey());
         }
 
         public override bool ManagesPins => true;

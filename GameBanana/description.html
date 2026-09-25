@@ -10,6 +10,13 @@
   <li>Configurable hotkeys (keycombo behavior like SRT)</li>
 </ul>
 
+<h2>Setup</h2>
+<p>This mod requires <strong>SpeedrunTool 3.26.4</strong> or later and reads its data from SpeedrunTool's room timer, so two of SpeedrunTool's own settings decide what it records. Both are under <em>Mod Options &rarr; Speedrun Tool &rarr; Room Timer</em>:</p>
+<ul>
+  <li><strong>Room Timer</strong> &mdash; <code>NextRoom</code> or <code>CurrentRoom</code>. With the timer <strong>Off</strong>, nothing is recorded and every chart stays empty.</li>
+  <li><strong>Number of Rooms</strong> &mdash; how many rooms one attempt spans. This is the segment the metrics and charts are computed over.</li>
+</ul>
+
 <h2>Usage</h2>
 
 <h3>1. Practice Workflow</h3>
@@ -28,7 +35,7 @@
 
 <h3>3. Exporting</h3>
 <ul>
-  <li><strong>Data Export:</strong> Export your complete session history and statistics to CSV (files are saved to the <code>/SCT_Exports</code> directory within your Celeste installation folder)</li>
+  <li><strong>Data Export:</strong> Export your complete session history and statistics to CSV (files are saved to <code>SCT_Exports/&lt;level&gt;/</code>, next to your <code>Mods</code> folder &mdash; the Celeste installation folder in a normal install)</li>
 </ul>
 
 <h2>Charts</h2>
@@ -52,3 +59,9 @@
   <li><strong>Standard Deviation</strong> — spread of times around the average</li>
 </ul>
 <p>And many more.</p>
+
+<h2>Full documentation</h2>
+<ul>
+  <li><a href="https://github.com/AxiomeVI/SpeebrunConsistencyTracker/blob/main/docs/charts.md">Charts reference</a> &mdash; what every chart shows and which are on by default</li>
+  <li><a href="https://github.com/AxiomeVI/SpeebrunConsistencyTracker/blob/main/docs/metrics.md">Metrics reference</a> &mdash; all of them, and what each one means</li>
+</ul>

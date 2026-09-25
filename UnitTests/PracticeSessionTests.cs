@@ -241,6 +241,45 @@ public class PracticeSessionTests
         Assert.Equal([0, 2], session.GetCompletedAttemptIndices());
     }
 
+    // Deleting one cell of a finished run makes it incomplete, but it is not a reset: nothing
+    // about that attempt ended early. Reset Count reads DNF cells, so the row leaves no DNF
+    // behind and the per-room DNF tallies still add up to it.
+    [Fact]
+    public void Deleting_a_cell_from_a_completed_run_does_not_turn_it_into_a_reset()
+    {
+        StubSegmentShape shape = new(roomCount: 2);
+        PracticeSession session = NewSession(shape);
+        CompleteRooms(session, 100, 150);
+        session.StartNewAttempt();
+        CompleteRooms(session, 110);
+        session.StartNewAttempt();
+        CompleteRooms(session, 120, 170);
+
+        session.DeleteCell(attemptIndex: 0, visibleRoomIndex: 1);
+
+        Assert.Equal(1, session.TotalCompleted);
+        Assert.Equal(1, session.TotalDnfs);
+        Assert.Equal(session.TotalDnfs, session.DnfPerRoom.Values.Sum());
+    }
+
+    // DeleteAttempt wipes every cell, so the row holds no DNF and no time: it stops being an
+    // attempt at all rather than becoming a reset.
+    [Fact]
+    public void Deleting_a_whole_reset_attempt_drops_it_from_both_tallies()
+    {
+        StubSegmentShape shape = new(roomCount: 2);
+        PracticeSession session = NewSession(shape);
+        CompleteRooms(session, 100, 150);
+        session.StartNewAttempt();
+        CompleteRooms(session, 110);
+        session.StartNewAttempt();
+
+        session.DeleteAttempt(1);
+
+        Assert.Equal(1, session.TotalAttempts);
+        Assert.Equal(0, session.TotalDnfs);
+    }
+
     // RoomCount moves under a running session without bumping Version, which is why the per-room
     // caches key on (Version, RoomCount, StartRoomIndex) rather than Version alone.
     [Fact]

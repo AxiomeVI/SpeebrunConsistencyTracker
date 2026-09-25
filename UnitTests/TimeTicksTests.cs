@@ -33,6 +33,28 @@ public class TimeTicksTests
         Assert.StartsWith("-", FromSeconds(-1.5).ToString());
     }
 
+    // The form is picked from the magnitude. Reading it off the signed TotalSeconds took the
+    // short form for every negative, and TimeSpan's specifiers print absolute components, so
+    // -75 s came out as "-15.000".
+    [Theory]
+    [InlineData(-1.5, "-1.500")]
+    [InlineData(-75, "-1:15.000")]
+    [InlineData(-83.456, "-1:23.456")]
+    public void ToString_formats_a_negative_by_its_magnitude(double seconds, string expected)
+    {
+        Assert.Equal(expected, FromSeconds(seconds).ToString());
+    }
+
+    // m\:ss\.fff has nowhere to put an hour, so an hour-long time used to print 0:00.000.
+    [Theory]
+    [InlineData(3600, "1:00:00.000")]
+    [InlineData(3723.456, "1:02:03.456")]
+    [InlineData(-3723.456, "-1:02:03.456")]
+    public void ToString_keeps_the_hours(double seconds, string expected)
+    {
+        Assert.Equal(expected, FromSeconds(seconds).ToString());
+    }
+
     [Fact]
     public void Arithmetic_and_comparison_operate_on_ticks()
     {

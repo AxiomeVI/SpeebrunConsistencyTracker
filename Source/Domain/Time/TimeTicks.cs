@@ -6,11 +6,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time
     {
         public long Ticks { get; } = ticks;
 
+        // Formatted from the magnitude, with the sign put back afterwards. TimeSpan's custom
+        // format specifiers print each component's absolute value, so picking the short form on
+        // the signed TotalSeconds made -75 s read "-15.000"; and the two-field form has nowhere
+        // to put an hour, so an hour-long time read "0:00.000". Trajectory deltas and trend
+        // slopes are routinely negative.
         public override string ToString()
         {
-            TimeSpan ts = TimeSpan.FromTicks(Ticks);
-            string sign = ts < TimeSpan.Zero ? "-" : "";
-            return sign + ts.ToString(ts.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
+            TimeSpan abs = TimeSpan.FromTicks(Math.Abs(Ticks));
+            string sign = Ticks < 0 ? "-" : "";
+            if (abs.TotalHours >= 1)
+                return $"{sign}{(int)abs.TotalHours}:{abs.Minutes:D2}:{abs.Seconds:D2}.{abs.Milliseconds:D3}";
+            return sign + abs.ToString(abs.TotalSeconds < 60 ? "s\\.fff" : "m\\:ss\\.fff");
         }
 
         public static TimeTicks operator +(TimeTicks a, TimeTicks b) => new(a.Ticks + b.Ticks);

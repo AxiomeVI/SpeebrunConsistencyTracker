@@ -1,27 +1,25 @@
 # ====================== Mod Menu ==============================
 SCT_SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker
 SCT_ENABLE_MOD=                            Enabled
+SCT_ENABLE_MOD_DESC=                       Turning this off erases the recorded data of every save state slot
 
 # ==================== Target Time =============================
 SCT_TARGET_TIME=                           Set Target Time
 SCT_INPUT_TARGET_TIME=                     Current target time
-SCT_TARGET_TIME_FORMAT=                    Format: mm:ss.123 or ss.123
+SCT_TARGET_TIME_FORMAT=                    Format: mm:ss.fff, ss.fff, or a plain number of seconds
 SCT_RESET_TARGET_TIME=                     Reset target time
 SCT_MINUTES=                               Minutes
 SCT_SECONDS=                               Seconds
 SCT_MILLISECONDS=                          Milliseconds
-SCT_MILLISECONDS_FIRST=                    1st digit
-SCT_MILLISECONDS_SECOND=                   2nd digit
-SCT_MILLISECONDS_THIRD=                    3rd digit
 
 # ====================== Export Menu ===========================
 SCT_EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
+SCT_EXPORT_WITH_SRT_DESC=                  Adds Speedrun Tool's stats. Set its own export mode to Clipboard, or this part is empty
 SCT_EXPORT_SUBMENU=                        Export Settings
 SCT_EXPORT_MOD=                            Export mode
-SCT_EXPORT_PATH=                           File: CSV files are exported to gamePath/SCT_Exports
+SCT_EXPORT_PATH=                           File: CSV files are exported to SCT_Exports/<level>, next to the Mods folder
 
 # ====================== Text Overlay ==========================
-SCT_INGAME_OVERLAY=                        In-game Overlay
 SCT_OVERLAY_ENABLED=                       Enable overlay
 SCT_TEXT_SIZE=                             Size
 SCT_TEXT_POSITION=                         Position
@@ -30,42 +28,40 @@ SCT_TEXT_ALPHA=                            Opacity
 SCT_TEXT_OVERLAY=                          Text Overlay
 
 # ====================== Chart Overlay ==========================
-SCT_GRAPH_OVERLAY=                         Charts Overlay
+SCT_GRAPH_OVERLAY=                         Charts
 SCT_ROOM_COLOR=                            Room chart color
 SCT_SEGMENT_COLOR=                         Segment chart color
-SCT_CHART_OPACITY=                         Bar chart opacity
+SCT_CHART_OPACITY=                         Chart opacity
 SCT_TIME_LOSS_THRESHOLD=                   Time loss threshold
-SCT_TIME_LOSS_THRESHOLD_DESC=              For the Problem Rooms chart
+SCT_TIME_LOSS_THRESHOLD_DESC=              For the Problem Rooms chart. A room counts as a time loss when it runs this far over its session best.
 SCT_GRAPH_ENABLED=                         Enabled charts
 SCT_SCATTER=                               Scatter Plot
 SCT_ROOM_HISTOGRAM=                        Room Histograms
 SCT_SEGMENT_HISTOGRAM=                     Segment Histogram
-SCT_DNF_PERCENT_BAR_CHART=                 DNF % per Room
+SCT_DNF_PERCENT_BAR_CHART=                 Reset % per Room
 SCT_PROBLEM_ROOM_BAR_CHART=                Problem Rooms
 SCT_TIME_LOSS_CHART=                       Time loss per Room
-SCT_TRAJECTORY_GRAPH=                      Trajectory graph
+SCT_TRAJECTORY_GRAPH=                      Run Trajectory
 SCT_BOX_PLOT_GRAPH=                        Box Plot
 
 
 # ======================= Hotkeys ==============================
 SCT_KEYBIND_CONFIG=                        Hotkeys
-SCT_KEYBIND_COMBO_SUB=                     Binding multiple keys acts as a key combo (all must be held)
-SCT_KEYBIND_CLEAR_SUB=                     Press Journal (Tab) or Delete to clear the selected hotkey
-SCT_KEY_CONFIG_TITLE=                      Keyboard
-SCT_BTN_CONFIG_TITLE=                      Controller
-SCT_KEY_CONFIG_CHANGING=                   Press a key for
-SCT_BTN_CONFIG_CHANGING=                   Press a button for
-SCT_BTN_CONFIG_NO_CONTROLLER=              No controller connected
+SCT_KEYBIND_COMBO_SUB=                     Binding several keys makes a combo: hold them all together. Press a bound key again to unbind it.
+SCT_KEYBIND_CLEAR_SUB=                     Press Journal or Delete to clear the selected hotkey
+# {0} is the seconds left before recording gives up.
+SCT_KEYBIND_TIMEOUT_FMT=                   Cancelling in {0}s - press Escape to cancel now
 SCT_KEY_STATS_EXPORT=                      Export data
 SCT_KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
-SCT_TOGGLE_GRAPH_OVERLAY=                  Display/Hide data chart
+SCT_TOGGLE_GRAPH_OVERLAY=                  Show/hide the chart overlay
 SCT_KEY_CLEAR_STATS=                       Clear current session data
 SCT_KEY_NEXT_GRAPH=                        Switch to next chart
 SCT_KEY_PREVIOUS_GRAPH=                    Switch to previous chart
 
 # ===================== Popup message ==========================
 SCT_POPUP_TARGET_TIME_SET=                 Target time set to
-SCT_INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Please use m:ss.SSS or ss.SSS format
+SCT_INVALID_TIME_IMPORT=                   Invalid time in clipboard. Use mm:ss.fff, up to 59:59.999
+SCT_INVALID_TIME_INPUT=                    Invalid time. Use mm:ss.fff, up to 59:59.999
 SCT_EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 SCT_INVALID_EXPORT=                        No data to export
 SCT_EXPORT_TO_FILE=                        Session data exported to file
@@ -90,7 +86,7 @@ SCT_MINIMUM=                               Best
 SCT_MAXIMUM=                               Worst
 SCT_STANDARD_DEVIATION=                    Standard Deviation
 SCT_COEFFICIENT_OF_VARIATION=              Relative Standard Deviation
-SCT_TARGET_TIME_STAT=                      Target Time
+SCT_SHOW_TARGET_LINE=                      Show target time line
 SCT_PERCENTILE=                            Percentile
 SCT_PERCENTILE_VALUE=                      Percentile Value
 SCT_IQR=                                   Interquartile Range
@@ -99,7 +95,7 @@ SCT_SOB=                                   Sum of Bests
 SCT_LINEAR_REGRESSION=                     Trend Slope
 SCT_SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
 SCT_CONSISTENCY_SCORE=                     Consistency Score
-SCT_GOLD_RATE=                             Gold Rate
+SCT_GOLD_RATE=                             Session Best Rate
 SCT_MULTIMODAL_TEST=                       Multimodal Test
 SCT_ROOM_DEPENDENCY=                       Room Dependency
 SCT_BEST_SPLIT=                            Best Split
@@ -108,3 +104,61 @@ SCT_ALL_METRICS_ON_BUTTON=                 Turn on all metrics
 SCT_ALL_ON_DESC=                           Applied to both text overlay and export
 SCT_RESET_METRICS_BUTTON=                  Reset to default
 SCT_METRICS_SUBHEADER=                     Configure Stats Output: Off, Overlay, Export, or Both
+
+# ======================== Charts ==============================
+# A key ending in _FMT is read raw, through Dialog.Get, and filled with string.Format. Every other
+# key goes through Dialog.Clean, which DELETES every {...} but {n} -- so a placeholder belongs in
+# an _FMT line and nowhere else. DialogKeyTests holds both halves. Keep square brackets out: the
+# loader reads [...] as a portrait tag.
+SCT_CHART_LABEL_VALUE_FMT=                 {0}: {1}
+SCT_CHART_SEGMENT=                         Segment
+SCT_CHART_SEGMENT_ROOMS_FMT=               Segment ({0})
+SCT_CHART_ONE_ROOM=                        1 room
+SCT_CHART_ROOMS_FMT=                       {0} rooms
+SCT_CHART_ONE_RUN=                         1 Run
+SCT_CHART_RUNS_FMT=                        {0} Runs
+SCT_CHART_DELETE=                          Delete
+SCT_CHART_ABSOLUTE=                        Absolute
+SCT_CHART_RELATIVE=                        Relative
+SCT_CHART_PRIMARY=                         Primary
+SCT_CHART_SECONDARY=                       Secondary
+SCT_CHART_VALUE=                           Value
+
+SCT_CHART_SCATTER_TITLE=                   Room and Segment Times
+SCT_CHART_TARGET_FMT=                      Target: {0}
+SCT_CHART_RUN_TIME_FMT=                    Run #{0}: {1}
+
+SCT_CHART_BOX_PLOT_TITLE=                  Room and Segment Box Plot
+SCT_CHART_STAT_MAX=                        Max
+SCT_CHART_STAT_MEDIAN=                     Median
+SCT_CHART_STAT_MIN=                        Min
+
+SCT_CHART_HISTOGRAM_TITLE_FMT=             Time Distribution - {0}
+SCT_CHART_TOTAL_FMT=                       Total: {0}
+SCT_CHART_BIN_ONE_RUN_FMT=                 {0} run ({1}%)
+SCT_CHART_BIN_RUNS_FMT=                    {0} runs ({1}%)
+
+SCT_CHART_RESET_SURVIVAL_TITLE=            Reset Rate per Room & Segment Survival Rate
+SCT_CHART_RESET_RATE=                      Reset rate
+SCT_CHART_RUNS_ALIVE=                      Runs still alive
+SCT_CHART_PROBLEM_ROOMS_TITLE_FMT=         Problem Rooms (threshold: {0}ms over session best)
+SCT_CHART_OVER_THRESHOLD_FMT=              >{0}ms over session best
+SCT_CHART_TIME_LOSS_TITLE=                 Time Loss per Room
+SCT_CHART_MEDIAN_LOSS=                     Median loss
+SCT_CHART_AVG_LOSS=                        Avg loss
+
+SCT_CHART_TRAJECTORY_TITLE=                Run Trajectory — Deviation from average
+SCT_CHART_AVG=                             Avg
+SCT_CHART_SOB=                             SoB
+SCT_CHART_VS_AVG=                          vs Avg
+SCT_CHART_VS_SOB=                          vs SoB
+SCT_CHART_VS_RUN_FMT=                      vs #{0}
+SCT_CHART_RUN_FMT=                         Run #{0}
+SCT_CHART_VS_BEST_SPLIT=                   vs Best Split
+SCT_CHART_CUMUL=                           cumul
+SCT_CHART_ROOM=                            room
+SCT_CHART_LEGEND_ALL_THREE=                SoB, Best & Last run
+SCT_CHART_LEGEND_SOB_BEST=                 SoB & Best run
+SCT_CHART_LEGEND_BEST_LAST=                Best & Last run
+SCT_CHART_LEGEND_BEST=                     Best run
+SCT_CHART_LEGEND_LAST=                     Last run

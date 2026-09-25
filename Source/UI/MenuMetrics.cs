@@ -36,7 +36,7 @@ public static partial class ModMenuOptions
         // Visibility follows the Percentile slider.
         TextMenu.Slider percentileValue = new(
             Dialog.Clean(DialogIds.PercentileValueId),
-            i => enumPercentileValues[i].ToString(),
+            i => Utility.EnumLabels.For(enumPercentileValues[i]),
             0, enumPercentileValues.Length - 1,
             Array.IndexOf(enumPercentileValues, _settings.PercentileValue))
         {
@@ -50,7 +50,7 @@ public static partial class ModMenuOptions
         {
             TextMenu.Slider slider = MetricSlider(def);
             if (def.LabelKey == DialogIds.PercentileId)
-                slider.Change(v => percentileValue.Disabled = def.Choices[v] == MetricOutputChoice.Off);
+                slider.Change(v => percentileValue.Disabled = AllChoices[v] == MetricOutputChoice.Off);
             sliders[def.LabelKey] = slider;
         }
 
@@ -76,9 +76,9 @@ public static partial class ModMenuOptions
                 foreach (ToggleDef t in toggles) { t.Item.Index = 1; t.Set(true); }
                 foreach (MetricDef def in defs)
                 {
-                    MetricOutputChoice best = def.Choices[^1];
+                    MetricOutputChoice best = AllChoices[^1];
                     def.Set(best);
-                    sliders[def.LabelKey].Index = def.Choices.Length - 1;
+                    sliders[def.LabelKey].Index = AllChoices.Length - 1;
                 }
                 percentileValue.Disabled = false;
                 _instance.SaveSettings();
@@ -93,7 +93,7 @@ public static partial class ModMenuOptions
                 foreach (MetricDef def in defs)
                 {
                     def.Set(def.DefaultValue);
-                    sliders[def.LabelKey].Index = Array.IndexOf(def.Choices, def.DefaultValue);
+                    sliders[def.LabelKey].Index = Array.IndexOf(AllChoices, def.DefaultValue);
                 }
                 percentileValue.Index    = Array.IndexOf(enumPercentileValues, PercentileChoice.P90);
                 percentileValue.Disabled = _settings.Percentile == MetricOutputChoice.Off;

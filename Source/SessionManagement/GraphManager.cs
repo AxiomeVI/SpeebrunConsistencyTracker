@@ -21,7 +21,9 @@ public static partial class GraphManager
         set => SpeebrunConsistencyTrackerModule.Settings.LastShownGraph = value;
     }
 
-    public static bool IsInitialized => SessionManager.CurrentSession != null;
+    // Named for what it answers: there is a session to build charts from. "Initialized" read as
+    // a statement about GraphManager, which it never was.
+    public static bool HasSession => SessionManager.CurrentSession != null;
 
     public static void Init()
     {
@@ -32,24 +34,25 @@ public static partial class GraphManager
 
     public static void Clear()
     {
+        // Before _currentOverlay is nulled: passing the null afterwards left the overlay's own
+        // pins and hidden columns in place, so a cleared session came back with them.
+        GraphInteractivity.Clear(_currentOverlay);
         _lastKnownSession = null;
         _currentOverlay   = null;
         _currentSlotIndex = -1;
         _enabledSlots.Clear();
         ClearAllCharts();
-        GraphInteractivity.Clear(_currentOverlay);
     }
 
     public static bool IsShowing() => _currentOverlay != null;
 
     public static BaseChartOverlay CurrentOverlay => _currentOverlay;
 
-    // GetCurrentSlot() answers (Scatter, -1) both when the scatter is the selected slot and when
-    // nothing is selected at all, so a caller cannot tell the two apart. These two say which it is.
-    // A string rather than a GraphType.None member: GraphType is persisted, and a member with no
-    // ChartDefinition row would fail Every_graph_type_has_exactly_one_definition for a value that
-    // is not a chart. The bounds check is wider than GetCurrentSlot's on purpose — these are read
-    // every frame by the test poll and must not throw on a cursor left past a shrunken list.
+    // GetCurrentSlot() answers (Scatter, -1) both when the scatter is selected and when nothing
+    // is; these two say which. A string and not a GraphType member, because GraphType is persisted
+    // and every member must have a ChartDefinition row. The bounds check is deliberately wider
+    // than GetCurrentSlot's: these are read every frame and must not throw on a cursor left past
+    // a shrunken list.
     public const string NoSlotName = "None";
 
     public static string CurrentSlotName =>

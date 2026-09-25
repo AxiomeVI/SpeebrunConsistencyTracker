@@ -13,10 +13,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected readonly string _primaryLabel;
         protected readonly string _secondaryLabel;
 
-        protected readonly float _cachedGroupWidth;
-        protected readonly float _cachedBarWidth;
-        protected readonly float _cachedBarSpacing;
-        protected readonly float _cachedGroupSpacing;
+        protected float _cachedGroupWidth;
+        protected float _cachedBarWidth;
+        protected float _cachedBarSpacing;
+        protected float _cachedGroupSpacing;
 
         private int   _hoveredGroupIndex  = -1;
         private float _hoveredHighlightX  = 0f;
@@ -42,8 +42,31 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _primaryLabel    = primaryLabel;
             _secondaryLabel  = secondaryLabel;
 
-            ComputeBarLayout(width - marginH * 2, _labels.Count,
+            RecomputeBarLayout();
+        }
+
+        // Bar width follows the group width, which grows as columns are hidden. Computed once in
+        // the constructor, the bars kept their original width while GetGroupX moved the groups
+        // apart, so every bar drifted off its own label after the first toggle.
+        private void RecomputeBarLayout()
+        {
+            float available = width - marginH * 2
+                            - _hiddenColumns.Count * ChartConstants.Interactivity.HiddenColumnStubWidth;
+            int visible = System.Math.Max(1, _primaryValues.Count - _hiddenColumns.Count);
+            ComputeBarLayout(available, visible,
                 out _cachedGroupWidth, out _cachedGroupSpacing, out _cachedBarSpacing, out _cachedBarWidth);
+        }
+
+        public override void ToggleColumn(int columnIndex)
+        {
+            base.ToggleColumn(columnIndex);
+            RecomputeBarLayout();
+        }
+
+        public override void ClearHiddenColumns()
+        {
+            base.ClearHiddenColumns();
+            RecomputeBarLayout();
         }
 
         public override HoverInfo? HitTest(Vector2 mouseHudPos)
@@ -122,7 +145,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int    lineCount  = hoverLabel.Split('\n').Length;
             float  lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
             float  labelY     = _hoveredHighlightY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
-            return new HoverInfo(hoverLabel, new Vector2(labelX, labelY));
+            // Keyed on the group and which bar: two bars whose tooltips read the same text
+            // ("Remaining (%): 100%") were treated as the same pin.
+            string key = $"group:{idx}:{(overPrimary ? "p" : "")}{(overSecondary ? "s" : "")}";
+            return new HoverInfo(hoverLabel, new Vector2(labelX, labelY), Key: key);
         }
 
         public override void DrawHighlight()

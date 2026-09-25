@@ -15,7 +15,9 @@ public static class DataExporter
 
     private static bool TryGetExportData(out PracticeSession session)
     {
-        if (SessionManager.CurrentSession?.TotalAttempts == 0)
+        // `?.TotalAttempts == 0` was false for a null session, so exporting from the pause menu
+        // before any attempt existed wrote an empty file, or threw inside the history exporter.
+        if (SessionManager.CurrentSession is not { TotalAttempts: > 0 })
         {
             session = null;
             return false;
@@ -63,16 +65,19 @@ public static class DataExporter
         if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
             RoomTimerManager.CmdExportRoomTimes();
 
+        // PathEverest, not PathGame: they are the same folder in a normal install, but in XDG mode
+        // (an EverestXDGFlag file, for read-only game folders) Everest moves Mods and its settings
+        // to a writable ~/.local/share/Everest while PathGame stays where writing may fail.
         string baseFolder = Path.Combine(
-            Everest.PathGame,
+            Everest.PathEverest,
             "SCT_Exports",
             SanitizeFileName(SessionManager.LevelName)
         );
-        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-
         try
         {
             _ = Directory.CreateDirectory(baseFolder);
+            // Second resolution alone let two exports in the same second overwrite each other.
+            string timestamp = UniqueTimestamp(baseFolder);
             using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
             {
                 writer.WriteLine(MetricsExporter.ExportSessionToCsv(session));
@@ -93,11 +98,34 @@ public static class DataExporter
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileId));
     }
 
+    // Suffixed only on collision, so the common case keeps the plain readable timestamp.
+    internal static string UniqueTimestamp(string folder, Func<string, bool> exists = null)
+    {
+        exists ??= File.Exists;
+        string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        if (!exists(Path.Combine(folder, $"{stamp}_Metrics.csv"))) return stamp;
+        for (int n = 2; n < 1000; n++)
+        {
+            string candidate = $"{stamp}_{n}";
+            if (!exists(Path.Combine(folder, $"{candidate}_Metrics.csv"))) return candidate;
+        }
+        return stamp;
+    }
+
+    private const string WindowsReserved = "<>:\"/\\|?*";
+
     public static string SanitizeFileName(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return string.Empty;
-        var invalidChars = Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()).Distinct().ToArray();
+        // Windows' reserved set is named outright, on top of whatever the running platform
+        // reports. Path.GetInvalidFileNameChars() is platform-dependent -- on Linux it is '\0'
+        // and '/' and nothing else -- so a SID carrying a ':' or a '\\' sanitised cleanly there
+        // and produced an unwritable path on the machine most players are on.
+        var invalidChars = Path.GetInvalidFileNameChars()
+            .Concat(Path.GetInvalidPathChars())
+            .Concat(WindowsReserved)
+            .Distinct().ToArray();
         var sanitized = new string(
             [.. input.Where(ch => !invalidChars.Contains(ch))]
         );

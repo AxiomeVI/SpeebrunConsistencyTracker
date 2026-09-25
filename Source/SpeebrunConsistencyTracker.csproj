@@ -17,21 +17,29 @@
         <Reference Private="false" />
     </ItemDefinitionGroup>
 
-    <!-- KeybindTableTests reads KeybindConfigUi.Keybinds; nothing else crosses this line. -->
+    <!-- KeybindTableTests reads UI.Hotkeys; nothing else crosses this line. -->
     <ItemGroup>
         <AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
             <_Parameter1>UnitTests</_Parameter1>
         </AssemblyAttribute>
     </ItemGroup>
 
+    <!-- The shared hotkey layer and remap screen, compiled into this DLL. -->
+    <ItemGroup>
+        <Compile Include="..\CelesteHotkeys\src\**\*.cs" />
+    </ItemGroup>
+    <Target Name="CheckCelesteHotkeys" BeforeTargets="PrepareForBuild">
+        <Error Condition="!Exists('$(MSBuildThisFileDirectory)..\CelesteHotkeys\src')"
+               Text="CelesteHotkeys/src is missing. It is committed in this repository; restore it from git." />
+    </Target>
+
     <ItemGroup>
         <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.1" PrivateAssets="all" ExcludeAssets="runtime" />
-        <PackageReference Include="MonoMod.Patcher" Version="25.0.0-prerelease.2" />
-        <PackageReference Include="CelesteAnalyzer" Version="*" />
+        <PackageReference Include="CelesteAnalyzer" Version="1.0.3.1" />
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="CelesteMod.Publicizer" Version="*" CelesteAssembly="$(CelestePrefix)\Celeste.dll" />
+        <PackageReference Include="CelesteMod.Publicizer" Version="1.1.2" CelesteAssembly="$(CelestePrefix)\Celeste.dll" />
         <Reference Include="$(CelestePrefix)\MMHOOK_Celeste.dll" Private="false" />
         <Reference Include="$(CelestePrefix)\FNA.dll" Private="false" />
         <Reference Include="SpeedrunTool">

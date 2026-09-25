@@ -30,7 +30,10 @@ public sealed class PracticeSession
 
     public void StartNewAttempt()
     {
-        // Finalize the prior attempt: its current room becomes a DNF.
+        // Finalize the prior attempt: its current room becomes a DNF. Deliberately not room 0:
+        // in CurrentRoom timer mode a reset there leaves no trace, so R1's reset rate is always 0
+        // and the attempt total undercounts. The alternative records a DNF for every save-state
+        // reload, which is most of what a practice session does.
         if (CurrentAttemptIndex >= 0 && CurrentRoomIndex > 0)
         {
             _matrix.EnsureColumns(CurrentRoomIndex + 1);
@@ -156,6 +159,7 @@ public sealed class PracticeSession
     private int _cachedStartRoomIndex = -1;
     private int _cachedTotalAttempts;
     private int _cachedTotalCompleted;
+    private int _cachedTotalDnfs;
     private Dictionary<int, int> _totalAttemptsPerRoom;
     private Dictionary<int, int> _dnfPerRoom;
     private Dictionary<int, int> _completedRunsPerRoom;
@@ -173,12 +177,14 @@ public sealed class PracticeSession
         int[] completeds = new int[roomCount];
         int totalAttempts = 0;
         int totalCompleted = 0;
+        int totalDnfs = 0;
 
         for (int a = 0; a < _matrix.RowCount; a++)
         {
             var row = _matrix.GetRow(a);
             bool rowCounted = false;
             bool rowCompleted = true;
+            bool rowHasDnf = false;
             for (int r = 0; r < roomCount; r++)
             {
                 int c = start + r;
@@ -196,11 +202,13 @@ public sealed class PracticeSession
                     {
                         totals[r]++;
                         dnfs[r]++;
+                        rowHasDnf = true;
                         if (!rowCounted) { totalAttempts++; rowCounted = true; }
                     }
                 }
             }
             if (rowCompleted && rowCounted) totalCompleted++;
+            if (rowHasDnf) totalDnfs++;
         }
 
         _totalAttemptsPerRoom = new Dictionary<int, int>(roomCount);
@@ -214,6 +222,7 @@ public sealed class PracticeSession
         }
         _cachedTotalAttempts = totalAttempts;
         _cachedTotalCompleted = totalCompleted;
+        _cachedTotalDnfs = totalDnfs;
     }
 
     public int TotalAttempts { get { RefreshPerRoomCaches(); return _cachedTotalAttempts; } }
@@ -223,7 +232,10 @@ public sealed class PracticeSession
 
     public int TotalCompleted { get { RefreshPerRoomCaches(); return _cachedTotalCompleted; } }
 
-    public int TotalDnfs => TotalAttempts - TotalCompleted;
+    // Counted from DNF cells, not as TotalAttempts - TotalCompleted: deleting a cell makes a run
+    // incomplete without making it a reset, and the difference would have counted it as one while
+    // DnfPerRoom recorded nothing, so Reset Share stopped summing to Reset Count.
+    public int TotalDnfs { get { RefreshPerRoomCaches(); return _cachedTotalDnfs; } }
 
     public IEnumerable<TimeTicks> GetSegmentTimes()
     {

@@ -8,8 +8,10 @@ using System;
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 {
     // Label is the tooltip text (\n for multiple lines); LabelPos its top-center HUD coordinate.
-    // A non-null PinGroup keeps at most one pin per group value: a new pin replaces the old one.
-    public sealed record HoverInfo(string Label, Vector2 LabelPos, Vector2 MouseHudPos = default, string? Key = null, string? PinGroup = null);
+    // Key identifies the thing hovered, so pinning two of them does not collide. Every overlay
+    // that can be pinned supplies one; the label fallback in GraphInteractivity is what happens
+    // when one forgets, and it is why two boxes with the same empty label used to share a pin.
+    public sealed record HoverInfo(string Label, Vector2 LabelPos, Vector2 MouseHudPos = default, string? Key = null);
 
     public abstract class BaseChartOverlay
     {

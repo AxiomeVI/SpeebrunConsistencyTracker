@@ -27,12 +27,12 @@ public static partial class ModMenuOptions
 
         TextMenu.Slider textPosition = new(
             Dialog.Clean(DialogIds.TextPositionId),
-            i => enumPositions[i].ToString(), 0, enumPositions.Length - 1,
+            i => Utility.EnumLabels.For(enumPositions[i]), 0, enumPositions.Length - 1,
             Array.IndexOf(enumPositions, _settings.TextPosition));
 
         TextMenu.Slider textOrientation = new(
             Dialog.Clean(DialogIds.TextOrientationId),
-            i => enumOrientations[i].ToString(), 0, enumOrientations.Length - 1,
+            i => Utility.EnumLabels.For(enumOrientations[i]), 0, enumOrientations.Length - 1,
             Array.IndexOf(enumOrientations, _settings.TextOrientation));
 
         textSize.Change(v => { _settings.TextSize = v; TextOverlay.SetTextSize(v); });

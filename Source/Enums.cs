@@ -14,7 +14,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         File,
         // Dead: kept only so YamlDotNet does not throw on an old settings file saying "Sheet",
         // which would reset every setting declared after ExportMode. OnLoadSettings rewrites it
-        // to Clipboard, so this can go once players have launched once.
+        // to Clipboard on the first launch that sees it. REMOVE IN 3.0.0 -- by then no settings
+        // file written before 2.1.0 can still be unread, and PersistedEnumMembersTests has to be
+        // told about it in the same commit or it fails on the removal, by design.
         Sheet
     }
 

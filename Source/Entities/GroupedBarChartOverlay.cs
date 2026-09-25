@@ -64,8 +64,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override float GetBarHeight(long value, float chartHeight) =>
             _maxTicks > 0 ? chartHeight - MathF.Round(chartHeight - (float)value / _maxTicks * chartHeight) : 0f;
 
+        // No TrimStart('0'): it turned 0.250 into ".250", which reads as a missing digit.
         protected override string FormatBarLabel(long value) =>
-            "+" + new TimeTicks(value).ToString().TrimStart('0');
+            "+" + new TimeTicks(value);
 
         protected override void DrawYAxisGrid(float x, float y, float w, float h)
         {
@@ -132,13 +133,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 bool   hasSecond = i < _secondaryValues.Count;
                 string secondary = hasSecond ? FormatBarLabel(_secondaryValues[i]) : null;
                 return hasSecond
-                    ? $"{_primaryLabel}: {primary}\n{_secondaryLabel}: {secondary}"
-                    : $"{_primaryLabel}: {primary}";
+                    ? Utility.DialogText.LabelValue(_primaryLabel, primary) + "\n" + Utility.DialogText.LabelValue(_secondaryLabel, secondary)
+                    : Utility.DialogText.LabelValue(_primaryLabel, primary);
             }
             if (isPrimary)
-                return $"{_primaryLabel}: {FormatBarLabel(_primaryValues[i])}";
+                return Utility.DialogText.LabelValue(_primaryLabel, FormatBarLabel(_primaryValues[i]));
             if (isSecondary && i < _secondaryValues.Count)
-                return $"{_secondaryLabel}: {FormatBarLabel(_secondaryValues[i])}";
+                return Utility.DialogText.LabelValue(_secondaryLabel, FormatBarLabel(_secondaryValues[i]));
             return "";
         }
 

@@ -14,7 +14,7 @@ public static partial class ModMenuOptions
 
         TextMenu.Slider exportMode = new(
             Dialog.Clean(DialogIds.ExportModeId),
-            i => enumExportChoices[i].ToString(),
+            i => Utility.EnumLabels.For(enumExportChoices[i]),
             0, enumExportChoices.Length - 1,
             Array.IndexOf(enumExportChoices, _settings.ExportMode));
         exportMode.Change(v => _settings.ExportMode = enumExportChoices[v]);
@@ -39,6 +39,9 @@ public static partial class ModMenuOptions
         sub.Add(exportWithSRT);
 
         exportMode.AddDescription(sub, menu, Dialog.Clean(DialogIds.ExportPathId));
+        // SpeedrunTool hands its section over through the clipboard, whatever its own export mode
+        // is set to, so with that set to File the section arrives empty and nothing said why.
+        exportWithSRT.AddDescription(sub, menu, Dialog.Clean(DialogIds.SrtExportDescId));
 
         sub.Visible = _settings.Enabled;
         return sub;

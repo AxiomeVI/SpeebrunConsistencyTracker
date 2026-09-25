@@ -10,6 +10,18 @@ A Celeste mod built for speedrunners to analyze consistency and pinpoint specifi
 - Data export to clipboard and CSV
 - Configurable hotkeys (keycombo behavior like SRT)
 
+## Setup
+
+The mod reads its data from SpeedrunTool's room timer, so two of SpeedrunTool's own settings
+decide what it records. Both are under *Mod Options -> Speedrun Tool -> Room Timer*:
+
+- **Room Timer** — `NextRoom` or `CurrentRoom`. With the timer **Off**, nothing is recorded and
+  every chart stays empty.
+- **Number of Rooms** — how many rooms one attempt spans. This is the segment the metrics and
+  charts are computed over; changing it reshapes the current session's view of the same data.
+
+SpeedrunTool `3.26.4` or later is required (`everest.yaml` pins it).
+
 ## Usage
 
 ### 1. Practice Workflow
@@ -27,7 +39,7 @@ Configure the overlay to display the metrics that matter most to your current go
 
 ### 3. Exporting
 
-* **Data Export:** Export your complete session history and statistics to CSV (files are saved to the `/SCT_Exports` directory within your Celeste installation folder)
+* **Data Export:** Export your complete session history and statistics to CSV (files are saved to `SCT_Exports/<level>/`, next to your `Mods` folder — the Celeste installation folder in a normal install)
 
 ## Charts
 
@@ -36,8 +48,8 @@ All charts are accessible in-game via keybinds and can be individually toggled i
 - **Scatter Plot:** outliers and time clusters per room
 - **Room Histogram:** time distribution for a single room
 - **Segment Histogram:** time distribution for the full segment
-- **DNF % per Room:** reset rate and run survival rate by room
-- **Problem Rooms:** combined DNF rate and time-loss per room
+- **Reset % per Room:** reset rate and run survival rate by room
+- **Problem Rooms:** combined reset rate and time-loss per room
 - **Time Loss per Room:** median and average loss vs. session best
 - **Run Trajectory:** cumulative deviation across rooms, with best-split comparison
 - **Box Plot:** time distribution as box-and-whisker with hover details
