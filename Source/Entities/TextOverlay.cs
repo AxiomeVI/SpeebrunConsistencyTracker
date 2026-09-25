@@ -34,7 +34,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
 
         public static void Clear() {
-            StatText?.Text?.Clear();
+            // Assigned, not cleared in place: TextComponent joins the lines when Text is set.
+            if (Ready) StatText.Text = null;
             _textVisible = false;
         }
 

@@ -83,7 +83,6 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [SettingIgnore]
     public Color TrajectorySobColorFinal  { get; set; } = Color.Turquoise;
 
-    public bool ShowRoomTimeDistributionPlots { get; set; } = false;
     public int TimeLossThresholdMs { get; set; } = 493;
     public bool GraphScatter { get; set; } = true;
     public bool GraphRoomHistogram { get; set; } = false;

@@ -70,22 +70,9 @@ public static class GraphInteractivity
                 ? _pinnedItems.FindIndex(p => p.Key == CurrentHover.Key)
                 : _pinnedItems.FindIndex(p => p.Label == CurrentHover.Label);
             if (existing >= 0)
-            {
                 _pinnedItems.RemoveAt(existing);
-            }
-            else if (CurrentHover.PinGroup != null)
-            {
-                // One pin per group: the new one replaces it.
-                int groupIdx = _pinnedItems.FindIndex(p => p.PinGroup == CurrentHover.PinGroup);
-                if (groupIdx >= 0)
-                    _pinnedItems[groupIdx] = CurrentHover;
-                else
-                    _pinnedItems.Add(CurrentHover);
-            }
             else
-            {
                 _pinnedItems.Add(CurrentHover);
-            }
             return GraphInteraction.None;
         }
 

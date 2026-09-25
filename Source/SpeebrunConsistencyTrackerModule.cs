@@ -26,12 +26,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public override Type SettingsType => typeof(SpeebrunConsistencyTrackerModuleSettings);
     public static SpeebrunConsistencyTrackerModuleSettings Settings => (SpeebrunConsistencyTrackerModuleSettings) Instance._Settings;
 
-    public override Type SessionType => typeof(SpeebrunConsistencyTrackerModuleSession);
-    public static SpeebrunConsistencyTrackerModuleSession Session => (SpeebrunConsistencyTrackerModuleSession) Instance._Session;
-
-    public override Type SaveDataType => typeof(SpeebrunConsistencyTrackerModuleSaveData);
-    public static SpeebrunConsistencyTrackerModuleSaveData SaveData => (SpeebrunConsistencyTrackerModuleSaveData) Instance._SaveData;
-
     private object SaveLoadInstance = null;
 
     private const string DefaultSlotName = "Default Slot";
@@ -222,7 +216,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         HandleClearButton();
         UpdateGraphOverlay(self);
         HandlePauseHide(self);
-        if (Settings.Enabled && GraphManager.IsShowing())
+        // LevelOnUpdate returned above when Settings.Enabled is false.
+        if (GraphManager.IsShowing())
             GraphManager.UpdateInteractivity();
     }
 

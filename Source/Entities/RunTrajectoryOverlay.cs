@@ -250,9 +250,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
-        // Where a line sits at the right edge of room r. The clamp is a no-op — every deviation
-        // drawn is inside [-_scope.MaxUpwardDeviation, _scope.MaxDownwardDeviation], which maps to exactly
-        // [_gy, _gy + _gh] — and is kept as a guard against a stale scale.
+        // Where a line sits at the right edge of room r. The clamp is to baseline +- _gh, which is
+        // wider than the plot: it guards a stale scale, it does not keep the point inside the plot
+        // rectangle. Every deviation drawn is inside the scope's own range, which does.
         private float PointY(AttemptLine line, int room) =>
             MathHelper.Clamp(_baselineY + line.CumulativeDeviations[room] * _devScale,
                              _baselineY - _gh, _baselineY + _gh);
@@ -339,7 +339,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             _hoveredLine = nearest;
             // Empty label: DrawHighlight draws the whole tooltip itself.
-            return new HoverInfo("", Vector2.Zero, Key: _hoveredLine.ToKey(), PinGroup: "trajectory");
+            return new HoverInfo("", Vector2.Zero, Key: _hoveredLine.ToKey());
         }
 
         public override bool ManagesPins => true;

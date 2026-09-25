@@ -10,11 +10,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.UI;
 [Tracked]
 internal class KeybindConfigUi : TextMenu {
     // One row per logical keybind, and the row is the whole declaration: the label, the binding it
-    // remaps, and its position in both lists. This replaces a twelve-value Slot enum that had to be
-    // enumerated six times — twice in Reload(), once in each ApplyRemap overload, and twice more to
-    // decide keyboard-versus-controller and to label the remap prompt. Four of those six ended in a
-    // `_ => throw` standing in for an exhaustiveness C# does not give over an enum. A seventh
-    // keybind is now one row, and a row cannot name the wrong binding without saying so out loud.
+    // remaps, and its position in both lists. A new keybind is one row here and nothing else; a row
+    // cannot name the wrong binding without saying so on its own line.
     internal sealed record KeybindDef(
         string LabelKey,
         Func<SpeebrunConsistencyTrackerModuleSettings, ButtonBinding> Binding);

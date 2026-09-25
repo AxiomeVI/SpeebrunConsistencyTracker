@@ -9,7 +9,20 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
 
         public StatTextPosition Position { get; set; } = position;
         public StatTextOrientation Orientation { get; set; } = orientation;
-        public List<string> Text { get; set; }
+        // The horizontal form is one joined string; joining it in Render built it 60 times a
+        // second for text that changes once per completed run.
+        private List<string> _text;
+        private string _joined = "";
+
+        public List<string> Text
+        {
+            get => _text;
+            set
+            {
+                _text = value;
+                _joined = value == null ? "" : string.Join(" | ", value);
+            }
+        }
         public float Scale { get; set; } = 1f;
         private float Alpha { get; set; } = alpha;
         public PixelFont Font { get; set; }
@@ -114,7 +127,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             {
                 Font.DrawOutline(
                     FontFaceSize,
-                    string.Join(" | ", Text),
+                    _joined,
                     new Vector2(PosX, PosY),
                     Justify,
                     Vector2.One * Scale,

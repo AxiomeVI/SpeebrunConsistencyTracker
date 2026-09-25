@@ -103,24 +103,25 @@ public static partial class GraphManager
     private static GroupedBarChartOverlay BuildTimeLossChart(int roomCount)
     {
         var session = SessionManager.CurrentSession;
-        var labels  = Enumerable.Range(1, roomCount).Select(i => $"R{i}").ToList();
+        var labels  = Enumerable.Range(0, roomCount).Select(Utility.RoomLabels.For).ToList();
 
-        var medianTicks = Enumerable.Range(0, roomCount).Select(i =>
+        // One walk of each room's times: both series are derived from the same list.
+        var medianTicks  = new List<long>(roomCount);
+        var averageTicks = new List<long>(roomCount);
+        for (int i = 0; i < roomCount; i++)
         {
             var times = session.GetRoomTimes(i).ToList();
-            if (times.Count == 0) return 0L;
-            long gold = times.Min(t => t.Ticks);
-            List<TimeTicks> losses = [.. times.Select(t => new TimeTicks(t.Ticks - gold)).OrderBy(t => t)];
-            return MetricHelper.ComputePercentile(losses, 50).Ticks;
-        }).ToList();
-
-        var averageTicks = Enumerable.Range(0, roomCount).Select(i =>
-        {
-            var times = session.GetRoomTimes(i).ToList();
-            if (times.Count == 0) return 0L;
-            long gold = times.Min(t => t.Ticks);
-            return (long)times.Average(t => (double)(t.Ticks - gold));
-        }).ToList();
+            if (times.Count == 0)
+            {
+                medianTicks.Add(0L);
+                averageTicks.Add(0L);
+                continue;
+            }
+            long best = times.Min(t => t.Ticks);
+            List<TimeTicks> losses = [.. times.Select(t => new TimeTicks(t.Ticks - best)).OrderBy(t => t)];
+            medianTicks.Add(MetricHelper.ComputePercentile(losses, 50).Ticks);
+            averageTicks.Add((long)times.Average(t => (double)(t.Ticks - best)));
+        }
 
         return new GroupedBarChartOverlay(
             "Time Loss per Room",

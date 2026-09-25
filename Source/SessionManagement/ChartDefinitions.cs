@@ -7,16 +7,11 @@ using System.Linq;
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
 // One row per chart, and the row is the whole declaration: enabling, cycling, building, caching,
-// clearing and listing in the settings menu all read from here. Before this table the same eight
-// charts were spelled out in four hand-kept enumerations — BuildSlots, the ShowCurrentSlot switch,
-// and two independently ordered blocks in the settings menu — plus a cache field, a GetOrCreate
-// and a Clear apiece. A chart missing from one of them compiled fine and failed at run time, as a
-// null overlay or as a toggle the menu never showed.
+// clearing and listing in the settings menu all read from here. A chart left out of one of those
+// compiles and fails at run time, as a null overlay or as a toggle the menu never shows.
 //
-// Get/Set take the settings object rather than closing over the singleton, which is what lets
-// ChartDefinitionsTests write to a throwaway instance and prove that no row reads or writes
-// another row's property. That cross-wiring is the failure this shape invites: it compiles, and
-// nothing else would catch it.
+// Get/Set take the settings object rather than closing over the singleton, so ChartDefinitionsTests
+// can write to a throwaway instance and prove no row reads or writes another row's property.
 //
 // Slots: the room indices this chart contributes when enabled. Almost every chart is one slot with
 // no room (-1); the room histogram is one per room, which is why this is a function and not a bool.

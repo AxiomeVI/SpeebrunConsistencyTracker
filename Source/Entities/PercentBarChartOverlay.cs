@@ -15,7 +15,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private readonly int maxValue = 100;
 
         private int   _hoveredBarIndex = -1;
-        private float _hoveredBarWidth;
         private float _hoveredBarTopY;
 
         // Single-layer.
@@ -165,7 +164,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             _hoveredBarIndex = idx;
-            _hoveredBarWidth = normalBarW;
             _hoveredBarTopY  = barTopY;
 
             float barCenterX  = barX + actualBarWidth / 2f;

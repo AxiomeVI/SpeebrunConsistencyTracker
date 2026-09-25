@@ -28,27 +28,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return value;
         }
 
-        public bool TryGet<T>(string key, out T value)
-        {
-            if (_cache.TryGetValue(key, out var obj))
-            {
-                value = (T)obj;
-                return true;
-            }
-
-            value = default!;
-            return false;
-        }
-
-        public void Set<T>(string key, T value)
-        {
-            _cache[key] = value!;
-        }
-
-        public void Clear()
-        {
-            _cache.Clear();
-        }
     }
 
     public sealed class MetricDescriptor(
