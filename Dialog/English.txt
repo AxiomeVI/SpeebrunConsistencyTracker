@@ -17,7 +17,7 @@ SCT_EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
 SCT_EXPORT_WITH_SRT_DESC=                  Speedrun Tool contributes its own section through the clipboard. If its own export mode is set to File, that section comes out empty
 SCT_EXPORT_SUBMENU=                        Export Settings
 SCT_EXPORT_MOD=                            Export mode
-SCT_EXPORT_PATH=                           File: CSV files are exported to gamePath/SCT_Exports/<level>
+SCT_EXPORT_PATH=                           File: CSV files are exported to SCT_Exports/<level>, next to the Mods folder
 
 # ====================== Text Overlay ==========================
 SCT_OVERLAY_ENABLED=                       Enable overlay

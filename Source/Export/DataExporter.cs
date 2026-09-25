@@ -65,8 +65,11 @@ public static class DataExporter
         if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
             RoomTimerManager.CmdExportRoomTimes();
 
+        // PathEverest, not PathGame: they are the same folder in a normal install, but in XDG mode
+        // (an EverestXDGFlag file, for read-only game folders) Everest moves Mods and its settings
+        // to a writable ~/.local/share/Everest while PathGame stays where writing may fail.
         string baseFolder = Path.Combine(
-            Everest.PathGame,
+            Everest.PathEverest,
             "SCT_Exports",
             SanitizeFileName(SessionManager.LevelName)
         );
@@ -109,11 +112,20 @@ public static class DataExporter
         return stamp;
     }
 
+    private const string WindowsReserved = "<>:\"/\\|?*";
+
     public static string SanitizeFileName(string input)
     {
         if (string.IsNullOrWhiteSpace(input))
             return string.Empty;
-        var invalidChars = Path.GetInvalidFileNameChars().Concat(Path.GetInvalidPathChars()).Distinct().ToArray();
+        // Windows' reserved set is named outright, on top of whatever the running platform
+        // reports. Path.GetInvalidFileNameChars() is platform-dependent -- on Linux it is '\0'
+        // and '/' and nothing else -- so a SID carrying a ':' or a '\\' sanitised cleanly there
+        // and produced an unwritable path on the machine most players are on.
+        var invalidChars = Path.GetInvalidFileNameChars()
+            .Concat(Path.GetInvalidPathChars())
+            .Concat(WindowsReserved)
+            .Distinct().ToArray();
         var sanitized = new string(
             [.. input.Where(ch => !invalidChars.Contains(ch))]
         );

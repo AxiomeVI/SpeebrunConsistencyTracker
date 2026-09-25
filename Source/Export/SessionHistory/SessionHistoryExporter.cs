@@ -2,7 +2,6 @@ using System;
 using System.Text;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
-using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using System.Collections.Generic;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
@@ -14,10 +13,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
             if (session.TotalAttempts == 0)
                 return "";
 
-            int segmentLength = SessionManager.RoomCount;
-            // Read, not recomputed: SessionManager.UpdateRoomCount owns MaxRoomCount and RoomCount
-            // is derived from it, so an export has no business moving either.
-            int columnCount = Math.Max(segmentLength, session.MaxRoomCount);
+            // The segment's rooms and no more, as the metrics export does. MaxRoomCount also counts
+            // the room after the last one, which a finished run is standing in when the next reset
+            // records a DNF there -- so every completed run exported as a death outside the segment.
+            int columnCount = session.RoomCount;
             var sb = new StringBuilder();
 
             sb.Append("Attempt");

@@ -39,7 +39,7 @@ Configure the overlay to display the metrics that matter most to your current go
 
 ### 3. Exporting
 
-* **Data Export:** Export your complete session history and statistics to CSV (files are saved to the `/SCT_Exports` directory within your Celeste installation folder)
+* **Data Export:** Export your complete session history and statistics to CSV (files are saved to `SCT_Exports/<level>/`, next to your `Mods` folder — the Celeste installation folder in a normal install)
 
 ## Charts
 
