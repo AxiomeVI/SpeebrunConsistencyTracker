@@ -14,7 +14,7 @@ public static partial class ModMenuOptions
         TextMenu.Slider minutes = new(
             Dialog.Clean(DialogIds.Minutes),
             i => i.ToString(),
-            0, 30,
+            0, 59,
             _settings.Minutes);
 
         FormattedIntSlider seconds = new(
@@ -59,11 +59,7 @@ public static partial class ModMenuOptions
                     if (!confirmed) return;
                     if (TimeParser.TryParseTime(pendingValue, out TimeSpan result))
                     {
-                        _settings.Minutes                 = result.Minutes;
-                        _settings.Seconds                 = result.Seconds;
-                        _settings.MillisecondsFirstDigit  = result.Milliseconds / 100;
-                        _settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
-                        _settings.MillisecondsThirdDigit  = result.Milliseconds % 10;
+                        _settings.SetTargetTime(result);
                         SyncSlidersFromSettings();
                         SpeebrunConsistencyTrackerModule.PopupMessage(
                             $"{Dialog.Clean(DialogIds.PopupTargetTimeSetId)} {result:mm\\:ss\\.fff}");
@@ -72,7 +68,7 @@ public static partial class ModMenuOptions
                     else
                     {
                         SpeebrunConsistencyTrackerModule.PopupMessage(
-                            Dialog.Clean(DialogIds.PopupInvalidTargetTimeId));
+                            Dialog.Clean(DialogIds.PopupInvalidTypedTargetTimeId));
                     }
                 },
                 9, 0);

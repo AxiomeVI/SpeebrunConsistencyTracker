@@ -48,6 +48,28 @@ internal class KeybindConfigUi : TextMenu {
 
     private string RemappingLabel => Dialog.Clean(_remappingBind.LabelKey);
 
+    // ComboHotkey reads the raw keyboard every frame and the Level keeps updating underneath this
+    // screen, so it has to know the screen is open or a key pressed while remapping fires the
+    // hotkey it is bound to. Counted, not a bool, and decremented on SceneEnd as well: a scene
+    // change drops the entity without ever reaching Close().
+    private static int _openCount;
+    internal static bool IsOpen => _openCount > 0;
+
+    public override void Added(Scene scene) {
+        base.Added(scene);
+        _openCount++;
+    }
+
+    public override void Removed(Scene scene) {
+        base.Removed(scene);
+        _openCount = Math.Max(0, _openCount - 1);
+    }
+
+    public override void SceneEnd(Scene scene) {
+        base.SceneEnd(scene);
+        _openCount = Math.Max(0, _openCount - 1);
+    }
+
     public KeybindConfigUi() {
         Reload();
         OnESC = OnCancel = () => { Focused = false; _closing = true; };

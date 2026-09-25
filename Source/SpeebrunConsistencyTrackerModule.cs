@@ -201,6 +201,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         _nextGraphHotkey.Update();
         _previousGraphHotkey.Update();
         _clearStatsHotkey.Update();
+        UI.ComboHotkey.ResolveOverlaps(
+            _importTargetTimeHotkey, _statsExportHotkey, _toggleGraphHotkey,
+            _nextGraphHotkey, _previousGraphHotkey, _clearStatsHotkey);
 
         if (_importTargetTimeHotkey.Pressed) ImportTargetTimeFromClipboard();
 
@@ -236,8 +239,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private static void OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!isFromLoader) return;
         TextOverlay.Init();
-        string[] parts = level.Session.Area.GetSID().Split('-', 2);
-        SessionManager.LevelName = parts.Length > 1 ? parts[1] : "unknown";
+        SessionManager.LevelName = Utility.LevelNames.ForExportFolder(
+            level.Session.Area.GetSID(), (int)level.Session.Area.Mode);
     }
 
     private static void UpdateTextOverlay(Level _) {
@@ -345,11 +348,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         TimeSpan result = TimeSpan.Zero;
         bool success = !string.IsNullOrEmpty(input) && TimeParser.TryParseTime(input, out result);
         if (success) {
-            Settings.Minutes = result.Minutes;
-            Settings.Seconds = result.Seconds;
-            Settings.MillisecondsFirstDigit = result.Milliseconds / 100;
-            Settings.MillisecondsSecondDigit = result.Milliseconds / 10 % 10;
-            Settings.MillisecondsThirdDigit = result.Milliseconds % 10;
+            Settings.SetTargetTime(result);
             PopupMessage($"{Dialog.Clean(DialogIds.PopupTargetTimeSetId)} {result:mm\\:ss\\.fff}");
             Instance.SaveSettings();
         } else {

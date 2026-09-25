@@ -23,6 +23,17 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public int MillisecondsSecondDigit { get; set; } = 0;
     public int MillisecondsThirdDigit { get; set; } = 0;
 
+    // One place for the digit split: the typed box and the clipboard import both landed here and
+    // had drifted into two copies of it. TimeParser rejects anything these five fields cannot hold.
+    public void SetTargetTime(System.TimeSpan time)
+    {
+        Minutes = (int)time.TotalMinutes;
+        Seconds = time.Seconds;
+        MillisecondsFirstDigit = time.Milliseconds / 100;
+        MillisecondsSecondDigit = time.Milliseconds / 10 % 10;
+        MillisecondsThirdDigit = time.Milliseconds % 10;
+    }
+
     // Text Overlay menu
     public bool OverlayEnabled { get; set; } = true;
     public int TextSize { get; set; } = 65;

@@ -15,7 +15,9 @@ public static class DataExporter
 
     private static bool TryGetExportData(out PracticeSession session)
     {
-        if (SessionManager.CurrentSession?.TotalAttempts == 0)
+        // `?.TotalAttempts == 0` was false for a null session, so exporting from the pause menu
+        // before any attempt existed wrote an empty file, or threw inside the history exporter.
+        if (SessionManager.CurrentSession is not { TotalAttempts: > 0 })
         {
             session = null;
             return false;
@@ -68,11 +70,11 @@ public static class DataExporter
             "SCT_Exports",
             SanitizeFileName(SessionManager.LevelName)
         );
-        string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-
         try
         {
             _ = Directory.CreateDirectory(baseFolder);
+            // Second resolution alone let two exports in the same second overwrite each other.
+            string timestamp = UniqueTimestamp(baseFolder);
             using (StreamWriter writer = File.CreateText(Path.Combine(baseFolder, $"{timestamp}_Metrics.csv")))
             {
                 writer.WriteLine(MetricsExporter.ExportSessionToCsv(session));
@@ -91,6 +93,20 @@ public static class DataExporter
         }
 
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileId));
+    }
+
+    // Suffixed only on collision, so the common case keeps the plain readable timestamp.
+    internal static string UniqueTimestamp(string folder, Func<string, bool> exists = null)
+    {
+        exists ??= File.Exists;
+        string stamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+        if (!exists(Path.Combine(folder, $"{stamp}_Metrics.csv"))) return stamp;
+        for (int n = 2; n < 1000; n++)
+        {
+            string candidate = $"{stamp}_{n}";
+            if (!exists(Path.Combine(folder, $"{candidate}_Metrics.csv"))) return candidate;
+        }
+        return stamp;
     }
 
     public static string SanitizeFileName(string input)

@@ -291,7 +291,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double range = (double)max - (double)min;
             int binCount = (int)Math.Ceiling(range / binWidth) + 1;
             binCount = Math.Clamp(binCount, 5, 50); // Keep it within sane limits for performance
-            // Refit the width to the clamped bin count.
+            // Refit the width to the clamped bin count. Everything downstream — filling the bins
+            // and converting a bin index back to a time — must use this width, not binWidth.
             double finalBinWidth = (binCount > 1) ? range / (binCount - 1) : ONE_FRAME;
 
             int[] bins = new int[binCount];
@@ -314,8 +315,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 // Two tallest peaks, then back into time order.
                 var topTwo = localMaxima.OrderByDescending(m => m.count).Take(2).OrderBy(m => m.index).ToList();
 
-                fastVal = GetRefinedPeak(topTwo[0].index, bins, min, binWidth);
-                slowVal = GetRefinedPeak(topTwo[1].index, bins, min, binWidth);
+                fastVal = GetRefinedPeak(topTwo[0].index, bins, min, finalBinWidth);
+                slowVal = GetRefinedPeak(topTwo[1].index, bins, min, finalBinWidth);
             }
             else if (noDominantPeak)
             {
@@ -324,7 +325,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             else
             {
                 var (index, count) = localMaxima.OrderByDescending(m => m.count).First();
-                fastVal = slowVal = GetRefinedPeak(index, bins, min, binWidth);
+                fastVal = slowVal = GetRefinedPeak(index, bins, min, finalBinWidth);
             }
 
             // Every run joins its nearest peak, which gives Weight and Consistency.
@@ -402,7 +403,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (index > 0) { weightSum += bins[index - 1]; indexSum += (index - 1) * bins[index - 1]; }
             if (index < bins.Length - 1) { weightSum += bins[index + 1]; indexSum += (index + 1) * bins[index + 1]; }
 
-            return min + (indexSum / weightSum * width);
+            // + 0.5: a sample in bin i lies anywhere in [i, i+1), so the bin's representative
+            // time is its centre. Left edges reported every peak half a bin early.
+            return min + ((indexSum / weightSum) + 0.5) * width;
         }
 
         private static PeakMetrics CreatePeakMetrics(List<double> cluster, double peakValue, int totalCount)

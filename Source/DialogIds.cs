@@ -43,6 +43,7 @@ public static class DialogIds {
     // Popup message
     public const string PopupTargetTimeSetId = "SCT_POPUP_TARGET_TIME_SET";
     public const string PopupInvalidTargetTimeId = "SCT_INVALID_TIME_IMPORT";
+    public const string PopupInvalidTypedTargetTimeId = "SCT_INVALID_TIME_INPUT";
     public const string PopupExportToClipboardId = "SCT_EXPORT_TO_CLIPBOARD";
     public const string PopupInvalidExportId = "SCT_INVALID_EXPORT";
     public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";

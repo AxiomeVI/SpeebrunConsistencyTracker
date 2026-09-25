@@ -5,7 +5,7 @@ SCT_ENABLE_MOD=                            Enabled
 # ==================== Target Time =============================
 SCT_TARGET_TIME=                           Set Target Time
 SCT_INPUT_TARGET_TIME=                     Current target time
-SCT_TARGET_TIME_FORMAT=                    Format: mm:ss.123 or ss.123
+SCT_TARGET_TIME_FORMAT=                    Format: mm:ss.fff, ss.fff, or a plain number of seconds
 SCT_RESET_TARGET_TIME=                     Reset target time
 SCT_MINUTES=                               Minutes
 SCT_SECONDS=                               Seconds
@@ -65,7 +65,8 @@ SCT_KEY_PREVIOUS_GRAPH=                    Switch to previous chart
 
 # ===================== Popup message ==========================
 SCT_POPUP_TARGET_TIME_SET=                 Target time set to
-SCT_INVALID_TIME_IMPORT=                   Invalid time format in clipboard. Please use m:ss.SSS or ss.SSS format
+SCT_INVALID_TIME_IMPORT=                   Invalid time in clipboard. Use mm:ss.fff, ss.fff, or a plain number of seconds, up to 59:59.999
+SCT_INVALID_TIME_INPUT=                    Invalid time. Use mm:ss.fff, ss.fff, or a plain number of seconds, up to 59:59.999
 SCT_EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 SCT_INVALID_EXPORT=                        No data to export
 SCT_EXPORT_TO_FILE=                        Session data exported to file
