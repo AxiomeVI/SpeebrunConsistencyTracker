@@ -47,13 +47,10 @@ SCT_BOX_PLOT_GRAPH=                        Box Plot
 
 # ======================= Hotkeys ==============================
 SCT_KEYBIND_CONFIG=                        Hotkeys
-SCT_KEYBIND_COMBO_SUB=                     Each key you press is added to the combo, and all of them must be held to fire it. Press a bound key again to remove it.
+SCT_KEYBIND_COMBO_SUB=                     Binding several keys makes a combo: hold them all together. Press a bound key again to unbind it.
 SCT_KEYBIND_CLEAR_SUB=                     Press Journal or Delete to clear the selected hotkey
-SCT_KEY_CONFIG_TITLE=                      Keyboard
-SCT_BTN_CONFIG_TITLE=                      Controller
-SCT_KEY_CONFIG_CHANGING=                   Press a key for
-SCT_BTN_CONFIG_CHANGING=                   Press a button for
-SCT_BTN_CONFIG_NO_CONTROLLER=              No controller connected
+# {0} is the seconds left before recording gives up.
+SCT_KEYBIND_TIMEOUT_FMT=                   Cancelling in {0}s - press Escape to cancel now
 SCT_KEY_STATS_EXPORT=                      Export data
 SCT_KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
 SCT_TOGGLE_GRAPH_OVERLAY=                  Show/hide the chart overlay

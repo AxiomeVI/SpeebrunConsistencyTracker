@@ -3,7 +3,6 @@ using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
-using System.Reflection;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
 
@@ -141,39 +140,17 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         // Migrates a settings file written while the Sheets export still existed.
         if (ExportMode == ExportChoice.Sheet) ExportMode = ExportChoice.Clipboard;
 
-        // Reflected, not listed. A hand-written array of the same six bindings was a second copy
-        // of the keybind set, and the KeybindConfigUi table is a third: a seventh keybind added to
-        // one and forgotten here would never get Keys.None stripped from it. Runs once, at load.
-        //
-        // IsAssignableFrom, not ==, because that is what Everest's own OnInputInitialize uses to
-        // decide which properties it initializes; matching it keeps the two enumerations from
-        // drifting apart over a ButtonBinding subclass. DeclaredOnly is safe only because
-        // EverestModuleSettings declares nothing itself — a base class holding a keybind would be
-        // skipped here and still initialized by Everest. The two guards are what the hand-written
-        // array gave for free: an indexer or a write-only property typed ButtonBinding would make
-        // GetValue(this) throw at load, and the compiler can no longer catch that for us.
-        foreach (PropertyInfo property in GetType().GetProperties(
-                     BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)) {
-            if (!typeof(ButtonBinding).IsAssignableFrom(property.PropertyType)) continue;
-            if (property.GetIndexParameters().Length > 0 || !property.CanRead) continue;
-
-            // Never create a null binding here: Everest creates it later in OnInputInitialize
-            // and only then reads [DefaultButtonBinding], which it would skip if one exists.
-            if (property.GetValue(this) is not ButtonBinding keybind) continue;
-
-            keybind.Keys    ??= new();
-            keybind.Buttons ??= new();
-            // Keys.None is a real key that reads as held, and Everest's own rebind screen lets
-            // it through, so a settings file can carry it however careful our screen is.
-            keybind.Keys.RemoveAll(key => key == Keys.None);
-        }
+        // Keys.None reads as held for every unmappable key, and a settings file can carry it
+        // whatever the remap screen allows.
+        CelesteHotkeys.Bindable.Sanitize(this);
     }
 
     #region Hotkeys
 
     // [SettingIgnore] hides these from Everest's key config screen, which presents several
-    // bound keys as alternatives while ComboHotkey reads them as all-held-at-once. Everest
-    // still initializes them: OnInputInitialize ignores the attribute.
+    // bound keys as alternatives while CelesteHotkeys reads them as all-held-at-once. Everest
+    // still initializes them: OnInputInitialize ignores the attribute. Each needs a row in
+    // UI.Hotkeys, the only screen that can bind it. Renaming one drops every player's binding.
 
     [SettingName(DialogIds.KeyImportTargetTimeId)]
     [SettingSubText(DialogIds.KeybindComboSubId)]

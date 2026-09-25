@@ -34,12 +34,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private static int _lastKnownRoomCount = 0;
     private static Func<long> _getCurrentRoomTime;
 
-    private static UI.ComboHotkey _importTargetTimeHotkey;
-    private static UI.ComboHotkey _statsExportHotkey;
-    private static UI.ComboHotkey _toggleGraphHotkey;
-    private static UI.ComboHotkey _nextGraphHotkey;
-    private static UI.ComboHotkey _previousGraphHotkey;
-    private static UI.ComboHotkey _clearStatsHotkey;
 
     public SpeebrunConsistencyTrackerModule() {
         Instance = this;
@@ -111,13 +105,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
                 "SpeedrunTool member not found: RoomTimerManager.UpdateTimerState (public static method). The room timer hook is not installed, no room completion is ever recorded.");
         }
-
-        _importTargetTimeHotkey = new UI.ComboHotkey(() => Settings.Keybind_ImportTargetTime);
-        _statsExportHotkey      = new UI.ComboHotkey(() => Settings.Keybind_StatsExport);
-        _toggleGraphHotkey      = new UI.ComboHotkey(() => Settings.Keybind_ToggleGraphOverlay);
-        _nextGraphHotkey        = new UI.ComboHotkey(() => Settings.Keybind_NextGraph);
-        _previousGraphHotkey    = new UI.ComboHotkey(() => Settings.Keybind_PreviousGraph);
-        _clearStatsHotkey       = new UI.ComboHotkey(() => Settings.Keybind_ClearStats);
     }
 
     public override void Unload() {
@@ -129,12 +116,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         _updateTimerStateHook?.Dispose();
         _updateTimerStateHook   = null;
         _getCurrentRoomTime = null;
-        _importTargetTimeHotkey = null;
-        _statsExportHotkey      = null;
-        _toggleGraphHotkey      = null;
-        _nextGraphHotkey        = null;
-        _previousGraphHotkey    = null;
-        _clearStatsHotkey       = null;
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
@@ -183,23 +164,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
 
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
+        // Polled before the Enabled check: off counts as a pause, so a combo held while the mod is
+        // switched back on does not fire.
+        UI.Hotkeys.Set.Update(Settings.Enabled);
         if (!Settings.Enabled) {
             orig(self);
             return;
         }
 
-        UI.ComboHotkey.UpdateStates();
-        _importTargetTimeHotkey.Update();
-        _statsExportHotkey.Update();
-        _toggleGraphHotkey.Update();
-        _nextGraphHotkey.Update();
-        _previousGraphHotkey.Update();
-        _clearStatsHotkey.Update();
-        UI.ComboHotkey.ResolveOverlaps(
-            _importTargetTimeHotkey, _statsExportHotkey, _toggleGraphHotkey,
-            _nextGraphHotkey, _previousGraphHotkey, _clearStatsHotkey);
-
-        if (_importTargetTimeHotkey.Pressed) ImportTargetTimeFromClipboard();
+        if (UI.Hotkeys.Pressed(UI.Hotkeys.ImportTargetTime)) ImportTargetTimeFromClipboard();
 
         if (SessionManager.CurrentSession == null) {
             orig(self);
@@ -233,6 +206,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void OnLoadLevel(Level level, Player.IntroTypes playerIntro, bool isFromLoader) {
         if (!isFromLoader) return;
+        // The hotkeys are polled from Level.Update only, so a combo pressed outside a level and
+        // still held here would read as a fresh press -- and ClearStats wipes the session.
+        UI.Hotkeys.Set.Resync();
         TextOverlay.Init();
         SessionManager.LevelName = Utility.LevelNames.ForExportFolder(
             level.Session.Area.GetSID(), (int)level.Session.Area.Mode);
@@ -258,7 +234,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void HandleExportButton() {
-        if (_statsExportHotkey.Pressed)
+        if (UI.Hotkeys.Pressed(UI.Hotkeys.StatsExport))
         {
             if (Settings.ExportMode == ExportChoice.Clipboard)
                 ExportDataToClipboard();
@@ -268,7 +244,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void HandleClearButton() {
-        if (_clearStatsHotkey.Pressed) {
+        if (UI.Hotkeys.Pressed(UI.Hotkeys.ClearStats)) {
             // Counted before the clear: a single unconfirmed keypress wipes the session, and the
             // popup said only that it had happened, not how much it took.
             int attempts = SessionManager.CurrentSession?.TotalAttempts ?? 0;
@@ -278,7 +254,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void UpdateGraphOverlay(Level self) {
-        if (_toggleGraphHotkey.Pressed || GraphManager.IsShowing()) {
+        if (UI.Hotkeys.Pressed(UI.Hotkeys.ToggleGraph) || GraphManager.IsShowing()) {
             SessionManager.UpdateRoomCount();
         }
         int currentRoomCount = SessionManager.RoomCount;
@@ -288,16 +264,16 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             GraphManager.RebuildEnabledSlots();
         }
 
-        if (_toggleGraphHotkey.Pressed) {
+        if (UI.Hotkeys.Pressed(UI.Hotkeys.ToggleGraph)) {
             if (GraphManager.IsShowing())
                 GraphManager.HideGraph();
             else if (!self.Paused)
                 GraphManager.CurrentGraph();
         } else if (GraphManager.IsShowing())
         {
-            if (_nextGraphHotkey.Pressed)
+            if (UI.Hotkeys.Pressed(UI.Hotkeys.NextGraph))
                 GraphManager.NextGraph();
-            else if (_previousGraphHotkey.Pressed)
+            else if (UI.Hotkeys.Pressed(UI.Hotkeys.PreviousGraph))
                 GraphManager.PreviousGraph();
         }
     }

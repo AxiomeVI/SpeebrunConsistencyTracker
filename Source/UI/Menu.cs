@@ -73,14 +73,8 @@ new(DialogIds.SuccessRateId,            () => _settings.SuccessRate,            
             CreateGraphOverlaySubMenu(menu)
         ];
 
-        TextMenu.Button keybindButton = new TextMenu.Button(Dialog.Clean(DialogIds.KeybindConfigId));
-        keybindButton.Pressed(() => {
-            menu.Focused = false;
-            var ui = new KeybindConfigUi();
-            ui.OnClose = () => menu.Focused = true;
-            Engine.Scene.Add(ui);
-            Engine.Scene.OnEndOfFrame += () => Engine.Scene.Entities.UpdateLists();
-        });
+        TextMenu.Button keybindButton = CelesteHotkeys.HotkeyMenu.OpenButton(
+            menu, Hotkeys.Set, Hotkeys.Text, SpeebrunConsistencyTrackerModule.Instance.SaveSettings);
         // Change does not fire at construction, so the initial visibility is set here.
         keybindButton.Visible = _settings.Enabled;
 
