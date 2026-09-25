@@ -1,7 +1,6 @@
 using System;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
-using Celeste.Mod.UI;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
@@ -31,47 +30,50 @@ public static partial class ModMenuOptions
             _settings.Milliseconds,
             v => v.ToString("D3"));
 
-        minutes.Change(v => { _settings.Minutes = v;                   MetricEngine.InvalidateSettingsHash(); });
-        seconds.Change(v => { _settings.Seconds = v;                   MetricEngine.InvalidateSettingsHash(); });
-        milliseconds.Change(v => { _settings.Milliseconds = v;         MetricEngine.InvalidateSettingsHash(); });
-
-        // Declared first so SyncSlidersFromSettings can close over it.
+        // Declared first so SyncSlidersFromSettings and the sliders can close over it.
         TextMenu.Button inputTimeButton = new(Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime());
+        // The button shows the time too, and on the title screen it sits above the sliders.
+        void RefreshButtonLabel() => inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
+
+        minutes.Change(v => { _settings.Minutes = v;           MetricEngine.InvalidateSettingsHash(); RefreshButtonLabel(); });
+        seconds.Change(v => { _settings.Seconds = v;           MetricEngine.InvalidateSettingsHash(); RefreshButtonLabel(); });
+        milliseconds.Change(v => { _settings.Milliseconds = v; MetricEngine.InvalidateSettingsHash(); RefreshButtonLabel(); });
 
         void SyncSlidersFromSettings()
         {
             minutes.Index = _settings.Minutes;
             seconds.Index = _settings.Seconds;
             milliseconds.Index = _settings.Milliseconds;
-            inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
+            RefreshButtonLabel();
             MetricEngine.InvalidateSettingsHash();
         }
 
         inputTimeButton.Pressed(() =>
         {
             Audio.Play(SFX.ui_main_savefile_rename_start);
-            string pendingValue = GetTargetTime();
-            menu.SceneAs<Overworld>().Goto<OuiModOptionString>().Init<OuiModOptions>(
-                GetTargetTime(),
-                v => pendingValue = v,
-                confirmed =>
+            // ⚠️ The SUBMENU, not the menu: a SubMenu reads MenuConfirm by its own Focused flag, so
+            // with only the menu unfocused every Confirm typed here also pressed this button again
+            // and stacked another screen.
+            sub.Focused = false;
+            // Captured, not read again at end of frame: Engine.Scene can change in between.
+            Monocle.Scene scene = menu.Scene;
+            scene.Add(new UI.TargetTimeEntry(GetTargetTime(), typed =>
+            {
+                if (TimeParser.TryParseTime(typed, out TimeSpan result))
                 {
-                    if (!confirmed) return;
-                    if (TimeParser.TryParseTime(pendingValue, out TimeSpan result))
-                    {
-                        _settings.SetTargetTime(result);
-                        SyncSlidersFromSettings();
-                        SpeebrunConsistencyTrackerModule.PopupMessage(
-                            $"{Dialog.Clean(DialogIds.PopupTargetTimeSetId)} {result:mm\\:ss\\.fff}");
-                        _instance.SaveSettings();
-                    }
-                    else
-                    {
-                        SpeebrunConsistencyTrackerModule.PopupMessage(
-                            Dialog.Clean(DialogIds.PopupInvalidTypedTargetTimeId));
-                    }
-                },
-                9, 0);
+                    _settings.SetTargetTime(result);
+                    SyncSlidersFromSettings();
+                    SpeebrunConsistencyTrackerModule.PopupMessage(
+                        $"{Dialog.Clean(DialogIds.PopupTargetTimeSetId)} {result:mm\\:ss\\.fff}");
+                    _instance.SaveSettings();
+                }
+                else
+                {
+                    SpeebrunConsistencyTrackerModule.PopupMessage(
+                        Dialog.Clean(DialogIds.PopupInvalidTypedTargetTimeId));
+                }
+            }, () => sub.Focused = true));
+            scene.OnEndOfFrame += () => scene.Entities.UpdateLists();
         });
 
         TextMenu.Button importButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.KeyImportTargetTimeId))
@@ -99,9 +101,9 @@ public static partial class ModMenuOptions
         sub.Add(seconds);
         sub.Add(milliseconds);
 
-        minutes.Visible = inGame;
-        seconds.Visible = inGame;
-        milliseconds.Visible = inGame;
+        // The sliders show everywhere: the typed entry is Everest's text screen, which reads the
+        // keyboard layout, and a layout that needs Shift for digits types symbols instead.
+        // The typed entry itself only exists on the title screen, where that screen can open.
         inputTimeButton.Visible = !inGame;
 
         importButton.AddDescription(sub, menu, Dialog.Clean(DialogIds.TargetTimeFormatId));

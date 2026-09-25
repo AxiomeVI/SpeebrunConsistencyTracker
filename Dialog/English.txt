@@ -60,8 +60,8 @@ SCT_KEY_PREVIOUS_GRAPH=                    Switch to previous chart
 
 # ===================== Popup message ==========================
 SCT_POPUP_TARGET_TIME_SET=                 Target time set to
-SCT_INVALID_TIME_IMPORT=                   Invalid time in clipboard. Use mm:ss.fff, ss.fff, or a plain number of seconds, up to 59:59.999
-SCT_INVALID_TIME_INPUT=                    Invalid time. Use mm:ss.fff, ss.fff, or a plain number of seconds, up to 59:59.999
+SCT_INVALID_TIME_IMPORT=                   Invalid time in clipboard. Use mm:ss.fff, up to 59:59.999
+SCT_INVALID_TIME_INPUT=                    Invalid time. Use mm:ss.fff, up to 59:59.999
 SCT_EXPORT_TO_CLIPBOARD=                   Session data exported to clipboard
 SCT_INVALID_EXPORT=                        No data to export
 SCT_EXPORT_TO_FILE=                        Session data exported to file

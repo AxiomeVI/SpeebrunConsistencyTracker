@@ -14,6 +14,9 @@ public class TimeParserTests
     [InlineData("23.45", 0, 0, 23, 450)]
     [InlineData("23.4", 0, 0, 23, 400)]
     [InlineData(".456", 0, 0, 0, 456)]
+    // A comma is the decimal separator on French layouts, where it is unshifted and "." is not.
+    [InlineData("1:23,456", 0, 1, 23, 456)]
+    [InlineData("23,4", 0, 0, 23, 400)]
     public void TryParseTime_parses_the_documented_formats(
         string input, int hours, int minutes, int seconds, int milliseconds)
     {

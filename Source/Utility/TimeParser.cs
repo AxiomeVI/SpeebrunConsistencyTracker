@@ -35,7 +35,8 @@ public static class TimeParser
             @"\.fff",       @"\.ff",       @"\.f"
         ];
 
-        string trimmed = input.Trim().TrimStart('0', ':');
+        // A comma is the decimal separator on French layouts, where it is unshifted and "." is not.
+        string trimmed = input.Trim().Replace(',', '.').TrimStart('0', ':');
         if (string.IsNullOrEmpty(trimmed))
         {
             result = TimeSpan.Zero;
