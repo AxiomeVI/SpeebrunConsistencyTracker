@@ -22,7 +22,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private float _hoveredBarTopY;
 
         public HistogramOverlay(string roomName, List<TimeTicks> times, bool isSegment = false, Vector2? pos = null)
-            : base($"Time Distribution - {roomName}", pos)
+            : base(Utility.DialogText.Format(DialogIds.ChartHistogramTitleFmt, roomName), pos)
         {
             this.times = times;
             _isSegment = isSegment;
@@ -146,7 +146,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 }
             }
 
-            string stats = $"Total: {times.Count}";
+            string stats = Utility.DialogText.Format(DialogIds.ChartTotalFmt, times.Count);
             Vector2 statsSize = ActiveFont.Measure(stats) * ChartConstants.FontScale.AxisLabelMedium;
             ActiveFont.DrawOutline(
                 stats,
@@ -211,7 +211,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             string minStr = new Domain.Time.TimeTicks(minTick).ToString();
             string maxStr = new Domain.Time.TimeTicks(maxTick).ToString();
             double pct    = times.Count > 0 ? 100.0 * count / times.Count : 0.0;
-            string label  = $"{count} {(count == 1 ? "run" : "runs")} ({pct:F1}%)\n[{minStr}, {maxStr})";
+            // The range stays out of the dialog file: its loader reads "[...]" as a portrait tag.
+            string runs   = Utility.DialogText.Format(count == 1 ? DialogIds.ChartBinOneRunFmt : DialogIds.ChartBinRunsFmt, count, pct.ToString("F1"));
+            string label  = $"{runs}\n[{minStr}, {maxStr})";
 
             float barCenterX = barX + actualBarWidth / 2f;
             int   lineCount  = label.Split('\n').Length;

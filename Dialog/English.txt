@@ -107,3 +107,61 @@ SCT_ALL_METRICS_ON_BUTTON=                 Turn on all metrics
 SCT_ALL_ON_DESC=                           Applied to both text overlay and export
 SCT_RESET_METRICS_BUTTON=                  Reset to default
 SCT_METRICS_SUBHEADER=                     Configure Stats Output: Off, Overlay, Export, or Both
+
+# ======================== Charts ==============================
+# A key ending in _FMT is read raw, through Dialog.Get, and filled with string.Format. Every other
+# key goes through Dialog.Clean, which DELETES every {...} but {n} -- so a placeholder belongs in
+# an _FMT line and nowhere else. DialogKeyTests holds both halves. Keep square brackets out: the
+# loader reads [...] as a portrait tag.
+SCT_CHART_LABEL_VALUE_FMT=                 {0}: {1}
+SCT_CHART_SEGMENT=                         Segment
+SCT_CHART_SEGMENT_ROOMS_FMT=               Segment ({0})
+SCT_CHART_ONE_ROOM=                        1 room
+SCT_CHART_ROOMS_FMT=                       {0} rooms
+SCT_CHART_ONE_RUN=                         1 Run
+SCT_CHART_RUNS_FMT=                        {0} Runs
+SCT_CHART_DELETE=                          Delete
+SCT_CHART_ABSOLUTE=                        Absolute
+SCT_CHART_RELATIVE=                        Relative
+SCT_CHART_PRIMARY=                         Primary
+SCT_CHART_SECONDARY=                       Secondary
+SCT_CHART_VALUE=                           Value
+
+SCT_CHART_SCATTER_TITLE=                   Room and Segment Times
+SCT_CHART_TARGET_FMT=                      Target: {0}
+SCT_CHART_RUN_TIME_FMT=                    Run #{0}: {1}
+
+SCT_CHART_BOX_PLOT_TITLE=                  Room and Segment Box Plot
+SCT_CHART_STAT_MAX=                        Max
+SCT_CHART_STAT_MEDIAN=                     Median
+SCT_CHART_STAT_MIN=                        Min
+
+SCT_CHART_HISTOGRAM_TITLE_FMT=             Time Distribution - {0}
+SCT_CHART_TOTAL_FMT=                       Total: {0}
+SCT_CHART_BIN_ONE_RUN_FMT=                 {0} run ({1}%)
+SCT_CHART_BIN_RUNS_FMT=                    {0} runs ({1}%)
+
+SCT_CHART_RESET_SURVIVAL_TITLE=            Reset Rate per Room & Segment Survival Rate
+SCT_CHART_RESET_RATE=                      Reset rate
+SCT_CHART_RUNS_ALIVE=                      Runs still alive
+SCT_CHART_PROBLEM_ROOMS_TITLE_FMT=         Problem Rooms (threshold: {0}ms over session best)
+SCT_CHART_OVER_THRESHOLD_FMT=              >{0}ms over session best
+SCT_CHART_TIME_LOSS_TITLE=                 Time Loss per Room
+SCT_CHART_MEDIAN_LOSS=                     Median loss
+SCT_CHART_AVG_LOSS=                        Avg loss
+
+SCT_CHART_TRAJECTORY_TITLE=                Run Trajectory — Deviation from average
+SCT_CHART_AVG=                             Avg
+SCT_CHART_SOB=                             SoB
+SCT_CHART_VS_AVG=                          vs Avg
+SCT_CHART_VS_SOB=                          vs SoB
+SCT_CHART_VS_RUN_FMT=                      vs #{0}
+SCT_CHART_RUN_FMT=                         Run #{0}
+SCT_CHART_VS_BEST_SPLIT=                   vs Best Split
+SCT_CHART_CUMUL=                           cumul
+SCT_CHART_ROOM=                            room
+SCT_CHART_LEGEND_ALL_THREE=                SoB, Best & Last run
+SCT_CHART_LEGEND_SOB_BEST=                 SoB & Best run
+SCT_CHART_LEGEND_BEST_LAST=                Best & Last run
+SCT_CHART_LEGEND_BEST=                     Best run
+SCT_CHART_LEGEND_LAST=                     Last run

@@ -48,7 +48,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             PracticeSession session,
             int totalRooms,
             Vector2? pos = null)
-            : base("Run Trajectory — Deviation from average", pos)
+            : base(Dialog.Clean(DialogIds.ChartTrajectoryTitle), pos)
         {
             _totalRooms = totalRooms;
             _gx = position.X + marginH;

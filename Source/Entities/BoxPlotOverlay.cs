@@ -37,7 +37,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             List<List<TimeTicks>> roomTimes,
             List<TimeTicks> segmentTimes,
             Vector2? pos = null)
-            : base("Room and Segment Box Plot", pos)
+            : base(Dialog.Clean(DialogIds.ChartBoxPlotTitle), pos)
         {
             _roomTimes    = [.. roomTimes.Select(r => (List<TimeTicks>)[.. r.OrderBy(t => t)])];
             _segmentTimes = [.. segmentTimes.OrderBy(t => t)];
@@ -294,8 +294,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float segLabelY = totalColumns >= ChartConstants.XAxisLabel.StaggerThreshold
                 ? (roomCount % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                 : baseLabelY;
-            Vector2 segLabelSize = ActiveFont.Measure("Segment") * ChartConstants.FontScale.AxisLabel;
-            ActiveFont.DrawOutline("Segment",
+            Vector2 segLabelSize = ActiveFont.Measure(Dialog.Clean(DialogIds.ChartSegment)) * ChartConstants.FontScale.AxisLabel;
+            ActiveFont.DrawOutline(Dialog.Clean(DialogIds.ChartSegment),
                 new Vector2(segX - segLabelSize.X / 2, segLabelY),
                 Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
                 _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
@@ -429,11 +429,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Y grows downward, so the slowest stat sits highest: Max, Q3, Median, Q1, Min.
             var raw = new (string name, string val, float py)[]
             {
-                ("Max",    new TimeTicks(b.TickMax).ToString(), b.PxMax),
+                (Dialog.Clean(DialogIds.ChartStatMax),    new TimeTicks(b.TickMax).ToString(), b.PxMax),
                 ("Q3",     new TimeTicks(b.TickQ3).ToString(),  Math.Min(b.PxQ1, b.PxQ3)),
-                ("Median", new TimeTicks(b.TickMed).ToString(), b.PxMed),
+                (Dialog.Clean(DialogIds.ChartStatMedian), new TimeTicks(b.TickMed).ToString(), b.PxMed),
                 ("Q1",     new TimeTicks(b.TickQ1).ToString(),  Math.Max(b.PxQ1, b.PxQ3)),
-                ("Min",    new TimeTicks(b.TickMin).ToString(), b.PxMin),
+                (Dialog.Clean(DialogIds.ChartStatMin),    new TimeTicks(b.TickMin).ToString(), b.PxMin),
             };
 
             // Two passes to spread overlapping labels, down then back up.

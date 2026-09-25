@@ -217,7 +217,7 @@ public static class GraphInteractivity
 
     private static void DrawDeleteRunsButton(BaseChartOverlay overlay)
     {
-        const string text  = "Delete";
+        string       text  = Dialog.Clean(DialogIds.ChartDelete);
         const float  scale = ChartConstants.FontScale.AxisLabelSmall;
         const float  pad   = ChartConstants.Interactivity.TooltipBgPadding;
 

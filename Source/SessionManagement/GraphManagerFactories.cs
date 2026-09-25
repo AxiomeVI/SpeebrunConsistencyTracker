@@ -49,9 +49,9 @@ public static partial class GraphManager
 
     private static HistogramOverlay BuildSegmentHistogram(int roomCount)
     {
-        string label = roomCount == 1 ? "1 room" : $"{roomCount} rooms";
+        string label = Utility.DialogText.Count(roomCount, DialogIds.ChartOneRoom, DialogIds.ChartRoomsFmt);
         return new HistogramOverlay(
-            $"Segment ({label})",
+            Utility.DialogText.Format(DialogIds.ChartSegmentRoomsFmt, label),
             SessionManager.CurrentSession.GetSegmentTimes().ToList(),
             isSegment: true);
     }
@@ -71,9 +71,9 @@ public static partial class GraphManager
         }
 
         return new GroupedPercentOverlay(
-            "Reset Rate per Room & Segment Survival Rate",
+            Dialog.Clean(DialogIds.ChartResetSurvivalTitle),
             labels, dnfRates, survivalRates,
-            "Reset rate", "Runs still alive");
+            Dialog.Clean(DialogIds.ChartResetRate), Dialog.Clean(DialogIds.ChartRunsAlive));
     }
 
     private static PercentBarChartOverlay BuildProblemRoomsChart(int roomCount)
@@ -95,9 +95,9 @@ public static partial class GraphManager
         }).ToList();
 
         return new PercentBarChartOverlay(
-            $"Problem Rooms (threshold: {settings.TimeLossThresholdMs}ms over session best)",
+            Utility.DialogText.Format(DialogIds.ChartProblemRoomsTitleFmt, settings.TimeLossThresholdMs),
             labels, dnfPcts, timeLossPcts,
-            "Reset rate", $">{settings.TimeLossThresholdMs}ms over session best");
+            Dialog.Clean(DialogIds.ChartResetRate), Utility.DialogText.Format(DialogIds.ChartOverThresholdFmt, settings.TimeLossThresholdMs));
     }
 
     private static GroupedBarChartOverlay BuildTimeLossChart(int roomCount)
@@ -124,9 +124,9 @@ public static partial class GraphManager
         }
 
         return new GroupedBarChartOverlay(
-            "Time Loss per Room",
+            Dialog.Clean(DialogIds.ChartTimeLossTitle),
             labels, medianTicks, averageTicks,
-            "Median loss", "Avg loss");
+            Dialog.Clean(DialogIds.ChartMedianLoss), Dialog.Clean(DialogIds.ChartAvgLoss));
     }
 
     private static RunTrajectoryOverlay BuildRunTrajectoryChart(int roomCount)

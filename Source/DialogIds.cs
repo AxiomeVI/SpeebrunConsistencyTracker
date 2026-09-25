@@ -112,4 +112,54 @@ public static class DialogIds {
 
     // Graph Overlay (charts)
     public const string GraphBoxPlotId = "SCT_BOX_PLOT_GRAPH";
+
+    // Chart text. An *Fmt constant names a line read through DialogText.Format, never Dialog.Clean.
+    public const string ChartOpacity = "SCT_CHART_OPACITY";
+    public const string ChartLabelValueFmt = "SCT_CHART_LABEL_VALUE_FMT";
+    public const string ChartSegment = "SCT_CHART_SEGMENT";
+    public const string ChartSegmentRoomsFmt = "SCT_CHART_SEGMENT_ROOMS_FMT";
+    public const string ChartOneRoom = "SCT_CHART_ONE_ROOM";
+    public const string ChartRoomsFmt = "SCT_CHART_ROOMS_FMT";
+    public const string ChartOneRun = "SCT_CHART_ONE_RUN";
+    public const string ChartRunsFmt = "SCT_CHART_RUNS_FMT";
+    public const string ChartDelete = "SCT_CHART_DELETE";
+    public const string ChartAbsolute = "SCT_CHART_ABSOLUTE";
+    public const string ChartRelative = "SCT_CHART_RELATIVE";
+    public const string ChartPrimary = "SCT_CHART_PRIMARY";
+    public const string ChartSecondary = "SCT_CHART_SECONDARY";
+    public const string ChartValue = "SCT_CHART_VALUE";
+    public const string ChartScatterTitle = "SCT_CHART_SCATTER_TITLE";
+    public const string ChartTargetFmt = "SCT_CHART_TARGET_FMT";
+    public const string ChartRunTimeFmt = "SCT_CHART_RUN_TIME_FMT";
+    public const string ChartBoxPlotTitle = "SCT_CHART_BOX_PLOT_TITLE";
+    public const string ChartStatMax = "SCT_CHART_STAT_MAX";
+    public const string ChartStatMedian = "SCT_CHART_STAT_MEDIAN";
+    public const string ChartStatMin = "SCT_CHART_STAT_MIN";
+    public const string ChartHistogramTitleFmt = "SCT_CHART_HISTOGRAM_TITLE_FMT";
+    public const string ChartTotalFmt = "SCT_CHART_TOTAL_FMT";
+    public const string ChartBinOneRunFmt = "SCT_CHART_BIN_ONE_RUN_FMT";
+    public const string ChartBinRunsFmt = "SCT_CHART_BIN_RUNS_FMT";
+    public const string ChartResetSurvivalTitle = "SCT_CHART_RESET_SURVIVAL_TITLE";
+    public const string ChartResetRate = "SCT_CHART_RESET_RATE";
+    public const string ChartRunsAlive = "SCT_CHART_RUNS_ALIVE";
+    public const string ChartProblemRoomsTitleFmt = "SCT_CHART_PROBLEM_ROOMS_TITLE_FMT";
+    public const string ChartOverThresholdFmt = "SCT_CHART_OVER_THRESHOLD_FMT";
+    public const string ChartTimeLossTitle = "SCT_CHART_TIME_LOSS_TITLE";
+    public const string ChartMedianLoss = "SCT_CHART_MEDIAN_LOSS";
+    public const string ChartAvgLoss = "SCT_CHART_AVG_LOSS";
+    public const string ChartTrajectoryTitle = "SCT_CHART_TRAJECTORY_TITLE";
+    public const string ChartAvg = "SCT_CHART_AVG";
+    public const string ChartSob = "SCT_CHART_SOB";
+    public const string ChartVsAvg = "SCT_CHART_VS_AVG";
+    public const string ChartVsSob = "SCT_CHART_VS_SOB";
+    public const string ChartVsRunFmt = "SCT_CHART_VS_RUN_FMT";
+    public const string ChartRunFmt = "SCT_CHART_RUN_FMT";
+    public const string ChartVsBestSplit = "SCT_CHART_VS_BEST_SPLIT";
+    public const string ChartCumul = "SCT_CHART_CUMUL";
+    public const string ChartRoom = "SCT_CHART_ROOM";
+    public const string ChartLegendAllThree = "SCT_CHART_LEGEND_ALL_THREE";
+    public const string ChartLegendSobBest = "SCT_CHART_LEGEND_SOB_BEST";
+    public const string ChartLegendBestLast = "SCT_CHART_LEGEND_BEST_LAST";
+    public const string ChartLegendBest = "SCT_CHART_LEGEND_BEST";
+    public const string ChartLegendLast = "SCT_CHART_LEGEND_LAST";
 }

@@ -133,13 +133,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 bool   hasSecond = i < _secondaryValues.Count;
                 string secondary = hasSecond ? FormatBarLabel(_secondaryValues[i]) : null;
                 return hasSecond
-                    ? $"{_primaryLabel}: {primary}\n{_secondaryLabel}: {secondary}"
-                    : $"{_primaryLabel}: {primary}";
+                    ? Utility.DialogText.LabelValue(_primaryLabel, primary) + "\n" + Utility.DialogText.LabelValue(_secondaryLabel, secondary)
+                    : Utility.DialogText.LabelValue(_primaryLabel, primary);
             }
             if (isPrimary)
-                return $"{_primaryLabel}: {FormatBarLabel(_primaryValues[i])}";
+                return Utility.DialogText.LabelValue(_primaryLabel, FormatBarLabel(_primaryValues[i]));
             if (isSecondary && i < _secondaryValues.Count)
-                return $"{_secondaryLabel}: {FormatBarLabel(_secondaryValues[i])}";
+                return Utility.DialogText.LabelValue(_secondaryLabel, FormatBarLabel(_secondaryValues[i]));
             return "";
         }
 

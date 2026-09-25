@@ -22,8 +22,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             const float pad   = ChartConstants.Interactivity.TooltipBgPadding;
             const float divW  = 2f; // divider between segments
 
-            Vector2 sizeAbs = ActiveFont.Measure("Absolute") * scale;
-            Vector2 sizeRel = ActiveFont.Measure("Relative")  * scale;
+            Vector2 sizeAbs = ActiveFont.Measure(Dialog.Clean(DialogIds.ChartAbsolute)) * scale;
+            Vector2 sizeRel = ActiveFont.Measure(Dialog.Clean(DialogIds.ChartRelative))  * scale;
             float colW   = Math.Max(sizeAbs.X, sizeRel.X) + pad * 2f;
             float btnH   = Math.Max(sizeAbs.Y, sizeRel.Y) + pad * 2f;
             float totalW = colW * 2 + divW;
@@ -40,7 +40,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 !Normalized ? Color.White * 0.35f
                 : absHovered  ? Color.White * 0.15f
                               : ChartConstants.Colors.PanelBackgroundColor);
-            ActiveFont.DrawOutline("Absolute",
+            ActiveFont.DrawOutline(Dialog.Clean(DialogIds.ChartAbsolute),
                 new Vector2(bgX + colW / 2f - sizeAbs.X / 2f, bgY + pad),
                 Vector2.Zero, Vector2.One * scale,
                 !Normalized ? Color.White : Color.Gray * 0.8f,
@@ -53,7 +53,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 Normalized  ? Color.White * 0.35f
                 : relHovered ? Color.White * 0.15f
                              : ChartConstants.Colors.PanelBackgroundColor);
-            ActiveFont.DrawOutline("Relative",
+            ActiveFont.DrawOutline(Dialog.Clean(DialogIds.ChartRelative),
                 new Vector2(bgX + colW + divW + colW / 2f - sizeRel.X / 2f, bgY + pad),
                 Vector2.Zero, Vector2.One * scale,
                 Normalized ? Color.White : Color.Gray * 0.8f,

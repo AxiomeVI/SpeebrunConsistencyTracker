@@ -45,7 +45,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         private Color gridColor = ChartConstants.Colors.GridLineColor;
 
         public ScatterPlotOverlay(List<List<TimeTicks>> rooms, List<List<int>> roomIndices, List<TimeTicks> segment, List<int> segmentIndices, Vector2? pos = null, TimeTicks? target = null)
-            : base("Room and Segment Times", pos)
+            : base(Dialog.Clean(DialogIds.ChartScatterTitle), pos)
         {
             // Drops rooms with no times; the index lists must stay in sync with it.
             var filtered = rooms
@@ -56,7 +56,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             // Labelled by the room's own index, not its position after filtering.
             roomDataList         = filtered.Select(x => new RoomData(Utility.RoomLabels.For(x.originalIndex), x.room)).ToList();
             roomAttemptIndices   = filtered.Select(x => x.indices).ToList();
-            segmentData          = new RoomData("Segment", segment);
+            segmentData          = new RoomData(Dialog.Clean(DialogIds.ChartSegment), segment);
             segmentAttemptIndices = segmentIndices;
             targetTime           = target;
             ComputeMaxValues();
@@ -265,7 +265,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             Draw.Line(new Vector2(segmentStartX, targetY), new Vector2(segmentEndX, targetY), Color.Red, ChartConstants.Stroke.OutlineSize);
 
-            string targetLabel = $"Target: {targetTime.Value}";
+            string targetLabel = Utility.DialogText.Format(DialogIds.ChartTargetFmt, targetTime.Value);
             Vector2 labelSize  = ActiveFont.Measure(targetLabel) * ChartConstants.FontScale.AxisLabelMedium;
             ActiveFont.DrawOutline(
                 targetLabel,
@@ -395,7 +395,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             _hoveredDotIndex = bestIdx;
             var (pos, isSegment, _, globalAttemptIndex, visibleRoomIndex, time) = cachedDots[bestIdx];
 
-            string label     = $"Run #{globalAttemptIndex + 1}: {time}";
+            string label     = Utility.DialogText.Format(DialogIds.ChartRunTimeFmt, globalAttemptIndex + 1, time);
             float lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
             float labelY     = pos.Y - ChartConstants.Scatter.DotRadius - ChartConstants.Interactivity.TooltipPaddingY - lineHeight - ChartConstants.Interactivity.TooltipBgPadding * 2f;
             string key = isSegment
@@ -451,8 +451,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float segmentLabelY = isStaggered
                 ? (roomDataList.Count % 2 == 0 ? baseLabelY : baseLabelY + ChartConstants.XAxisLabel.StaggerOffsetY)
                 : baseLabelY;
-            Vector2 segLabelSize = ActiveFont.Measure("Segment") * ChartConstants.FontScale.AxisLabel;
-            ActiveFont.DrawOutline("Segment",
+            Vector2 segLabelSize = ActiveFont.Measure(Dialog.Clean(DialogIds.ChartSegment)) * ChartConstants.FontScale.AxisLabel;
+            ActiveFont.DrawOutline(Dialog.Clean(DialogIds.ChartSegment),
                 new Vector2(segCenterX2 - segLabelSize.X / 2, segmentLabelY),
                 new Vector2(0f, 0f),
                 Vector2.One * ChartConstants.FontScale.AxisLabel,

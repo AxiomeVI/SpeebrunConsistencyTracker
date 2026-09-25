@@ -100,7 +100,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             Color lineColor = LineColor(lineId);
 
-            string lineLabel = isBaseline ? "Avg" : isSob ? "SoB" : $"#{line.ChronologicalIndex}";
+            string lineLabel = isBaseline ? Dialog.Clean(DialogIds.ChartAvg) : isSob ? Dialog.Clean(DialogIds.ChartSob) : $"#{line.ChronologicalIndex}";
             // Label goes on the middle visible room.
             int visibleCount = 0;
             for (int r = 0; r < effectiveCount; r++)
@@ -230,7 +230,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             bool compIsAvg  = hasComp && _compPin.IsBaseline;
             bool compIsSob  = !hasComp || _compPin.IsSob;
             AttemptLine? compLine  = compIsAvg ? null : compIsSob ? _model.SobLine : _model.Attempts[_compPin.Value];
-            string compLabel = compIsAvg ? "vs Avg" : compIsSob ? "vs SoB" : $"vs #{compLine!.ChronologicalIndex}";
+            string compLabel = compIsAvg ? Dialog.Clean(DialogIds.ChartVsAvg) : compIsSob ? Dialog.Clean(DialogIds.ChartVsSob) : Utility.DialogText.Format(DialogIds.ChartVsRunFmt, compLine!.ChronologicalIndex);
             // With SoB pinned and nothing else, the default comparison is SoB against SoB: three
             // rows of +0.000 taking up the left margin. The section is dropped instead.
             bool showComp   = hasComp || !mainIsSob;
@@ -251,10 +251,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int totalValRows = 1 + (showComp ? 3 : 0);
 
             float maxLabelW = 0f, maxValW = 0f;
-            string attemptHeader = mainIsBaseline ? "Avg" : mainIsSob ? "SoB" : $"Run #{mainLine!.ChronologicalIndex}";
-            var sectionHeaders = new List<string> { attemptHeader, "vs Best Split", "cumul" };
+            string attemptHeader = mainIsBaseline ? Dialog.Clean(DialogIds.ChartAvg) : mainIsSob ? Dialog.Clean(DialogIds.ChartSob) : Utility.DialogText.Format(DialogIds.ChartRunFmt, mainLine!.ChronologicalIndex);
+            string vsBestSplitLabel = Dialog.Clean(DialogIds.ChartVsBestSplit);
+            string cumulLabel       = Dialog.Clean(DialogIds.ChartCumul);
+            string roomLabel        = Dialog.Clean(DialogIds.ChartRoom);
+            var sectionHeaders = new List<string> { attemptHeader, vsBestSplitLabel, cumulLabel };
             if (showComp) sectionHeaders.Add(compLabel);
-            if (showComp) sectionHeaders.AddRange(["cumul", "room"]);
+            if (showComp) sectionHeaders.AddRange([cumulLabel, roomLabel]);
             foreach (var ln in sectionHeaders)
                 maxLabelW = Math.Max(maxLabelW, ActiveFont.Measure(ln).X * scale);
 
@@ -297,19 +300,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 float ty = headerBoxY + bgPad;
                 ActiveFont.DrawOutline(attemptHeader, new Vector2(headerBoxX, ty),
                     Vector2.Zero, Vector2.One * scale, mainColor, ChartConstants.Stroke.OutlineSize, Color.Black);
-                ActiveFont.DrawOutline("vs Best Split", new Vector2(headerBoxX, ty + bestHeaderRow * lineH),
+                ActiveFont.DrawOutline(vsBestSplitLabel, new Vector2(headerBoxX, ty + bestHeaderRow * lineH),
                     Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
                 // Rows 2, 4 and 5 were measured into the box width and then never drawn, so the
                 // value columns had no row labels at all.
-                ActiveFont.DrawOutline("cumul", new Vector2(headerBoxX, ty + (bestHeaderRow + 1) * lineH),
+                ActiveFont.DrawOutline(cumulLabel, new Vector2(headerBoxX, ty + (bestHeaderRow + 1) * lineH),
                     Vector2.Zero, Vector2.One * scale, Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
                 if (showComp)
                 {
                     ActiveFont.DrawOutline(compLabel, new Vector2(headerBoxX, ty + compHeaderRow * lineH),
                         Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
-                    ActiveFont.DrawOutline("cumul", new Vector2(headerBoxX, ty + (compHeaderRow + 1) * lineH),
+                    ActiveFont.DrawOutline(cumulLabel, new Vector2(headerBoxX, ty + (compHeaderRow + 1) * lineH),
                         Vector2.Zero, Vector2.One * scale, Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
-                    ActiveFont.DrawOutline("room", new Vector2(headerBoxX, ty + (compHeaderRow + 2) * lineH),
+                    ActiveFont.DrawOutline(roomLabel, new Vector2(headerBoxX, ty + (compHeaderRow + 2) * lineH),
                         Vector2.Zero, Vector2.One * scale, Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
                 }
             }
@@ -429,38 +432,39 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             switch (_scope.Coincidence)
             {
                 case LineCoincidence.AllThree:
-                    DrawLegendEntry(legendX2, legendY2, "SoB, Best & Last run", lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
+                    DrawLegendEntry(legendX2, legendY2, Dialog.Clean(DialogIds.ChartLegendAllThree), lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                     break;
 
                 case LineCoincidence.SobIsBest:
-                    string lastLabel2 = "Last run";
+                    string lastLabel2 = Dialog.Clean(DialogIds.ChartLegendLast);
                     DrawLegendEntry(legendX2, legendY2, lastLabel2, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                     offset2 = ActiveFont.Measure(lastLabel2).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
 
-                    DrawLegendEntry(legendX2 - offset2, legendY2, "SoB & Best run", bestLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
+                    DrawLegendEntry(legendX2 - offset2, legendY2, Dialog.Clean(DialogIds.ChartLegendSobBest), bestLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                     break;
 
                 case LineCoincidence.LastIsBest:
-                    string bestLastLabel = "Best & Last run";
+                    string bestLastLabel = Dialog.Clean(DialogIds.ChartLegendBestLast);
                     DrawLegendEntry(legendX2, legendY2, bestLastLabel, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                     offset2 = ActiveFont.Measure(bestLastLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
 
-                    DrawLegendEntry(legendX2 - offset2, legendY2, "SoB", sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
+                    DrawLegendEntry(legendX2 - offset2, legendY2, Dialog.Clean(DialogIds.ChartSob), sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                     break;
 
                 default:
-                    string lastLabel3 = "Last run";
+                    string lastLabel3 = Dialog.Clean(DialogIds.ChartLegendLast);
                     DrawLegendEntry(legendX2, legendY2, lastLabel3, lastLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                     offset2 = ActiveFont.Measure(lastLabel3).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
 
-                    DrawLegendEntry(legendX2 - offset2, legendY2, "Best run", bestLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
-                    offset2 += ActiveFont.Measure("Best run").X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
+                    string bestLabel = Dialog.Clean(DialogIds.ChartLegendBest);
+                    DrawLegendEntry(legendX2 - offset2, legendY2, bestLabel, bestLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
+                    offset2 += ActiveFont.Measure(bestLabel).X * ChartConstants.FontScale.AxisLabel + ChartConstants.Legend.LegendEntrySpacing;
 
-                    DrawLegendEntry(legendX2 - offset2, legendY2, "SoB", sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
+                    DrawLegendEntry(legendX2 - offset2, legendY2, Dialog.Clean(DialogIds.ChartSob), sobLegendColor, ChartConstants.FontScale.AxisLabel, right: true);
                     break;
             }
 
-            string stats = _model.Attempts.Count == 1 ? "1 Run" : $"{_model.Attempts.Count} Runs";
+            string stats = Utility.DialogText.Count(_model.Attempts.Count, DialogIds.ChartOneRun, DialogIds.ChartRunsFmt);
             Vector2 statsSize = ActiveFont.Measure(stats) * ChartConstants.FontScale.AxisLabelMedium;
             ActiveFont.DrawOutline(stats,
                 new Vector2(position.X + width / 2 - statsSize.X / 2, y + h + ChartConstants.Legend.LegendOffsetY),

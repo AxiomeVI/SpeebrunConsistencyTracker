@@ -68,4 +68,65 @@ public class DialogKeyTests
 
         Assert.Equal([], orphans);
     }
+
+    // Every line with its text; a line with no "KEY=" continues the one above it, as the loader reads it.
+    private static Dictionary<string, string> LinesInEnglishTxt()
+    {
+        Dictionary<string, string> lines = [];
+        string current = null;
+        foreach (string raw in File.ReadAllLines(Path.Combine(RepoRoot(), "Dialog", "English.txt")))
+        {
+            string trimmed = raw.Trim();
+            if (trimmed.Length == 0 || trimmed.StartsWith('#')) continue;
+            int eq = trimmed.IndexOf('=');
+            if (eq > 0 && !trimmed[..eq].Contains(' '))
+            {
+                current = trimmed[..eq].Trim();
+                lines[current] = trimmed[(eq + 1)..].Trim();
+            }
+            else if (current != null)
+            {
+                lines[current] += "\n" + trimmed;
+            }
+        }
+        return lines;
+    }
+
+    // Dialog.Clean deletes every {...} but {n} and {break} when the language loads, so a placeholder
+    // in a line read through it is gone before the code ever sees it -- no error, just a label with
+    // a hole in it. Placeholders live in _FMT lines, which DialogText.Format reads raw.
+    [Fact]
+    public void Only_FMT_lines_carry_a_placeholder()
+    {
+        string[] stripped = [.. LinesInEnglishTxt()
+            .Where(kv => !kv.Key.EndsWith("_FMT") && System.Text.RegularExpressions.Regex.IsMatch(kv.Value, @"\{\d"))
+            .Select(kv => kv.Key)
+            .Order()];
+
+        Assert.Equal([], stripped);
+    }
+
+    [Fact]
+    public void Every_FMT_line_carries_a_placeholder()
+    {
+        string[] empty = [.. LinesInEnglishTxt()
+            .Where(kv => kv.Key.EndsWith("_FMT") && !kv.Value.Contains("{0}"))
+            .Select(kv => kv.Key)
+            .Order()];
+
+        Assert.Equal([], empty);
+    }
+
+    [Fact]
+    public void A_Fmt_constant_names_an_FMT_line_and_only_it_does()
+    {
+        string[] mismatched = [.. typeof(DialogIds)
+            .GetFields(BindingFlags.Public | BindingFlags.Static)
+            .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+            .Where(f => f.Name.EndsWith("Fmt") != ((string)f.GetRawConstantValue()!).EndsWith("_FMT"))
+            .Select(f => f.Name)
+            .Order()];
+
+        Assert.Equal([], mismatched);
+    }
 }

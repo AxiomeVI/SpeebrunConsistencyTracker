@@ -180,12 +180,12 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             if (secondaryValues != null && i < secondaryValues.Count)
             {
                 double secPct = secondaryValues[i];
-                string pLabel = primaryLabel  ?? "Primary";
-                string sLabel = secondaryLabel ?? "Secondary";
-                return $"{sLabel}: {secPct:0.#}%\n{pLabel}: {pct:0.#}%";
+                string pLabel = primaryLabel  ?? Dialog.Clean(DialogIds.ChartPrimary);
+                string sLabel = secondaryLabel ?? Dialog.Clean(DialogIds.ChartSecondary);
+                return Utility.DialogText.LabelValue(sLabel, $"{secPct:0.#}%") + "\n" + Utility.DialogText.LabelValue(pLabel, $"{pct:0.#}%");
             }
-            string lbl = primaryLabel ?? "Value";
-            return $"{lbl}: {pct:0.#}%";
+            string lbl = primaryLabel ?? Dialog.Clean(DialogIds.ChartValue);
+            return Utility.DialogText.LabelValue(lbl, $"{pct:0.#}%");
         }
 
         public override void DrawHighlight()
