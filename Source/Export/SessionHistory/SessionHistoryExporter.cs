@@ -15,7 +15,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
                 return "";
 
             int segmentLength = SessionManager.RoomCount;
-            session.RecomputeMaxRoomCount();
+            // Read, not recomputed: SessionManager.UpdateRoomCount owns MaxRoomCount and RoomCount
+            // is derived from it, so an export has no business moving either.
             int columnCount = Math.Max(segmentLength, session.MaxRoomCount);
             var sb = new StringBuilder();
 
@@ -34,7 +35,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
                 {
                     var cell = session.GetCell(a, r);
                     if (cell.State == RoomCellState.Completed || cell.State == RoomCellState.DNF) hasAny = true;
-                    rowCells.Append(cell.HasTime ? $",{cell.Time}" : ",");
+                    // A DNF and a deleted cell used to export as empty, exactly like a room the
+                    // run never reached, so the file did not say where any run died.
+                    rowCells.Append(cell.State switch
+                    {
+                        RoomCellState.Completed => $",{cell.Time}",
+                        RoomCellState.DNF       => ",DNF",
+                        RoomCellState.Deleted   => ",DEL",
+                        _                       => ",",
+                    });
                 }
                 if (!hasAny) continue;
 

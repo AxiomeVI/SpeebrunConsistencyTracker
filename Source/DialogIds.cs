@@ -6,6 +6,7 @@ public static class DialogIds {
 
     // Export submenu
     public const string SrtExportId = "SCT_EXPORT_WITH_SRT";
+    public const string SrtExportDescId = "SCT_EXPORT_WITH_SRT_DESC";
     public const string ExportSubMenu = "SCT_EXPORT_SUBMENU";
     public const string ExportModeId = "SCT_EXPORT_MOD";
     public const string ExportPathId = "SCT_EXPORT_PATH";
@@ -36,9 +37,6 @@ public static class DialogIds {
     public const string Minutes = "SCT_MINUTES";
     public const string Seconds = "SCT_SECONDS";
     public const string Milliseconds = "SCT_MILLISECONDS";
-    public const string MillisecondsFirst = "SCT_MILLISECONDS_FIRST";
-    public const string MillisecondsSecond = "SCT_MILLISECONDS_SECOND";
-    public const string MillisecondsThird = "SCT_MILLISECONDS_THIRD";
 
     // Popup message
     public const string PopupTargetTimeSetId = "SCT_POPUP_TARGET_TIME_SET";
@@ -49,10 +47,10 @@ public static class DialogIds {
     public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";
     public const string PopupExportToFileFailedId = "SCT_EXPORT_TO_FILE_FAILED";
     public const string PopupDataClearId = "SCT_DATA_CLEAR";
+    public const string EnabledDescId = "SCT_ENABLE_MOD_DESC";
     public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
 
     // Text Overlay Menu
-    public const string IngameOverlayId = "SCT_INGAME_OVERLAY";
     public const string OverlayEnabledId = "SCT_OVERLAY_ENABLED";
     public const string TextSizeId = "SCT_TEXT_SIZE";
     public const string TextPositionId = "SCT_TEXT_POSITION";
@@ -89,7 +87,7 @@ public static class DialogIds {
     public const string MaximumId = "SCT_MAXIMUM";
     public const string StandardDeviationId = "SCT_STANDARD_DEVIATION";
     public const string CoefficientOfVariationId = "SCT_COEFFICIENT_OF_VARIATION";
-    public const string TargetTimeStatId = "SCT_TARGET_TIME_STAT";
+    public const string ShowTargetLineId = "SCT_SHOW_TARGET_LINE";
     public const string PercentileValueId = "SCT_PERCENTILE_VALUE";
     public const string PercentileId = "SCT_PERCENTILE";
     public const string InterquartileRangeId = "SCT_IQR";

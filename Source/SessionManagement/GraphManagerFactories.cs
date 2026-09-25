@@ -21,10 +21,13 @@ public static partial class GraphManager
     private static ScatterPlotOverlay BuildScatter(int roomCount)
     {
         var session = SessionManager.CurrentSession;
-        // The parallel attempt-index lists must be built and filtered alongside the times.
+        // Every room, empty ones included. ScatterPlotOverlay drops the empty ones itself and
+        // keeps their original indices for the labels and the pins; filtering here as well made
+        // that map an identity over an already-filtered list, so once a middle room had every
+        // time deleted the later columns were labelled one room low and a pin's Delete targeted
+        // an already-deleted cell.
         var roomPairs = Enumerable.Range(0, roomCount)
             .Select(i => (times: session.GetRoomTimes(i).ToList(), indices: session.GetRoomAttemptIndices(i).ToList()))
-            .Where(p => p.times.Count > 0)
             .ToList();
         var roomTimes   = roomPairs.Select(p => p.times).ToList();
         var roomIndices = roomPairs.Select(p => p.indices).ToList();
@@ -40,7 +43,7 @@ public static partial class GraphManager
 
     private static HistogramOverlay BuildRoomHistogram(int roomIndex)
         => new(
-            $"Room {roomIndex + 1}",
+            Utility.RoomLabels.For(roomIndex),
             SessionManager.CurrentSession.GetRoomTimes(roomIndex).ToList(),
             isSegment: false);
 
@@ -55,7 +58,7 @@ public static partial class GraphManager
 
     private static GroupedPercentOverlay BuildDnfPctChart(int roomCount)
     {
-        var labels   = Enumerable.Range(1, roomCount).Select(i => $"R{i}").ToList();
+        var labels   = Enumerable.Range(0, roomCount).Select(Utility.RoomLabels.For).ToList();
         var dnfPcts  = ComputeDnfPcts(roomCount);
         var dnfRates = dnfPcts.Select(p => (float)p).ToList();
 
@@ -68,15 +71,15 @@ public static partial class GraphManager
         }
 
         return new GroupedPercentOverlay(
-            "DNF Rate per Room & Segment Survival Rate",
+            "Reset Rate per Room & Segment Survival Rate",
             labels, dnfRates, survivalRates,
-            "DNF rate", "Remaining (%)");
+            "Reset rate", "Runs still alive");
     }
 
     private static PercentBarChartOverlay BuildProblemRoomsChart(int roomCount)
     {
         var settings     = SpeebrunConsistencyTrackerModule.Settings;
-        var labels       = Enumerable.Range(1, roomCount).Select(i => $"R{i}").ToList();
+        var labels       = Enumerable.Range(0, roomCount).Select(Utility.RoomLabels.For).ToList();
         long threshold   = settings.TimeLossThresholdMs * 10000L;
         var dnfPcts      = ComputeDnfPcts(roomCount);
         var session      = SessionManager.CurrentSession;
@@ -92,9 +95,9 @@ public static partial class GraphManager
         }).ToList();
 
         return new PercentBarChartOverlay(
-            $"Problem Rooms (threshold: {settings.TimeLossThresholdMs}ms)",
+            $"Problem Rooms (threshold: {settings.TimeLossThresholdMs}ms over session best)",
             labels, dnfPcts, timeLossPcts,
-            "DNF rate", $">{settings.TimeLossThresholdMs}ms over gold");
+            "Reset rate", $">{settings.TimeLossThresholdMs}ms over session best");
     }
 
     private static GroupedBarChartOverlay BuildTimeLossChart(int roomCount)

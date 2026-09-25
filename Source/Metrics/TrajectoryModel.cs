@@ -50,29 +50,42 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             if (attemptCount == 0 || totalRooms == 0)
                 return new TrajectoryModel(totalRooms, [], new AttemptLine([], [], 0, 0), [], []);
 
-            long[] roomAverages = [.. Enumerable.Range(0, totalRooms).Select(r =>
+            // Once per attempt, not once per attempt per room: ContiguousCount walks the row.
+            int[] contiguous = new int[attemptCount];
+            for (int a = 0; a < attemptCount; a++) contiguous[a] = session.ContiguousCount(a);
+
+            // The averages and the Sum of Bests read the same cells -- those inside an attempt's
+            // contiguous prefix. SoB used to read GetRoomTimes, which also returns cells sitting
+            // after a deleted one, so a room could average 0 and still offer a best, and the SoB
+            // line jumped a whole room time at that column.
+            long[] roomAverages = new long[totalRooms];
+            long[] roomBests    = new long[totalRooms];
+            bool[] roomHasTime  = new bool[totalRooms];
+            for (int r = 0; r < totalRooms; r++)
             {
-                var times = new List<long>();
+                long sum = 0, best = long.MaxValue;
+                int count = 0;
                 for (int a = 0; a < attemptCount; a++)
                 {
-                    if (session.ContiguousCount(a) > r)
-                    {
-                        var cell = session.GetCell(a, r);
-                        if (cell.HasTime) times.Add(cell.Time.Ticks);
-                    }
+                    if (contiguous[a] <= r) continue;
+                    long t = session.GetCell(a, r).Time.Ticks;
+                    sum += t;
+                    count++;
+                    if (t < best) best = t;
                 }
-                return times.Count == 0 ? 0L : (long)times.Average();
-            })];
+                roomHasTime[r]  = count > 0;
+                roomAverages[r] = count == 0 ? 0L : sum / count;
+                roomBests[r]    = count == 0 ? 0L : best;
+            }
 
             List<AttemptLine> attempts = [];
             for (int a = 0; a < attemptCount; a++)
             {
-                int contiguous = session.ContiguousCount(a);
-                if (contiguous == 0) continue;
+                if (contiguous[a] == 0) continue;
                 long cumulative = 0;
                 var deviations = new List<long>();
                 var roomTks = new List<long>();
-                for (int r = 0; r < contiguous && r < totalRooms; r++)
+                for (int r = 0; r < contiguous[a] && r < totalRooms; r++)
                 {
                     long t = session.GetCell(a, r).Time.Ticks; // safe: ContiguousCount guarantees all cells 0..contiguous-1 are Completed
                     roomTks.Add(t);
@@ -82,12 +95,43 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 attempts.Add(new AttemptLine([.. deviations], [.. roomTks], deviations.Count, a + 1));
             }
 
-            int[] bestSoFarIdx = new int[totalRooms];
+            // "vs Best Split" compares against prior runs only, so the default reference set stops
+            // one short of the end. The comparison table narrows it further when an older run is
+            // pinned -- see BestSoFarBefore.
+            int[] bestSoFarIdx = BestSoFarBefore(attempts, totalRooms, attempts.Count - 1);
+
+            long sobCumulative     = 0;
+            var  sobDeviations     = new long[totalRooms];
+            var  sobRoomTimes      = new long[totalRooms];
+            int  sobRoomsCompleted = 0;
+            for (int r = 0; r < totalRooms; r++)
+            {
+                if (!roomHasTime[r]) break;
+                sobRoomTimes[r]  = roomBests[r];
+                sobCumulative   += roomBests[r] - roomAverages[r];
+                sobDeviations[r] = sobCumulative;
+                sobRoomsCompleted = r + 1;
+            }
+            var sobLine = new AttemptLine(sobDeviations, sobRoomTimes[..sobRoomsCompleted], sobRoomsCompleted, 0);
+
+            return new TrajectoryModel(totalRooms, attempts, sobLine, roomAverages, bestSoFarIdx);
+        }
+
+        // Per room, the index of the attempt with the lowest cumulative deviation among the
+        // attempts before `beforeIndex`; -1 where none of them reached that room. The pinned run
+        // must not be its own reference, and neither may the runs that came after it.
+        public int[] BestSoFarBefore(int beforeIndex)
+            => BestSoFarBefore(Attempts, TotalRooms, beforeIndex);
+
+        private static int[] BestSoFarBefore(IReadOnlyList<AttemptLine> attempts, int totalRooms, int beforeIndex)
+        {
+            int limit = Math.Min(beforeIndex, attempts.Count);
+            int[] best = new int[totalRooms];
             for (int r = 0; r < totalRooms; r++)
             {
                 int bestI = -1;
                 long bestDev = long.MaxValue;
-                for (int i = 0; i < attempts.Count - 1; i++) // "vs Best Split" compares against prior runs only
+                for (int i = 0; i < limit; i++)
                 {
                     if (attempts[i].RoomsCompleted <= r) continue;
                     if (attempts[i].CumulativeDeviations[r] < bestDev)
@@ -96,26 +140,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                         bestI   = i;
                     }
                 }
-                bestSoFarIdx[r] = bestI; // -1 if no attempt reaches r
+                best[r] = bestI;
             }
-
-            long sobCumulative     = 0;
-            var  sobDeviations     = new long[totalRooms];
-            var  sobRoomTimes      = new long[totalRooms];
-            int  sobRoomsCompleted = 0;
-            for (int r = 0; r < totalRooms; r++)
-            {
-                var times = session.GetRoomTimes(r).ToList();
-                if (times.Count == 0) break;
-                long best        = times.Min(t => t.Ticks);
-                sobRoomTimes[r]  = best;
-                sobCumulative   += best - roomAverages[r];
-                sobDeviations[r] = sobCumulative;
-                sobRoomsCompleted = r + 1;
-            }
-            var sobLine = new AttemptLine(sobDeviations, sobRoomTimes[..sobRoomsCompleted], sobRoomsCompleted, 0);
-
-            return new TrajectoryModel(totalRooms, attempts, sobLine, roomAverages, bestSoFarIdx);
+            return best;
         }
 
         // A line that stopped short of `room` keeps the deviation it ended on, so the right-axis

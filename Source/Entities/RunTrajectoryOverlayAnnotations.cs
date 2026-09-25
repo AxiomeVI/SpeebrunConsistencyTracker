@@ -94,23 +94,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             bool isBaseline = lineId.IsBaseline;
             AttemptLine line = isSob ? _model.SobLine : isBaseline ? null! : _model.Attempts[lineId.Value];
 
-            var   s         = SpeebrunConsistencyTrackerModule.Settings;
             int roomCount = isBaseline ? _totalRooms : line.RoomsCompleted;
             if (_scope.LastVisibleRoom < 0) return;
             int effectiveCount = Math.Min(roomCount, _scope.LastVisibleRoom + 1);
 
-            bool  isLast    = lineId.IsAttempt && lineId.Value == _model.Attempts.Count - 1;
-            bool  isBest    = lineId.IsAttempt && lineId.Value == _scope.BestIdx;
-            Color lineColor = isBaseline ? Color.Gray
-                : isSob
-                    ? (_scope.SobIsBest ? s.TrajectoryBestColorFinal : s.TrajectorySobColorFinal)
-                : isBest && isLast
-                    ? s.TrajectoryLastColorFinal   // DrawBars and the legend both draw the merged line in lastColor
-                : isBest
-                    ? s.TrajectoryBestColorFinal
-                : isLast
-                    ? s.TrajectoryLastColorFinal
-                : Color.White;
+            Color lineColor = LineColor(lineId);
 
             string lineLabel = isBaseline ? "Avg" : isSob ? "SoB" : $"#{line.ChronologicalIndex}";
             // Label goes on the middle visible room.
@@ -182,9 +170,48 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
         }
 
+        // One place for a line's colour. DrawBars, the per-room tooltips and the comparison table
+        // each decided it separately: a line that is SoB, Best and Last at once is DRAWN in the
+        // Last colour, and the tooltip labelled it in the Best one. The table went further and
+        // painted every attempt white, Best and Last included.
+        private Color LineColor(LineId id)
+        {
+            var s = SpeebrunConsistencyTrackerModule.Settings;
+            if (id.IsBaseline) return Color.Gray;
+            if (id.IsSob)
+                return _scope.Coincidence == LineCoincidence.AllThree ? s.TrajectoryLastColorFinal
+                     : _scope.SobIsBest ? s.TrajectoryBestColorFinal
+                     : s.TrajectorySobColorFinal;
+            if (!id.IsAttempt) return Color.White;
+            // Precedence last > best > sob, the order DrawBars draws them in.
+            if (id.Value == _model.Attempts.Count - 1) return s.TrajectoryLastColorFinal;
+            if (id.Value == _scope.BestIdx)            return s.TrajectoryBestColorFinal;
+            return Color.White;
+        }
+
+        private LineId _bestSoFarPin = LineId.None;
+        private int[] _bestSoFarIdx = [];
+
+        // "vs Best Split" means the best split among the runs BEFORE the pinned one. The model's
+        // own BestSoFarIdx excludes the last attempt and nothing else, so pinning an older run
+        // compared it against runs that had not happened yet, and at its own rooms against
+        // itself -- a 0 where the interesting number was. Recomputed when the pin moves.
+        private int[] BestSoFarIdxForMainPin()
+        {
+            if (_bestSoFarPin == _mainPin && _bestSoFarIdx.Length == _totalRooms) return _bestSoFarIdx;
+
+            // SoB and the average baseline sit outside the chronology, so every run is a candidate.
+            int limit = _mainPin.IsAttempt ? _mainPin.Value : _model.Attempts.Count;
+            _bestSoFarPin = _mainPin;
+            _bestSoFarIdx = _model.BestSoFarBefore(limit);
+            return _bestSoFarIdx;
+        }
+
         private void DrawComparisonTable()
         {
             if (_mainPin.IsNone) return;
+
+            int[] bestSoFar = BestSoFarIdxForMainPin();
 
             bool mainIsSob      = _mainPin.IsSob;
             bool mainIsBaseline = _mainPin.IsBaseline;
@@ -192,11 +219,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             AttemptLine? mainLine  = mainIsBaseline ? null : mainIsSob ? _model.SobLine : _model.Attempts[_mainPin.Value];
             int mainRoomCount     = mainIsBaseline ? _totalRooms : mainLine!.RoomsCompleted;
 
-            var   sm        = SpeebrunConsistencyTrackerModule.Settings;
-            Color mainColor = mainIsBaseline ? Color.Gray
-                : mainIsSob
-                    ? (_scope.SobIsBest ? sm.TrajectoryBestColorFinal : sm.TrajectorySobColorFinal)
-                    : Color.White;
+            Color mainColor = LineColor(_mainPin);
 
             const float scale = ChartConstants.FontScale.AxisLabelMedium;
             const float bgPad = ChartConstants.Interactivity.TooltipBgPadding;
@@ -208,7 +231,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             bool compIsSob  = !hasComp || _compPin.IsSob;
             AttemptLine? compLine  = compIsAvg ? null : compIsSob ? _model.SobLine : _model.Attempts[_compPin.Value];
             string compLabel = compIsAvg ? "vs Avg" : compIsSob ? "vs SoB" : $"vs #{compLine!.ChronologicalIndex}";
-            bool showComp   = true;
+            // With SoB pinned and nothing else, the default comparison is SoB against SoB: three
+            // rows of +0.000 taking up the left margin. The section is dropped instead.
+            bool showComp   = hasComp || !mainIsSob;
+
+            // Past the end of the compared line there is nothing to compare against. Subtracting
+            // the zero that sat there printed the pinned run's own deviation as a coloured delta.
+            bool CompCumulAvailable(int room) => compIsAvg || room < compLine!.RoomsCompleted;
 
             // Header rows: 0=run label, 1="vs Best", 2=cumul, [3=comp label, 4=cumul, 5=room]
             int bestHeaderRow  = 1;
@@ -236,19 +265,20 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 long roomTime     = mainIsBaseline ? _model.RoomAverages[r] : mainLine!.RoomTimes[r];
                 long mainCumulDev = mainIsBaseline ? 0 : mainLine!.CumulativeDeviations[r];
 
-                int  bIdx         = _model.BestSoFarIdx.Length > r ? _model.BestSoFarIdx[r] : -1;
+                int  bIdx         = bestSoFar.Length > r ? bestSoFar[r] : -1;
                 bool bestAvailable = bIdx >= 0;
                 long bestCumulDev  = bestAvailable ? mainCumulDev - _model.Attempts[bIdx].CumulativeDeviations[r] : 0;
                 maxValW = Math.Max(maxValW, ActiveFont.Measure(bestAvailable ? FormatDev(bestCumulDev) : "n/a").X * scale);
 
                 if (showComp)
                 {
+                    bool compCumulAvail = CompCumulAvailable(r);
                     long compCumulDev = compIsAvg
                         ? mainCumulDev
-                        : mainCumulDev - (r < compLine!.CumulativeDeviations.Length ? compLine.CumulativeDeviations[r] : 0);
+                        : mainCumulDev - (compCumulAvail ? compLine!.CumulativeDeviations[r] : 0);
                     long compRoomTime = compIsAvg ? _model.RoomAverages[r] : r < compLine!.RoomsCompleted ? compLine.RoomTimes[r] : 0;
                     long compRoomDev  = roomTime - compRoomTime;
-                    maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(compCumulDev)).X * scale);
+                    maxValW = Math.Max(maxValW, ActiveFont.Measure(compCumulAvail ? FormatDev(compCumulDev) : "n/a").X * scale);
                     maxValW = Math.Max(maxValW, ActiveFont.Measure(FormatDev(compRoomDev)).X * scale);
                 }
             }
@@ -269,9 +299,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     Vector2.Zero, Vector2.One * scale, mainColor, ChartConstants.Stroke.OutlineSize, Color.Black);
                 ActiveFont.DrawOutline("vs Best Split", new Vector2(headerBoxX, ty + bestHeaderRow * lineH),
                     Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                // Rows 2, 4 and 5 were measured into the box width and then never drawn, so the
+                // value columns had no row labels at all.
+                ActiveFont.DrawOutline("cumul", new Vector2(headerBoxX, ty + (bestHeaderRow + 1) * lineH),
+                    Vector2.Zero, Vector2.One * scale, Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
                 if (showComp)
+                {
                     ActiveFont.DrawOutline(compLabel, new Vector2(headerBoxX, ty + compHeaderRow * lineH),
                         Vector2.Zero, Vector2.One * scale, Color.LightGray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    ActiveFont.DrawOutline("cumul", new Vector2(headerBoxX, ty + (compHeaderRow + 1) * lineH),
+                        Vector2.Zero, Vector2.One * scale, Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    ActiveFont.DrawOutline("room", new Vector2(headerBoxX, ty + (compHeaderRow + 2) * lineH),
+                        Vector2.Zero, Vector2.One * scale, Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
+                }
             }
 
             int compLimit = Math.Min(mainRoomCount, _scope.LastVisibleRoom + 1);
@@ -286,7 +326,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
                 float ty = valBoxY + bgPad;
 
-                int  bIdx2         = _model.BestSoFarIdx.Length > r ? _model.BestSoFarIdx[r] : -1;
+                int  bIdx2         = bestSoFar.Length > r ? bestSoFar[r] : -1;
                 bool bestAvail     = bIdx2 >= 0;
                 long bestCumulDev2 = bestAvail ? mainCumulDev2 - _model.Attempts[bIdx2].CumulativeDeviations[r] : 0;
                 Color cBestColor   = bestAvail ? (bestCumulDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing) : Color.Gray;
@@ -296,17 +336,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
                 if (showComp)
                 {
+                    bool compCumulAvail2 = CompCumulAvailable(r);
                     long compCumulDev2 = compIsAvg
                         ? mainCumulDev2
-                        : mainCumulDev2 - (r < compLine!.CumulativeDeviations.Length ? compLine.CumulativeDeviations[r] : 0);
+                        : mainCumulDev2 - (compCumulAvail2 ? compLine!.CumulativeDeviations[r] : 0);
                     long compRoomTime2 = compIsAvg ? _model.RoomAverages[r] : r < compLine!.RoomsCompleted ? compLine.RoomTimes[r] : 0;
                     long compRoomDev2  = roomTime2 - compRoomTime2;
                     bool compRoomAvail = compIsAvg || compRoomTime2 > 0;
                     Color cCompColor   = DeviationColor(compCumulDev2, compRoomAvail ? compRoomDev2 : 0);
                     Color rCompColor   = compRoomDev2 <= 0 ? ChartConstants.Colors.AheadGaining : ChartConstants.Colors.BehindLosing;
-                    ActiveFont.DrawOutline(FormatDev(compCumulDev2),
+                    ActiveFont.DrawOutline(compCumulAvail2 ? FormatDev(compCumulDev2) : "n/a",
                         new Vector2(boxX, ty + compValRow * lineH),
-                        Vector2.Zero, Vector2.One * scale, cCompColor, ChartConstants.Stroke.OutlineSize, Color.Black);
+                        Vector2.Zero, Vector2.One * scale,
+                        compCumulAvail2 ? cCompColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);
                     ActiveFont.DrawOutline(compRoomAvail ? FormatDev(compRoomDev2) : "n/a",
                         new Vector2(boxX, ty + (compValRow + 1) * lineH),
                         Vector2.Zero, Vector2.One * scale, compRoomAvail ? rCompColor : Color.Gray, ChartConstants.Stroke.OutlineSize, Color.Black);

@@ -64,8 +64,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         protected override float GetBarHeight(long value, float chartHeight) =>
             _maxTicks > 0 ? chartHeight - MathF.Round(chartHeight - (float)value / _maxTicks * chartHeight) : 0f;
 
+        // No TrimStart('0'): it turned 0.250 into ".250", which reads as a missing digit.
         protected override string FormatBarLabel(long value) =>
-            "+" + new TimeTicks(value).ToString().TrimStart('0');
+            "+" + new TimeTicks(value);
 
         protected override void DrawYAxisGrid(float x, float y, float w, float h)
         {

@@ -17,6 +17,21 @@ public class TrajectoryModelTests
         Assert.Equal(new long[] { 12, 12 }, model.RoomAverages);
     }
 
+    // Deleting room 1 of the only run that reached room 2 breaks its contiguous prefix, so room 2
+    // has no average any more. GetRoomTimes still returned that run's room-2 cell, so the SoB line
+    // used to take it as a best against an average of 0 and jump a whole room time at that column.
+    [Fact]
+    public void The_sob_line_stops_where_the_room_averages_do()
+    {
+        PracticeSession session = TrajectorySessions.Of(3, [10, 10, 10], [20, 20]);
+        session.DeleteCell(attemptIndex: 0, visibleRoomIndex: 1);
+
+        TrajectoryModel model = TrajectoryModel.Build(session, 3);
+
+        Assert.Equal(new long[] { 15, 20, 0 }, model.RoomAverages);
+        Assert.Equal(2, model.SobLine.RoomsCompleted);
+    }
+
     [Fact]
     public void RoomAverages_is_zero_for_a_room_no_attempt_completed()
     {
@@ -124,6 +139,22 @@ public class TrajectoryModelTests
         TrajectoryModel model = TrajectoryModel.Build(session, 2);
 
         Assert.Equal(new[] { 0, -1 }, model.BestSoFarIdx);
+    }
+
+    // The comparison table narrows the reference set to the runs before the PINNED one. With the
+    // model's own array, pinning run #1 compared it against run #2, which had not happened yet,
+    // and at rooms it led against itself.
+    [Fact]
+    public void BestSoFarBefore_only_considers_the_attempts_before_the_index()
+    {
+        PracticeSession session = TrajectorySessions.Of(2, [30, 30], [20, 20], [10, 10]);
+
+        TrajectoryModel model = TrajectoryModel.Build(session, 2);
+
+        Assert.Equal(new[] { -1, -1 }, model.BestSoFarBefore(0));
+        Assert.Equal(new[] { 0, 0 }, model.BestSoFarBefore(1));
+        Assert.Equal(new[] { 1, 1 }, model.BestSoFarBefore(2));
+        Assert.Equal(new[] { 2, 2 }, model.BestSoFarBefore(3));
     }
 
     [Fact]

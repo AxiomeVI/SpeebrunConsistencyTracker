@@ -173,7 +173,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int    lineCount  = label.Split('\n').Length;
             float  lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
             float  labelY     = barTopY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
-            return new HoverInfo(label, new Vector2(barCenterX, labelY));
+            return new HoverInfo(label, new Vector2(barCenterX, labelY), Key: $"bar:{idx}");
         }
 
         private string BuildPercentHoverLabel(int i)

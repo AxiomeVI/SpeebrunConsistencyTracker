@@ -274,8 +274,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void HandleClearButton() {
         if (_clearStatsHotkey.Pressed) {
+            // Counted before the clear: a single unconfirmed keypress wipes the session, and the
+            // popup said only that it had happened, not how much it took.
+            int attempts = SessionManager.CurrentSession?.TotalAttempts ?? 0;
             Clear();
-            PopupMessage(Dialog.Clean(DialogIds.PopupDataClearId));
+            PopupMessage($"{Dialog.Clean(DialogIds.PopupDataClearId)} ({attempts} {(attempts == 1 ? "run" : "runs")})");
         }
     }
 

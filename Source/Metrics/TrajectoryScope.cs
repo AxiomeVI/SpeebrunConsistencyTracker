@@ -28,9 +28,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public bool LastReachesEnd  { get; private set; }         // Attempts[^1] reaches beyond LastVisibleRoom
 
         public long RoomAveragesSum      { get; private set; }     // sum of RoomAverages[0..LastVisibleRoom] inclusive
-        public long MaxUpwardDeviation   { get; private set; } = 1; // max magnitude of negative cumulative dev up to LastVisibleRoom (min 1)
-        public long MaxDownwardDeviation { get; private set; } = 1; // max magnitude of positive cumulative dev up to LastVisibleRoom (min 1)
-        public long TotalRange           { get; private set; } = 2; // MaxUpwardDeviation + MaxDownwardDeviation
+        // Floored at one frame, not one tick: with a single run every deviation is 0, and half a
+        // dozen axis labels all read +-0.000 because the whole axis spanned two ticks.
+        internal const long MinHalfRange = 170_000L;
+
+        public long MaxUpwardDeviation   { get; private set; } = MinHalfRange; // max magnitude of negative cumulative dev up to LastVisibleRoom
+        public long MaxDownwardDeviation { get; private set; } = MinHalfRange; // max magnitude of positive cumulative dev up to LastVisibleRoom
+        public long TotalRange           { get; private set; } = MinHalfRange * 2; // MaxUpwardDeviation + MaxDownwardDeviation
 
         public LineCoincidence Coincidence =>
             SobIsBest && LastIsBest ? LineCoincidence.AllThree
@@ -57,9 +61,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 SobReachesEnd        = false;
                 LastReachesEnd       = false;
                 RoomAveragesSum      = 0;
-                MaxUpwardDeviation   = 1;
-                MaxDownwardDeviation = 1;
-                TotalRange           = 2;
+                MaxUpwardDeviation   = MinHalfRange;
+                MaxDownwardDeviation = MinHalfRange;
+                TotalRange           = MinHalfRange * 2;
                 return;
             }
 
@@ -98,8 +102,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
             // Hidden rooms in the middle still contribute cumulative deviation; rooms beyond
             // lastVis do not.
-            long maxUp   = 1;
-            long maxDown = 1;
+            long maxUp   = MinHalfRange;
+            long maxDown = MinHalfRange;
             foreach (var attempt in attempts)
             {
                 int limit = Math.Min(attempt.RoomsCompleted - 1, lastVis);

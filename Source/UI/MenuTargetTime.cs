@@ -23,15 +23,17 @@ public static partial class ModMenuOptions
             _settings.Seconds,
             v => v.ToString("D2"));
 
-        TextMenu.Slider ms1 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsFirstDigit);
-        TextMenu.Slider ms2 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsSecondDigit);
-        TextMenu.Slider ms3 = new(Dialog.Clean(DialogIds.Milliseconds), i => i.ToString(), 0, 9, _settings.MillisecondsThirdDigit);
+        // One 0..999 slider, not three digit sliders sharing a label. The three digits stay as
+        // three settings because that is how they are persisted.
+        FormattedIntSlider milliseconds = new(
+            Dialog.Clean(DialogIds.Milliseconds),
+            0, 999,
+            _settings.Milliseconds,
+            v => v.ToString("D3"));
 
         minutes.Change(v => { _settings.Minutes = v;                   MetricEngine.InvalidateSettingsHash(); });
         seconds.Change(v => { _settings.Seconds = v;                   MetricEngine.InvalidateSettingsHash(); });
-        ms1.Change(v =>     { _settings.MillisecondsFirstDigit = v;    MetricEngine.InvalidateSettingsHash(); });
-        ms2.Change(v =>     { _settings.MillisecondsSecondDigit = v;   MetricEngine.InvalidateSettingsHash(); });
-        ms3.Change(v =>     { _settings.MillisecondsThirdDigit = v;    MetricEngine.InvalidateSettingsHash(); });
+        milliseconds.Change(v => { _settings.Milliseconds = v;         MetricEngine.InvalidateSettingsHash(); });
 
         // Declared first so SyncSlidersFromSettings can close over it.
         TextMenu.Button inputTimeButton = new(Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime());
@@ -40,9 +42,7 @@ public static partial class ModMenuOptions
         {
             minutes.Index = _settings.Minutes;
             seconds.Index = _settings.Seconds;
-            ms1.Index     = _settings.MillisecondsFirstDigit;
-            ms2.Index     = _settings.MillisecondsSecondDigit;
-            ms3.Index     = _settings.MillisecondsThirdDigit;
+            milliseconds.Index = _settings.Milliseconds;
             inputTimeButton.Label = Dialog.Clean(DialogIds.InputTargetTimeId) + ": " + GetTargetTime();
             MetricEngine.InvalidateSettingsHash();
         }
@@ -97,21 +97,15 @@ public static partial class ModMenuOptions
         sub.Add(resetButton);
         sub.Add(minutes);
         sub.Add(seconds);
-        sub.Add(ms1);
-        sub.Add(ms2);
-        sub.Add(ms3);
+        sub.Add(milliseconds);
 
         minutes.Visible = inGame;
         seconds.Visible = inGame;
-        ms1.Visible     = inGame;
-        ms2.Visible     = inGame;
-        ms3.Visible     = inGame;
+        milliseconds.Visible = inGame;
         inputTimeButton.Visible = !inGame;
 
         importButton.AddDescription(sub, menu, Dialog.Clean(DialogIds.TargetTimeFormatId));
-        ms1.AddDescription(sub, menu, Dialog.Clean(DialogIds.MillisecondsFirst));
-        ms2.AddDescription(sub, menu, Dialog.Clean(DialogIds.MillisecondsSecond));
-        ms3.AddDescription(sub, menu, Dialog.Clean(DialogIds.MillisecondsThird));
+
 
         sub.Visible = _settings.Enabled;
         return sub;

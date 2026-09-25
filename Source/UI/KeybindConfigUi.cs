@@ -161,8 +161,14 @@ internal class KeybindConfigUi : TextMenu {
                 _remapping = false;
                 Focused = true;
             } else if (_remappingKeyboard) {
+                // The newly pressed key, not the last one in the state. GetPressedKeys returns a
+                // bitfield walked in ascending Keys order, and the modifiers (LeftShift 160 ..
+                // RightAlt 165) sort after every letter, digit and F-key -- so holding Ctrl and
+                // pressing C picked LeftControl, which was not newly pressed, and the overlay
+                // timed out having captured nothing.
                 Keys[] pressed = MInput.Keyboard.CurrentState.GetPressedKeys();
-                if (pressed?.LastOrDefault(IsBindable) is { } k && k != Keys.None && MInput.Keyboard.Pressed(k))
+                if (pressed?.LastOrDefault(k => IsBindable(k) && MInput.Keyboard.Pressed(k)) is { } k
+                    && k != Keys.None)
                     ApplyRemap(k, RemappingBinding.Keys);
             } else {
                 var cur  = MInput.GamePads[Input.Gamepad].CurrentState;
@@ -175,11 +181,14 @@ internal class KeybindConfigUi : TextMenu {
 
         // Journal already clears the selected row: TextMenu.Update dispatches OnAltPressed on
         // Input.MenuJournal.Pressed, inside its own `if (Focused)`, so it cannot fire mid-remap.
-        // This only widens the gesture to Delete and Backspace, which is what SpeedrunTool's
-        // HotkeyConfigUi does -- but through the row's own closure rather than its positional
-        // lookup (`Selection - 3`), which breaks silently the moment a header moves.
+        // This widens the gesture to Delete, through the row's own closure rather than
+        // SpeedrunTool's positional lookup (`Selection - 3`), which breaks the moment a header moves.
+        //
+        // ⚠️ Delete and NOT Backspace, which was here and could never fire: vanilla claims
+        // Backspace as menu cancel, and base.Update() above has already closed the screen by the
+        // time this line runs. test/Harness/keybind-clear.sh asserts that it still does not clear.
         if (Focused && !_remapping && !_closing && Current?.OnAltPressed != null
-            && (MInput.Keyboard.Pressed(Keys.Delete) || MInput.Keyboard.Pressed(Keys.Back)))
+            && MInput.Keyboard.Pressed(Keys.Delete))
             Current.OnAltPressed();
 
         Alpha = Calc.Approach(Alpha, _closing ? 0f : 1f, Engine.DeltaTime * 8f);
@@ -213,6 +222,12 @@ internal class KeybindConfigUi : TextMenu {
                 pos + new Vector2(0f, 8f),
                 new Vector2(0.5f, 0f), Vector2.One * 2f,
                 Color.White * Ease.CubeIn(_remappingEase));
+            // The overlay closes itself after five seconds. Silently, until now.
+            ActiveFont.Draw(
+                Math.Max(0, (int)Math.Ceiling(_timeout)).ToString(),
+                pos + new Vector2(0f, 96f),
+                new Vector2(0.5f, 0f), Vector2.One * 0.7f,
+                Color.LightGray * Ease.CubeIn(_remappingEase));
         } else {
             ActiveFont.Draw(
                 Dialog.Clean(DialogIds.BtnConfigNoController),

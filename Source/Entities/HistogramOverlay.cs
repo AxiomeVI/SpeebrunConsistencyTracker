@@ -40,8 +40,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             TimeTicks[] sortedTicks = [.. times.OrderBy(t => t)];
             long minTime = sortedTicks[0].Ticks;
-            long maxTime = sortedTicks[^1].Ticks;
-            double range = maxTime - minTime;
 
             // Bin resolution: Freedman-Diaconis or a 10% heuristic, floored at one frame.
             double q1 = MetricHelper.ComputePercentile(sortedTicks, 25);
@@ -51,37 +49,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             double heuristicWidth = minTime * 0.1;
             double binWidth = Math.Max(Math.Min(heuristicWidth, freedmanDiaconisWidth), ChartConstants.Time.OneFrameTicks);
 
-            int binCount;
-            if (range <= 0)
-                binCount = 1;
-            else
-            {
-                binCount = (int)Math.Ceiling(range / binWidth);
-                binCount = Math.Clamp(binCount, 5, 50);
-            }
-
-            // Refit the width so the bins divide the range exactly.
-            double finalBinWidth = binCount > 1 ? range / binCount : binWidth;
-
-            int[] bins = new int[binCount];
-            foreach (var time in times)
-            {
-                int binIdx = range <= 0
-                    ? 0
-                    : (int)Math.Floor((time.Ticks - minTime) / finalBinWidth);
-                binIdx = Math.Clamp(binIdx, 0, binCount - 1);
-                bins[binIdx]++;
-            }
-
-            buckets = [];
-            for (int i = 0; i < binCount; i++)
-            {
-                long bucketMin = minTime + (long)(i * finalBinWidth);
-                long bucketMax = i == binCount - 1
-                    ? maxTime
-                    : minTime + (long)((i + 1) * finalBinWidth);
-                buckets.Add((bucketMin, bucketMax, bins[i]));
-            }
+            buckets = [.. Binning
+                .FrameAligned([.. sortedTicks.Select(t => t.Ticks)], binWidth, ChartConstants.Time.OneFrameTicks, maxBins: 50)
+                .Select(b => (b.MinTick, b.MaxTick, b.Count))];
 
             maxCount = buckets.Max(b => b.count);
         }
@@ -247,7 +217,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             int   lineCount  = label.Split('\n').Length;
             float lineHeight = ActiveFont.Measure("A").Y * ChartConstants.FontScale.AxisLabelMedium;
             float labelY     = barTopY - lineCount * lineHeight - ChartConstants.Interactivity.TooltipBgPadding;
-            return new HoverInfo(label, new Vector2(barCenterX, labelY));
+            return new HoverInfo(label, new Vector2(barCenterX, labelY), Key: $"bucket:{idx}");
         }
 
         public override void DrawHighlight()

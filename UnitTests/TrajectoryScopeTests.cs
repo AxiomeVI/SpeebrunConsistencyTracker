@@ -19,6 +19,21 @@ public class TrajectoryScopeTests
         return ScopeOver(model, TrajectorySessions.AllVisible(rooms));
     }
 
+    // The drawing range is floored at one frame, so the range tests need times on that scale --
+    // below it every sample would read as the floor and assert nothing about the data.
+    private const long F = TrajectoryScope.MinHalfRange;
+
+    private static long[][] InFrames(params long[][] attempts)
+    {
+        long[][] scaled = new long[attempts.Length][];
+        for (int a = 0; a < attempts.Length; a++)
+        {
+            scaled[a] = new long[attempts[a].Length];
+            for (int r = 0; r < attempts[a].Length; r++) scaled[a][r] = attempts[a][r] * F;
+        }
+        return scaled;
+    }
+
     // ---- the best-run tie-break -------------------------------------------------------------
 
     [Fact]
@@ -141,16 +156,28 @@ public class TrajectoryScopeTests
 
     // ---- the drawing range -------------------------------------------------------------------
 
+    // A single run has every deviation at 0. The range used to floor at one tick, and half a dozen
+    // axis labels all read +-0.000.
+    [Fact]
+    public void A_single_run_still_gets_a_frame_of_range_to_draw_against()
+    {
+        TrajectoryScope scope = ScopeOf(2, [10 * F, 10 * F]);
+
+        Assert.Equal(F, scope.MaxUpwardDeviation);
+        Assert.Equal(F, scope.MaxDownwardDeviation);
+        Assert.Equal(2 * F, scope.TotalRange);
+    }
+
     [Fact]
     public void The_deviation_range_spans_the_furthest_line_each_way()
     {
-        // Deviations run from -12 (attempt 0, room 2) to +18 (attempt 1, room 2).
-        TrajectoryScope scope = ScopeOf(3, [10, 10, 10], [20, 20, 20], [12, 12, 12]);
+        // Deviations run from -12 (attempt 0, room 2) to +18 (attempt 1, room 2), in frames.
+        TrajectoryScope scope = ScopeOf(3, InFrames([10, 10, 10], [20, 20, 20], [12, 12, 12]));
 
-        Assert.Equal(12, scope.MaxUpwardDeviation);
-        Assert.Equal(18, scope.MaxDownwardDeviation);
-        Assert.Equal(30, scope.TotalRange);
-        Assert.Equal(42, scope.RoomAveragesSum);
+        Assert.Equal(12 * F, scope.MaxUpwardDeviation);
+        Assert.Equal(18 * F, scope.MaxDownwardDeviation);
+        Assert.Equal(30 * F, scope.TotalRange);
+        Assert.Equal(42 * F, scope.RoomAveragesSum);
     }
 
     // A hidden room in the middle still contributes to the running deviation, so the range is not
@@ -159,43 +186,43 @@ public class TrajectoryScopeTests
     public void A_hidden_middle_room_still_counts_towards_the_range()
     {
         TrajectoryModel model = TrajectoryModel.Build(
-            TrajectorySessions.Of(3, [10, 10, 10], [20, 20, 20], [12, 12, 12]), 3);
+            TrajectorySessions.Of(3, InFrames([10, 10, 10], [20, 20, 20], [12, 12, 12])), 3);
 
         TrajectoryScope scope = ScopeOver(model, TrajectorySessions.Hiding(3, 1));
 
         Assert.Equal(2, scope.LastVisibleRoom);
-        Assert.Equal(12, scope.MaxUpwardDeviation);
-        Assert.Equal(18, scope.MaxDownwardDeviation);
-        Assert.Equal(42, scope.RoomAveragesSum);
+        Assert.Equal(12 * F, scope.MaxUpwardDeviation);
+        Assert.Equal(18 * F, scope.MaxDownwardDeviation);
+        Assert.Equal(42 * F, scope.RoomAveragesSum);
     }
 
     [Fact]
     public void Rooms_past_the_last_visible_one_drop_out_of_the_range()
     {
         TrajectoryModel model = TrajectoryModel.Build(
-            TrajectorySessions.Of(3, [10, 10, 10], [20, 20, 20], [12, 12, 12]), 3);
+            TrajectorySessions.Of(3, InFrames([10, 10, 10], [20, 20, 20], [12, 12, 12])), 3);
 
         TrajectoryScope scope = ScopeOver(model, TrajectorySessions.Hiding(3, 2));
 
         Assert.Equal(1, scope.LastVisibleRoom);
-        Assert.Equal(8, scope.MaxUpwardDeviation);
-        Assert.Equal(12, scope.MaxDownwardDeviation);
-        Assert.Equal(28, scope.RoomAveragesSum);
+        Assert.Equal(8 * F, scope.MaxUpwardDeviation);
+        Assert.Equal(12 * F, scope.MaxDownwardDeviation);
+        Assert.Equal(28 * F, scope.RoomAveragesSum);
     }
 
     // ---- degenerate scopes -------------------------------------------------------------------
 
     [Fact]
-    public void Hiding_every_room_leaves_a_range_of_two_so_the_pixel_scale_stays_finite()
+    public void Hiding_every_room_leaves_the_minimum_range_so_the_pixel_scale_stays_finite()
     {
         TrajectoryModel model = TrajectoryModel.Build(TrajectorySessions.Of(2, [10, 10], [20, 20]), 2);
 
         TrajectoryScope scope = ScopeOver(model, TrajectorySessions.Hiding(2, 0, 1));
 
         Assert.Equal(-1, scope.LastVisibleRoom);
-        Assert.Equal(1, scope.MaxUpwardDeviation);
-        Assert.Equal(1, scope.MaxDownwardDeviation);
-        Assert.Equal(2, scope.TotalRange);
+        Assert.Equal(F, scope.MaxUpwardDeviation);
+        Assert.Equal(F, scope.MaxDownwardDeviation);
+        Assert.Equal(2 * F, scope.TotalRange);
         Assert.Equal(0, scope.RoomAveragesSum);
         Assert.False(scope.SobIsBest);
         Assert.False(scope.AnyCompleted);

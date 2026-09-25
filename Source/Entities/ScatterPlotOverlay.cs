@@ -52,7 +52,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 .Where(x => x.room.Count > 0)
                 .ToList();
             _originalRoomIndices = filtered.Select(x => x.originalIndex).ToList();
-            roomDataList         = filtered.Select((x, i) => new RoomData("R" + (i + 1).ToString(), x.room)).ToList();
+            // Labelled by the room's own index, not its position after filtering.
+            roomDataList         = filtered.Select(x => new RoomData(Utility.RoomLabels.For(x.originalIndex), x.room)).ToList();
             roomAttemptIndices   = filtered.Select(x => x.indices).ToList();
             segmentData          = new RoomData("Segment", segment);
             segmentAttemptIndices = segmentIndices;

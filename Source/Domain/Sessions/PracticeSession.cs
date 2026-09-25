@@ -30,7 +30,10 @@ public sealed class PracticeSession
 
     public void StartNewAttempt()
     {
-        // Finalize the prior attempt: its current room becomes a DNF.
+        // Finalize the prior attempt: its current room becomes a DNF. Deliberately not room 0:
+        // in CurrentRoom timer mode a reset there leaves no trace, so R1's reset rate is always 0
+        // and the attempt total undercounts. The alternative records a DNF for every save-state
+        // reload, which is most of what a practice session does.
         if (CurrentAttemptIndex >= 0 && CurrentRoomIndex > 0)
         {
             _matrix.EnsureColumns(CurrentRoomIndex + 1);

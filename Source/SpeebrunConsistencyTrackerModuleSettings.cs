@@ -23,15 +23,27 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public int MillisecondsSecondDigit { get; set; } = 0;
     public int MillisecondsThirdDigit { get; set; } = 0;
 
+    // The menu edits this; the three digits below are the persisted form and stay as they are.
+    [SettingIgnore]
+    public int Milliseconds
+    {
+        get => MillisecondsFirstDigit * 100 + MillisecondsSecondDigit * 10 + MillisecondsThirdDigit;
+        set
+        {
+            int ms = System.Math.Clamp(value, 0, 999);
+            MillisecondsFirstDigit  = ms / 100;
+            MillisecondsSecondDigit = ms / 10 % 10;
+            MillisecondsThirdDigit  = ms % 10;
+        }
+    }
+
     // One place for the digit split: the typed box and the clipboard import both landed here and
     // had drifted into two copies of it. TimeParser rejects anything these five fields cannot hold.
     public void SetTargetTime(System.TimeSpan time)
     {
         Minutes = (int)time.TotalMinutes;
         Seconds = time.Seconds;
-        MillisecondsFirstDigit = time.Milliseconds / 100;
-        MillisecondsSecondDigit = time.Milliseconds / 10 % 10;
-        MillisecondsThirdDigit = time.Milliseconds % 10;
+        Milliseconds = time.Milliseconds;
     }
 
     // Text Overlay menu
@@ -88,6 +100,12 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     // Metrics menu
     public bool History { get; set; } = false;
     public MetricOutputChoice SuccessRate { get; set; } = MetricOutputChoice.Both;
+    // Not a metric: it decides whether the charts draw the target-time line, and it never
+    // produced a CSV column, so its Export half did nothing. Shown as an On/Off under Charts.
+    // Still a MetricOutputChoice, and still declared here among the metrics, because it is
+    // persisted under this name and in this position -- see PersistedEnumMembersTests for what
+    // moving or dropping a persisted member does to a live settings file. Off and Export read as
+    // off, Overlay and Both as on, which is what they already meant.
     public MetricOutputChoice TargetTime { get; set; } = MetricOutputChoice.Export;
     public MetricOutputChoice CompletedRunCount { get; set; } = MetricOutputChoice.Both;
     public MetricOutputChoice TotalRunCount { get; set; } = MetricOutputChoice.Both;
@@ -107,7 +125,11 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Overlay;
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Off;
-    [SettingIgnore]  // hidden until the metric is implemented
+    // Implemented but uncalibrated, and hidden on purpose. Its stability factor stays above 0.99
+    // while relMAD*CV < 0.014 -- tight and loose sessions alike -- so it reports (1 - resetRate)^2
+    // shaded by the PB gap.
+    // Recalibrate before exposing it: a menu row is one line, and a player reads the number as a verdict.
+    [SettingIgnore]
     public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Off;
     public bool MultimodalTest { get; set; } = false;

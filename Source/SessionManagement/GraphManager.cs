@@ -21,7 +21,9 @@ public static partial class GraphManager
         set => SpeebrunConsistencyTrackerModule.Settings.LastShownGraph = value;
     }
 
-    public static bool IsInitialized => SessionManager.CurrentSession != null;
+    // Named for what it answers: there is a session to build charts from. "Initialized" read as
+    // a statement about GraphManager, which it never was.
+    public static bool HasSession => SessionManager.CurrentSession != null;
 
     public static void Init()
     {
@@ -32,12 +34,14 @@ public static partial class GraphManager
 
     public static void Clear()
     {
+        // Before _currentOverlay is nulled: passing the null afterwards left the overlay's own
+        // pins and hidden columns in place, so a cleared session came back with them.
+        GraphInteractivity.Clear(_currentOverlay);
         _lastKnownSession = null;
         _currentOverlay   = null;
         _currentSlotIndex = -1;
         _enabledSlots.Clear();
         ClearAllCharts();
-        GraphInteractivity.Clear(_currentOverlay);
     }
 
     public static bool IsShowing() => _currentOverlay != null;
