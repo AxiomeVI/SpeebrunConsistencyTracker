@@ -111,7 +111,7 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         Add(new Header(Dialog.Clean(text.HeaderId)));
         // The clear hint on the menu, where the gesture is used; the combo hint on the recording
         // overlay, where it is. A SubHeader is one line, and the combo hint is too long for one.
-        Add(new SubHeader(Dialog.Clean(text.ClearHintId)));
+        Add(new FittedHint(Dialog.Clean(text.ClearHintId)));
 
         // Both sections walk the same table, so a keyboard row cannot exist without its controller
         // counterpart.
@@ -119,7 +119,7 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         foreach (Keybind<TSettings> keybind in hotkeys.Keybinds) {
             ButtonBinding binding = keybind.Binding(Settings);
             if (binding is null) continue;
-            Add(new Setting(Dialog.Clean(keybind.LabelId), binding.Keys)
+            Add(new Row(Dialog.Clean(keybind.LabelId), binding.Keys)
                 .Pressed(() => StartRecording(keybind, keyboard: true))
                 .AltPressed(() => ClearRow(keybind, keyboard: true)));
         }
@@ -128,7 +128,7 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         foreach (Keybind<TSettings> keybind in hotkeys.Keybinds) {
             ButtonBinding binding = keybind.Binding(Settings);
             if (binding is null) continue;
-            Add(new Setting(Dialog.Clean(keybind.LabelId), binding.Buttons)
+            Add(new Row(Dialog.Clean(keybind.LabelId), binding.Buttons)
                 .Pressed(() => StartRecording(keybind, keyboard: false))
                 .AltPressed(() => ClearRow(keybind, keyboard: false)));
         }
@@ -240,6 +240,34 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
     internal static float FitScale(string line, float preferred) {
         float width = ActiveFont.Measure(line).X * preferred;
         return width <= MaxLineWidth ? preferred : preferred * MaxLineWidth / width;
+    }
+
+    // TextMenu puts the longest label and the widest binding side by side with nothing between them.
+    internal const float LabelGap = 64f;
+
+    private sealed class Row : Setting {
+        internal Row(string label, List<Keys> keys) : base(label, keys) { }
+        internal Row(string label, List<Buttons> buttons) : base(label, buttons) { }
+        public override float LeftWidth() => base.LeftWidth() + LabelGap;
+    }
+
+    // ⚠️ The clear hint is the mod's own text, of any length in any language. A plain SubHeader counts
+    // its whole width into the menu's left column, and TextMenu adds that to the widest binding on the
+    // right: a long hint pushed every row off both edges of the screen. This one sizes nothing. It is
+    // centred on the menu, which is centred on the screen, and drawn smaller when wider than MaxLineWidth.
+    private sealed class FittedHint : SubHeader {
+        internal FittedHint(string title) : base(title) {
+            IncludeWidthInMeasurement = false;
+        }
+
+        // SubHeader's own drawing, at its own 0.6 scale and colours, but centred and fitted.
+        public override void Render(Vector2 position, bool highlighted) {
+            if (Title.Length == 0) return;
+            float alpha = Container.Alpha;
+            ActiveFont.DrawOutline(Title, position + new Vector2(Container.Width * 0.5f, TopPadding ? 32f : 0f),
+                                   new Vector2(0.5f, 0.5f), Vector2.One * FitScale(Title, 0.6f),
+                                   Color.Gray * alpha, 2f, Color.Black * (alpha * alpha * alpha));
+        }
     }
 
     public override void Render() {
