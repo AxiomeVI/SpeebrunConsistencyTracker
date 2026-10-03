@@ -1,13 +1,15 @@
 using System;
+using System.Collections.Generic;
+using Celeste.Mod.MenuTools;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
 public static partial class ModMenuOptions
 {
-    private static TextMenuExt.SubMenu CreateExportSubMenu(TextMenu menu, bool inGame)
+    private static void OpenExportPage(TextMenu menu)
     {
-        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.ExportSubMenu), false);
+        TextMenuPage page = NewPage(menu, DialogIds.ExportPageId);
 
         // Listed rather than enumerated: ExportChoice still carries the retired Sheet member.
         ExportChoice[] enumExportChoices = [ExportChoice.Clipboard, ExportChoice.File];
@@ -19,31 +21,35 @@ public static partial class ModMenuOptions
             Array.IndexOf(enumExportChoices, _settings.ExportMode));
         exportMode.Change(v => _settings.ExportMode = enumExportChoices[v]);
 
-        TextMenu.OnOff exportWithSRT = (TextMenu.OnOff)new TextMenu.OnOff(
-            Dialog.Clean(DialogIds.SrtExportId), _settings.ExportWithSRT)
-            .Change(b => _settings.ExportWithSRT = b);
+        TextMenu.OnOff exportWithSRT = new(Dialog.Clean(DialogIds.SrtExportId), _settings.ExportWithSRT);
+        exportWithSRT.Change(b => _settings.ExportWithSRT = b);
 
-        TextMenu.Button exportStatsButton = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.KeyStatsExportId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                if (_settings.ExportMode == ExportChoice.Clipboard)
-                    SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
-                else
-                    SpeebrunConsistencyTrackerModule.ExportDataToFiles();
-            });
-        exportStatsButton.Disabled = !inGame;
-
-        sub.Add(exportStatsButton);
-        sub.Add(exportMode);
-        sub.Add(exportWithSRT);
-
-        exportMode.AddDescription(sub, menu, Dialog.Clean(DialogIds.ExportPathId));
+        page.Add(exportMode);
+        exportMode.AddDescription(page, Dialog.Clean(DialogIds.ExportPathId));
+        page.Add(exportWithSRT);
         // SpeedrunTool hands its section over through the clipboard, whatever its own export mode
         // is set to, so with that set to File the section arrives empty and nothing said why.
-        exportWithSRT.AddDescription(sub, menu, Dialog.Clean(DialogIds.SrtExportDescId));
+        exportWithSRT.AddDescription(page, Dialog.Clean(DialogIds.SrtExportDescId));
 
-        sub.Visible = _settings.Enabled;
-        return sub;
+        Action refreshMetrics = AddMetricGroups(page, MetricOutput.Export);
+
+        page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ExtraSectionsId)));
+        List<(MetricToggles.Section Section, TextMenu.OnOff Row)> sections = [];
+        foreach (MetricToggles.Section section in MetricToggles.ExportSections)
+        {
+            TextMenu.OnOff row = new(Dialog.Clean(section.LabelKey), section.Get(_settings));
+            row.Change(on => section.Set(_settings, on));
+            page.Add(row);
+            sections.Add((section, row));
+        }
+
+        AddBulkButtons(page, MetricOutput.Export, DialogIds.IncludeAllId, DialogIds.IncludeNoneId, () =>
+        {
+            refreshMetrics();
+            foreach ((MetricToggles.Section section, TextMenu.OnOff row) in sections)
+                row.Index = section.Get(_settings) ? 1 : 0;
+        });
+
+        page.Enter();
     }
 }

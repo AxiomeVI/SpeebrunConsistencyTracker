@@ -1,98 +1,76 @@
-using System;
 using System.Collections.Generic;
+using Celeste.Mod.MenuTools;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
-using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.UI;
-using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
+// The Mod Options section: a few actions, then one full-screen page per topic.
+//
+// ⚠️ A page is created in its button's Pressed handler every time, with the Mod Options menu as
+// parent and no submenu parent, and never from Everest's TextMenuExt.SubMenu: CelesteMenuTools'
+// pages cannot take the input back from one.
 public static partial class ModMenuOptions
 {
     private static SpeebrunConsistencyTrackerModuleSettings _settings => SpeebrunConsistencyTrackerModule.Settings;
     private static SpeebrunConsistencyTrackerModule _instance => SpeebrunConsistencyTrackerModule.Instance;
 
-    private const string ConfirmSfx = "event:/ui/main/button_select";
-
-    private static readonly MetricOutputChoice[] AllChoices = Enum.GetValues<MetricOutputChoice>();
-
-    // This list drives the sliders and the Turn All Off / On / Reset buttons alike.
-    // No per-row Choices: every row offered AllChoices and a row that offered fewer would have to
-    // say what it does when the current value is not among them.
-    private record MetricDef(
-        string LabelKey,
-        Func<MetricOutputChoice> Get,
-        Action<MetricOutputChoice> Set,
-        MetricOutputChoice DefaultValue);
-
-    private static List<MetricDef> BuildMetricDefs() =>
-    [
-new(DialogIds.SuccessRateId,            () => _settings.SuccessRate,             v => _settings.SuccessRate = v,             MetricOutputChoice.Both),
-        new(DialogIds.CompletedRunCountId,      () => _settings.CompletedRunCount,       v => _settings.CompletedRunCount = v,       MetricOutputChoice.Both),
-        new(DialogIds.TotalRunCountId,          () => _settings.TotalRunCount,           v => _settings.TotalRunCount = v,           MetricOutputChoice.Both),
-        new(DialogIds.GoldRateId,               () => _settings.GoldRate,                v => _settings.GoldRate = v,                MetricOutputChoice.Off),
-        new(DialogIds.DnfCountId,               () => _settings.DnfCount,                v => _settings.DnfCount = v,                MetricOutputChoice.Off),
-        new(DialogIds.AverageId,                () => _settings.Average,                 v => _settings.Average = v,                 MetricOutputChoice.Both),
-        new(DialogIds.MedianId,                 () => _settings.Median,                  v => _settings.Median = v,                  MetricOutputChoice.Both),
-        new(DialogIds.MadId,                    () => _settings.MedianAbsoluteDeviation, v => _settings.MedianAbsoluteDeviation = v, MetricOutputChoice.Off),
-        new(DialogIds.RelMadId,                 () => _settings.RelativeMAD,             v => _settings.RelativeMAD = v,             MetricOutputChoice.Off),
-        new(DialogIds.ResetRateId,              () => _settings.ResetRate,               v => _settings.ResetRate = v,               MetricOutputChoice.Export),
-        new(DialogIds.MinimumId,                () => _settings.Minimum,                 v => _settings.Minimum = v,                 MetricOutputChoice.Export),
-        new(DialogIds.MaximumId,                () => _settings.Maximum,                 v => _settings.Maximum = v,                 MetricOutputChoice.Off),
-        new(DialogIds.StandardDeviationId,      () => _settings.StandardDeviation,       v => _settings.StandardDeviation = v,       MetricOutputChoice.Both),
-        new(DialogIds.CoefficientOfVariationId, () => _settings.CoefficientOfVariation,  v => _settings.CoefficientOfVariation = v,  MetricOutputChoice.Off),
-        new(DialogIds.PercentileId,             () => _settings.Percentile,              v => _settings.Percentile = v,              MetricOutputChoice.Off),
-        new(DialogIds.InterquartileRangeId,     () => _settings.InterquartileRange,      v => _settings.InterquartileRange = v,      MetricOutputChoice.Off),
-        new(DialogIds.LinearRegressionId,       () => _settings.LinearRegression,        v => _settings.LinearRegression = v,        MetricOutputChoice.Off),
-        new(DialogIds.SoBId,                    () => _settings.SoB,                     v => _settings.SoB = v,                     MetricOutputChoice.Overlay),
-    ];
-
-    private static TextMenu.Slider MetricSlider(MetricDef def)
-    {
-        var slider = new TextMenu.Slider(
-            Dialog.Clean(def.LabelKey),
-            i => Utility.EnumLabels.For(AllChoices[i]),
-            0,
-            AllChoices.Length - 1,
-            Array.IndexOf(AllChoices, def.Get()));
-        slider.Change(v => { def.Set(AllChoices[v]); MetricEngine.InvalidateSettingsHash(); });
-        return slider;
-    }
-
     private static string GetTargetTime() =>
-        $"{_settings.Minutes}:{_settings.Seconds:D2}.{_settings.MillisecondsFirstDigit}{_settings.MillisecondsSecondDigit}{_settings.MillisecondsThirdDigit}";
+        $"{_settings.Minutes}:{_settings.Seconds:D2}.{_settings.Milliseconds:D3}";
 
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
-        List<TextMenuExt.SubMenu> subMenus =
-        [
-            CreateTargetTimeSubMenu(menu, inGame),
-            CreateExportSubMenu(menu, inGame),
-            CreateMetricsSubMenu(menu),
-            CreateTextOverlaySubMenu(menu),
-            CreateGraphOverlaySubMenu(menu)
-        ];
+        List<TextMenu.Item> rows = [];
 
-        TextMenu.Button keybindButton = CelesteHotkeys.HotkeyMenu.OpenButton(
-            menu, Hotkeys.Set, Hotkeys.Text, SpeebrunConsistencyTrackerModule.Instance.SaveSettings);
-        // Change does not fire at construction, so the initial visibility is set here.
-        keybindButton.Visible = _settings.Enabled;
+        rows.Add(new ValueButton(Dialog.Clean(DialogIds.TargetTimeId), GetTargetTime)
+            .Pressed(() => OpenTargetTimeEntry(menu)));
 
+        if (inGame)
+        {
+            rows.Add(new TextMenu.Button(Dialog.Clean(DialogIds.ExportNowId)).Pressed(() =>
+            {
+                if (_settings.ExportMode == ExportChoice.Clipboard)
+                    SpeebrunConsistencyTrackerModule.ExportDataToClipboard();
+                else
+                    SpeebrunConsistencyTrackerModule.ExportDataToFiles();
+            }));
+        }
+
+        rows.Add(new ValueButton(Dialog.Clean(DialogIds.StatsOverlayPageId),
+                () => Dialog.Clean(_settings.OverlayEnabled ? "options_on" : "options_off"))
+            .Pressed(() => OpenOverlayPage(menu)));
+        rows.Add(new TextMenu.Button(Dialog.Clean(DialogIds.ChartsPageId)).Pressed(() => OpenChartsPage(menu)));
+        rows.Add(new TextMenu.Button(Dialog.Clean(DialogIds.ExportPageId)).Pressed(() => OpenExportPage(menu)));
+
+        // At the top level on purpose: the remap screen only unfocuses the menu, so from inside a
+        // submenu the submenu would keep reading input behind it.
+        rows.Add(CelesteHotkeys.HotkeyMenu.OpenButton(
+            menu, Hotkeys.Set, Hotkeys.Text, SpeebrunConsistencyTrackerModule.Instance.SaveSettings));
+
+        // Turning this off calls Clear(), which erases every save-state slot's data.
         TextMenu.OnOff enabledToggle = new(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled);
         enabledToggle.Change(value =>
         {
             _settings.Enabled = value;
-            foreach (TextMenuExt.SubMenu sub in subMenus) sub.Visible = value;
-            keybindButton.Visible = value;
+            foreach (TextMenu.Item row in rows) row.Visible = value;
             if (!value)
                 SpeebrunConsistencyTrackerModule.Clear();
         });
 
         menu.Add(enabledToggle);
-        foreach (TextMenuExt.SubMenu sub in subMenus)
-            menu.Add(sub);
-        menu.Add(keybindButton);
-        // Turning this off calls Clear(), which wipes every save-state slot's data. Nothing said so.
-        enabledToggle.AddDescription(menu, Dialog.Clean(DialogIds.EnabledDescId));
+        foreach (TextMenu.Item row in rows)
+        {
+            // Change does not fire at construction, so the initial visibility is set here.
+            row.Visible = _settings.Enabled;
+            menu.Add(row);
+        }
+    }
+
+    // A full-screen page under its own header. The caller adds the rows, then Enter()s it.
+    private static TextMenuPage NewPage(TextMenu menu, string headerId)
+    {
+        TextMenuPage page = new(menu);
+        page.Add(new TextMenu.Header(Dialog.Clean(headerId)));
+        return page;
     }
 }

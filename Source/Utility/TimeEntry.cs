@@ -35,6 +35,13 @@ public sealed class TimeEntry
         return true;
     }
 
+    /// <summary>Replaces the text with <paramref name="time"/> as m:ss.fff, the way the menu shows it.</summary>
+    public void Set(System.TimeSpan time)
+    {
+        Text = "";
+        foreach (char c in $"{(int)time.TotalMinutes}:{time.Seconds:D2}.{time.Milliseconds:D3}") Type(c);
+    }
+
     /// <returns>False when there was nothing to remove.</returns>
     public bool Backspace()
     {

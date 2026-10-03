@@ -1,40 +1,51 @@
 # ====================== Mod Menu ==============================
 SCT_SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker
 SCT_ENABLE_MOD=                            Enabled
-SCT_ENABLE_MOD_DESC=                       Turning this off erases the recorded data of every save state slot
+SCT_EXPORT_NOW=                            Export session now
+SCT_BULK_HEADER=                           All metrics
+SCT_SHOW_ALL=                              Show all
+SCT_HIDE_ALL=                              Hide all
+SCT_INCLUDE_ALL=                           Include all
+SCT_INCLUDE_NONE=                          Include none
+SCT_DEFAULTS=                              Defaults
 
 # ==================== Target Time =============================
-SCT_TARGET_TIME=                           Set Target Time
-SCT_INPUT_TARGET_TIME=                     Current target time
+SCT_TARGET_TIME=                           Target time
 SCT_TARGET_TIME_FORMAT=                    Format: mm:ss.fff, ss.fff, or a plain number of seconds
-SCT_RESET_TARGET_TIME=                     Reset target time
-SCT_MINUTES=                               Minutes
-SCT_SECONDS=                               Seconds
-SCT_MILLISECONDS=                          Milliseconds
+SCT_TARGET_TIME_PASTE=                     Paste
+SCT_TARGET_TIME_CLEAR=                     Clear
 
 # ====================== Export Menu ===========================
-SCT_EXPORT_WITH_SRT=                       Include Speedrun Tool data in export
+SCT_EXPORT_WITH_SRT=                       Include Speedrun Tool data
 SCT_EXPORT_WITH_SRT_DESC=                  Adds Speedrun Tool's stats. Set its own export mode to Clipboard, or this part is empty
-SCT_EXPORT_SUBMENU=                        Export Settings
-SCT_EXPORT_MOD=                            Export mode
+SCT_EXPORT_SUBMENU=                        Export options
+SCT_EXPORT_MOD=                            Export to
 SCT_EXPORT_PATH=                           File: CSV files are exported to SCT_Exports/<level>, next to the Mods folder
 
 # ====================== Text Overlay ==========================
-SCT_OVERLAY_ENABLED=                       Enable overlay
+SCT_OVERLAY_ENABLED=                       Show overlay
 SCT_TEXT_SIZE=                             Size
 SCT_TEXT_POSITION=                         Position
 SCT_TEXT_ORIENTATION=                      Orientation
 SCT_TEXT_ALPHA=                            Opacity
-SCT_TEXT_OVERLAY=                          Text Overlay
+SCT_TEXT_OVERLAY=                          Stats overlay
 
 # ====================== Chart Overlay ==========================
 SCT_GRAPH_OVERLAY=                         Charts
-SCT_ROOM_COLOR=                            Room chart color
-SCT_SEGMENT_COLOR=                         Segment chart color
-SCT_CHART_OPACITY=                         Chart opacity
+SCT_ROOM_COLOR=                            Room color
+SCT_SEGMENT_COLOR=                         Segment color
+SCT_PRIMARY_COLOR=                         Bars, first
+SCT_SECONDARY_COLOR=                       Bars, second
+SCT_BEST_COLOR=                            Best run
+SCT_LAST_COLOR=                            Last run
+SCT_SOB_COLOR=                             Sum of bests
+SCT_COLORS_HEADER=                         Colors
+SCT_CONTENT_HEADER=                        Content
+SCT_CHART_OPACITY=                         Fill opacity
+SCT_FILL_OPACITY_DESC=                     Bars, boxes and dots. Lines and text always draw at full color
 SCT_TIME_LOSS_THRESHOLD=                   Time loss threshold
 SCT_TIME_LOSS_THRESHOLD_DESC=              For the Problem Rooms chart. A room counts as a time loss when it runs this far over its session best.
-SCT_GRAPH_ENABLED=                         Enabled charts
+SCT_GRAPH_ENABLED=                         Charts in the cycle
 SCT_SCATTER=                               Scatter Plot
 SCT_ROOM_HISTOGRAM=                        Room Histograms
 SCT_SEGMENT_HISTOGRAM=                     Segment Histogram
@@ -70,8 +81,7 @@ SCT_DATA_CLEAR=                            Session data cleared
 SCT_NO_GRAPH_ERROR=                        No charts enabled
 
 # ======================== Stats ===============================
-SCT_STATS_SUBMENU=                         Metrics Settings
-SCT_EXPORT_ONLY=                           Export only
+SCT_EXPORT_ONLY=                           Extra sections
 SCT_COMPLETED_RUN_COUNT=                   Completed Run Count
 SCT_SUCCESS_RATE=                          Success Rate
 SCT_TOTAL_RUN_COUNT=                       Total Run Count
@@ -102,11 +112,6 @@ SCT_GROUP_SPREAD=                          Spread
 SCT_MULTIMODAL_TEST=                       Multimodal Test
 SCT_ROOM_DEPENDENCY=                       Room Dependency
 SCT_BEST_SPLIT=                            Best Split
-SCT_ALL_METRICS_OFF_BUTTON=                Turn off all metrics
-SCT_ALL_METRICS_ON_BUTTON=                 Turn on all metrics
-SCT_ALL_ON_DESC=                           Applied to both text overlay and export
-SCT_RESET_METRICS_BUTTON=                  Reset to default
-SCT_METRICS_SUBHEADER=                     Configure Stats Output: Off, Overlay, Export, or Both
 
 # ======================== Charts ==============================
 # A key ending in _FMT is read raw, through Dialog.Get, and filled with string.Format. Every other

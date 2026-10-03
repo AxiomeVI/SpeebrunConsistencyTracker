@@ -3,11 +3,20 @@ public static class DialogIds {
     // Main Menu
     public const string SpeebrunConsistencyTracker = "SCT_SPEEBRUN_CONSISTENCY_TRACKER";
     public const string EnabledId = "SCT_ENABLE_MOD";
+    public const string ExportNowId = "SCT_EXPORT_NOW";
+
+    // Pages and their shared rows
+    public const string BulkHeaderId = "SCT_BULK_HEADER";
+    public const string ShowAllId = "SCT_SHOW_ALL";
+    public const string HideAllId = "SCT_HIDE_ALL";
+    public const string IncludeAllId = "SCT_INCLUDE_ALL";
+    public const string IncludeNoneId = "SCT_INCLUDE_NONE";
+    public const string DefaultsId = "SCT_DEFAULTS";
 
     // Export submenu
     public const string SrtExportId = "SCT_EXPORT_WITH_SRT";
     public const string SrtExportDescId = "SCT_EXPORT_WITH_SRT_DESC";
-    public const string ExportSubMenu = "SCT_EXPORT_SUBMENU";
+    public const string ExportPageId = "SCT_EXPORT_SUBMENU";
     public const string ExportModeId = "SCT_EXPORT_MOD";
     public const string ExportPathId = "SCT_EXPORT_PATH";
 
@@ -27,12 +36,9 @@ public static class DialogIds {
 
     // Target Time Menu
     public const string TargetTimeId = "SCT_TARGET_TIME";
-    public const string InputTargetTimeId = "SCT_INPUT_TARGET_TIME";
-    public const string ResetTargetTimeId = "SCT_RESET_TARGET_TIME";
     public const string TargetTimeFormatId = "SCT_TARGET_TIME_FORMAT";
-    public const string Minutes = "SCT_MINUTES";
-    public const string Seconds = "SCT_SECONDS";
-    public const string Milliseconds = "SCT_MILLISECONDS";
+    public const string TargetTimePasteId = "SCT_TARGET_TIME_PASTE";
+    public const string TargetTimeClearId = "SCT_TARGET_TIME_CLEAR";
 
     // Popup message
     public const string PopupTargetTimeSetId = "SCT_POPUP_TARGET_TIME_SET";
@@ -43,7 +49,6 @@ public static class DialogIds {
     public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";
     public const string PopupExportToFileFailedId = "SCT_EXPORT_TO_FILE_FAILED";
     public const string PopupDataClearId = "SCT_DATA_CLEAR";
-    public const string EnabledDescId = "SCT_ENABLE_MOD_DESC";
     public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
 
     // Text Overlay Menu
@@ -51,8 +56,8 @@ public static class DialogIds {
     public const string TextSizeId = "SCT_TEXT_SIZE";
     public const string TextPositionId = "SCT_TEXT_POSITION";
     public const string TextOrientationId = "SCT_TEXT_ORIENTATION";
-    public const string TextOverlayId = "SCT_TEXT_OVERLAY";
-    public const string GraphOverlayId = "SCT_GRAPH_OVERLAY";
+    public const string StatsOverlayPageId = "SCT_TEXT_OVERLAY";
+    public const string ChartsPageId = "SCT_GRAPH_OVERLAY";
     public const string TextAlphaId = "SCT_TEXT_ALPHA";
 
     // Graph Overlay Menu
@@ -64,15 +69,22 @@ public static class DialogIds {
     public const string GraphProblemRoomsId = "SCT_PROBLEM_ROOM_BAR_CHART";
     public const string RoomColorId = "SCT_ROOM_COLOR";
     public const string SegmentColorId = "SCT_SEGMENT_COLOR";
-    public const string ChartOpacityId = "SCT_CHART_OPACITY";
+    public const string PrimaryColorId = "SCT_PRIMARY_COLOR";
+    public const string SecondaryColorId = "SCT_SECONDARY_COLOR";
+    public const string BestColorId = "SCT_BEST_COLOR";
+    public const string LastColorId = "SCT_LAST_COLOR";
+    public const string SobColorId = "SCT_SOB_COLOR";
+    public const string ColorsHeaderId = "SCT_COLORS_HEADER";
+    public const string ContentHeaderId = "SCT_CONTENT_HEADER";
+    public const string FillOpacityId = "SCT_CHART_OPACITY";
+    public const string FillOpacityDescId = "SCT_FILL_OPACITY_DESC";
     public const string TimeLossThresholdId = "SCT_TIME_LOSS_THRESHOLD";
     public const string TimeLossThresholdDescId = "SCT_TIME_LOSS_THRESHOLD_DESC";
     public const string GraphTimeLossId = "SCT_TIME_LOSS_CHART";
     public const string GraphRunTrajectoryId = "SCT_TRAJECTORY_GRAPH";
 
     // Stats Menu
-    public const string StatsSubMenuId = "SCT_STATS_SUBMENU";
-    public const string ExportOnlyId = "SCT_EXPORT_ONLY";
+    public const string ExtraSectionsId = "SCT_EXPORT_ONLY";
     public const string SuccessRateId = "SCT_SUCCESS_RATE";
     public const string ResetRateId = "SCT_RESET_RATE";
     public const string ResetShareId = "SCT_RESET_SHARE";
@@ -95,14 +107,9 @@ public static class DialogIds {
     public const string TotalRunCountId = "SCT_TOTAL_RUN_COUNT";
     public const string DnfCountId = "SCT_DNF_COUNT";
     public const string ConsistencyScoreId = "SCT_CONSISTENCY_SCORE";
-    public const string ButtonAllOffId = "SCT_ALL_METRICS_OFF_BUTTON";
-    public const string ButtonAllOnId = "SCT_ALL_METRICS_ON_BUTTON";
-    public const string AllOnDescId = "SCT_ALL_ON_DESC";
-    public const string ButtonResetId = "SCT_RESET_METRICS_BUTTON";
     public const string MultimodalTestId = "SCT_MULTIMODAL_TEST";
     public const string RoomDependencyId = "SCT_ROOM_DEPENDENCY";
     public const string BestSplitId = "SCT_BEST_SPLIT";
-    public const string MetricsSubHeaderId = "SCT_METRICS_SUBHEADER";
     public const string RelMadId = "SCT_RELATIVE_MAD";
     public const string GoldRateId = "SCT_GOLD_RATE";
     public const string GroupRunsId = "SCT_GROUP_RUNS";
@@ -113,7 +120,6 @@ public static class DialogIds {
     public const string GraphBoxPlotId = "SCT_BOX_PLOT_GRAPH";
 
     // Chart text. An *Fmt constant names a line read through DialogText.Format, never Dialog.Clean.
-    public const string ChartOpacity = "SCT_CHART_OPACITY";
     public const string ChartLabelValueFmt = "SCT_CHART_LABEL_VALUE_FMT";
     public const string ChartSegment = "SCT_CHART_SEGMENT";
     public const string ChartSegmentRoomsFmt = "SCT_CHART_SEGMENT_ROOMS_FMT";

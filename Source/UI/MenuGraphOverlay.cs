@@ -1,80 +1,80 @@
 using System;
 using System.Globalization;
+using System.Linq;
+using Celeste.Mod.MenuTools;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
+using Microsoft.Xna.Framework;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
 public static partial class ModMenuOptions
 {
-    private static TextMenuExt.SubMenu CreateGraphOverlaySubMenu(TextMenu menu)
+    private static void OpenChartsPage(TextMenu menu)
     {
-        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.GraphOverlayId), false);
+        TextMenuPage page = NewPage(menu, DialogIds.ChartsPageId);
 
-        ColorChoice[] enumColors = Enum.GetValues<ColorChoice>();
+        // The fourteen colours the old sliders offered, as the wheel's presets.
+        (string name, Color color)[] presets = [.. Enum.GetValues<ColorChoice>()
+            .Select(c => (EnumLabels.For(c), ColorHelper.ToColor(c)))];
+        ChartPalette palette = ChartPalette.Current;
 
-        TextMenu.Slider roomColor = new(
-            Dialog.Clean(DialogIds.RoomColorId),
-            i => Utility.EnumLabels.For(enumColors[i]), 0, enumColors.Length - 1,
-            Array.IndexOf(enumColors, _settings.RoomColor));
+        void AddColor(string labelId, Color current, Action<string> save) =>
+            page.Add(new ColorWheelButton(Dialog.Clean(labelId), current, presets: presets)
+                .Change(c => save(ColorHelper.ToHex(c))));
 
-        TextMenu.Slider segmentColor = new(
-            Dialog.Clean(DialogIds.SegmentColorId),
-            i => Utility.EnumLabels.For(enumColors[i]), 0, enumColors.Length - 1,
-            Array.IndexOf(enumColors, _settings.SegmentColor));
+        page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ColorsHeaderId)));
+        AddColor(DialogIds.RoomColorId,      palette.Room,      hex => _settings.RoomColorHex = hex);
+        AddColor(DialogIds.SegmentColorId,   palette.Segment,   hex => _settings.SegmentColorHex = hex);
+        AddColor(DialogIds.PrimaryColorId,   palette.Primary,   hex => _settings.PrimaryChartColorHex = hex);
+        AddColor(DialogIds.SecondaryColorId, palette.Secondary, hex => _settings.SecondaryChartColorHex = hex);
+        AddColor(DialogIds.BestColorId,      palette.Best,      hex => _settings.TrajectoryBestColorHex = hex);
+        AddColor(DialogIds.LastColorId,      palette.Last,      hex => _settings.TrajectoryLastColorHex = hex);
+        AddColor(DialogIds.SobColorId,       palette.Sob,       hex => _settings.TrajectorySobColorHex = hex);
 
-        FormattedIntSlider graphOpacity = new(
-            Dialog.Clean(DialogIds.ChartOpacityId),
+        FormattedIntSlider fillOpacity = new(
+            Dialog.Clean(DialogIds.FillOpacityId),
             0, 100,
             _settings.ChartOpacity,
             v => (v / 100f).ToString("0.00", CultureInfo.InvariantCulture));
+        fillOpacity.Change(v => _settings.ChartOpacity = v);
+        page.Add(fillOpacity);
+        fillOpacity.AddDescription(page, Dialog.Clean(DialogIds.FillOpacityDescId));
+
+        page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ContentHeaderId)));
+
+        TextMenu.OnOff targetLine = new(
+            Dialog.Clean(DialogIds.ShowTargetLineId),
+            Metrics.MetricHelper.IsMetricEnabled(_settings.TargetTime, MetricOutput.Overlay));
+        targetLine.Change(v =>
+        {
+            _settings.TargetTime = v ? MetricOutputChoice.Overlay : MetricOutputChoice.Off;
+            GraphManager.ClearChart(GraphType.Scatter);
+        });
+        page.Add(targetLine);
 
         FormattedIntSlider timeLossThreshold = new(
             Dialog.Clean(DialogIds.TimeLossThresholdId),
             1, 118,
             (int)Math.Round(_settings.TimeLossThresholdMs / 17.0),
             v => $"{v}f / {v * 17}ms");
-
-        roomColor.Change(v =>
-        {
-            _settings.RoomColor = enumColors[v];
-            _settings.RoomColorHex = ColorHelper.ToHex(ColorHelper.ToColor(enumColors[v]));
-        });
-        segmentColor.Change(v =>
-        {
-            _settings.SegmentColor = enumColors[v];
-            _settings.SegmentColorHex = ColorHelper.ToHex(ColorHelper.ToColor(enumColors[v]));
-        });
         timeLossThreshold.Change(v =>
         {
             _settings.TimeLossThresholdMs = v * 17;
             GraphManager.ClearChart(GraphType.ProblemRooms);
         });
-        graphOpacity.Change(v => _settings.ChartOpacity = v);
+        page.Add(timeLossThreshold);
+        timeLossThreshold.AddDescription(page, Dialog.Clean(DialogIds.TimeLossThresholdDescId));
 
-        TextMenu.OnOff targetLine = new(
-            Dialog.Clean(DialogIds.ShowTargetLineId),
-            Metrics.MetricHelper.IsMetricEnabled(_settings.TargetTime, Enums.MetricOutput.Overlay));
-        targetLine.Change(v =>
-        {
-            _settings.TargetTime = v ? Enums.MetricOutputChoice.Overlay : Enums.MetricOutputChoice.Off;
-            GraphManager.ClearChart(GraphType.Scatter);
-        });
-
-        sub.Add(roomColor);
-        sub.Add(segmentColor);
-        sub.Add(graphOpacity);
-        sub.Add(timeLossThreshold);
-        sub.Add(targetLine);
-        sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphEnabledId), false));
+        page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphEnabledId)));
 
         // One toggle per row of GraphManager.ChartDefinitions, in table order — which is also the
         // order the Next/Previous keybinds cycle through. Turning a chart off clears its cache so
         // a later session never redraws a stale one.
         foreach (ChartDefinition chart in GraphManager.ChartDefinitions)
         {
-            sub.Add(new TextMenu.OnOff(Dialog.Clean(chart.LabelKey), chart.Get(_settings))
+            page.Add(new TextMenu.OnOff(Dialog.Clean(chart.LabelKey), chart.Get(_settings))
                 .Change(v =>
                 {
                     chart.Set(_settings, v);
@@ -83,10 +83,7 @@ public static partial class ModMenuOptions
                 }));
         }
 
-        timeLossThreshold.AddDescription(sub, menu, Dialog.Clean(DialogIds.TimeLossThresholdDescId));
-
-        sub.Visible = _settings.Enabled;
-        return sub;
+        page.Enter();
     }
 
     private static void RebuildGraphSlots()
