@@ -32,9 +32,9 @@ SpeedrunTool `3.26.4` or later is required (`everest.yaml` pins it).
 
 ### 2. Real-Time Feedback & Overlays
 
-Configure the overlay to display the metrics that matter most to your current goals:
+Configure the overlay to display the metrics that matter most to your current goals. Each metric is switched on separately for the overlay (the **Stats overlay** page in Mod Options) and for exports (the **Export options** page):
 
-* **Target Time Tracking:** Define a goal time for the segment and track your **Success Rate** in real-time
+* **Target Time Tracking:** Define a goal time for the segment, typed on a keypad or pasted from the clipboard, and track your **Success Rate** in real-time
 * **Live Charts:** Cycle through performance charts for the entire segment or individual rooms
 
 ### 3. Exporting
@@ -43,7 +43,7 @@ Configure the overlay to display the metrics that matter most to your current go
 
 ## Charts
 
-All charts are accessible in-game via keybinds and can be individually toggled in the settings menu.
+All charts are accessible in-game via keybinds and can be individually toggled on the **Charts** page of Mod Options, where their seven colors and the fill opacity can be changed too.
 
 - **Scatter Plot:** outliers and time clusters per room
 - **Room Histogram:** time distribution for a single room

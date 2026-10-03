@@ -1,6 +1,6 @@
 # Metrics Reference
 
-Metrics are computed per room and per segment. They are available in the text overlay and in data exports. Export-only metrics appear in CSV exports but not in the in-game overlay.
+Metrics are computed per room and per segment. They are available in the text overlay and in data exports. Each metric has two switches in Mod Options, one on the **Stats overlay** page and one on the **Export options** page, so it can be shown, exported, both or neither. Export-only metrics appear in CSV exports but not in the in-game overlay.
 
 - **History:** every run time from the session, in order
 - **Success Rate:** (segment only) how often you finish within your target time, as a share of your *completed* runs, not of every attempt
