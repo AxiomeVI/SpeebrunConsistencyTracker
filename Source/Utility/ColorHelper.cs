@@ -1,3 +1,4 @@
+using System.Globalization;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Microsoft.Xna.Framework;
 
@@ -26,4 +27,21 @@ public static class ColorHelper
 
     public static Color ToFinalColor(ColorChoice choice, int opacity) =>
         ToColor(choice) * (opacity / 100f);
+
+    // Six hex digits, no '#': how the colour settings are saved. Alpha is dropped.
+    public static string ToHex(Color color) => $"{color.R:x2}{color.G:x2}{color.B:x2}";
+
+    // Accepts "rrggbb" or "#rrggbb", any case; anything else is false. A hand-edited settings file
+    // can hold anything, and Calc.HexToColor reads garbage as some colour instead of failing.
+    public static bool TryParseHex(string text, out Color color)
+    {
+        color = Color.White;
+        if (text == null) return false;
+        string hex = text.Trim();
+        if (hex.StartsWith('#')) hex = hex[1..];
+        if (hex.Length != 6 || !int.TryParse(hex, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture, out int rgb))
+            return false;
+        color = new Color((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
+        return true;
+    }
 }

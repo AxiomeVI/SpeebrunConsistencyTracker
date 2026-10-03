@@ -105,6 +105,9 @@ public static class DialogIds {
     public const string MetricsSubHeaderId = "SCT_METRICS_SUBHEADER";
     public const string RelMadId = "SCT_RELATIVE_MAD";
     public const string GoldRateId = "SCT_GOLD_RATE";
+    public const string GroupRunsId = "SCT_GROUP_RUNS";
+    public const string GroupTimesId = "SCT_GROUP_TIMES";
+    public const string GroupSpreadId = "SCT_GROUP_SPREAD";
 
     // Graph Overlay (charts)
     public const string GraphBoxPlotId = "SCT_BOX_PLOT_GRAPH";
