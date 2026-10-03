@@ -1,3 +1,4 @@
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Microsoft.Xna.Framework;
@@ -73,9 +74,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (buckets.Count == 0 || maxCount == 0) return;
 
-            Color barColor = _isSegment
-                ? SpeebrunConsistencyTrackerModule.Settings.SegmentColorFinal
-                : SpeebrunConsistencyTrackerModule.Settings.RoomColorFinal;
+            Color barColor = _isSegment ? ChartPalette.Current.SegmentFill : ChartPalette.Current.RoomFill;
 
             float barWidth = Math.Min(w / buckets.Count, MAX_BAR_WIDTH);
             float barSpacing = barWidth * ChartConstants.BarLayout.SingleBarSpacingRatio;

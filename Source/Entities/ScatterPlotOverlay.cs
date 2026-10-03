@@ -1,3 +1,4 @@
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Microsoft.Xna.Framework;
 using Monocle;
@@ -335,7 +336,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             }
 
             foreach (var (pos, isSegment, radius, _, _, _) in cachedDots)
-                DrawDot(pos, isSegment ? _settings.SegmentColorFinal : _settings.RoomColorFinal, radius);
+                DrawDot(pos, isSegment ? ChartPalette.Current.SegmentFill : ChartPalette.Current.RoomFill, radius);
         }
 
         // Dots spread chronologically inside their column: oldest left, newest right.
@@ -441,7 +442,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                     new Vector2(centerX - labelSize.X / 2, labelY),
                     new Vector2(0f, 0f),
                     Vector2.One * ChartConstants.FontScale.AxisLabel,
-                    _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    ChartPalette.Current.Room, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             float segStartX2  = GetColumnStartX(x, w, roomDataList.Count);
@@ -456,14 +457,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 new Vector2(segCenterX2 - segLabelSize.X / 2, segmentLabelY),
                 new Vector2(0f, 0f),
                 Vector2.One * ChartConstants.FontScale.AxisLabel,
-                _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                ChartPalette.Current.Segment, ChartConstants.Stroke.OutlineSize, Color.Black);
 
             if (_toggle.Normalized)
-                DrawPercentageAxisLabels(x, y, w, h, _minRoomPct, _maxRoomPct, _settings.RoomColorFinal);
+                DrawPercentageAxisLabels(x, y, w, h, _minRoomPct, _maxRoomPct, ChartPalette.Current.Room);
             else
-                DrawFrameAxisLabels(x, y, w, h, minRoomTime, maxRoomTime, YAxisSide.Left, _settings.RoomColorFinal);
+                DrawFrameAxisLabels(x, y, w, h, minRoomTime, maxRoomTime, YAxisSide.Left, ChartPalette.Current.Room);
 
-            DrawFrameAxisLabels(x, y, w, h, minSegmentTime, maxSegmentTime, YAxisSide.Right, _settings.SegmentColorFinal);
+            DrawFrameAxisLabels(x, y, w, h, minSegmentTime, maxSegmentTime, YAxisSide.Right, ChartPalette.Current.Segment);
 
             DrawTitle();
         }

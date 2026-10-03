@@ -25,9 +25,6 @@ public static class ColorHelper
         _ => Color.White,
     };
 
-    public static Color ToFinalColor(ColorChoice choice, int opacity) =>
-        ToColor(choice) * (opacity / 100f);
-
     // Six hex digits, no '#': how the colour settings are saved. Alpha is dropped.
     public static string ToHex(Color color) => $"{color.R:x2}{color.G:x2}{color.B:x2}";
 

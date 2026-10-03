@@ -39,26 +39,19 @@ public static partial class ModMenuOptions
         roomColor.Change(v =>
         {
             _settings.RoomColor = enumColors[v];
-            _settings.RoomColorFinal = ColorHelper.ToFinalColor(enumColors[v], _settings.ChartOpacity);
+            _settings.RoomColorHex = ColorHelper.ToHex(ColorHelper.ToColor(enumColors[v]));
         });
         segmentColor.Change(v =>
         {
             _settings.SegmentColor = enumColors[v];
-            _settings.SegmentColorFinal = ColorHelper.ToFinalColor(enumColors[v], _settings.ChartOpacity);
+            _settings.SegmentColorHex = ColorHelper.ToHex(ColorHelper.ToColor(enumColors[v]));
         });
         timeLossThreshold.Change(v =>
         {
             _settings.TimeLossThresholdMs = v * 17;
             GraphManager.ClearChart(GraphType.ProblemRooms);
         });
-        graphOpacity.Change(v =>
-        {
-            _settings.ChartOpacity = v;
-            _settings.RoomColorFinal           = ColorHelper.ToFinalColor(_settings.RoomColor, v);
-            _settings.SegmentColorFinal        = ColorHelper.ToFinalColor(_settings.SegmentColor, v);
-            _settings.PrimaryChartColorFinal   = _settings.PrimaryChartColor * (v / 100f);
-            _settings.SecondaryChartColorFinal = _settings.SecondaryChartColor * (v / 100f);
-        });
+        graphOpacity.Change(v => _settings.ChartOpacity = v);
 
         TextMenu.OnOff targetLine = new(
             Dialog.Clean(DialogIds.ShowTargetLineId),

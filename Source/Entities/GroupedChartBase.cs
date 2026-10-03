@@ -1,3 +1,4 @@
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Microsoft.Xna.Framework;
 using Monocle;
 using System.Collections.Generic;
@@ -190,8 +191,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         {
             if (_primaryValues.Count == 0) return;
 
-            Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
-            Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
+            Color primaryColor   = ChartPalette.Current.PrimaryFill;
+            Color secondaryColor = ChartPalette.Current.SecondaryFill;
 
             for (int i = 0; i < _primaryValues.Count; i++)
             {
@@ -236,8 +237,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         protected override void DrawLabels(float x, float y, float w, float h)
         {
-            Color primaryColor   = SpeebrunConsistencyTrackerModule.Settings.PrimaryChartColorFinal;
-            Color secondaryColor = SpeebrunConsistencyTrackerModule.Settings.SecondaryChartColorFinal;
+            Color primaryColor   = ChartPalette.Current.PrimaryFill;
+            Color secondaryColor = ChartPalette.Current.SecondaryFill;
 
             DrawTitle();
             DrawYAxis(x, y, w, h);

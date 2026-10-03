@@ -234,18 +234,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 if (_hiddenColumns.Contains(r)) continue;
                 var box = ComputeBoxGeometry(r, x, y, w, h);
                 if (box == null) continue;
-                DrawBox(box.Value, _settings.RoomColorFinal);
+                DrawBox(box.Value, ChartPalette.Current.Room, ChartPalette.Current.RoomFill);
             }
 
             if (_segmentTimes.Count > 0)
             {
                 var segBox = ComputeBoxGeometry(roomCount, x, y, w, h);
                 if (segBox != null)
-                    DrawBox(segBox.Value, _settings.SegmentColorFinal);
+                    DrawBox(segBox.Value, ChartPalette.Current.Segment, ChartPalette.Current.SegmentFill);
             }
         }
 
-        private static void DrawBox(BoxGeometry box, Color color)
+        private static void DrawBox(BoxGeometry box, Color color, Color fill)
         {
             float boxLeft  = MathF.Round(box.CenterX - box.BoxHalfW);
             float boxRight = MathF.Round(box.CenterX + box.BoxHalfW);
@@ -259,7 +259,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float boxTop    = Math.Min(box.PxQ1, box.PxQ3);
             float boxBottom = Math.Max(box.PxQ1, box.PxQ3);
             float boxHeight = Math.Max(1f, boxBottom - boxTop);
-            Draw.Rect(boxLeft, boxTop, boxRight - boxLeft, boxHeight, color);
+            Draw.Rect(boxLeft, boxTop, boxRight - boxLeft, boxHeight, fill);
 
             Draw.Line(new Vector2(boxLeft, box.PxMed), new Vector2(boxRight, box.PxMed), Color.White, 2.5f);
         }
@@ -287,7 +287,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
                 ActiveFont.DrawOutline(label,
                     new Vector2(centerX - labelSize.X / 2, labelY),
                     Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
-                    _settings.RoomColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                    ChartPalette.Current.Room, ChartConstants.Stroke.OutlineSize, Color.Black);
             }
 
             float segX      = GetColumnCenterX(x, w, roomCount);
@@ -298,14 +298,14 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             ActiveFont.DrawOutline(Dialog.Clean(DialogIds.ChartSegment),
                 new Vector2(segX - segLabelSize.X / 2, segLabelY),
                 Vector2.Zero, Vector2.One * ChartConstants.FontScale.AxisLabel,
-                _settings.SegmentColorFinal, ChartConstants.Stroke.OutlineSize, Color.Black);
+                ChartPalette.Current.Segment, ChartConstants.Stroke.OutlineSize, Color.Black);
 
             if (_toggle.Normalized)
-                DrawPercentageAxisLabels(x, y, w, h, _minRoomPct, _maxRoomPct, _settings.RoomColorFinal);
+                DrawPercentageAxisLabels(x, y, w, h, _minRoomPct, _maxRoomPct, ChartPalette.Current.Room);
             else
-                DrawFrameAxisLabels(x, y, w, h, _minRoom, _maxRoom, YAxisSide.Left, _settings.RoomColorFinal);
+                DrawFrameAxisLabels(x, y, w, h, _minRoom, _maxRoom, YAxisSide.Left, ChartPalette.Current.Room);
 
-            DrawFrameAxisLabels(x, y, w, h, _minSeg, _maxSeg, YAxisSide.Right, _settings.SegmentColorFinal);
+            DrawFrameAxisLabels(x, y, w, h, _minSeg, _maxSeg, YAxisSide.Right, ChartPalette.Current.Segment);
 
             DrawTitle();
         }
