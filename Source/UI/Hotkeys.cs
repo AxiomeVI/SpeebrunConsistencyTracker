@@ -21,6 +21,7 @@ internal static class Hotkeys {
     internal static readonly KeybindScreenText Text = new() {
         HeaderId        = DialogIds.KeybindConfigId,
         ComboHintId     = DialogIds.KeybindComboSubId,
+        PageComboHintId = DialogIds.KeybindPageComboFmt,
         ClearHintId     = DialogIds.KeybindClearSubId,
         TimeoutFormatId = DialogIds.KeybindTimeoutFmt,
     };
