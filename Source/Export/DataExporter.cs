@@ -35,20 +35,22 @@ public static class DataExporter
             return;
         }
 
+        const char separator = Csv.ClipboardSeparator;
         StringBuilder sb = new();
-        _ = sb.Append(MetricsExporter.ExportSessionToCsv(session));
+        _ = sb.Append(MetricsExporter.ExportSessionToCsv(session, separator));
         if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
         {
             _ = sb.Append("\n\n\n");
             // The SRT export may go to a file, leaving a stale clipboard behind.
             TextInput.SetClipboardText("");
             RoomTimerManager.CmdExportRoomTimes();
-            _ = sb.Append(TextInput.GetClipboardText());
+            // Speedrun Tool writes commas and never quotes: its fields are room numbers and times.
+            _ = sb.Append(TextInput.GetClipboardText()?.Replace(Csv.FileSeparator, separator));
         }
         if (SpeebrunConsistencyTrackerModule.Settings.History)
         {
             _ = sb.Append("\n\n\n");
-            _ = sb.Append(SessionHistoryExporter.ExportSessionToCsv(session));
+            _ = sb.Append(SessionHistoryExporter.ExportSessionToCsv(session, separator));
         }
         TextInput.SetClipboardText(sb.ToString());
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToClipboardId));
