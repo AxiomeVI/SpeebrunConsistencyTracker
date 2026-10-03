@@ -58,7 +58,7 @@ SCT_BOX_PLOT_GRAPH=                        Box Plot
 
 # ======================= Hotkeys ==============================
 SCT_KEYBIND_CONFIG=                        Hotkeys
-SCT_KEYBIND_COMBO_SUB=                     Binding several keys makes a combo: hold them all together. Press a bound key again to unbind it.
+SCT_KEYBIND_COMBO_SUB=                     Hold the whole combo together, then let go to bind it (up to 4)
 SCT_KEYBIND_CLEAR_SUB=                     Press Journal or Delete to clear the selected hotkey
 # {0} is the seconds left before recording gives up.
 SCT_KEYBIND_TIMEOUT_FMT=                   Cancelling in {0}s - press Escape to cancel now
