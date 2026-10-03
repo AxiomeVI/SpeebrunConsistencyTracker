@@ -62,11 +62,29 @@ public class DialogKeyTests
         ];
 
         HashSet<string> referenced = [.. DialogIdConstants()];
+        HashSet<string> menuTools = MenuToolsBlockKeys();
         string[] orphans = [.. KeysInEnglishTxt()
-            .Where(k => !referenced.Contains(k) && !usedElsewhere.Contains(k))
+            .Where(k => !referenced.Contains(k) && !usedElsewhere.Contains(k) && !menuTools.Contains(k))
             .Order()];
 
         Assert.Equal([], orphans);
+    }
+
+    // The block CelesteMenuTools' vendor.sh writes. Source/MenuTools/MenuToolsDialog.cs reads these
+    // keys by prefix, not through DialogIds, and re-vendoring rewrites the block.
+    private static HashSet<string> MenuToolsBlockKeys()
+    {
+        HashSet<string> keys = [];
+        bool inside = false;
+        foreach (string line in File.ReadAllLines(Path.Combine(RepoRoot(), "Dialog", "English.txt")))
+        {
+            string trimmed = line.Trim();
+            if (trimmed.StartsWith("# MenuTools begin")) { inside = true; continue; }
+            if (trimmed.StartsWith("# MenuTools end")) { inside = false; continue; }
+            int eq = trimmed.IndexOf('=');
+            if (inside && eq > 0) keys.Add(trimmed[..eq].Trim());
+        }
+        return keys;
     }
 
     // Every line with its text; a line with no "KEY=" continues the one above it, as the loader reads it.
