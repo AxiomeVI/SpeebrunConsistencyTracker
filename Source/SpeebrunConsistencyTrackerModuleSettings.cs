@@ -60,27 +60,17 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
     public int ChartOpacity { get; set; } = 75;
 
-    [SettingIgnore]
-    public Color RoomColorFinal    { get; set; } = ColorHelper.ToFinalColor(ColorChoice.Cyan,   75);
-    [SettingIgnore]
-    public Color SegmentColorFinal { get; set; } = ColorHelper.ToFinalColor(ColorChoice.Orange, 75);
-
-    [SettingIgnore]
-    public Color PrimaryChartColor   { get; set; } = Color.IndianRed;
-    [SettingIgnore]
-    public Color SecondaryChartColor { get; set; } = Color.CornflowerBlue;
-    
-    [SettingIgnore]
-    public Color PrimaryChartColorFinal   { get; set; } = Color.IndianRed      * 0.75f;
-    [SettingIgnore]
-    public Color SecondaryChartColorFinal { get; set; } = Color.CornflowerBlue * 0.75f;
-
-    [SettingIgnore]
-    public Color TrajectoryBestColorFinal { get; set; } = Color.Gold;
-    [SettingIgnore]
-    public Color TrajectoryLastColorFinal { get; set; } = Color.MediumOrchid;
-    [SettingIgnore]
-    public Color TrajectorySobColorFinal  { get; set; } = Color.Turquoise;
+    // The seven chart colours, as six hex digits without '#'. Read them through ChartPalette, which
+    // falls back to the default for anything unreadable. Room and segment start null so that
+    // OnLoadSettings can tell a file written before them and fill them from RoomColor and
+    // SegmentColor, which stay for that reason.
+    public string RoomColorHex { get; set; } = null;
+    public string SegmentColorHex { get; set; } = null;
+    public string PrimaryChartColorHex { get; set; } = ChartPalette.DefaultPrimaryHex;
+    public string SecondaryChartColorHex { get; set; } = ChartPalette.DefaultSecondaryHex;
+    public string TrajectoryBestColorHex { get; set; } = ChartPalette.DefaultBestHex;
+    public string TrajectoryLastColorHex { get; set; } = ChartPalette.DefaultLastHex;
+    public string TrajectorySobColorHex { get; set; } = ChartPalette.DefaultSobHex;
 
     public int TimeLossThresholdMs { get; set; } = 493;
     public bool GraphScatter { get; set; } = true;
@@ -140,9 +130,18 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
         // Migrates a settings file written while the Sheets export still existed.
         if (ExportMode == ExportChoice.Sheet) ExportMode = ExportChoice.Clipboard;
 
+        MigrateColors();
+
         // Keys.None reads as held for every unmappable key, and a settings file can carry it
         // whatever the remap screen allows.
         CelesteHotkeys.Bindable.Sanitize(this);
+    }
+
+    // A settings file written before the colour wheel has only the ColorChoice, or neither key, in
+    // which case RoomColor keeps its default and so does the hex it fills.
+    public void MigrateColors() {
+        if (string.IsNullOrEmpty(RoomColorHex))    RoomColorHex    = ColorHelper.ToHex(ColorHelper.ToColor(RoomColor));
+        if (string.IsNullOrEmpty(SegmentColorHex)) SegmentColorHex = ColorHelper.ToHex(ColorHelper.ToColor(SegmentColor));
     }
 
     #region Hotkeys

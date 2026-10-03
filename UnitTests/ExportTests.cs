@@ -27,6 +27,14 @@ public class CsvFieldTests
     [InlineData("carriage\rreturn", "\"carriage\rreturn\"")]
     public void A_value_that_would_break_the_row_is_quoted(string value, string expected)
         => Assert.Equal(expected, Csv.Field(value));
+
+    // On the clipboard the separator is a tab, so a comma is an ordinary character there.
+    [Theory]
+    [InlineData("Two peaks: 0.983, 1.150", "Two peaks: 0.983, 1.150")]
+    [InlineData("a\tb", "\"a\tb\"")]
+    [InlineData("he said \"go\"", "\"he said \"\"go\"\"\"")]
+    public void Only_the_separator_in_use_forces_quotes(string value, string expected)
+        => Assert.Equal(expected, Csv.Field(value, Csv.ClipboardSeparator));
 }
 
 public class SanitizeFileNameTests
@@ -123,6 +131,21 @@ public class SessionHistoryExporterTests
         Assert.Equal(
             ["Attempt,R1,R2,R3,Segment", "1,1.000,2.000,3.000,6.000", "2,1.000,2.000,3.000,6.000"],
             Lines(session));
+    }
+
+    // A spreadsheet splits a paste on tabs; with commas the whole row lands in one cell.
+    [Fact]
+    public void The_clipboard_separator_replaces_every_comma()
+    {
+        PracticeSession session = new(new StubSegmentShape(roomCount: 2));
+        Run(session, 1, 2);
+        session.StartNewAttempt();
+        session.RecomputeMaxRoomCount();
+
+        string[] lines = SessionHistoryExporter.ExportSessionToCsv(session, Csv.ClipboardSeparator)
+            .Split('\n', System.StringSplitOptions.RemoveEmptyEntries | System.StringSplitOptions.TrimEntries);
+
+        Assert.Equal(["Attempt\tR1\tR2\tSegment", "1\t1.000\t2.000\t3.000"], lines);
     }
 
     [Fact]

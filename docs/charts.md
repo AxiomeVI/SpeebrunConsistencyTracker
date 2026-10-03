@@ -1,6 +1,16 @@
 # Charts Reference
 
-All charts are accessible in-game via keybinds and can be individually toggled in the settings menu. Use the navigation arrows on the chart overlay or your configured keybinds to cycle between them.
+All charts are accessible in-game via keybinds and can be individually toggled on the **Charts** page of Mod Options. Use the navigation arrows on the chart overlay or your configured keybinds to cycle between them.
+
+## Colors
+
+The Charts page sets seven colors, each on a color wheel that also offers the fourteen named colors as presets:
+
+- **Room color** and **Segment color:** the scatter plot, box plot and histograms, including their axis labels
+- **Bars, first** and **Bars, second:** the two series of the bar charts (Reset % per Room, Problem Rooms, Time Loss per Room)
+- **Best run**, **Last run** and **Sum of bests:** the highlighted lines of the Run Trajectory
+
+**Fill opacity** fades the filled shapes only: bars, boxes and dots. Lines and text always draw at full color.
 
 ## Scatter Plot
 

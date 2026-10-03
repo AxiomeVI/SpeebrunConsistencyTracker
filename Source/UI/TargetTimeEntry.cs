@@ -20,10 +20,15 @@ internal sealed class TargetTimeEntry : Entity {
     private const string CancelId = "name_back";
     private const string BackspaceId = "name_backspace";
     private const string AcceptId = "name_accept";
+    private const string InvalidSfx = "event:/ui/main/button_invalid";
     private const float InputDelay = 0.2f;
-    // Every row is three wide, the actions included, so Up and Down keep the column.
+    // Every row is three wide, the actions included, so Up and Down keep the column. The last row
+    // has two actions: its third cell is empty and navigation passes over it.
     private const int Columns = 3;
     private static readonly int KeypadRows = TimeEntry.GridCharacters.Length / Columns;
+    private static readonly int ActionRow = KeypadRows;
+    private static readonly int ClipboardRow = KeypadRows + 1;
+    private static readonly int Rows = KeypadRows + 2;
     private const float CellWidth = 120f;
     private const float RowHeight = 90f;
 
@@ -40,7 +45,7 @@ internal sealed class TargetTimeEntry : Entity {
     private bool closing;
     private bool counted;
     private bool commandsWereEnabled;
-    // Rows 0 to KeypadRows - 1 are the keypad, the last one the three actions.
+    // Rows 0 to KeypadRows - 1 are the keypad, then Cancel / Backspace / Accept, then Paste / Clear.
     private int row;
     private int column;
 
@@ -123,24 +128,35 @@ internal sealed class TargetTimeEntry : Entity {
             return;
         }
 
-        int rows = KeypadRows + 1;
-        if (Input.MenuRight.Pressed) Move(() => column = (column + 1) % Columns);
-        else if (Input.MenuLeft.Pressed) Move(() => column = (column + Columns - 1) % Columns);
-        else if (Input.MenuDown.Pressed) Move(() => row = (row + 1) % rows);
-        else if (Input.MenuUp.Pressed) Move(() => row = (row + rows - 1) % rows);
+        if (Input.MenuRight.Pressed) Move(0, 1);
+        else if (Input.MenuLeft.Pressed) Move(0, -1);
+        else if (Input.MenuDown.Pressed) Move(1, 0);
+        else if (Input.MenuUp.Pressed) Move(-1, 0);
         else if (Input.MenuConfirm.Pressed) {
             if (row < KeypadRows) TypeChar(TimeEntry.GridCharacters[row * Columns + column]);
-            else if (column == 0) Cancel();
-            else if (column == 1) Backspace();
-            else Finish();
+            else if (row == ActionRow && column == 0) Cancel();
+            else if (row == ActionRow && column == 1) Backspace();
+            else if (row == ActionRow) Finish();
+            else if (column == 0) Paste();
+            else Clear();
         } else if (Input.MenuCancel.Pressed) {
             if (entry.Text.Length > 0) Backspace();
             else Cancel();
+        } else if (Input.Pause.Pressed) {
+            // Start accepts, as in vanilla's name entry. Close consumes it, so the pause menu
+            // behind this screen never reads it as unpause.
+            Finish();
         }
     }
 
-    private void Move(Action move) {
-        move();
+    private static bool IsCell(int r, int c) => r != ClipboardRow || c < 2;
+
+    // Steps until it lands on a cell, so the empty one is passed over in both directions.
+    private void Move(int rowStep, int columnStep) {
+        do {
+            row = (row + rowStep + Rows) % Rows;
+            column = (column + columnStep + Columns) % Columns;
+        } while (!IsCell(row, column));
         wiggler.Start();
         Audio.Play("event:/ui/main/rename_entry_rollover");
     }
@@ -150,16 +166,34 @@ internal sealed class TargetTimeEntry : Entity {
             wiggler.Start();
             Audio.Play("event:/ui/main/rename_entry_char");
         } else {
-            Audio.Play("event:/ui/main/button_invalid");
+            Audio.Play(InvalidSfx);
         }
     }
 
     private void Backspace() {
-        Audio.Play(entry.Backspace() ? "event:/ui/main/rename_entry_backspace" : "event:/ui/main/button_invalid");
+        Audio.Play(entry.Backspace() ? "event:/ui/main/rename_entry_backspace" : InvalidSfx);
+    }
+
+    // Shows the clipboard's time for the player to accept; the target time changes only then.
+    private void Paste() {
+        string text = TextInput.GetClipboardText()?.Trim();
+        if (string.IsNullOrEmpty(text) || !TimeParser.TryParseTime(text, out TimeSpan time)) {
+            Audio.Play(InvalidSfx);
+            return;
+        }
+        entry.Set(time);
+        wiggler.Start();
+        Audio.Play("event:/ui/main/rename_entry_char");
+    }
+
+    private void Clear() {
+        entry.Set(TimeSpan.Zero);
+        wiggler.Start();
+        Audio.Play("event:/ui/main/rename_entry_backspace");
     }
 
     // Confirming with nothing typed keeps the current time: the empty string parses as zero, and
-    // Reset target time is the button for that.
+    // Clear is the action for that.
     private void Finish() {
         if (entry.Text.Length == 0) {
             Cancel();
@@ -182,6 +216,7 @@ internal sealed class TargetTimeEntry : Entity {
         Input.MenuConfirm.ConsumePress();
         Input.MenuCancel.ConsumePress();
         Input.ESC.ConsumePress();
+        Input.Pause.ConsumePress();
         onClose();
     }
 
@@ -207,7 +242,11 @@ internal sealed class TargetTimeEntry : Entity {
         string[] actions = { Dialog.Clean(CancelId), Dialog.Clean(BackspaceId), Dialog.Clean(AcceptId) };
         float actionsY = 470f + KeypadRows * RowHeight + 30f;
         for (int i = 0; i < actions.Length; i++) {
-            DrawOption(actions[i], new Vector2(960f + (i - 1) * 360f, actionsY), row == KeypadRows && column == i, 0.75f);
+            DrawOption(actions[i], new Vector2(960f + (i - 1) * 360f, actionsY), row == ActionRow && column == i, 0.75f);
+        }
+        string[] clipboardActions = { Dialog.Clean(DialogIds.TargetTimePasteId), Dialog.Clean(DialogIds.TargetTimeClearId) };
+        for (int i = 0; i < clipboardActions.Length; i++) {
+            DrawOption(clipboardActions[i], new Vector2(960f + (i - 1) * 360f, actionsY + 80f), row == ClipboardRow && column == i, 0.75f);
         }
     }
 

@@ -176,16 +176,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         // painted every attempt white, Best and Last included.
         private Color LineColor(LineId id)
         {
-            var s = SpeebrunConsistencyTrackerModule.Settings;
             if (id.IsBaseline) return Color.Gray;
             if (id.IsSob)
-                return _scope.Coincidence == LineCoincidence.AllThree ? s.TrajectoryLastColorFinal
-                     : _scope.SobIsBest ? s.TrajectoryBestColorFinal
-                     : s.TrajectorySobColorFinal;
+                return _scope.Coincidence == LineCoincidence.AllThree ? ChartPalette.Current.Last
+                     : _scope.SobIsBest ? ChartPalette.Current.Best
+                     : ChartPalette.Current.Sob;
             if (!id.IsAttempt) return Color.White;
             // Precedence last > best > sob, the order DrawBars draws them in.
-            if (id.Value == _model.Attempts.Count - 1) return s.TrajectoryLastColorFinal;
-            if (id.Value == _scope.BestIdx)            return s.TrajectoryBestColorFinal;
+            if (id.Value == _model.Attempts.Count - 1) return ChartPalette.Current.Last;
+            if (id.Value == _scope.BestIdx)            return ChartPalette.Current.Best;
             return Color.White;
         }
 
@@ -421,10 +420,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
             DrawRightAxisLabels();
 
-            var s3 = SpeebrunConsistencyTrackerModule.Settings;
-            Color sobLegendColor  = s3.TrajectorySobColorFinal;
-            Color bestLegendColor = s3.TrajectoryBestColorFinal;
-            Color lastLegendColor = s3.TrajectoryLastColorFinal;
+            Color sobLegendColor  = ChartPalette.Current.Sob;
+            Color bestLegendColor = ChartPalette.Current.Best;
+            Color lastLegendColor = ChartPalette.Current.Last;
 
             float legendY2 = y + h + ChartConstants.Legend.LegendOffsetY;
             float legendX2 = x + w;
@@ -516,10 +514,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             float labelHeight = ActiveFont.Measure("0").Y * ChartConstants.FontScale.AxisLabelSmall;
             float minSpacing  = labelHeight + ChartConstants.Trajectory.LabelMinSpacingExtra;
             float rightX      = _gx + _gw + ChartConstants.Axis.RightLabelMarginX;
-            var   s4          = SpeebrunConsistencyTrackerModule.Settings;
-            Color sobColor4   = s4.TrajectorySobColorFinal;
-            Color bestColor4  = s4.TrajectoryBestColorFinal;
-            Color lastColor4  = s4.TrajectoryLastColorFinal;
+            Color sobColor4   = ChartPalette.Current.Sob;
+            Color bestColor4  = ChartPalette.Current.Best;
+            Color lastColor4  = ChartPalette.Current.Last;
 
             int lastVis = _scope.LastVisibleRoom;
             if (lastVis < 0) return;

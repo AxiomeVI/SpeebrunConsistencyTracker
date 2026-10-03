@@ -63,4 +63,26 @@ public class TimeEntryTests
             Assert.Equal(c.ToString(), entry.Text);
         }
     }
+
+    // Paste and Clear on the keypad screen put a time in the entry; the player still accepts it.
+    [Theory]
+    [InlineData(0, 0, 0, "0:00.000")]
+    [InlineData(1, 23, 456, "1:23.456")]
+    [InlineData(59, 59, 999, "59:59.999")]
+    public void Set_writes_the_time_as_the_menu_shows_it(int minutes, int seconds, int ms, string expected)
+    {
+        TimeEntry entry = new();
+        entry.Type('9');
+        entry.Set(new System.TimeSpan(0, 0, minutes, seconds, ms));
+        Assert.Equal(expected, entry.Text);
+    }
+
+    [Fact]
+    public void A_set_time_reads_back_as_itself()
+    {
+        TimeEntry entry = new();
+        entry.Set(new System.TimeSpan(0, 0, 12, 3, 45));
+        Assert.True(TimeParser.TryParseTime(entry.Text, out System.TimeSpan parsed));
+        Assert.Equal(new System.TimeSpan(0, 0, 12, 3, 45), parsed);
+    }
 }

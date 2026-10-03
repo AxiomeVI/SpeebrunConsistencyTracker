@@ -8,7 +8,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
 {
     public static class SessionHistoryExporter
     {
-        public static string ExportSessionToCsv(PracticeSession session)
+        public static string ExportSessionToCsv(PracticeSession session, char separator = Csv.FileSeparator)
         {
             if (session.TotalAttempts == 0)
                 return "";
@@ -21,8 +21,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
 
             sb.Append("Attempt");
             for (int i = 0; i < columnCount; i++)
-                sb.Append($",R{i + 1}");
-            sb.Append(",Segment");
+                sb.Append($"{separator}R{i + 1}");
+            sb.Append($"{separator}Segment");
             sb.AppendLine();
 
             var rowCells = new StringBuilder();
@@ -38,17 +38,17 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
                     // run never reached, so the file did not say where any run died.
                     rowCells.Append(cell.State switch
                     {
-                        RoomCellState.Completed => $",{cell.Time}",
-                        RoomCellState.DNF       => ",DNF",
-                        RoomCellState.Deleted   => ",DEL",
-                        _                       => ",",
+                        RoomCellState.Completed => $"{separator}{cell.Time}",
+                        RoomCellState.DNF       => $"{separator}DNF",
+                        RoomCellState.Deleted   => $"{separator}DEL",
+                        _                       => $"{separator}",
                     });
                 }
                 if (!hasAny) continue;
 
                 sb.Append(a + 1);
                 sb.Append(rowCells);
-                sb.Append(session.IsCompleted(a) ? $",{session.SegmentTime(a)}" : ",");
+                sb.Append(session.IsCompleted(a) ? $"{separator}{session.SegmentTime(a)}" : $"{separator}");
                 sb.AppendLine();
             }
 

@@ -7,120 +7,82 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 
 public static partial class ModMenuOptions
 {
-    // Drives the five export-only toggles below from one list, the same way MetricDef drives
-    // the sliders — so a sixth toggle means adding one entry here, not remembering three
-    // hand-written blocks in turnAllOff/turnAllOn/resetAll.
-    private record ToggleDef(TextMenu.OnOff Item, Action<bool> Set, bool Default);
-
-    private static TextMenuExt.SubMenu CreateMetricsSubMenu(TextMenu menu)
+    // The three metric groups as On/Off rows for one bit, the Stats overlay page's or the Export
+    // options page's. Returns what puts the rows back in step with the settings, for the bulk
+    // buttons: setting Index does not call Change.
+    private static Action AddMetricGroups(TextMenu page, MetricOutput bit)
     {
-        PercentileChoice[] enumPercentileValues = Enum.GetValues<PercentileChoice>();
+        PercentileChoice[] percentiles = Enum.GetValues<PercentileChoice>();
+        List<(MetricToggles.Metric Metric, TextMenu.OnOff Row)> rows = [];
+        TextMenu.Slider percentileValue = null;
+        MetricToggles.Metric percentile = null;
 
-        TextMenuExt.SubMenu sub = new(Dialog.Clean(DialogIds.StatsSubMenuId), false);
-
-        TextMenu.OnOff history        = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RunHistoryId),    _settings.History).Change(b => _settings.History = b);
-        TextMenu.OnOff resetShare     = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.ResetShareId),    _settings.ResetShare).Change(b => _settings.ResetShare = b);
-        TextMenu.OnOff multimodalTest = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.MultimodalTestId),_settings.MultimodalTest).Change(b => _settings.MultimodalTest = b);
-        TextMenu.OnOff roomDependency = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.RoomDependencyId),_settings.RoomDependency).Change(b => _settings.RoomDependency = b);
-        TextMenu.OnOff bestSplit      = (TextMenu.OnOff)new TextMenu.OnOff(Dialog.Clean(DialogIds.BestSplitId),     _settings.BestSplit).Change(b => _settings.BestSplit = b);
-
-        List<ToggleDef> toggles =
-        [
-            new(history,        b => _settings.History        = b, false),
-            new(resetShare,     b => _settings.ResetShare     = b, false),
-            new(multimodalTest, b => _settings.MultimodalTest = b, false),
-            new(roomDependency, b => _settings.RoomDependency = b, false),
-            new(bestSplit,      b => _settings.BestSplit      = b, true),
-        ];
-
-        // Visibility follows the Percentile slider.
-        TextMenu.Slider percentileValue = new(
-            Dialog.Clean(DialogIds.PercentileValueId),
-            i => Utility.EnumLabels.For(enumPercentileValues[i]),
-            0, enumPercentileValues.Length - 1,
-            Array.IndexOf(enumPercentileValues, _settings.PercentileValue))
+        foreach (MetricToggles.Group group in MetricToggles.Groups)
         {
-            Disabled = _settings.Percentile == MetricOutputChoice.Off
+            page.Add(new TextMenu.SubHeader(Dialog.Clean(group.HeaderKey)));
+            foreach (MetricToggles.Metric metric in group.Metrics)
+            {
+                TextMenu.OnOff row = new(Dialog.Clean(metric.LabelKey), MetricToggles.Get(_settings, metric, bit));
+                row.Change(on =>
+                {
+                    MetricToggles.Set(_settings, metric, bit, on);
+                    if (metric == percentile) percentileValue.Disabled = !on;
+                    MetricEngine.InvalidateSettingsHash();
+                });
+                page.Add(row);
+                rows.Add((metric, row));
+
+                if (metric.LabelKey == DialogIds.SuccessRateId)
+                    row.AddDescription(page, Dialog.Clean(DialogIds.SuccessRateSubTextId));
+
+                // One setting, shown on both pages; each page greys it out by its own Percentile row.
+                if (metric.LabelKey == DialogIds.PercentileId)
+                {
+                    percentile = metric;
+                    percentileValue = new TextMenu.Slider(
+                        Dialog.Clean(DialogIds.PercentileValueId),
+                        i => Utility.EnumLabels.For(percentiles[i]),
+                        0, percentiles.Length - 1,
+                        Array.IndexOf(percentiles, _settings.PercentileValue))
+                    {
+                        Disabled = !MetricToggles.Get(_settings, metric, bit),
+                    };
+                    percentileValue.Change(v =>
+                    {
+                        _settings.PercentileValue = percentiles[v];
+                        MetricEngine.InvalidateSettingsHash();
+                    });
+                    page.Add(percentileValue);
+                }
+            }
+        }
+
+        return () =>
+        {
+            foreach ((MetricToggles.Metric metric, TextMenu.OnOff row) in rows)
+                row.Index = MetricToggles.Get(_settings, metric, bit) ? 1 : 0;
+            percentileValue.Index    = Array.IndexOf(percentiles, _settings.PercentileValue);
+            percentileValue.Disabled = !MetricToggles.Get(_settings, percentile, bit);
         };
-        percentileValue.Change(v => { _settings.PercentileValue = enumPercentileValues[v]; MetricEngine.InvalidateSettingsHash(); });
+    }
 
-        List<MetricDef> defs = BuildMetricDefs();
-        var sliders = new Dictionary<string, TextMenu.Slider>();
-        foreach (MetricDef def in defs)
+    // All on, all off and defaults for one bit, under their own subheader at the end of a page.
+    private static void AddBulkButtons(TextMenu page, MetricOutput bit, string allOnId, string allOffId, Action refresh)
+    {
+        void Apply(Action<SpeebrunConsistencyTrackerModuleSettings> change)
         {
-            TextMenu.Slider slider = MetricSlider(def);
-            if (def.LabelKey == DialogIds.PercentileId)
-                slider.Change(v => percentileValue.Disabled = AllChoices[v] == MetricOutputChoice.Off);
-            sliders[def.LabelKey] = slider;
+            change(_settings);
+            refresh();
+            _instance.SaveSettings();
+            MetricEngine.InvalidateSettingsHash();
         }
 
-        TextMenu.Button turnAllOff = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonAllOffId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                foreach (ToggleDef t in toggles) { t.Item.Index = 0; t.Set(false); }
-                foreach (MetricDef def in defs)
-                {
-                    def.Set(MetricOutputChoice.Off);
-                    sliders[def.LabelKey].Index = 0;
-                }
-                percentileValue.Disabled = true;
-                _instance.SaveSettings();
-                MetricEngine.InvalidateSettingsHash();
-            });
-
-        TextMenu.Button turnAllOn = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonAllOnId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                foreach (ToggleDef t in toggles) { t.Item.Index = 1; t.Set(true); }
-                foreach (MetricDef def in defs)
-                {
-                    MetricOutputChoice best = AllChoices[^1];
-                    def.Set(best);
-                    sliders[def.LabelKey].Index = AllChoices.Length - 1;
-                }
-                percentileValue.Disabled = false;
-                _instance.SaveSettings();
-                MetricEngine.InvalidateSettingsHash();
-            });
-
-        TextMenu.Button resetAll = (TextMenu.Button)new TextMenu.Button(Dialog.Clean(DialogIds.ButtonResetId))
-            .Pressed(() =>
-            {
-                Audio.Play(ConfirmSfx);
-                foreach (ToggleDef t in toggles) { t.Item.Index = t.Default ? 1 : 0; t.Set(t.Default); }
-                foreach (MetricDef def in defs)
-                {
-                    def.Set(def.DefaultValue);
-                    sliders[def.LabelKey].Index = Array.IndexOf(AllChoices, def.DefaultValue);
-                }
-                percentileValue.Index    = Array.IndexOf(enumPercentileValues, PercentileChoice.P90);
-                percentileValue.Disabled = _settings.Percentile == MetricOutputChoice.Off;
-                _instance.SaveSettings();
-                MetricEngine.InvalidateSettingsHash();
-            });
-
-        sub.Add(turnAllOff);
-        sub.Add(turnAllOn);
-        sub.Add(resetAll);
-        sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.MetricsSubHeaderId), false));
-
-        foreach (MetricDef def in defs)
-        {
-            sub.Add(sliders[def.LabelKey]);
-            if (def.LabelKey == DialogIds.PercentileId)
-                sub.Add(percentileValue);
-        }
-
-        sliders[DialogIds.SuccessRateId].AddDescription(sub, menu, Dialog.Clean(DialogIds.SuccessRateSubTextId));
-        turnAllOn.AddDescription(sub, menu, Dialog.Clean(DialogIds.AllOnDescId));
-
-        sub.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ExportOnlyId), false));
-        foreach (ToggleDef t in toggles)
-            sub.Add(t.Item);
-
-        sub.Visible = _settings.Enabled;
-        return sub;
+        page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.BulkHeaderId)));
+        page.Add(new TextMenu.Button(Dialog.Clean(allOnId))
+            .Pressed(() => Apply(s => MetricToggles.SetAll(s, bit, true))));
+        page.Add(new TextMenu.Button(Dialog.Clean(allOffId))
+            .Pressed(() => Apply(s => MetricToggles.SetAll(s, bit, false))));
+        page.Add(new TextMenu.Button(Dialog.Clean(DialogIds.DefaultsId))
+            .Pressed(() => Apply(s => MetricToggles.ApplyDefaults(s, bit))));
     }
 }
