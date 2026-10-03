@@ -23,6 +23,7 @@ public static class DialogIds {
     // Hotkey menu UI
     public const string KeybindConfigId       = "SCT_KEYBIND_CONFIG";
     public const string KeybindComboSubId     = "SCT_KEYBIND_COMBO_SUB";
+    public const string KeybindPageComboFmt   = "SCT_KEYBIND_PAGE_COMBO_FMT";
     public const string KeybindClearSubId     = "SCT_KEYBIND_CLEAR_SUB";
     public const string KeybindTimeoutFmt     = "SCT_KEYBIND_TIMEOUT_FMT";
 
