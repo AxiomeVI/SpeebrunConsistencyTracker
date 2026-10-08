@@ -1,14 +1,27 @@
 # Files copied from CelesteMenuTools by its tools/vendor.sh.
 # Don't edit them here. Re-vendor with: tools/vendor.sh --update <this folder>
-commit: 9e3b9082038a7c822ccba0b3fbeaef54d84437b9
+commit: ea8ef723989d198672f9754012505c9db43bd5c4
 namespace: Celeste.Mod.MenuTools
 names: TextMenuPage ColorWheelButton
 dialog: ../../Dialog
 dialog-prefix: SPEEBRUNCONSISTENCYTRACKER_MENUTOOLS_
+license: 2919806600 1089
+file: ColorEntryPage.cs
+file: ColorHex.cs
 file: ColorSwatchButton.cs
 file: ColorWheelButton.cs
 file: ColorWheelPage.cs
 file: IInputHoldingItem.cs
 file: MenuToolsDialog.cs
+file: StringEntryPage.cs
 file: TextMenuPage.cs
 file: LICENSE
+sum: ColorEntryPage.cs 840038954 4105
+sum: ColorHex.cs 728714145 2405
+sum: ColorSwatchButton.cs 3499670177 4943
+sum: ColorWheelButton.cs 3581267292 2491
+sum: ColorWheelPage.cs 3750910659 31537
+sum: IInputHoldingItem.cs 3455040880 3759
+sum: MenuToolsDialog.cs 101731652 1155
+sum: StringEntryPage.cs 859641215 40710
+sum: TextMenuPage.cs 3592106056 13860

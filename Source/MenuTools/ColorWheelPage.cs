@@ -1,24 +1,27 @@
-// MenuTools requires: TextMenuPage.cs MenuToolsDialog.cs
+// MenuTools requires: TextMenuPage.cs MenuToolsDialog.cs ColorHex.cs IInputHoldingItem.cs ColorEntryPage.cs StringEntryPage.cs
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
 using Monocle;
 
 namespace Celeste.Mod.MenuTools;
 
 /// <summary>
 /// A page for picking a color on a hue and saturation wheel, with rows for a named preset, hue, saturation,
-/// brightness, pasting a hex code and reverting. Changes apply live: <see cref="OnColorChange"/> is invoked on every
-/// change, and the page keeps the current color however it returns (Back, Cancel, ESC or Pause).
+/// brightness, typing or copying a hex code, and confirming. Changes preview live: <see cref="OnColorChange"/> is
+/// invoked on every change. Only the Confirm row keeps the color: Cancel, ESC and Pause go back to the color the
+/// page was entered with. The Enter key confirms from any row but the two hex code rows, which it presses, whatever
+/// it is bound to. Ctrl+V takes a hex code from the clipboard. The page draws its own key hints.
 /// </summary>
 /// <remarks>
 /// The wheel can also be clicked or dragged with the mouse. Enter the page with <see cref="Enter(Color)"/>.
+/// The page is opaque-only: it ignores the alpha of the colors it is given (the initial color and the presets), and
+/// every color it reports has alpha 255.
 /// </remarks>
 public class ColorWheelPage : TextMenuPage {
-    // =================================================================================================================
-    // Layout, in HUD coordinates (1920x1080)
+    // ==================================== Layout, in HUD coordinates (1920x1080) =====================================
     private const float headerY          = 150f;
     private const float headerScale      = 2f;
     private const float wheelRadius      = 240f;
@@ -32,35 +35,49 @@ public class ColorWheelPage : TextMenuPage {
     private const float swatchLabelScale = 0.7f;
     private const float menuCenterX      = 1440f;
     private const float mouseShownTime   = 2f;  // How long the mouse pointer stays drawn after it last moved
+    private const float hintGap          = 26f;  // From the wheel's outline to the middle of the mouse hint
+    private const float hintScale        = 0.5f;
 
     private static readonly Vector2 wheelCenter = new(480f, 520f);
 
-    // =================================================================================================================
+    // ============================================== Handlers and state ===============================================
     /// <summary>
-    /// Invoked with the new color on every change the player makes, including <see cref="Revert"/>
+    /// Invoked with the new color, always opaque, on every change the player makes while the page is open. When the
+    /// page stops being shown without <see cref="Accept"/> and the color has changed, it is invoked once more, with
+    /// <see cref="InitialColor"/>. Entering the page does not invoke it.
     /// </summary>
     public Action<Color> OnColorChange;
 
     /// <summary>
-    /// The current color
+    /// Invoked with the color the player confirmed, after the page has returned and after
+    /// <see cref="TextMenuPage.OnReturned"/>
     /// </summary>
+    public Action<Color> OnAccepted;
+
+    /// <summary>The current color, always opaque</summary>
     public Color Value => value;
 
-    /// <summary>
-    /// The color the page was entered with, which <see cref="Revert"/> goes back to
-    /// </summary>
+    /// <summary>The color the page was entered with, made opaque, which the page goes back to unless accepted</summary>
     public Color InitialColor { get; private set; } = Color.White;
 
     private readonly string header;
     private readonly string beforeLabel = MenuToolsDialog.Get("COLORWHEEL_BEFORE", "Before");
     private readonly string afterLabel  = MenuToolsDialog.Get("COLORWHEEL_AFTER", "After");
+    // The call stays on one line: test/build-everest-versions.sh reads it
+    private readonly string confirmHint = MenuToolsDialog.Get("COLORWHEEL_CONFIRM", "Confirm");
+    private readonly string cancelHint  = MenuToolsDialog.Get("ENTRY_CANCEL", "Cancel");
+    private readonly string pasteHint   = MenuToolsDialog.Get("ENTRY_PASTE", "Paste");
+    private readonly string mouseHint   =
+        MenuToolsDialog.Get("COLORWHEEL_MOUSE", "Click or drag on the wheel with the mouse");
     private readonly List<(string name, Color color)> presets;
     private readonly WheelOption presetOption;  // Null without presets
     private readonly WheelOption hueOption;
     private readonly WheelOption saturationOption;
     private readonly WheelOption brightnessOption;
+    private readonly HexButton hexButton;
 
     private Color value = Color.White;
+    private bool accepted;
     // What the rows and the cursor show. They are the source of truth for the wheel: black has no hue or saturation
     // and grey has no hue, so deriving them from the color would lose what the player set.
     private int hue;         // 0-359
@@ -72,10 +89,13 @@ public class ColorWheelPage : TextMenuPage {
     private Vector2 lastMousePosition;
     private float mouseShownTimer;
 
-    /// <param name="parent">The menu to return to</param>
+    /// <param name="parent">The menu to return to. Must not be null.</param>
     /// <param name="subMenuParent">The recursive submenu the page is entered from, if any</param>
-    /// <param name="header">Text shown at the top of the page</param>
-    /// <param name="presets">Named colors offered in the Preset row; no Preset row if null or empty</param>
+    /// <param name="header">Text shown at the top of the page. Default: none.</param>
+    /// <param name="presets">
+    ///     Named colors offered in the Preset row, which shows "Custom" for any other color; no Preset row if null
+    ///     (the default) or empty. The list is copied.
+    /// </param>
     public ColorWheelPage(TextMenu parent, IInputHoldingItem subMenuParent = null, string header = "",
                           IReadOnlyList<(string name, Color color)> presets = null)
             : base(parent, subMenuParent) {
@@ -125,67 +145,105 @@ public class ColorWheelPage : TextMenuPage {
         Add(saturationOption);
         Add(brightnessOption);
 
-        Add(new HexButton(MenuToolsDialog.Get("COLORWHEEL_PASTE", "Paste hex"), () => value).Pressed(Paste));
-        Add(new Button(MenuToolsDialog.Get("COLORWHEEL_REVERT", "Revert")).Pressed(Revert));
+        hexButton = new HexButton(MenuToolsDialog.Get("COLORWHEEL_HEX", "Hex code"), () => value);
+        Add(hexButton.Pressed(() => EnterHexCode()));
+        Add(new Button(MenuToolsDialog.Get("COLORWHEEL_COPY", "Copy hex code")).Pressed(Copy));
+        // Accept plays the sound, which ConfirmPressed would play as well
+        Add(new Button(confirmHint) { ConfirmSfx = null }.Pressed(Accept));
     }
 
-    // =================================================================================================================
-    // Entering and returning
+    // ============================================ Entering and returning =============================================
     /// <summary>
-    /// Enter the page with the color it last showed (white on a new page)
+    /// Enter the page with the color it last showed (white on a new page). Does nothing if the page is already
+    /// entered.
     /// </summary>
     public override void Enter() {
         Enter(value);
     }
 
     /// <summary>
-    /// Enter the page with a color, which <see cref="Revert"/> then goes back to
+    /// Enter the page with a color, which it goes back to unless the player confirms another. Does nothing if the page
+    /// is already entered.
     /// </summary>
+    /// <param name="initialColor">The color shown at first; its alpha is ignored</param>
     public void Enter(Color initialColor) {
         if (Entered) {
             return;
         }
-        InitialColor = initialColor;
-        value        = initialColor;
-        SetHsvFromColor(initialColor);
+        accepted     = false;
+        InitialColor = Opaque(initialColor);
+        value        = InitialColor;
+        SetHsvFromColor(value);
+        if (presetOption != null) {
+            // Forget the preset shown on the last visit, so that UpdateRows finds the first one of this color
+            presetOption.Index = presetOption.CustomIndex;
+        }
         UpdateRows();
+        base.Enter();
+    }
+
+    /// <summary>
+    /// Builds the wheel's texture, forgets the mouse state of the last visit, and hides the overworld's Confirm and
+    /// Back hints, which the page replaces with its own. An override must call the base method.
+    /// </summary>
+    protected override void SetUp() {
+        HideOverworldHints();
         dragging          = false;
         lastMousePosition = MInput.Mouse.Position;
         mouseShownTimer   = 0f;
         EnsureWheelTexture();
-        base.Enter();
     }
 
-    public override void Return() {
-        base.Return();
-        DisposeWheelTexture();
-    }
-
-    public override void Removed(Scene scene) {
-        base.Removed(scene);
-        DisposeWheelTexture();
-    }
-
-    public override void SceneEnd(Scene scene) {
-        base.SceneEnd(scene);
-        DisposeWheelTexture();
-    }
-
-    // =================================================================================================================
-    // Color changes
     /// <summary>
-    /// Go back to the color the page was entered with, invoking <see cref="OnColorChange"/> with it
+    /// Disposes of the wheel's texture, gives the overworld its hints back, and goes back to
+    /// <see cref="InitialColor"/> unless the color was accepted. An override must call the base method, or the
+    /// texture is never freed and a canceled change is kept.
     /// </summary>
-    public void Revert() {
-        SetColor(InitialColor);
+    protected override void CleanUp() {
+        RestoreOverworldHints();
+        wheelTexture?.Dispose();
+        wheelTexture = null;
+        // Here and not in Return: a page closed or removed from the scene must not keep an unconfirmed color either
+        if (!accepted && !SameRgb(value, InitialColor)) {
+            SetColor(InitialColor);
+        }
     }
 
-    private void Paste() {
-        PasteText(TextInput.GetClipboardText());
+    /// <summary>
+    /// Keep the current color and return, as the Confirm row does: <see cref="OnAccepted"/> is invoked with it. Does
+    /// nothing if the page is not entered.
+    /// </summary>
+    public void Accept() {
+        if (!Entered) {
+            return;
+        }
+        Audio.Play(SFX.ui_main_button_select);
+        accepted = true;
+        // A handler may enter this page again and change value
+        Color acceptedColor = value;
+        Return();
+        OnAccepted?.Invoke(acceptedColor);
+    }
+
+    // ================================================= Color changes =================================================
+    /// <summary>
+    /// Open a <see cref="ColorEntryPage"/> over this page to type or paste a hex code, as the Hex code row does.
+    /// Accepting the code sets the color and comes back here, where it still has to be confirmed.
+    /// </summary>
+    /// <returns>The entry page, a new one on every call, already entered with the current color</returns>
+    public ColorEntryPage EnterHexCode() {
+        ColorEntryPage entry  = new(this, null, header);
+        entry.OnColorAccepted = SetColor;
+        entry.Enter(value);
+        return entry;
+    }
+
+    private void Copy() {
+        TextInput.SetClipboardText("#" + ColorHex.Format(value));
     }
 
     private void PasteText(string text) {
-        if (ParseHex(text) is Color pasted) {
+        if (ColorHex.Parse(text) is Color pasted) {
             Audio.Play(SFX.ui_main_button_select);
             SetColor(pasted);
         } else {
@@ -193,11 +251,11 @@ public class ColorWheelPage : TextMenuPage {
         }
     }
 
-    // A color from outside the wheel: a preset, a pasted code or the initial color. The rows follow it, but keep the
-    // hue and saturation it doesn't define.
+    // A color from outside the wheel: a preset, an entered or pasted code, or the initial color. The rows follow it,
+    // but keep the hue and saturation it doesn't define.
     private void SetColor(Color color) {
-        value = color;
-        SetHsvFromColor(color);
+        value = Opaque(color);
+        SetHsvFromColor(value);
         UpdateRows();
         OnColorChange?.Invoke(value);
     }
@@ -227,8 +285,13 @@ public class ColorWheelPage : TextMenuPage {
         saturationOption.Index = saturation;
         brightnessOption.Index = brightness;
         if (presetOption != null) {
-            int match = presets.FindIndex(preset => SameRgb(preset.color, value));
-            presetOption.Index = match >= 0 ? match : presetOption.CustomIndex;
+            // Keep the preset shown while it matches: with two presets of one color, going to the first match would
+            // make the second unreachable, and Right would never get past the first
+            int shown = presetOption.Index;
+            if (shown >= presets.Count || !SameRgb(presets[shown].color, value)) {
+                int match = presets.FindIndex(preset => SameRgb(preset.color, value));
+                presetOption.Index = match >= 0 ? match : presetOption.CustomIndex;
+            }
         }
     }
 
@@ -236,14 +299,14 @@ public class ColorWheelPage : TextMenuPage {
         return a.R == b.R && a.G == b.G && a.B == b.B;
     }
 
-    // =================================================================================================================
-    // Conversions
+    // ================================================== Conversions ==================================================
     /// <summary>
     /// The opaque color with a hue (in degrees, counter-clockwise from red), a saturation and a value (brightness)
     /// </summary>
     /// <param name="hue">Hue in degrees; any value, taken modulo 360</param>
-    /// <param name="saturation">Saturation from 0 to 1</param>
-    /// <param name="value">Value (brightness) from 0 to 1</param>
+    /// <param name="saturation">Saturation from 0 to 1; clamped to that range</param>
+    /// <param name="value">Value (brightness) from 0 to 1; clamped to that range</param>
+    /// <returns>The color, with alpha 255</returns>
     public static Color HsvToColor(float hue, float saturation, float value) {
         hue        = ((hue % 360f) + 360f) % 360f;
         saturation = Calc.Clamp(saturation, 0f, 1f);
@@ -267,6 +330,10 @@ public class ColorWheelPage : TextMenuPage {
     /// The hue (in degrees, 0 to 360), saturation and value (brightness) of a color, ignoring its alpha. The hue is 0
     /// for greys, and the saturation 0 for black.
     /// </summary>
+    /// <param name="color">The color to convert</param>
+    /// <param name="hue">Receives the hue in degrees, counter-clockwise from red</param>
+    /// <param name="saturation">Receives the saturation, from 0 to 1</param>
+    /// <param name="value">Receives the value (brightness), from 0 to 1</param>
     public static void ColorToHsv(Color color, out float hue, out float saturation, out float value) {
         float r = color.R / 255f, g = color.G / 255f, b = color.B / 255f;
         float max   = Math.Max(r, Math.Max(g, b));
@@ -287,41 +354,60 @@ public class ColorWheelPage : TextMenuPage {
         }
     }
 
-    /// <summary>
-    /// The opaque color of a hex code, <c>#rrggbb</c> or <c>rrggbb</c> in any case, ignoring surrounding whitespace
-    /// </summary>
-    /// <returns>The color, or null if the text is anything else</returns>
-    public static Color? ParseHex(string text) {
-        if (text == null) {
-            return null;
-        }
-        text = text.Trim();
-        if (text.StartsWith('#')) {
-            text = text.Substring(1);
-        }
-        if (text.Length != 6) {
-            return null;
-        }
-        foreach (char c in text) {
-            if (!Uri.IsHexDigit(c)) {
-                return null;
-            }
-        }
-        int rgb = int.Parse(text, NumberStyles.AllowHexSpecifier, CultureInfo.InvariantCulture);
-        return new Color((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
-    }
-
     private static int ToByte(float channel) {
         return (int) Math.Round(Calc.Clamp(channel, 0f, 1f) * 255f);
     }
 
-    // =================================================================================================================
-    // Mouse
+    // ============================================== Keyboard and mouse ===============================================
+    /// <summary>
+    /// Reads Ctrl+V and the Enter key, then updates the page as a <see cref="TextMenuPage"/> and reads the mouse on
+    /// the wheel, all while the page is entered and focused
+    /// </summary>
     public override void Update() {
+        if (Entered && Focused && UpdateKeys()) {
+            return;
+        }
         base.Update();
         if (Entered && Focused) {
             UpdateMouse();
         }
+    }
+
+    // Whether a key took this frame
+    private bool UpdateKeys() {
+        if (StringEntryPage.PasteShortcutPressed()) {
+            PasteText(TextInput.GetClipboardText());
+            return true;
+        }
+        // Enter accepts, whether it is bound to Pause (its default, which would cancel), to Confirm (which does nothing
+        // on an option row) or to both. On a button row it presses the row.
+        if (!MInput.Keyboard.Pressed(Keys.Enter)) {
+            return false;
+        }
+        if (Current is Button button) {
+            if (Input.MenuConfirm.Binding.Keyboard.Contains(Keys.Enter)) {
+                // The menu presses the row
+                return false;
+            }
+            Input.Pause.ConsumePress();
+            button.ConfirmPressed();
+            button.OnPressed?.Invoke();
+        } else {
+            Accept();
+        }
+        return true;
+    }
+
+    // What the keys do, from right to left. Enter and Ctrl+V are keys: no hint for them while a controller is in use.
+    private List<(string label, MTexture[] keys)> Hints() {
+        List<(string label, MTexture[] keys)> hints = [
+            (cancelHint, [Input.GuiButton(Input.MenuCancel, Input.PrefixMode.Latest)]),
+        ];
+        if (!Input.GuiInputController(Input.PrefixMode.Latest)) {
+            hints.Add((confirmHint, [Input.GuiKey(Keys.Enter)]));
+            hints.Add((pasteHint, [Input.GuiKey(Keys.LeftControl), Input.GuiKey(Keys.V)]));
+        }
+        return hints;
     }
 
     private void UpdateMouse() {
@@ -362,8 +448,11 @@ public class ColorWheelPage : TextMenuPage {
         }
     }
 
-    // =================================================================================================================
-    // Rendering
+    // =================================================== Rendering ===================================================
+    /// <summary>
+    /// Draws the rows, the header, the wheel with its cursor, the mouse hint, the before and after swatches, the key
+    /// hints, and the mouse pointer while the mouse is in use
+    /// </summary>
     public override void Render() {
         base.Render();
         float alpha       = Alpha;
@@ -371,8 +460,8 @@ public class ColorWheelPage : TextMenuPage {
 
         if (header != "") {
             ActiveFont.DrawEdgeOutline(header, new Vector2(960f, headerY), new Vector2(0.5f, 0.5f),
-                                       Vector2.One * headerScale, Color.DarkSlateGray * alpha, 4f,
-                                       Color.MidnightBlue * alpha, 2f, strokeColor);
+                                       Vector2.One * headerScale, Color.Gray * alpha, 4f,
+                                       Color.DarkSlateBlue * alpha, 2f, strokeColor);
         }
 
         // Multiplying a color's RGB by the brightness is exactly HSV value, so the full-brightness wheel is only tinted
@@ -387,12 +476,16 @@ public class ColorWheelPage : TextMenuPage {
         Draw.Circle(cursor, cursorRadius, strokeColor, 6f, 24);
         Draw.Circle(cursor, cursorRadius, Color.White * alpha, 2f, 24);
 
+        // Styled like vanilla's subheaders
+        ActiveFont.DrawOutline(mouseHint, wheelCenter + Vector2.UnitY * (wheelRadius + outlineWidth + hintGap),
+                               new Vector2(0.5f, 0.5f), Vector2.One * hintScale, Color.Gray * alpha, 2f, strokeColor);
+
         // Before | After
         float left = wheelCenter.X - swatchWidth;
         Draw.Rect(left - swatchBorder, swatchTop - swatchBorder, swatchWidth * 2f + swatchBorder * 2f,
                   swatchHeight + swatchBorder * 2f, strokeColor);
-        Draw.Rect(left, swatchTop, swatchWidth, swatchHeight, Opaque(InitialColor) * alpha);
-        Draw.Rect(wheelCenter.X, swatchTop, swatchWidth, swatchHeight, Opaque(value) * alpha);
+        Draw.Rect(left, swatchTop, swatchWidth, swatchHeight, InitialColor * alpha);
+        Draw.Rect(wheelCenter.X, swatchTop, swatchWidth, swatchHeight, value * alpha);
         Draw.Rect(wheelCenter.X - swatchBorder / 2f, swatchTop, swatchBorder, swatchHeight, strokeColor);
         float labelY = swatchTop + swatchHeight + swatchBorder + swatchLabelGap;
         ActiveFont.DrawOutline(beforeLabel, new Vector2(left + swatchWidth / 2f, labelY), new Vector2(0.5f, 0f),
@@ -400,6 +493,8 @@ public class ColorWheelPage : TextMenuPage {
         ActiveFont.DrawOutline(afterLabel, new Vector2(wheelCenter.X + swatchWidth / 2f, labelY),
                                new Vector2(0.5f, 0f), Vector2.One * swatchLabelScale, Color.White * alpha, 2f,
                                strokeColor);
+
+        StringEntryPage.RenderHints(Hints());
 
         // The game hides the system pointer, so show where the mouse is while it's in use
         if (mouseShownTimer > 0f) {
@@ -411,6 +506,7 @@ public class ColorWheelPage : TextMenuPage {
         }
     }
 
+    // The page is opaque-only: every color it keeps or reports has alpha 255
     private static Color Opaque(Color color) {
         return new Color(color.R, color.G, color.B);
     }
@@ -444,12 +540,7 @@ public class ColorWheelPage : TextMenuPage {
         wheelTexture.SetData(pixels);
     }
 
-    private void DisposeWheelTexture() {
-        wheelTexture?.Dispose();
-        wheelTexture = null;
-    }
-
-    // =================================================================================================================
+    // ===================================================== Rows ======================================================
     /// <summary>
     /// An option whose value wraps around or not, and moves faster while Left or Right is held. With a
     /// <see cref="CustomIndex"/>, that value is shown when nothing else matches and is skipped when cycling.
@@ -548,23 +639,22 @@ public class ColorWheelPage : TextMenuPage {
         }
     }
 
-    /// <summary>
-    /// A button showing a color's hex code on its right
-    /// </summary>
+    /// <summary>A button showing a color's hex code on its right</summary>
     private class HexButton : Button {
         private const float valueScale   = 0.8f;
         private const float rightPadding = 28f;
 
         private readonly Func<Color> color;
+        // Drawn every frame: written again only when the color changes
+        private string hexValue;
+        private Color hexValueColor;
 
         public HexButton(string label, Func<Color> color) : base(label) {
             this.color = color;
-            // The press plays its own sound, which depends on whether the clipboard held a color
-            ConfirmSfx = null;
         }
 
         public override float RightWidth() {
-            return ActiveFont.Measure("#ffffff").X * valueScale + rightPadding;
+            return ColorHex.WidestCodeWidth() * valueScale + rightPadding;
         }
 
         public override void Render(Vector2 position, bool highlighted) {
@@ -572,8 +662,12 @@ public class ColorWheelPage : TextMenuPage {
             float alpha     = Container.Alpha;
             Color textColor = Disabled ? Color.DarkSlateGray
                                        : ((highlighted ? Container.HighlightColor : Color.White) * alpha);
-            Color value     = color();
-            ActiveFont.DrawOutline($"#{value.R:x2}{value.G:x2}{value.B:x2}",
+            Color value = color();
+            if (hexValue == null || hexValueColor != value) {
+                hexValueColor = value;
+                hexValue      = "#" + ColorHex.Format(value);
+            }
+            ActiveFont.DrawOutline(hexValue,
                                    new Vector2(position.X + Container.Width - rightPadding, position.Y),
                                    new Vector2(1f, 0.5f), Vector2.One * valueScale, textColor, 2f,
                                    Color.Black * (alpha * alpha * alpha));
