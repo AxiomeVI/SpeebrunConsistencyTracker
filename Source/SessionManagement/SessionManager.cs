@@ -84,6 +84,9 @@ public static class SessionManager
         if (roomTime > 0)
         {
             CurrentSession.CompleteRoom(roomTime);
+            // Here, not only where the count is read: MaxRoomCount grows from the active attempt
+            // alone, and a reload puts that attempt back at room 0 before any reader has run.
+            UpdateRoomCount();
         }
     }
 
