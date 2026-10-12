@@ -105,6 +105,35 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             };
         }
 
+        // A histogram's bin width for times in ascending order, not empty: Freedman-Diaconis, no
+        // wider than a tenth of the fastest time and no narrower than a frame.
+        public static long HistogramBinWidth(IList<TimeTicks> sorted)
+        {
+            double q1 = ComputePercentile(sorted, 25);
+            double q3 = ComputePercentile(sorted, 75);
+            double freedmanDiaconis = 2 * (q3 - q1) * Math.Pow(sorted.Count, -1.0 / 3.0);
+            return (long)Math.Ceiling(Math.Max(Math.Min(sorted[0].Ticks * 0.1, freedmanDiaconis), CelesteCharts.Durations.CelesteFrameTicks));
+        }
+
+        // The range of a relative axis: every column read as a percent of its own median, over the
+        // columns given (each ascending), widened by a tenth and by a point at least. Columns with
+        // no time or a median of 0 are passed over; with none left the axis runs from 90 to 110.
+        public static (double Min, double Max) RelativeRange(IEnumerable<IList<TimeTicks>> sortedColumns)
+        {
+            double low = double.MaxValue, high = double.MinValue;
+            foreach (IList<TimeTicks> times in sortedColumns)
+            {
+                if (times.Count == 0) continue;
+                long median = ComputePercentile(times, 50).Ticks;
+                if (median == 0) continue;
+                low  = Math.Min(low, (double)times[0].Ticks / median * 100.0);
+                high = Math.Max(high, (double)times[^1].Ticks / median * 100.0);
+            }
+            if (low == double.MaxValue) (low, high) = (90.0, 110.0);
+            double margin = Math.Max(1.0, (high - low) * 0.1);
+            return (Math.Max(0, low - margin), high + margin);
+        }
+
         public static TimeTicks ComputePercentile(IList<TimeTicks> sortedValues, int _percentile)
         {
             double percentile = _percentile;
@@ -542,5 +571,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             double denominator = Math.Sqrt(sumX2 * sumY2);
             return (denominator == 0) ? 0 : sumXY / denominator;
         }
+
     }
 }

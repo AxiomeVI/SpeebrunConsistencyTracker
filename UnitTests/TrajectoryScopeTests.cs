@@ -177,7 +177,7 @@ public class TrajectoryScopeTests
         Assert.Equal(12 * F, scope.MaxUpwardDeviation);
         Assert.Equal(18 * F, scope.MaxDownwardDeviation);
         Assert.Equal(30 * F, scope.TotalRange);
-        Assert.Equal(42 * F, scope.RoomAveragesSum);
+        Assert.Equal(42 * F, scope.RoomReferenceSum);
     }
 
     // A hidden room in the middle still contributes to the running deviation, so the range is not
@@ -193,7 +193,7 @@ public class TrajectoryScopeTests
         Assert.Equal(2, scope.LastVisibleRoom);
         Assert.Equal(12 * F, scope.MaxUpwardDeviation);
         Assert.Equal(18 * F, scope.MaxDownwardDeviation);
-        Assert.Equal(42 * F, scope.RoomAveragesSum);
+        Assert.Equal(42 * F, scope.RoomReferenceSum);
     }
 
     [Fact]
@@ -207,7 +207,7 @@ public class TrajectoryScopeTests
         Assert.Equal(1, scope.LastVisibleRoom);
         Assert.Equal(8 * F, scope.MaxUpwardDeviation);
         Assert.Equal(12 * F, scope.MaxDownwardDeviation);
-        Assert.Equal(28 * F, scope.RoomAveragesSum);
+        Assert.Equal(28 * F, scope.RoomReferenceSum);
     }
 
     // ---- degenerate scopes -------------------------------------------------------------------
@@ -223,7 +223,7 @@ public class TrajectoryScopeTests
         Assert.Equal(F, scope.MaxUpwardDeviation);
         Assert.Equal(F, scope.MaxDownwardDeviation);
         Assert.Equal(2 * F, scope.TotalRange);
-        Assert.Equal(0, scope.RoomAveragesSum);
+        Assert.Equal(0, scope.RoomReferenceSum);
         Assert.False(scope.SobIsBest);
         Assert.False(scope.AnyCompleted);
         Assert.False(scope.SobReachesEnd);

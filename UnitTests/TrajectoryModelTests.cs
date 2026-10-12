@@ -1,4 +1,5 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Xunit;
 
@@ -14,7 +15,22 @@ public class TrajectoryModelTests
 
         TrajectoryModel model = TrajectoryModel.Build(session, 2);
 
-        Assert.Equal(new long[] { 12, 12 }, model.RoomAverages);
+        Assert.Equal(new long[] { 12, 12 }, model.RoomReference);
+    }
+
+    // Against the sum of bests every room is measured from its best time: the SoB line is flat and
+    // no run is ever ahead of it.
+    [Fact]
+    public void Against_the_sum_of_bests_the_sob_line_is_flat_and_no_run_is_ahead()
+    {
+        PracticeSession session = TrajectorySessions.Of(2, [10, 30], [20, 15]);
+
+        TrajectoryModel model = TrajectoryModel.Build(session, 2, TrajectoryBaseline.SumOfBest);
+
+        Assert.Equal(new long[] { 10, 15 }, model.RoomReference);
+        Assert.Equal(new long[] { 0, 0 }, model.SobLine.CumulativeDeviations);
+        Assert.Equal(new long[] { 0, 15 }, model.Attempts[0].CumulativeDeviations);
+        Assert.Equal(new long[] { 10, 10 }, model.Attempts[1].CumulativeDeviations);
     }
 
     // Deleting room 1 of the only run that reached room 2 breaks its contiguous prefix, so room 2
@@ -28,7 +44,7 @@ public class TrajectoryModelTests
 
         TrajectoryModel model = TrajectoryModel.Build(session, 3);
 
-        Assert.Equal(new long[] { 15, 20, 0 }, model.RoomAverages);
+        Assert.Equal(new long[] { 15, 20, 0 }, model.RoomReference);
         Assert.Equal(2, model.SobLine.RoomsCompleted);
     }
 
@@ -39,7 +55,7 @@ public class TrajectoryModelTests
 
         TrajectoryModel model = TrajectoryModel.Build(session, 3);
 
-        Assert.Equal(new long[] { 10, 10, 0 }, model.RoomAverages);
+        Assert.Equal(new long[] { 10, 10, 0 }, model.RoomReference);
     }
 
     [Fact]
@@ -50,7 +66,7 @@ public class TrajectoryModelTests
 
         TrajectoryModel model = TrajectoryModel.Build(session, 3);
 
-        Assert.Equal(new long[] { 14, 14, 14 }, model.RoomAverages);
+        Assert.Equal(new long[] { 14, 14, 14 }, model.RoomReference);
         Assert.Equal(new long[] { -4,  -8, -12 }, model.Attempts[0].CumulativeDeviations);
         Assert.Equal(new long[] {  6,  12,  18 }, model.Attempts[1].CumulativeDeviations);
         Assert.Equal(new long[] { -2,  -4,  -6 }, model.Attempts[2].CumulativeDeviations);
@@ -141,20 +157,19 @@ public class TrajectoryModelTests
         Assert.Equal(new[] { 0, -1 }, model.BestSoFarIdx);
     }
 
-    // The comparison table narrows the reference set to the runs before the PINNED one. With the
-    // model's own array, pinning run #1 compared it against run #2, which had not happened yet,
-    // and at rooms it led against itself.
+    // The pinned run is never its own reference, and the runs made after it count: pinning run #1
+    // compares it with the faster runs that followed.
     [Fact]
-    public void BestSoFarBefore_only_considers_the_attempts_before_the_index()
+    public void BestAmongOthers_considers_every_attempt_but_the_one_excluded()
     {
         PracticeSession session = TrajectorySessions.Of(2, [30, 30], [20, 20], [10, 10]);
 
         TrajectoryModel model = TrajectoryModel.Build(session, 2);
 
-        Assert.Equal(new[] { -1, -1 }, model.BestSoFarBefore(0));
-        Assert.Equal(new[] { 0, 0 }, model.BestSoFarBefore(1));
-        Assert.Equal(new[] { 1, 1 }, model.BestSoFarBefore(2));
-        Assert.Equal(new[] { 2, 2 }, model.BestSoFarBefore(3));
+        Assert.Equal(new[] { 2, 2 }, model.BestAmongOthers(0));
+        Assert.Equal(new[] { 2, 2 }, model.BestAmongOthers(1));
+        Assert.Equal(new[] { 1, 1 }, model.BestAmongOthers(2));
+        Assert.Equal(new[] { 2, 2 }, model.BestAmongOthers(-1));
     }
 
     [Fact]
@@ -177,7 +192,7 @@ public class TrajectoryModelTests
         TrajectoryModel model = TrajectoryModel.Build(session, 0);
 
         Assert.Empty(model.Attempts);
-        Assert.Empty(model.RoomAverages);
+        Assert.Empty(model.RoomReference);
         Assert.Empty(model.BestSoFarIdx);
     }
 
@@ -197,5 +212,29 @@ public class TrajectoryModelTests
         AttemptLine line = new([], [], RoomsCompleted: 0, ChronologicalIndex: 0);
 
         Assert.Equal(0, TrajectoryModel.DevAtRoom(line, 0));
+    }
+
+    [Fact]
+    public void Against_the_best_run_that_run_is_the_flat_line()
+    {
+        PracticeSession session = TrajectorySessions.Of(2, [10, 30], [20, 15]);
+
+        TrajectoryModel model = TrajectoryModel.Build(session, 2, TrajectoryBaseline.BestRun);
+
+        Assert.Equal(TrajectoryBaseline.BestRun, model.Baseline);
+        Assert.Equal(new long[] { 20, 15 }, model.RoomReference);
+        Assert.Equal(new long[] { 0, 0 }, model.Attempts[1].CumulativeDeviations);
+        Assert.Equal(new long[] { -10, 5 }, model.Attempts[0].CumulativeDeviations);
+    }
+
+    [Fact]
+    public void With_no_completed_run_the_best_run_baseline_is_the_average()
+    {
+        PracticeSession session = TrajectorySessions.Of(2, [10], [20]);
+
+        TrajectoryModel model = TrajectoryModel.Build(session, 2, TrajectoryBaseline.BestRun);
+
+        Assert.Equal(TrajectoryBaseline.Average, model.Baseline);
+        Assert.Equal(new long[] { 15, 0 }, model.RoomReference);
     }
 }

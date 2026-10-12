@@ -49,8 +49,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             StatText.SetAlpha((float)alpha/100);
         }
 
-        public static bool IsVisible => SpeebrunConsistencyTrackerModule.Settings.OverlayEnabled && _textVisible;
-
         public static void SetTextVisible(bool visible) {
             _textVisible = visible;
         }

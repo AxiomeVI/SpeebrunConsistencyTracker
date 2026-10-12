@@ -32,4 +32,14 @@ public class ExportChoiceTests
     {
         Assert.Equal(ExportChoice.Clipboard, default(ExportChoice));
     }
+
+    [Theory]
+    [InlineData(GraphType.RoomHistogram)]
+    [InlineData(GraphType.SegmentHistogram)]
+    public void A_retired_histogram_remembered_as_the_last_chart_becomes_the_wall(GraphType retired)
+    {
+        var settings = new Celeste.Mod.SpeebrunConsistencyTracker.SpeebrunConsistencyTrackerModuleSettings { LastShownGraph = retired };
+        settings.OnLoadSettings();
+        Assert.Equal(GraphType.HistogramWall, settings.LastShownGraph);
+    }
 }

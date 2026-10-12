@@ -13,38 +13,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 // Get/Set take the settings object rather than closing over the singleton, so ChartDefinitionsTests
 // can write to a throwaway instance and prove no row reads or writes another row's property.
 //
-// Slots: the room indices this chart contributes when enabled. Almost every chart is one slot with
-// no room (-1); the room histogram is one per room, which is why this is a function and not a bool.
+// Build takes the visible room count.
 public sealed record ChartDefinition(
     GraphType Type,
     string LabelKey,
     Func<SpeebrunConsistencyTrackerModuleSettings, bool> Get,
     Action<SpeebrunConsistencyTrackerModuleSettings, bool> Set,
-    Func<int, int, BaseChartOverlay> Build,
-    Func<IEnumerable<int>> Slots,
-    bool KeyOnRoomCount = true,
-    Func<int> ExtraKey = null);
+    Func<int, BaseChartOverlay> Build);
 
 public static partial class GraphManager
 {
     private static SpeebrunConsistencyTrackerModuleSettings Settings
         => SpeebrunConsistencyTrackerModule.Settings;
 
-    private static readonly int[] NoRoom = [-1];
-    private static IEnumerable<int> SingleSlot() => NoRoom;
+    // Members of GraphType kept only so an old settings file still loads: no row, no chart.
+    public static readonly GraphType[] RetiredTypes = [GraphType.RoomHistogram, GraphType.SegmentHistogram];
 
-    private static IEnumerable<int> RoomHistogramSlots()
-    {
-        if (SessionManager.CurrentSession == null) return [];
-        return Enumerable.Range(0, SessionManager.RoomCount);
-    }
-
-    // Table order is the Next/Previous cycle order AND the settings menu order. The two used to be
-    // separate lists and had drifted: the box plot cycled second and was listed last.
-    //
-    // Build takes (roomCount, roomIndex). Only the room histogram reads the second argument; only
-    // the scatter needs an ExtraKey, and only the room histogram sets KeyOnRoomCount false — one
-    // matrix column is unaffected by how many rooms exist.
+    // Table order is the Next/Previous cycle order AND the settings menu order.
     //
     // Every delegate here is a lambda or a static method group, never an instance method group like
     // `_someCache.Clear`: that form reads the field when the delegate is built, and the caches used
@@ -53,37 +38,31 @@ public static partial class GraphManager
     [
         new(GraphType.Scatter,          DialogIds.GraphScatterId,
             s => s.GraphScatter,          (s, v) => s.GraphScatter = v,
-            (roomCount, _) => BuildScatter(roomCount),          SingleSlot,
-            ExtraKey: ScatterTargetKey),
+            BuildScatter),
 
         new(GraphType.BoxPlot,          DialogIds.GraphBoxPlotId,
             s => s.GraphBoxPlot,          (s, v) => s.GraphBoxPlot = v,
-            (roomCount, _) => BuildBoxPlotChart(roomCount),     SingleSlot),
+            BuildBoxPlotChart),
 
-        new(GraphType.RoomHistogram,    DialogIds.GraphRoomHistogramId,
-            s => s.GraphRoomHistogram,    (s, v) => s.GraphRoomHistogram = v,
-            (_, roomIndex) => BuildRoomHistogram(roomIndex),    RoomHistogramSlots,
-            KeyOnRoomCount: false),
-
-        new(GraphType.SegmentHistogram, DialogIds.GraphSegmentHistogramId,
-            s => s.GraphSegmentHistogram, (s, v) => s.GraphSegmentHistogram = v,
-            (roomCount, _) => BuildSegmentHistogram(roomCount), SingleSlot),
+        new(GraphType.HistogramWall,    DialogIds.GraphHistogramWallId,
+            s => s.GraphHistogramWall,    (s, v) => s.GraphHistogramWall = v,
+            BuildHistogramWall),
 
         new(GraphType.DnfPercent,       DialogIds.GraphDnfPercentId,
             s => s.GraphDnfPercent,       (s, v) => s.GraphDnfPercent = v,
-            (roomCount, _) => BuildDnfPctChart(roomCount),      SingleSlot),
+            BuildDnfPctChart),
 
         new(GraphType.ProblemRooms,     DialogIds.GraphProblemRoomsId,
             s => s.GraphProblemRooms,     (s, v) => s.GraphProblemRooms = v,
-            (roomCount, _) => BuildProblemRoomsChart(roomCount), SingleSlot),
+            BuildProblemRoomsChart),
 
         new(GraphType.TimeLoss,         DialogIds.GraphTimeLossId,
             s => s.GraphTimeLoss,         (s, v) => s.GraphTimeLoss = v,
-            (roomCount, _) => BuildTimeLossChart(roomCount),    SingleSlot),
+            BuildTimeLossChart),
 
         new(GraphType.RunTrajectory,    DialogIds.GraphRunTrajectoryId,
             s => s.GraphRunTrajectory,    (s, v) => s.GraphRunTrajectory = v,
-            (roomCount, _) => BuildRunTrajectoryChart(roomCount), SingleSlot),
+            BuildRunTrajectoryChart),
     ];
 
     // Declared after _chartDefinitions on purpose: static initialisers run in textual order within
@@ -91,9 +70,7 @@ public static partial class GraphManager
     private static readonly Dictionary<GraphType, ChartDefinition> _chartsByType =
         _chartDefinitions.ToDictionary(d => d.Type);
 
-    // One cache per (chart, room). Charts that are a single slot always key on room -1, so the
-    // room histogram needs no separate dictionary of its own any more.
-    private static readonly Dictionary<(GraphType Type, int RoomIndex), ChartCache<BaseChartOverlay>> _caches = [];
+    private static readonly Dictionary<GraphType, ChartCache<BaseChartOverlay>> _caches = [];
 
     public static IReadOnlyList<ChartDefinition> ChartDefinitions => _chartDefinitions;
 
@@ -102,27 +79,21 @@ public static partial class GraphManager
     private static ChartDefinition DefinitionFor(GraphType type)
         => _chartsByType.GetValueOrDefault(type);
 
-    private static BaseChartOverlay GetOrCreate(ChartDefinition chart, int roomIndex)
+    private static BaseChartOverlay GetOrCreate(ChartDefinition chart)
     {
-        if (!_caches.TryGetValue((chart.Type, roomIndex), out ChartCache<BaseChartOverlay> cache))
+        if (!_caches.TryGetValue(chart.Type, out ChartCache<BaseChartOverlay> cache))
         {
-            cache = new ChartCache<BaseChartOverlay>(
-                roomCount => chart.Build(roomCount, roomIndex), chart.KeyOnRoomCount, chart.ExtraKey);
-            _caches[(chart.Type, roomIndex)] = cache;
+            // A room finished under an open chart rebuilds it: the player's view of it stays.
+            cache = new ChartCache<BaseChartOverlay>(chart.Build, static (previous, fresh) => fresh.TakeViewFrom(previous));
+            _caches[chart.Type] = cache;
         }
 
         return cache.Get();
     }
 
     // Dropping the cache entry is what ChartCache.Clear() does and a little more: the next Get
-    // rebuilds both the cache and the chart. For the room histogram this clears every room at once,
-    // which is what the single ClearRoomHistograms() it replaces did.
-    public static void ClearChart(GraphType type)
-    {
-        List<(GraphType Type, int RoomIndex)> keys = [.. _caches.Keys.Where(k => k.Type == type)];
-        foreach ((GraphType Type, int RoomIndex) key in keys)
-            _caches.Remove(key);
-    }
+    // rebuilds both the cache and the chart.
+    public static void ClearChart(GraphType type) => _caches.Remove(type);
 
     private static void ClearAllCharts() => _caches.Clear();
 }

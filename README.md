@@ -1,4 +1,4 @@
-# SpeebrunConsistencyTracker
+# Speebrun Stats Tracker
 
 A Celeste mod built for speedrunners to analyze consistency and pinpoint specific rooms or segments that require further practice. Track segment and room times with real-time statistics to emphasize repeatability over PBs.
 
@@ -46,13 +46,12 @@ Configure the overlay to display the metrics that matter most to your current go
 All charts are accessible in-game via keybinds and can be individually toggled on the **Charts** page of Mod Options, where their seven colors and the fill opacity can be changed too.
 
 - **Scatter Plot:** outliers and time clusters per room
-- **Room Histogram:** time distribution for a single room
-- **Segment Histogram:** time distribution for the full segment
-- **Reset % per Room:** reset rate and run survival rate by room
+- **Box Plot:** time distribution as box-and-whisker with hover details
+- **Histogram Wall:** a time histogram for the segment and one per room; click a tile to open it
+- **Reset Rate per Room:** reset rate and run survival rate by room
 - **Problem Rooms:** combined reset rate and time-loss per room
 - **Time Loss per Room:** median and average loss vs. session best
-- **Run Trajectory:** cumulative deviation across rooms, with best-split comparison
-- **Box Plot:** time distribution as box-and-whisker with hover details
+- **Run Trajectory:** cumulative deviation across rooms, measured from the average or the sum of bests, with best-split comparison
 
 See [docs/charts.md](docs/charts.md) for full descriptions.
 

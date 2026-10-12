@@ -2,9 +2,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 
 public static class LevelNames
 {
-    // The whole SID, not the part after the first '-': a SID without one ("Beginner/zoey") used to
-    // land in a shared "unknown" folder, and letting SanitizeFileName drop the '/' merged sibling
-    // maps into one name. The side is part of the identity too — A and B shared a folder.
+    // The whole SID, not the part after the first '-': a SID may have none ("Beginner/zoey"), and
+    // dropping its '/' would merge sibling maps into one name. The side is part of the identity
+    // too, or A and B share a folder.
     public static string ForExportFolder(string sid, int mode)
     {
         if (string.IsNullOrWhiteSpace(sid)) return "unknown";

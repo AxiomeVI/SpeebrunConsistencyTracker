@@ -27,7 +27,7 @@ public class ChartDefinitionsTests
         List<GraphType> declared = [.. GraphManager.ChartDefinitions.Select(d => d.Type)];
 
         List<string> missing = Enum.GetValues<GraphType>()
-            .Where(t => !declared.Contains(t))
+            .Where(t => !declared.Contains(t) && !GraphManager.RetiredTypes.Contains(t))
             .Select(t => t.ToString())
             .ToList();
 
@@ -53,7 +53,7 @@ public class ChartDefinitionsTests
     }
 
     // A record's positional parameters are non-nullable by convention only; nothing stops a row
-    // being written with a null in one slot. ExtraKey is genuinely optional and excluded.
+    // being written with a null in one slot.
     [Fact]
     public void Every_definition_wires_all_of_its_required_delegates()
     {
@@ -62,7 +62,6 @@ public class ChartDefinitionsTests
             Assert.NotNull(chart.Get);
             Assert.NotNull(chart.Set);
             Assert.NotNull(chart.Build);
-            Assert.NotNull(chart.Slots);
         }
     }
 

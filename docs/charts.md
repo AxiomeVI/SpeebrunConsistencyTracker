@@ -1,45 +1,66 @@
 # Charts Reference
 
-All charts are accessible in-game via keybinds and can be individually toggled on the **Charts** page of Mod Options. Use the navigation arrows on the chart overlay or your configured keybinds to cycle between them.
+The mod draws seven charts. Each can be switched on or off on the **Charts** page of Mod Options. The "<" and ">" buttons under the chart, or your configured keybinds, cycle through the enabled charts in the order below.
 
 ## Colors
 
 The Charts page sets seven colors, each on a color wheel that also offers the fourteen named colors as presets:
 
-- **Room color** and **Segment color:** the scatter plot, box plot and histograms, including their axis labels
-- **Bars, first** and **Bars, second:** the two series of the bar charts (Reset % per Room, Problem Rooms, Time Loss per Room)
+- **Room color** and **Segment color:** the scatter plot, box plot and Time Distributions, including their axis labels
+- **Bars, first** and **Bars, second:** the two series of the bar charts (Reset Rate per Room, Problem Rooms, Time Loss per Room)
 - **Best run**, **Last run** and **Sum of bests:** the highlighted lines of the Run Trajectory
 
 **Fill opacity** fades the filled shapes only: bars, boxes and dots. Lines and text always draw at full color.
 
+## What every chart shares
+
+- **Subtitle.** One line under the title says what the chart shows.
+- **Help card.** The "?" button shows a card that explains how to read the chart and what the mouse does. Hovering shows it, and a click keeps it open. Whether it stays open is saved.
+- **Save PNG**, at the top right, writes the chart to `SCT_Exports/<level>/`, beside the CSV exports.
+- **Buttons under the chart.** "<" and ">" move to the previous and next chart. At the bottom left sit Reset zoom (while the chart is zoomed), Clear pins and Delete.
+- **Pins.** Click a mark to pin it. Clear pins unpins everything. Delete removes the pinned runs from the session.
+- **Hiding rooms.** On the charts with a column per room, click a room's label (R1, R2...) to hide it. A thin strip stays in its place: click it to bring the room back.
+- **Zoom and pan.** The scatter plot and the run trajectory zoom with the wheel around the mouse and pan by dragging. Reset zoom, or a double click, shows everything again.
+- **Sideways scroll.** The scatter plot, box plot and the three bar charts keep every room column at least 96 px wide. With more rooms than fit, the columns scroll sideways: use the wheel over the room labels, or drag the bar under them. On the scatter plot and the box plot the segment column stays pinned on the right.
+- **Switches.** A choice on a chart is a caption and a switch under it: "Scale: Absolute | Relative", "Median band: On | Off", "Median: On | Off", "Baseline: Average | Best run | SoB", "Widget: On | Off".
+- **Saved choices.** These survive a restart: Absolute or Relative on the scatter plot and the box plot, the scatter plot's "Median band", the histogram's median line, the trajectory's baseline, whether the help card is open, and the last chart shown.
+
 ## Scatter Plot
 
-Displays all room times and segment times as individual dots, organized by room column. Useful for spotting outliers and seeing how times cluster within each room. Enabled by default.
-
-## Room Histogram
-
-A time distribution histogram for a single room. Shows how frequently each time range occurs, making it easy to see whether your times cluster tightly or spread out. Cycles through each room individually. Disabled by default.
-
-## Segment Histogram
-
-Same as the room histogram but for the full segment time. Enabled by default.
-
-## Reset % per Room & Segment Survival Rate
-
-A grouped bar chart with two series per room: the reset rate (percentage of all attempts that reset in that room) and the survival rate (percentage of attempts still alive when they *enter* that room). The survival bar is the share of runs that reached the room, before that room's own resets are taken off. Enabled by default.
-
-## Problem Rooms
-
-A stacked bar chart combining reset % and time-loss % per room. The time-loss portion highlights rooms where you frequently lose significant time over your session best for that room, based on a configurable threshold. Useful for identifying rooms that need practice. Disabled by default.
-
-## Time Loss per Room
-
-A grouped bar chart showing median and average time lost per room relative to your session best in that room, allowing quick comparison between typical loss (median) and overall loss (average). Disabled by default.
-
-## Run Trajectory
-
-A line chart where each attempt is drawn as a line showing cumulative deviation from the per-room average. Lines go up when a room is faster than average and down when slower. The X axis represents the cumulative sum of per-room averages (a run that matches the average in every room follows it exactly). Older attempts are drawn in dark grey and fade toward white as they approach the most recent run, making it easy to see how your trajectory has evolved over the session. Your best attempt, your most recent attempt, and the Sum of Best are highlighted. A comparison line shows how the current run tracks against the best recorded split time per room. Enabled by default.
+One dot per run, a column per room, and the segment on the right. In a column the oldest run is on the left. A band behind the dots marks the middle half of the times, with a line at the median ("Median band", on by default). Absolute reads the rooms as times. Relative reads each room as a percent of its own median. A red target line can be dragged up or down to change the target time. Enabled by default.
 
 ## Box Plot
 
-Shows the statistical distribution of room times as a box-and-whisker plot, with rooms on the left and the full segment on the right (each on its own Y axis). For each column: the whisker spans min to max, the box covers the interquartile range (Q1–Q3), and the white line marks the median. Hover over a column to see the median, IQR bounds, whiskers, and any outlier values. Disabled by default.
+The spread of the times in each room and in the segment. A box covers the middle half (Q1 to Q3), its line is the median, and the whiskers reach the fastest and slowest time. Absolute and Relative work as on the scatter plot. Hovering a box shows Max, Q3, Median, Q1 and Min. Clicking pins the numbers. The chart has no outlier values. Disabled by default.
+
+## Time Distributions
+
+A wall with one time histogram for the segment and one for each room. A bar counts the runs that fell in a range of times, and a dashed line marks the median ("Median: On | Off"). Click a tile to open that histogram full size. Back, a right click or a double-click returns to the wall. Scroll or drag to reach the other rooms. Enabled by default. With a histogram open, the previous and next chart buttons and hotkeys go round the histograms instead. The run count follows each title; the segment's counts completed runs only.
+
+## Reset Rate per Room
+
+A grouped bar chart with two series per room: the reset rate (the share of the runs that reached the room that ended there) and the share of all runs that reached it. Enabled by default.
+
+## Problem Rooms
+
+A stacked bar chart per room, counted over the runs that reached it: the share that ended there, and the share that finished it slower than the time-loss threshold over the session best. A "Threshold:" slider under the chart sets it, from 1 to 118 frames; it is the Time loss threshold of Mod Options. Disabled by default.
+
+## Time Loss per Room
+
+A grouped bar chart of the median and the average time lost per room against the session best in that room. A big gap between the two means rare disasters. Disabled by default.
+
+## Run Trajectory
+
+A line chart where each run is one line, read left to right, one room at a time. An Average | Best run | SoB switch under the chart picks the baseline the runs are compared with. Against Average, the middle line is the average run: a line above it is ahead, below it behind. Against SoB, the top line is the sum of bests, and the further below it a run is, the more time it lost. Against Best run, the flat line is your fastest completed run of the session; until one is complete the average is used, and the title says so. Older runs are dark grey and fade toward white for the most recent. The best run, the last run and the sum of bests use their own colors.
+
+Click a line to pin that run. While the columns are wide enough (about 20 rooms), the times stand along the pinned line and a table sits under the chart. Each room shows the gap at the end of the room (cumul) and in that room alone (room). With more rooms, the chart draws dots only and a card for the room under the mouse. Zooming in brings the table back. Click a second line to compare the two runs. "vs Best Split" compares the pinned run with every other run: green means the run was ahead of them all. Enabled by default.
+
+### The widget
+
+Under the chart, bottom left, "Widget: On | Off" keeps a small chart of the current run on screen while you play. It draws one line, a room at a time, against the baseline chosen on the chart: green above the middle line where the run is ahead, red below it where it is behind. A new run clears it.
+
+Its baseline leaves the current run out, so a new best room shows as a gain. On the first run of a session there is nothing to compare with, and it shows an empty widget with its middle line.
+
+It is hidden while a chart is open. Switched on while it is still where it ships, it starts in Edit mode, to show it can be moved. To move or resize it later, click Edit mode, beside the switch: it shows over the Run Trajectory chart with a frame. Drag its middle to move it, an edge or a corner to resize it. Each change is saved as you make it. Click Edit mode again, or close the chart, to hide it.
+
+Mod Options has its on/off switch, its opacity, and Time delta, on by default: the gap to the baseline as a number in the widget's corner.

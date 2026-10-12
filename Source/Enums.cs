@@ -57,6 +57,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         Vertical
     }
 
+    // What the Run Trajectory chart and its widget measure a run from. Persisted by name: a member
+    // is never removed or renamed (PersistedEnumMembersTests). The order is the chart's switch.
+    public enum TrajectoryBaseline
+    {
+        Average,
+        BestRun,
+        SumOfBest
+    }
+
     public enum ColorChoice
     {
         Cyan,
@@ -79,6 +88,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
     // settings file already holds — YamlDotNet resolves an enum by name and throws on an unknown
     // one, aborting the rest of the document (see ExportChoice.Sheet above for the incident this
     // guards against).
+    //
+    // RoomHistogram and SegmentHistogram are dead: the histogram wall shows both. They
+    // stay for the settings files that name one, which OnLoadSettings rewrites to HistogramWall.
+    // GraphManager.RetiredTypes lists them; neither has a row in ChartDefinitions.
     public enum GraphType
     {
         Scatter,
@@ -88,6 +101,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         ProblemRooms,
         TimeLoss,
         RunTrajectory,
-        BoxPlot
+        BoxPlot,
+        HistogramWall
     }
 }

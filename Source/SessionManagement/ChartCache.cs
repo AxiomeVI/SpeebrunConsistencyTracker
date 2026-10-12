@@ -2,43 +2,35 @@ using System;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
-// Rebuild key: session version, visible room count, SpeedrunTool room timer type, plus extraKey.
+// Rebuild key: session version, visible room count, SpeedrunTool room timer type.
 internal sealed class ChartCache<T> where T : class
 {
     private readonly Func<int, T> _build;
-    private readonly bool _keyOnRoomCount;
-    private readonly Func<int> _extraKey;
+    private readonly Action<T, T> _carry;
 
     private T _value;
     private uint _version;
     private int _roomCount;
     private int _timerType;
-    private int _extra;
 
-    // keyOnRoomCount: false for per-room charts — one matrix column, unaffected by room count.
-    // extraKey: read live on every Get, for charts also keyed on a player-changeable setting.
     // build receives the room count the key was read with, so both see the same value.
-    public ChartCache(Func<int, T> build, bool keyOnRoomCount = true, Func<int> extraKey = null)
-    {
-        _build          = build;
-        _keyOnRoomCount = keyOnRoomCount;
-        _extraKey       = extraKey;
-    }
+    // carry hands a rebuilt value what the one it replaces held (previous, then fresh).
+    public ChartCache(Func<int, T> build, Action<T, T> carry = null) => (_build, _carry) = (build, carry);
 
     public T Get()
     {
         uint curVersion   = SessionManager.CurrentSession.Version;
         int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
-        int  curExtra     = _extraKey?.Invoke() ?? 0;
 
+        T previous = null;
         if (_value != null && (
             _version   != curVersion   ||
             _timerType != curTimerType ||
-            _extra     != curExtra     ||
-            (_keyOnRoomCount && _roomCount != curRoomCount)))
+            _roomCount != curRoomCount))
         {
-            _value = null;
+            previous = _value;
+            _value   = null;
         }
 
         if (_value == null)
@@ -47,7 +39,7 @@ internal sealed class ChartCache<T> where T : class
             _version   = curVersion;
             _roomCount = curRoomCount;
             _timerType = curTimerType;
-            _extra     = curExtra;
+            if (previous != null) _carry?.Invoke(previous, _value);
         }
 
         return _value;
@@ -59,6 +51,5 @@ internal sealed class ChartCache<T> where T : class
         _version   = 0;
         _roomCount = 0;
         _timerType = 0;
-        _extra     = 0;
     }
 }

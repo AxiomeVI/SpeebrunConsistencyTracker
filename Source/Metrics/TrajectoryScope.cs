@@ -27,7 +27,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public bool SobReachesEnd   { get; private set; }         // SoB reaches beyond LastVisibleRoom
         public bool LastReachesEnd  { get; private set; }         // Attempts[^1] reaches beyond LastVisibleRoom
 
-        public long RoomAveragesSum      { get; private set; }     // sum of RoomAverages[0..LastVisibleRoom] inclusive
+        public long RoomReferenceSum      { get; private set; }     // sum of RoomReference[0..LastVisibleRoom] inclusive
         // Floored at one frame, not one tick: with a single run every deviation is 0, and half a
         // dozen axis labels all read +-0.000 because the whole axis spanned two ticks.
         internal const long MinHalfRange = 170_000L;
@@ -60,7 +60,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 AnyCompleted         = false;
                 SobReachesEnd        = false;
                 LastReachesEnd       = false;
-                RoomAveragesSum      = 0;
+                RoomReferenceSum      = 0;
                 MaxUpwardDeviation   = MinHalfRange;
                 MaxDownwardDeviation = MinHalfRange;
                 TotalRange           = MinHalfRange * 2;
@@ -97,8 +97,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             SobReachesEnd  = _model.SobLine.RoomsCompleted > lastVis;
             LastReachesEnd = attempts[^1].RoomsCompleted > lastVis;
 
-            RoomAveragesSum = 0;
-            for (int r = 0; r <= lastVis; r++) RoomAveragesSum += _model.RoomAverages[r];
+            RoomReferenceSum = 0;
+            for (int r = 0; r <= lastVis; r++) RoomReferenceSum += _model.RoomReference[r];
 
             // Hidden rooms in the middle still contribute cumulative deviation; rooms beyond
             // lastVis do not.

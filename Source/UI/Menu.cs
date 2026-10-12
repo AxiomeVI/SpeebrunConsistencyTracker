@@ -34,6 +34,16 @@ public static partial class ModMenuOptions
                 else
                     SpeebrunConsistencyTrackerModule.ExportDataToFiles();
             }));
+            // Yes on a confirmation page clears; No is selected first.
+            rows.Add(new TextMenu.Button(Dialog.Clean(DialogIds.ClearSessionId)).Pressed(() =>
+            {
+                ConfirmationPage confirm = new(menu, title: Dialog.Clean(DialogIds.ClearSessionTitleId),
+                                               message: Dialog.Clean(DialogIds.ClearSessionMessageId))
+                {
+                    OnConfirmed = SpeebrunConsistencyTrackerModule.ClearSession,
+                };
+                confirm.Enter();
+            }));
         }
 
         rows.Add(new ValueButton(Dialog.Clean(DialogIds.StatsOverlayPageId),

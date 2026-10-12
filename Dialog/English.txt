@@ -1,7 +1,10 @@
 # ====================== Mod Menu ==============================
-SCT_SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Consistency Tracker
+SCT_SPEEBRUN_CONSISTENCY_TRACKER=          Speebrun Stats Tracker
 SCT_ENABLE_MOD=                            Enabled
 SCT_EXPORT_NOW=                            Export session now
+SCT_CLEAR_SESSION=                         Clear session data...
+SCT_CLEAR_SESSION_TITLE=                   Clear session data?
+SCT_CLEAR_SESSION_MESSAGE=                 Every run recorded in this session will be lost.
 SCT_BULK_HEADER=                           All metrics
 SCT_SHOW_ALL=                              Show all
 SCT_HIDE_ALL=                              Hide all
@@ -47,13 +50,12 @@ SCT_TIME_LOSS_THRESHOLD=                   Time loss threshold
 SCT_TIME_LOSS_THRESHOLD_DESC=              For the Problem Rooms chart. A room counts as a time loss{n}when it runs this far over its session best.
 SCT_GRAPH_ENABLED=                         Charts in the cycle
 SCT_SCATTER=                               Scatter Plot
-SCT_ROOM_HISTOGRAM=                        Room Histograms
-SCT_SEGMENT_HISTOGRAM=                     Segment Histogram
-SCT_DNF_PERCENT_BAR_CHART=                 Reset % per Room
+SCT_DNF_PERCENT_BAR_CHART=                 Reset Rate per Room
 SCT_PROBLEM_ROOM_BAR_CHART=                Problem Rooms
-SCT_TIME_LOSS_CHART=                       Time loss per Room
+SCT_TIME_LOSS_CHART=                       Time Loss per Room
 SCT_TRAJECTORY_GRAPH=                      Run Trajectory
 SCT_BOX_PLOT_GRAPH=                        Box Plot
+SCT_HISTOGRAM_WALL_GRAPH=                  Time Distributions
 
 
 # ======================= Hotkeys ==============================
@@ -65,9 +67,12 @@ SCT_KEYBIND_CLEAR_SUB=                     Press Journal or Delete to clear the 
 # {0} is the seconds left before recording gives up.
 SCT_KEYBIND_TIMEOUT_FMT=                   Cancelling in {0}s - press Escape to cancel now
 SCT_KEY_STATS_EXPORT=                      Export data
+SCT_KEY_STATS_EXPORT_DESC=                 Exports to the clipboard or to files, as set in Export options.
 SCT_KEY_IMPORT_TARGET_TIME=                Import target time from clipboard
+SCT_KEY_IMPORT_TARGET_TIME_DESC=           Accepts mm:ss.fff, ss.fff, or a plain number of seconds.
 SCT_TOGGLE_GRAPH_OVERLAY=                  Show/hide the chart overlay
 SCT_KEY_CLEAR_STATS=                       Clear current session data
+SCT_KEY_CLEAR_STATS_DESC=                  Removes every run of the session at once. It cannot be undone.
 SCT_KEY_NEXT_GRAPH=                        Switch to next chart
 SCT_KEY_PREVIOUS_GRAPH=                    Switch to previous chart
 
@@ -103,10 +108,9 @@ SCT_PERCENTILE=                            Percentile
 SCT_PERCENTILE_VALUE=                      Percentile Value
 SCT_IQR=                                   Interquartile Range
 SCT_RUN_HISTORY=                           Attempts History
-SCT_SOB=                                   Sum of Bests
+SCT_SOB=                                   Sum of bests
 SCT_LINEAR_REGRESSION=                     Trend Slope
 SCT_SUCCESS_RATE_SUBTEXT=                  A run is considered successful if the endpoint is reached within the target time
-SCT_CONSISTENCY_SCORE=                     Consistency Score
 SCT_GOLD_RATE=                             Session Best Rate
 SCT_GROUP_RUNS=                            Runs
 SCT_GROUP_TIMES=                           Times
@@ -125,47 +129,72 @@ SCT_CHART_SEGMENT=                         Segment
 SCT_CHART_SEGMENT_ROOMS_FMT=               Segment ({0})
 SCT_CHART_ONE_ROOM=                        1 room
 SCT_CHART_ROOMS_FMT=                       {0} rooms
-SCT_CHART_ONE_RUN=                         1 Run
-SCT_CHART_RUNS_FMT=                        {0} Runs
+SCT_CHART_ONE_RUN=                         1 run
+SCT_CHART_RUNS_FMT=                        {0} runs
+SCT_CHART_ONE_COMPLETED_RUN=               1 completed run
+SCT_CHART_COMPLETED_RUNS_FMT=              {0} completed runs
+SCT_CHART_SCALE=                           Scale:
+SCT_CHART_THRESHOLD=                       Threshold:
+SCT_CHART_SEGMENT_TIME=                    Segment time
 SCT_CHART_DELETE=                          Delete
 SCT_CHART_ABSOLUTE=                        Absolute
 SCT_CHART_RELATIVE=                        Relative
-SCT_CHART_PRIMARY=                         Primary
-SCT_CHART_SECONDARY=                       Secondary
-SCT_CHART_VALUE=                           Value
 
-SCT_CHART_SCATTER_TITLE=                   Room and Segment Times
+SCT_CHART_SCATTER_TITLE=                   Scatter Plot — room and segment times
 SCT_CHART_TARGET_FMT=                      Target: {0}
 SCT_CHART_RUN_TIME_FMT=                    Run #{0}: {1}
 
-SCT_CHART_BOX_PLOT_TITLE=                  Room and Segment Box Plot
+SCT_CHART_BOX_PLOT_TITLE=                  Box Plot — room and segment times
 SCT_CHART_STAT_MAX=                        Max
 SCT_CHART_STAT_MEDIAN=                     Median
 SCT_CHART_STAT_MIN=                        Min
 
-SCT_CHART_HISTOGRAM_TITLE_FMT=             Time Distribution - {0}
-SCT_CHART_TOTAL_FMT=                       Total: {0}
+SCT_CHART_HISTOGRAM_TITLE_FMT=             Time Distribution — {0}
 SCT_CHART_BIN_ONE_RUN_FMT=                 {0} run ({1}%)
 SCT_CHART_BIN_RUNS_FMT=                    {0} runs ({1}%)
 
-SCT_CHART_RESET_SURVIVAL_TITLE=            Reset Rate per Room & Segment Survival Rate
+SCT_CHART_RESET_SURVIVAL_TITLE=            Reset Rate per Room
 SCT_CHART_RESET_RATE=                      Reset rate
-SCT_CHART_RUNS_ALIVE=                      Runs still alive
-SCT_CHART_PROBLEM_ROOMS_TITLE_FMT=         Problem Rooms (threshold: {0}ms over session best)
-SCT_CHART_OVER_THRESHOLD_FMT=              >{0}ms over session best
+SCT_CHART_RUNS_ALIVE=                      Runs that reached the room
+SCT_CHART_PROBLEM_ROOMS_TITLE_FMT=         Problem Rooms — {0}s over session best
+SCT_CHART_OVER_THRESHOLD_FMT=              Over session best by {0}s
 SCT_CHART_TIME_LOSS_TITLE=                 Time Loss per Room
 SCT_CHART_MEDIAN_LOSS=                     Median loss
-SCT_CHART_AVG_LOSS=                        Avg loss
+SCT_CHART_AVG_LOSS=                        Average loss
 
-SCT_CHART_TRAJECTORY_TITLE=                Run Trajectory — Deviation from average
+SCT_CHART_TRAJECTORY_TITLE=                Run Trajectory — deviation from average
+SCT_CHART_TRAJECTORY_TITLE_SOB=            Run Trajectory — deviation from sum of bests
+SCT_CHART_AVERAGE=                         Average
 SCT_CHART_AVG=                             Avg
 SCT_CHART_SOB=                             SoB
 SCT_CHART_VS_AVG=                          vs Avg
 SCT_CHART_VS_SOB=                          vs SoB
+SCT_CHART_BEST_RUN=                        Best run
+SCT_CHART_BEST=                            Best
+SCT_CHART_VS_BEST_RUN=                     vs Best run
+SCT_CHART_TRAJECTORY_TITLE_BEST=           Run Trajectory — deviation from best run
+SCT_CHART_TRAJECTORY_NO_BEST_RUN=          no completed run yet
+SCT_CHART_REF_TIP_BEST_RUN=                Baseline: your fastest completed run this session. Until one is complete, the average is used.
+SCT_CHART_REF_TIP_AVERAGE=                 Baseline: every room at your average time this session.
+SCT_CHART_REF_TIP_SOB=                     Baseline: the sum of bests, every room at your best time this session.
+SCT_CHART_BASELINE=                        Baseline:
+SCT_CHART_WIDGET_TIP=                      Keeps a small chart of the current run, against the same baseline, on screen while you play.
+SCT_CHART_WIDGET_PLACE=                    Edit mode
+SCT_CHART_WIDGET_PLACE_TIP=                Shows the widget over this chart so you can move and resize it. Each change is saved as you make it.
+SCT_CHART_ON=                              On
+SCT_CHART_OFF=                             Off
+SCT_TRAJECTORY_WIDGET_DELTA_DESC=          The gap to the baseline as a number in the widget's corner. The line shows either way.
+SCT_CHART_WIDGET=                          Widget:
+SCT_TRAJECTORY_WIDGET_HEADER=              Trajectory widget
+SCT_TRAJECTORY_WIDGET=                     Show
+SCT_TRAJECTORY_WIDGET_DESC=                Edit it from the Run Trajectory chart.
+SCT_TRAJECTORY_WIDGET_OPACITY=             Opacity
+SCT_TRAJECTORY_WIDGET_DELTA=               Time delta
 SCT_CHART_VS_RUN_FMT=                      vs #{0}
 SCT_CHART_RUN_FMT=                         Run #{0}
-SCT_CHART_VS_BEST_SPLIT=                   vs Best Split
+SCT_CHART_VS_BEST_SPLIT=                   vs best split
 SCT_CHART_CUMUL=                           cumul
+SCT_CHART_DIFFERENCE=                      difference
 SCT_CHART_ROOM=                            room
 SCT_CHART_LEGEND_ALL_THREE=                SoB, Best & Last run
 SCT_CHART_LEGEND_SOB_BEST=                 SoB & Best run
@@ -194,3 +223,45 @@ SPEEBRUNCONSISTENCYTRACKER_MENUTOOLS_ENTRY_MIN_ONE=                At least 1 ch
 SPEEBRUNCONSISTENCYTRACKER_MENUTOOLS_ENTRY_MIN=                    At least ((count)) characters
 SPEEBRUNCONSISTENCYTRACKER_MENUTOOLS_ENTRY_HEX=                    6 hex digits
 # MenuTools end
+
+SCT_CHART_SAVE_PNG=                        Save PNG
+SCT_CHART_SAVED_FMT=                       Chart saved: {0}
+SCT_CHART_SPREAD=                          Median band:
+SCT_CHART_MEDIAN_LINE=                     Median:
+
+
+SCT_CHART_WALL_TITLE=                      Time Distributions
+SCT_CHART_WALL_BACK=                       Back
+
+SCT_CHART_CLEAR_PINS=                      Clear pins
+SCT_CHART_RESET_ZOOM=                      Reset zoom
+
+# Help on a chart, three lines each. SUB: one sentence under the title, saying how to read it.
+# ABOUT: the longer text the "?" opens; the card does not wrap, so each bar starts a new line of it,
+# kept under 100 characters. MOUSE: what the mouse does, the second part of the same card.
+SCT_HINT_SUB_SCATTER=                      One dot per run, a column per room and the segment on the right. In a column, your oldest run is on the left.
+SCT_HINT_SUB_BOX=                          The spread of your times: a box is the middle half, its line the median, the whiskers your fastest and slowest.
+SCT_HINT_SUB_HISTOGRAM=                    The number of runs in each range of times. One narrow hill means consistent.
+SCT_HINT_SUB_RESETS=                       Per room: the share of the runs reaching it that ended there, and the share of all runs that reached it.
+SCT_HINT_SUB_PROBLEM=                      Per room, of the runs that reached it: the share that ended there, and the share that lost time.
+SCT_HINT_SUB_TIME_LOSS=                    Time lost in each room against your session best: what a typical run loses, and the average.
+SCT_HINT_SUB_TRAJECTORY=                   Each line is one run. Above the baseline it is ahead, below it is behind.
+SCT_HINT_SUB_WALL=                         The time histogram of the segment and of every room. One narrow hill means consistent.
+SCT_HINT_MOUSE_SCATTER=                    Point at a dot to read its run and time. Click it to pin it. | Delete removes the pinned runs from the session. Clear pins only unpins them. | Click a room's label (R1, R2...) to hide that room. | A thin strip stays in its place: click it to bring the room back. | Scroll to zoom the axis under the mouse, then drag to move. | Reset zoom, or a double-click, shows everything again. | With many rooms: scroll over the room labels, or drag the bar under them, to reach the others.
+SCT_HINT_MOUSE_SCATTER_TARGET=             Point at a dot to read its run and time. Click it to pin it. | Delete removes the pinned runs from the session. Clear pins only unpins them. | Click a room's label (R1, R2...) to hide that room. | A thin strip stays in its place: click it to bring the room back. | Scroll to zoom the axis under the mouse, then drag to move. | Reset zoom, or a double-click, shows everything again. | With many rooms: scroll over the room labels, or drag the bar under them, to reach the others. | Drag the red target line up or down to change the target time. A right click during the drag cancels it.
+SCT_HINT_MOUSE_BOX=                        Point at a box to read its numbers. Click it to pin it. | Click a room's label (R1, R2...) to hide that room. | A thin strip stays in its place: click it to bring the room back. | With many rooms: scroll over the room labels, or drag the bar under them, to reach the others.
+SCT_HINT_MOUSE_HISTOGRAM=                  Point at a bar to read its count and its range of times. Click it to pin it. | Back, a right click or a double-click returns to the wall. | < and >, or their hotkeys, show the previous and the next histogram.
+SCT_HINT_MOUSE_BARS=                       Point at a bar to read its value. Click it to pin it. | Click a room's label (R1, R2...) to hide that room. | A thin strip stays in its place: click it to bring the room back. | With many rooms: scroll over the room labels, or drag the bar under them, to reach the others.
+SCT_HINT_MOUSE_TRAJECTORY=                 Point at a line to read its times. Click it to pin it. Then click another line to compare the two. | Click a room's label (R1, R2...) to hide that room. | A thin strip stays in its place: click it to bring the room back. | Scroll to zoom in around the mouse, then drag to move. | Reset zoom, or a double-click, shows everything again. | With many rooms the times show for the room under the mouse only: zoom in to see them all.
+SCT_HINT_MOUSE_WALL=                       Click a histogram to open it full size. | Back, a right click or a double-click returns to the wall. | With one open, < and >, or their hotkeys, show the previous and the next histogram. | With many rooms: scroll, or drag, to reach the others.
+
+SCT_CHART_HINT_TITLE=                      How to read this chart
+SCT_HINT_ABOUT_SCATTER=                    Every run of the session as a dot: one column per room, and the whole segment on the right. | In a column, the dots run from your oldest run on the left to your newest on the right. | The band holds the middle half of the times and the line across it is their median: the Median band switch under the chart hides both. | Rooms are read on the left axis, the segment on the right one. | Scale: Absolute reads the rooms as times. Relative reads each as a percent of its own median, | so rooms of very different lengths can be compared.
+SCT_HINT_ABOUT_BOX=                        How spread out your times are in each room, and for the whole segment. | A box holds the middle half of the times, and the line in it is the median. | The whiskers reach your fastest and your slowest time. A short box is a consistent room. | Scale: Absolute reads the rooms as times. Relative reads each as a percent of its own median, | so rooms of very different lengths can be compared.
+SCT_HINT_ABOUT_HISTOGRAM=                  How often each time came up: a bar counts the runs that fell in its range of times. | One tall, narrow hill means consistent. A wide one, or two hills, means two different outcomes. | The dashed white line is the median: the Median switch under the chart hides it. The red line is the target time, when the target is shown.
+SCT_HINT_ABOUT_RESETS=                     Where your runs end. | Reset rate: of the runs that reached a room, the share that ended in it. | Runs that reached the room: of all the runs, the share that got that far.
+SCT_HINT_ABOUT_PROBLEM=                    Which rooms go wrong most often, counted over the runs that reached each room. | Reset rate: the share of those runs that ended in the room. | Over session best: the share that finished the room, but slower than your session best by more than the threshold. | The Threshold slider under the chart sets it, as Time loss threshold does in Mod Options. | The taller the bar, the more often that room costs you a run or time.
+SCT_HINT_ABOUT_TIME_LOSS=                  How much time each room costs you, measured against your session best in it. | Median loss: what a typical run loses there. | Average loss: a few very slow runs pull it up. A big gap between the two means rare disasters.
+SCT_HINT_ABOUT_TRAJECTORY=                 Each line is one run, read from left to right, one room at a time. | Runs are compared with a baseline, the flat grey line. Above it a run is ahead, below it behind. | The Baseline buttons pick it: | - Average: your average time in each room. | - Best run: your fastest completed run, also the line in the Best run colour. | - SoB (sum of bests): your best time in each room. | A line that climbs in a room gained time on the baseline there. One that drops lost time. | Numbers are the gap to the baseline: - is faster, + is slower. | Right of the chart: the segment time each highlighted line ends on. | Pin a run to read it: at each room, its time so far, then the room's own time. | The table compares it room by room: cumul is the gap at the end of the room, room the gap in that room alone. | vs best split: the gap to the best any other run had reached there. Green: ahead of them all.
+SCT_HINT_ABOUT_WALL=                       The time histogram of the segment and of every room, side by side. | Compare the shapes: a narrow hill is a consistent room, a wide or split one is not. | The white line in each is the median.
+SCT_CHART_HINT_CLOSE=                      Close

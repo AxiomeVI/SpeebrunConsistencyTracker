@@ -55,6 +55,7 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
 
     private bool closing;
     private bool counted;
+    private bool hudHideWas;
     private float refocusDelay;
     private bool recording;
     private float recordingEase;
@@ -95,22 +96,32 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
         if (counted) return;
         counted = true;
         HotkeyPause.RemapScreenOpened();
+
+        // ⚠️ A paused level stops drawing its HUD, this screen included, while Journal is held
+        // (Level.Render), and Journal is the gesture that clears a row. Vanilla's Options and
+        // Everest's key-config screens turn it off the same way. Put back to what it was, not to
+        // true: the Options screen may be open underneath.
+        if (scene is Level level) {
+            hudHideWas = level.AllowHudHide;
+            level.AllowHudHide = false;
+        }
     }
 
     public override void Removed(Scene scene) {
         base.Removed(scene);
-        Release();
+        Release(scene);
     }
 
     public override void SceneEnd(Scene scene) {
         base.SceneEnd(scene);
-        Release();
+        Release(scene);
     }
 
-    private void Release() {
+    private void Release(Scene scene) {
         if (!counted) return;
         counted = false;
         HotkeyPause.RemapScreenClosed();
+        if (scene is Level level) level.AllowHudHide = hudHideWas;
     }
 
     private TSettings Settings => hotkeys.Settings();
@@ -147,6 +158,7 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
             row.Pressed(() => StartRecording(keybind, keyboard))
                .AltPressed(() => ClearRow(keybind, keyboard));
             Add(row);
+            if (keybind.DescriptionId is not null) Add(new RowDescription(Dialog.Clean(keybind.DescriptionId), row));
             rows.Add((row, inputs(binding)));
         }
         MarkClashes(rows);
@@ -366,6 +378,34 @@ internal sealed class KeybindScreen<TSettings> : TextMenu where TSettings : clas
                     x += width;
                 }
             }
+        }
+    }
+
+    // What a row's hotkey does: a grey line under the row, open only while the row is selected. Like
+    // FittedHint it sizes nothing, and it is drawn smaller when wider than MaxLineWidth.
+    private sealed class RowDescription : SubHeader {
+        private readonly Row row;
+        private float ease;
+
+        internal RowDescription(string title, Row row) : base(title, topPadding: false) {
+            this.row = row;
+            IncludeWidthInMeasurement = false;
+        }
+
+        public override void Update() {
+            ease = Calc.Approach(ease, Container.Current == row ? 1f : 0f, Engine.RawDeltaTime * 4f);
+        }
+
+        // Closed, it gives back the spacing TextMenu puts after every item: a described row sits as
+        // close to the next one as any other row does.
+        public override float Height() =>
+            -Container.ItemSpacing + (base.Height() + Container.ItemSpacing) * Ease.CubeOut(ease);
+
+        public override void Render(Vector2 position, bool highlighted) {
+            if (ease <= 0f) return;
+            float alpha = Container.Alpha * ease;
+            ActiveFont.DrawOutline(Title, position, new Vector2(0f, 0.5f), Vector2.One * FitScale(Title, 0.6f),
+                                   Color.Gray * alpha, 2f, Color.Black * (alpha * alpha * alpha));
         }
     }
 

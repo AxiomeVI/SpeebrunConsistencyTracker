@@ -34,8 +34,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
                 {
                     var cell = session.GetCell(a, r);
                     if (cell.State == RoomCellState.Completed || cell.State == RoomCellState.DNF) hasAny = true;
-                    // A DNF and a deleted cell used to export as empty, exactly like a room the
-                    // run never reached, so the file did not say where any run died.
+                    // A DNF and a deleted cell are named, so they do not read as a room the run
+                    // never reached: the file says where each run died.
                     rowCells.Append(cell.State switch
                     {
                         RoomCellState.Completed => $"{separator}{cell.Time}",

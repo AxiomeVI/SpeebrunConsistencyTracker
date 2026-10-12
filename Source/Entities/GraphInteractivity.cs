@@ -1,7 +1,8 @@
+using System;
 using System.Collections.Generic;
+using Celeste.Mod.CelesteCharts;
+using Celeste.Mod.SpeebrunConsistencyTracker.Charts;
 using Microsoft.Xna.Framework;
-using Microsoft.Xna.Framework.Input;
-using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 
@@ -17,298 +18,252 @@ public readonly record struct GraphInteraction(int NavigationSteps, bool DeleteR
     public static GraphInteraction Navigate(int steps) => new(steps, false);
 }
 
+// The mouse on the chart that is showing: what it hovers, what a click pins, the buttons around
+// the chart, the tooltips and the cursor. The pointer, the buttons, the tooltip placement and the
+// cursor are CelesteCharts'; what a click means is decided here.
+//
+// Update runs from Level.Update and Render from the chart surface's Render, which may run more
+// than once per update: everything a click does is done in Update.
 public static class GraphInteractivity
 {
-    private static float _mouseHudX;
-    private static float _mouseHudY;
+    private static readonly Area Screen = new(0f, 0f, ChartConstants.Screen.ScreenWidth, ChartConstants.Screen.ScreenHeight);
+    private static readonly Vector2 Nowhere = new(-9999f, -9999f);
 
     private static readonly List<HoverInfo> _pinnedItems = new();
     public static IReadOnlyList<HoverInfo> PinnedItems => _pinnedItems;
 
-    private static bool _prevMouseLeft;
-
-    // Hit-test rects, refreshed each frame. The off-screen sentinel keeps (0,0) from matching
-    // before the first refresh.
-    private static Microsoft.Xna.Framework.Rectangle _deleteButtonRect = new(-9999, -9999, 0, 0);
-    private static Microsoft.Xna.Framework.Rectangle _prevArrowRect     = new(-9999, -9999, 0, 0);
-    private static Microsoft.Xna.Framework.Rectangle _nextArrowRect     = new(-9999, -9999, 0, 0);
-    private static Microsoft.Xna.Framework.Rectangle _prevSkipArrowRect = new(-9999, -9999, 0, 0);
-    private static Microsoft.Xna.Framework.Rectangle _nextSkipArrowRect = new(-9999, -9999, 0, 0);
-
     public static HoverInfo? CurrentHover { get; private set; }
 
-    public static GraphInteraction Update(BaseChartOverlay overlay)
+    // The arrows under the chart; in its bottom left corner, while something is pinned, Clear pins and,
+    // where a pin is a run, Delete.
+    private static readonly ButtonBar _nav = new(captureId: Charts.CaptureIds.Nav), _deleteBar = new(captureId: Charts.CaptureIds.Delete), _clearBar = new(captureId: Charts.CaptureIds.ClearPins);
+    private static readonly BarButton _clear = _clearBar.Action(" ");
+    private static readonly BarButton _back = _nav.Action("<"), _next = _nav.Action(">");
+    private static readonly BarButton _delete = _deleteBar.Action(" ");
+    private static BaseChartOverlay _placedFor, _pinsFor;
+    private static int _pinsRevision;
+    private static bool _placed, _showDelete, _showClear;
+    private static float _placedLeft, _placedFoot;
+    private static ChartHelp _placedHelp;
+    // What each chart shows and what the mouse does on it, opened from the "?" in its top left
+    // corner. One card per kind of chart; the library has them open and close together.
+    private static readonly Dictionary<string, HintCard> _hints = [];
+    private static HintCard _hint;
+    // What a chart is handed while the mouse is on the card: a pointer that is nowhere and presses
+    // nothing, so no click on the card reaches the chart under it.
+    private static readonly Pointer _away = new();
+    private static bool _mouseTaken;
+
+    private static Sketch _tips;
+    private static bool _tipsStale = true;
+
+    // The bars are laid out against the chart, once the game's font can be measured: not at load.
+    private static void Place(BaseChartOverlay overlay)
     {
-        var mouse = Mouse.GetState();
-        var vp    = Engine.Viewport;
-        _mouseHudX = (mouse.X - vp.X) * (ChartConstants.Screen.ScreenWidth  / (float)vp.Width);
-        _mouseHudY = (mouse.Y - vp.Y) * (ChartConstants.Screen.ScreenHeight / (float)vp.Height);
+        // Also when its own buttons change: the wall's are an open histogram's while one is open.
+        float toolsLeft = overlay.ToolsLeft;
+        // And when its help does: the scatter's names the target line only while it shows.
+        ChartHelp help = overlay.Help;
+        // And when Reset zoom comes or goes: Clear pins and Delete stand beside it.
+        float footLeft = overlay.FootLeft;
+        if (_placed && ReferenceEquals(overlay, _placedFor) && toolsLeft == _placedLeft && help == _placedHelp && footLeft == _placedFoot) return;
+        _placedFoot = footLeft;
+        _placedLeft = toolsLeft;
+        _placedHelp = help;
+        Rectangle bounds = overlay.ChartBounds;
+        _placed    = true;
+        _placedFor = overlay;
+        ChartStyle style = SctChartStyle.Current;
+        TextMetrics metrics = GameCanvas.FontMetrics();
+        _nav.Place(metrics, style, bounds.X + bounds.Width / 2f, bounds.Bottom + 8f, 0.5f, 0f, Screen);
+        // The label is read here and not where the button is made: the dialog files load after mods do.
+        _delete.Label  = Dialog.Clean(DialogIds.ChartDelete);
+        _delete.Colour = GameCanvas.ToRgba(Color.Crimson);
+        _clear.Label = Dialog.Clean(DialogIds.ChartClearPins);
+        // In the panel's bottom left corner, after Reset zoom.
+        _clearBar.Place(metrics, style, footLeft, bounds.Bottom - 6f, 0f, 1f, Screen);
+        _deleteBar.Place(metrics, style, _clearBar.Bounds.Right + 8f, bounds.Bottom - 6f, 0f, 1f, Screen);
 
-        var mousePos  = new Vector2(_mouseHudX, _mouseHudY);
-        var rawHover  = overlay?.HitTest(mousePos);
-        CurrentHover  = rawHover == null ? null : rawHover with { MouseHudPos = mousePos };
-        int? hoveredCol = overlay?.ColumnHitTest(mousePos); // updates _hoveredColumnIndex for strip tinting
+        // The card opens from its "?" only: nothing covers a chart unasked. What the chart shows,
+        // a blank line, then what the mouse does on it.
+        string key = help.About + help.Mouse;
+        if (!_hints.TryGetValue(key, out _hint))
+            _hints[key] = _hint = new HintCard(
+                Dialog.Clean(DialogIds.ChartHintTitle), [.. Lines(help.About), "", .. Lines(help.Mouse)],
+                Dialog.Clean(DialogIds.ChartHintClose), captureId: Charts.CaptureIds.Hint)
+            {
+                // Pointing at the "?" shows the card; a click keeps it.
+                OpensOnHover = true,
+                // Kept open or closed across game starts.
+                StartsOpen    = Charts.ChartOptions.HelpOpen,
+                OnOpenChanged = open => Charts.ChartOptions.HelpOpen = open,
+            };
+        _hint.PlaceIn(metrics, style, new Area(bounds.X, bounds.Y, bounds.Width, bounds.Height), WidgetAnchor.TopLeft, 6f, 6f);
+    }
 
-        bool leftDown = mouse.LeftButton == Microsoft.Xna.Framework.Input.ButtonState.Pressed;
-        bool clicked  = leftDown && !_prevMouseLeft;
-        _prevMouseLeft = leftDown;
+    // A dialog line holds several lines of help, split on the bar.
+    private static string[] Lines(string key) => Dialog.Clean(key).Split('|', System.StringSplitOptions.TrimEntries);
 
-        if (!clicked)
+    public static GraphInteraction Update(BaseChartOverlay overlay, bool mouseTaken = false)
+    {
+        Pointer real = GameInput.Current();
+        _away.Update(new PointerInput(Nowhere.X, Nowhere.Y, Seconds: real.Input.Seconds));
+        // The trajectory widget lies over the chart and holds the mouse: the chart, its buttons
+        // and its card are told the mouse is nowhere.
+        _mouseTaken = mouseTaken && overlay != null;
+        Pointer mouse = _mouseTaken ? _away : real;
+        if (overlay == null)
+        {
+            SetHover(null);
             return GraphInteraction.None;
+        }
+        Place(overlay);
 
-        // The caller deletes the pinned runs and then calls ClearPins, keeping the order this
-        // branch used to run inline.
-        if (_pinnedItems.Count > 0 && (overlay?.SupportsDeleteRuns ?? false) && _deleteButtonRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            return GraphInteraction.Delete;
+        _showDelete = _pinnedItems.Count > 0 && overlay.SupportsDeleteRuns;
+        _showClear  = _pinnedItems.Count > 0 || overlay.HasPins;
+        // First: the card lies over the chart and takes what is pressed on it.
+        _hint.Update(mouse);
+        bool onHint = _hint.Contains(mouse.X, mouse.Y);
+        _nav.Update(mouse);
+        if (_showDelete) _deleteBar.Update(mouse);
+        if (_showClear) _clearBar.Update(mouse);
+        bool onControl = overlay.UpdateControls(onHint ? _away : mouse) || onHint;
+        if (overlay.TakeDroppedPins()) ClearPins(overlay);
+        onControl |= _nav.Contains(mouse.X, mouse.Y) || (_showDelete && _deleteBar.Contains(mouse.X, mouse.Y))
+                     || (_showClear && _clearBar.Contains(mouse.X, mouse.Y));
 
-        if (CurrentHover != null && (overlay?.HandleClick(CurrentHover) ?? false))
+        // A control under the mouse takes it: the chart is asked about nowhere, which also clears
+        // what it had hovered.
+        Vector2 at = onControl ? Nowhere : new Vector2(mouse.X, mouse.Y);
+        SetHover(overlay.HitTest(at));
+        LocatePins(overlay);
+        int? column = overlay.ColumnHitTest(at); // also lights the strip under the mouse
+
+        // The caller deletes the pinned runs and then calls ClearPins.
+        if (_showDelete && _delete.Clicked) return GraphInteraction.Delete;
+        if (_showClear && _clear.Clicked)
+        {
+            ClearPins(overlay);
             return GraphInteraction.None;
+        }
+        int steps = _back.Clicked ? -1 : _next.Clicked ? 1 : 0;
+        if (steps != 0) return GraphInteraction.Navigate(steps);
+        if (onControl || !mouse.Clicked()) return GraphInteraction.None;
 
         if (CurrentHover != null)
         {
+            if (overlay.HandleClick(CurrentHover)) return GraphInteraction.None;
             int existing = CurrentHover.Key != null
                 ? _pinnedItems.FindIndex(p => p.Key == CurrentHover.Key)
                 : _pinnedItems.FindIndex(p => p.Label == CurrentHover.Label);
-            if (existing >= 0)
-                _pinnedItems.RemoveAt(existing);
-            else
-                _pinnedItems.Add(CurrentHover);
-            return GraphInteraction.None;
+            if (existing >= 0) _pinnedItems.RemoveAt(existing);
+            else _pinnedItems.Add(CurrentHover);
+            _tipsStale = true;
         }
-
-        if (_prevSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            return GraphInteraction.Navigate(-3);
-
-        if (_prevArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            return GraphInteraction.Navigate(-1);
-
-        if (_nextArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            return GraphInteraction.Navigate(1);
-
-        if (_nextSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY))
-            return GraphInteraction.Navigate(3);
-
-        if (hoveredCol.HasValue)
+        else if (column.HasValue)
         {
-            overlay!.ToggleColumn(hoveredCol.Value);
+            overlay.ToggleColumn(column.Value);
             ClearPins(overlay);
         }
-
         return GraphInteraction.None;
+    }
+
+    private static void SetHover(HoverInfo hover)
+    {
+        if (hover?.Key != CurrentHover?.Key || hover?.Label != CurrentHover?.Label || hover?.Anchor != CurrentHover?.Anchor)
+            _tipsStale = true;
+        CurrentHover = hover;
+    }
+
+    // A pin stays where its mark goes: through a scroll, a zoom, and a chart rebuilt from new data.
+    // On the same chart a mark that no longer shows keeps its pin, for when it shows again.
+    private static void LocatePins(BaseChartOverlay overlay)
+    {
+        bool sameChart = ReferenceEquals(overlay, _pinsFor);
+        int revision = overlay.Revision;
+        if (sameChart && revision == _pinsRevision) return;
+        (_pinsFor, _pinsRevision) = (overlay, revision);
+        if (_pinnedItems.Count == 0) return;
+        for (int i = _pinnedItems.Count - 1; i >= 0; i--)
+        {
+            HoverInfo located = overlay.Locate(_pinnedItems[i].Key);
+            if (located != null) _pinnedItems[i] = located;
+            else if (sameChart) _pinnedItems[i] = _pinnedItems[i] with { Mark = -1 };
+            else _pinnedItems.RemoveAt(i);
+        }
+        _tipsStale = true;
     }
 
     public static void Clear(BaseChartOverlay overlay)
     {
-        CurrentHover      = null;
-        _deleteButtonRect = new(-9999, -9999, 0, 0);
+        CurrentHover = null;
+        // Not kept past the chart they were for.
+        (_placedFor, _pinsFor) = (null, null);
+        _tipsStale   = true;
         _pinnedItems.Clear();
         overlay?.ClearPins();
         overlay?.ClearHiddenColumns();
+        overlay?.OnLeft();
     }
 
     public static void ClearPins(BaseChartOverlay overlay)
     {
         _pinnedItems.Clear();
+        _tipsStale = true;
         overlay?.ClearPins();
     }
 
-    // _prevMouseLeft is physical input state, rewritten every Update. Clear() deliberately leaves
-    // it alone: zeroing it on a graph change made a held button read as a fresh click next frame.
-
     public static void Render(BaseChartOverlay overlay)
     {
-        foreach (var pinned in _pinnedItems)
-            overlay?.DrawHighlight(pinned);
+        if (overlay == null || !_placed) return;
 
-        if (CurrentHover != null)
-        {
-            // Self-pinning overlays hold their own hover state; generic ones need the HoverInfo
-            // so pinned items can be re-rendered.
-            if (overlay?.ManagesPins == true)
-                overlay.DrawHighlight();
-            else
-                overlay?.DrawHighlight(CurrentHover);
-        }
+        foreach (HoverInfo pinned in _pinnedItems)
+            if (pinned.Mark >= 0) overlay.DrawHighlight(pinned);
+        if (CurrentHover != null) overlay.DrawHighlight(CurrentHover);
 
         // Buttons before tooltips, so tooltips land on top.
-        if (_pinnedItems.Count > 0 && (overlay?.SupportsDeleteRuns ?? false) && overlay != null)
-            DrawDeleteRunsButton(overlay);
+        overlay.DrawControls();
+        GameCanvas.Draw(_nav.Sketch);
+        if (_showDelete) GameCanvas.Draw(_deleteBar.Sketch);
+        if (_showClear) GameCanvas.Draw(_clearBar.Sketch);
+        GameCanvas.Draw(_hint.Sketch);
 
-        foreach (var pinned in _pinnedItems)
+        if (_tipsStale) BuildTooltips();
+        // A tooltip is read, not looked through: drawn even while the chart is hidden for Edit mode.
+        float fade = GameCanvas.Fade;
+        GameCanvas.Fade = 1f;
+        GameCanvas.Draw(_tips);
+        GameCanvas.Fade = fade;
+
+        // Celeste hides the system pointer; the library draws one, shared with any other mod's charts.
+        if (!_mouseTaken) ChartCursor.Request(overlay.Cursor, SctChartStyle.Current);
+    }
+
+    // A tooltip over each pinned item and over the hovered one, moved off each other. Rebuilt when
+    // the hover or the pins change, never per frame.
+    private static void BuildTooltips()
+    {
+        _tipsStale = false;
+        _tips ??= new Sketch(GameCanvas.FontMetrics());
+        _tips.Clear();
+        ChartStyle style = SctChartStyle.Current;
+
+        List<(HoverInfo Item, bool Pinned)> shown = [];
+        foreach (HoverInfo pinned in _pinnedItems)
+            if (pinned.Mark >= 0 && pinned.Label.Length > 0) shown.Add((pinned, true));
+        if (CurrentHover is { Label.Length: > 0 } hover && !shown.Exists(s => s.Item.Key != null && s.Item.Key == hover.Key))
+            shown.Add((hover, false));
+        if (shown.Count == 0) return;
+
+        Area[] areas = new Area[shown.Count];
+        for (int i = 0; i < areas.Length; i++)
         {
-            if (pinned.Label.Length > 0)
-                DrawTooltip(pinned);
+            (float w, float h) = Paint.TooltipSize(_tips, shown[i].Item.Label, style);
+            areas[i] = TooltipLayout.At(shown[i].Item.Anchor.X, shown[i].Item.Anchor.Y, w, h, Screen);
         }
-        if (CurrentHover != null && CurrentHover.Label.Length > 0)
-            DrawTooltip(CurrentHover);
-
-        if (overlay != null)
-            DrawNavigationArrows(overlay);
-
-        DrawCursor(_mouseHudX, _mouseHudY);
-    }
-
-    private static void DrawTooltip(HoverInfo hover)
-    {
-        const float scale  = ChartConstants.FontScale.AxisLabelMedium;
-        const float bgPad  = ChartConstants.Interactivity.TooltipBgPadding;
-
-        string[] lines      = hover.Label.Split('\n');
-        float    lineHeight = ActiveFont.Measure("A").Y * scale;
-        float    labelX     = hover.LabelPos.X;
-        float    labelY     = hover.LabelPos.Y;
-
-        bool twoColumn = System.Array.TrueForAll(lines, l => l.Contains('\t'));
-        if (twoColumn)
-        {
-            const float colGap = ChartConstants.Interactivity.TooltipColumnGap;
-            string[] leftParts  = new string[lines.Length];
-            string[] rightParts = new string[lines.Length];
-            float maxLeftW = 0f, maxRightW = 0f;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                int tab = lines[i].IndexOf('\t');
-                leftParts[i]  = lines[i][..tab];
-                rightParts[i] = lines[i][(tab + 1)..];
-                maxLeftW  = System.Math.Max(maxLeftW,  ActiveFont.Measure(leftParts[i]).X  * scale);
-                maxRightW = System.Math.Max(maxRightW, ActiveFont.Measure(rightParts[i]).X * scale);
-            }
-            float totalW = maxLeftW + colGap + maxRightW;
-            float totalH = lineHeight * lines.Length;
-            float bgX    = labelX - totalW / 2f - bgPad;
-            Draw.Rect(bgX, labelY - bgPad, totalW + bgPad * 2f, totalH + bgPad * 2f, ChartConstants.Colors.PanelBackgroundColor);
-            float leftX  = labelX - totalW / 2f;
-            float rightX = leftX + maxLeftW + colGap;
-            for (int i = 0; i < lines.Length; i++)
-            {
-                float rowY = labelY + i * lineHeight;
-                ActiveFont.DrawOutline(leftParts[i],  new Vector2(leftX,  rowY), Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
-                float rw = ActiveFont.Measure(rightParts[i]).X * scale;
-                ActiveFont.DrawOutline(rightParts[i], new Vector2(rightX + maxRightW - rw, rowY), Vector2.Zero, Vector2.One * scale, Color.White, ChartConstants.Stroke.OutlineSize, Color.Black);
-            }
-            return;
-        }
-
-        float maxWidth    = 0f;
-        foreach (var line in lines)
-            maxWidth = System.Math.Max(maxWidth, ActiveFont.Measure(line).X * scale);
-
-        float totalHeight = lineHeight * lines.Length;
-        Draw.Rect(
-            labelX - maxWidth / 2f - bgPad,
-            labelY - bgPad,
-            maxWidth + bgPad * 2f,
-            totalHeight + bgPad * 2f,
-            ChartConstants.Colors.PanelBackgroundColor);
-
-        for (int i = 0; i < lines.Length; i++)
-        {
-            Vector2 lineSize = ActiveFont.Measure(lines[i]) * scale;
-            ActiveFont.DrawOutline(
-                lines[i],
-                new Vector2(labelX - lineSize.X / 2f, labelY + i * lineHeight),
-                Vector2.Zero,
-                Vector2.One * scale,
-                Color.White,
-                ChartConstants.Stroke.OutlineSize,
-                Color.Black);
-        }
-    }
-
-    private static void DrawDeleteRunsButton(BaseChartOverlay overlay)
-    {
-        string       text  = Dialog.Clean(DialogIds.ChartDelete);
-        const float  scale = ChartConstants.FontScale.AxisLabelSmall;
-        const float  pad   = ChartConstants.Interactivity.TooltipBgPadding;
-
-        var bounds   = overlay.ChartBounds;
-        Vector2 size = ActiveFont.Measure(text) * scale;
-
-        float bgW = size.X + pad * 2f;
-        float bgH = size.Y + pad * 2f;
-        float bgX = bounds.X + bounds.Width - bgW - 6f;
-        float bgY = bounds.Y + 6f;
-
-        _deleteButtonRect = new Microsoft.Xna.Framework.Rectangle(
-            (int)bgX, (int)bgY, (int)bgW, (int)bgH);
-
-        bool hovered = _deleteButtonRect.Contains((int)_mouseHudX, (int)_mouseHudY);
-
-        Draw.Rect(bgX - 1f, bgY - 1f, bgW + 2f, bgH + 2f, Color.Crimson * 0.9f);
-        Draw.Rect(bgX, bgY, bgW, bgH, hovered ? Color.Crimson * 0.5f : ChartConstants.Colors.PanelBackgroundColor);
-        ActiveFont.DrawOutline(
-            text,
-            new Vector2(bgX + pad, bgY + pad),
-            Vector2.Zero,
-            Vector2.One * scale,
-            hovered ? Color.White : Color.Crimson,
-            ChartConstants.Stroke.OutlineSize,
-            Color.Black);
-    }
-
-    private static void DrawNavigationArrows(BaseChartOverlay overlay)
-    {
-        const float gap    = 10f;  // gap between the two buttons
-        const float belowY = 8f;   // vertical gap below chart bottom edge
-
-        var bounds = overlay.ChartBounds;
-
-        const float btnW = 50f;
-        const float btnH = 30f;
-
-        float totalW = btnW * 4 + gap * 3;
-        float startX = bounds.X + (bounds.Width - totalW) / 2f;
-        float bgY    = bounds.Y + bounds.Height + belowY;
-
-        float prevSkipX = startX;
-        float prevX     = startX + btnW + gap;
-        float nextX     = startX + (btnW + gap) * 2;
-        float nextSkipX = startX + (btnW + gap) * 3;
-
-        _prevSkipArrowRect = new Microsoft.Xna.Framework.Rectangle((int)prevSkipX, (int)bgY, (int)btnW, (int)btnH);
-        _prevArrowRect     = new Microsoft.Xna.Framework.Rectangle((int)prevX,     (int)bgY, (int)btnW, (int)btnH);
-        _nextArrowRect     = new Microsoft.Xna.Framework.Rectangle((int)nextX,     (int)bgY, (int)btnW, (int)btnH);
-        _nextSkipArrowRect = new Microsoft.Xna.Framework.Rectangle((int)nextSkipX, (int)bgY, (int)btnW, (int)btnH);
-
-        bool prevSkipHovered = _prevSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY);
-        bool prevHovered     = _prevArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY);
-        bool nextHovered     = _nextArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY);
-        bool nextSkipHovered = _nextSkipArrowRect.Contains((int)_mouseHudX, (int)_mouseHudY);
-
-        DrawNavButton(prevSkipX, bgY, btnW, btnH, "<<", prevSkipHovered);
-        DrawNavButton(prevX,     bgY, btnW, btnH, "<",  prevHovered);
-        DrawNavButton(nextX,     bgY, btnW, btnH, ">",  nextHovered);
-        DrawNavButton(nextSkipX, bgY, btnW, btnH, ">>", nextSkipHovered);
-    }
-
-    private static void DrawNavButton(float x, float y, float w, float h, string label, bool hovered)
-    {
-        const float scale = ChartConstants.FontScale.AxisLabelSmall;
-        Draw.Rect(x - 1f, y - 1f, w + 2f, h + 2f, Color.White * 0.6f);
-        Draw.Rect(x, y, w, h, hovered ? Color.White * 0.25f : ChartConstants.Colors.PanelBackgroundColor);
-        ActiveFont.DrawOutline(
-            label,
-            new Vector2(x + w / 2f, y + h / 2f),
-            new Vector2(0.5f, 0.5f),
-            Vector2.One * scale,
-            hovered ? Color.White : Color.LightGray,
-            ChartConstants.Stroke.OutlineSize,
-            Color.Black);
-    }
-
-    private static void DrawCursor(float x, float y)
-    {
-        // HUD-space crosshair. Rects are top-left + size, so thickness 3 offsets -1 from center.
-        const float gap  = 7f;
-        const float arm  = 8f;
-        const float half = 1f; // (thickness-1)/2
-        Color color = Color.Yellow;
-
-        Draw.Rect(x - gap - arm, y - half, arm, 3f, color); // left
-        Draw.Rect(x + gap + 1f,  y - half, arm, 3f, color); // right
-        Draw.Rect(x - half, y - gap - arm, 3f, arm, color); // up
-        Draw.Rect(x - half, y + gap + 1f,  3f, arm, color); // down
-        Draw.Rect(x - half, y - half,      3f, 3f, color);  // center
+        TooltipLayout.Separate(areas, Screen);
+        for (int i = 0; i < areas.Length; i++)
+            Paint.TooltipBox(_tips, shown[i].Item.Label, areas[i], style, shown[i].Pinned);
     }
 }
 
