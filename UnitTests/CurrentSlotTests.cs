@@ -3,9 +3,8 @@ using Xunit;
 
 namespace SpeebrunConsistencyTracker.UnitTests;
 
-// GetCurrentSlot() cannot express "nothing is selected" — it answers (Scatter, -1) for that and for
-// a selected scatter alike. CurrentSlotName carries the distinction, and the in-game test harness
-// reads it by reflection, which resolves a property but cannot compare a null. So the sentinel is
+// CurrentSlotName says whether a chart is selected, and the in-game test harness reads it by
+// reflection, which resolves a property but cannot compare a null. So the sentinel is
 // the contract: if it stops reading "None" on an unselected cursor, every harness assertion about
 // a hidden overlay silently starts passing for the wrong reason.
 public class CurrentSlotTests
@@ -16,7 +15,6 @@ public class CurrentSlotTests
         // No session has been started in this host, so the cursor is at its initial -1.
         Assert.Equal("None", GraphManager.NoSlotName);
         Assert.Equal(GraphManager.NoSlotName, GraphManager.CurrentSlotName);
-        Assert.Equal(-1, GraphManager.CurrentSlotRoom);
     }
 
     [Fact]

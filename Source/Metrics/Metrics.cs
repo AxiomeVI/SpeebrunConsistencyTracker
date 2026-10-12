@@ -288,8 +288,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 return new MetricResult("", []);
 
             int dnfCount = session.TotalDnfs;
-            // The share of resets is per room; the segment column has nothing to hold, and the
-            // 100% it used to print read as a statistic.
+            // The share of resets is per room: the segment column stays empty, where a 100% would
+            // read as a statistic.
             string segmentValue = "";
             List<string> roomValues = new(roomCount);
             for (int index = 0; index < roomCount; index++)

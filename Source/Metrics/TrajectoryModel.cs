@@ -1,11 +1,12 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 {
-    // deviation[r] = actualTime[r] - roomAverage[r], so negative is faster than average and
+    // deviation[r] = actualTime[r] - reference[r] (the room's average, or its best), so negative is faster and
     // draws UP. Cumulative deviation is the running sum across rooms.
     public sealed record AttemptLine(
         long[] CumulativeDeviations,
@@ -27,56 +28,48 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public IReadOnlyList<AttemptLine> Attempts { get; }
 
         public AttemptLine SobLine { get; }
-        public long[] RoomAverages { get; }   // per-room average ticks
-        public int[]  BestSoFarIdx { get; }   // per-room index into Attempts of the best-so-far run, -1 if none
+        public long[] RoomReference { get; }   // per room, the time deviations are measured from: its average, or its best
+        public int[]  BestSoFarIdx { get; }   // per-room index into Attempts of the best run but the last, -1 if none
+        // The baseline in effect: the average when the best run was asked for and no run is complete.
+        public TrajectoryBaseline Baseline { get; }
 
         private TrajectoryModel(
             int totalRooms,
             IReadOnlyList<AttemptLine> attempts,
             AttemptLine sobLine,
             long[] roomAverages,
-            int[] bestSoFarIdx)
+            int[] bestSoFarIdx,
+            TrajectoryBaseline baseline)
         {
             TotalRooms   = totalRooms;
             Attempts     = attempts;
             SobLine      = sobLine;
-            RoomAverages = roomAverages;
+            RoomReference = roomAverages;
             BestSoFarIdx = bestSoFarIdx;
+            Baseline     = baseline;
         }
 
-        public static TrajectoryModel Build(PracticeSession session, int totalRooms)
+        // wanted: what the deviations are measured from. Against the sum of bests no run is ever
+        // ahead of the flat line; against the best run, that run is the flat line.
+        public static TrajectoryModel Build(PracticeSession session, int totalRooms, TrajectoryBaseline wanted = TrajectoryBaseline.Average)
         {
             int attemptCount = session.AttemptCount;
             if (attemptCount == 0 || totalRooms == 0)
-                return new TrajectoryModel(totalRooms, [], new AttemptLine([], [], 0, 0), [], []);
+                return new TrajectoryModel(totalRooms, [], new AttemptLine([], [], 0, 0), [], [], TrajectoryBaseline.Average);
 
-            // Once per attempt, not once per attempt per room: ContiguousCount walks the row.
-            int[] contiguous = new int[attemptCount];
-            for (int a = 0; a < attemptCount; a++) contiguous[a] = session.ContiguousCount(a);
+            int[] contiguous = TrajectoryBaselines.Contiguous(session);
+            RoomStats stats = TrajectoryBaselines.Stats(session, contiguous, totalRooms);
+            long[] roomBests   = stats.Bests;
+            bool[] roomHasTime = stats.HasTime;
 
-            // The averages and the Sum of Bests read the same cells -- those inside an attempt's
-            // contiguous prefix. SoB used to read GetRoomTimes, which also returns cells sitting
-            // after a deleted one, so a room could average 0 and still offer a best, and the SoB
-            // line jumped a whole room time at that column.
-            long[] roomAverages = new long[totalRooms];
-            long[] roomBests    = new long[totalRooms];
-            bool[] roomHasTime  = new bool[totalRooms];
-            for (int r = 0; r < totalRooms; r++)
+            int bestRun = wanted == TrajectoryBaseline.BestRun ? TrajectoryBaselines.BestRun(session, contiguous, totalRooms) : -1;
+            TrajectoryBaseline baseline = wanted == TrajectoryBaseline.BestRun && bestRun < 0 ? TrajectoryBaseline.Average : wanted;
+            long[] reference = baseline switch
             {
-                long sum = 0, best = long.MaxValue;
-                int count = 0;
-                for (int a = 0; a < attemptCount; a++)
-                {
-                    if (contiguous[a] <= r) continue;
-                    long t = session.GetCell(a, r).Time.Ticks;
-                    sum += t;
-                    count++;
-                    if (t < best) best = t;
-                }
-                roomHasTime[r]  = count > 0;
-                roomAverages[r] = count == 0 ? 0L : sum / count;
-                roomBests[r]    = count == 0 ? 0L : best;
-            }
+                TrajectoryBaseline.SumOfBest => roomBests,
+                TrajectoryBaseline.BestRun   => TrajectoryBaselines.TimesOf(session, bestRun, totalRooms),
+                _                            => stats.Averages,
+            };
 
             List<AttemptLine> attempts = [];
             for (int a = 0; a < attemptCount; a++)
@@ -89,16 +82,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 {
                     long t = session.GetCell(a, r).Time.Ticks; // safe: ContiguousCount guarantees all cells 0..contiguous-1 are Completed
                     roomTks.Add(t);
-                    cumulative += t - roomAverages[r];
+                    cumulative += t - reference[r];
                     deviations.Add(cumulative);
                 }
                 attempts.Add(new AttemptLine([.. deviations], [.. roomTks], deviations.Count, a + 1));
             }
 
-            // "vs Best Split" compares against prior runs only, so the default reference set stops
-            // one short of the end. The comparison table narrows it further when an older run is
-            // pinned -- see BestSoFarBefore.
-            int[] bestSoFarIdx = BestSoFarBefore(attempts, totalRooms, attempts.Count - 1);
+            // "vs Best Split" compares a run against every other run: here the last one, the default.
+            // The comparison table asks again for the run that is pinned -- see BestAmongOthers.
+            int[] bestSoFarIdx = BestAmongOthers(attempts, totalRooms, attempts.Count - 1);
 
             long sobCumulative     = 0;
             var  sobDeviations     = new long[totalRooms];
@@ -108,24 +100,26 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 if (!roomHasTime[r]) break;
                 sobRoomTimes[r]  = roomBests[r];
-                sobCumulative   += roomBests[r] - roomAverages[r];
+                sobCumulative   += roomBests[r] - reference[r];
                 sobDeviations[r] = sobCumulative;
                 sobRoomsCompleted = r + 1;
             }
             var sobLine = new AttemptLine(sobDeviations, sobRoomTimes[..sobRoomsCompleted], sobRoomsCompleted, 0);
 
-            return new TrajectoryModel(totalRooms, attempts, sobLine, roomAverages, bestSoFarIdx);
+            return new TrajectoryModel(totalRooms, attempts, sobLine, reference, bestSoFarIdx, baseline);
         }
 
-        // Per room, the index of the attempt with the lowest cumulative deviation among the
-        // attempts before `beforeIndex`; -1 where none of them reached that room. The pinned run
-        // must not be its own reference, and neither may the runs that came after it.
-        public int[] BestSoFarBefore(int beforeIndex)
-            => BestSoFarBefore(Attempts, TotalRooms, beforeIndex);
+        // Per room, the index of the attempt with the lowest cumulative deviation among all the
+        // attempts but `excluded`; -1 where none of them reached that room. The pinned run must not
+        // be its own reference: it would lead against itself. Runs made after it do count, so the
+        // first run of a session is compared with the ones that followed. An index that names no
+        // attempt excludes nothing: the sum of bests and the average are compared with every run.
+        public int[] BestAmongOthers(int excluded)
+            => BestAmongOthers(Attempts, TotalRooms, excluded);
 
-        private static int[] BestSoFarBefore(IReadOnlyList<AttemptLine> attempts, int totalRooms, int beforeIndex)
+        private static int[] BestAmongOthers(IReadOnlyList<AttemptLine> attempts, int totalRooms, int excluded)
         {
-            int limit = Math.Min(beforeIndex, attempts.Count);
+            int limit = attempts.Count;
             int[] best = new int[totalRooms];
             for (int r = 0; r < totalRooms; r++)
             {
@@ -133,7 +127,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 long bestDev = long.MaxValue;
                 for (int i = 0; i < limit; i++)
                 {
-                    if (attempts[i].RoomsCompleted <= r) continue;
+                    if (i == excluded || attempts[i].RoomsCompleted <= r) continue;
                     if (attempts[i].CumulativeDeviations[r] < bestDev)
                     {
                         bestDev = attempts[i].CumulativeDeviations[r];

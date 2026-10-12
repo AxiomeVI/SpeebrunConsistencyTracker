@@ -15,7 +15,7 @@ public static partial class ModMenuOptions
     {
         TextMenuPage page = NewPage(menu, DialogIds.ChartsPageId);
 
-        // The fourteen colours the old sliders offered, as the wheel's presets.
+        // The wheel's presets.
         (string name, Color color)[] presets = [.. Enum.GetValues<ColorChoice>()
             .Select(c => (EnumLabels.For(c), ColorHelper.ToColor(c)))];
         ChartPalette palette = ChartPalette.Current;
@@ -56,16 +56,36 @@ public static partial class ModMenuOptions
 
         FormattedIntSlider timeLossThreshold = new(
             Dialog.Clean(DialogIds.TimeLossThresholdId),
-            1, 118,
-            (int)Math.Round(_settings.TimeLossThresholdMs / 17.0),
-            v => $"{v}f / {v * 17}ms");
+            Charts.BarsChart.MinThresholdFrames, Charts.BarsChart.MaxThresholdFrames,
+            (int)Math.Round(_settings.TimeLossThresholdMs / (double)Charts.BarsChart.FrameMs),
+            Charts.BarsChart.ThresholdText);
         timeLossThreshold.Change(v =>
         {
-            _settings.TimeLossThresholdMs = v * 17;
+            _settings.TimeLossThresholdMs = v * Charts.BarsChart.FrameMs;
             GraphManager.ClearChart(GraphType.ProblemRooms);
         });
         page.Add(timeLossThreshold);
         timeLossThreshold.AddDescription(page, Dialog.Clean(DialogIds.TimeLossThresholdDescId));
+
+        page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.TrajectoryWidgetHeaderId)));
+
+        TextMenu.OnOff widget = new(Dialog.Clean(DialogIds.TrajectoryWidgetId), _settings.TrajectoryWidget);
+        widget.Change(v => _settings.TrajectoryWidget = v);
+        page.Add(widget);
+        widget.AddDescription(page, Dialog.Clean(DialogIds.TrajectoryWidgetDescId));
+
+        FormattedIntSlider widgetOpacity = new(
+            Dialog.Clean(DialogIds.TrajectoryWidgetOpacityId),
+            20, 100,
+            Math.Clamp(_settings.TrajectoryWidgetOpacity, 20, 100),
+            v => (v / 100f).ToString("0.00", CultureInfo.InvariantCulture));
+        widgetOpacity.Change(v => _settings.TrajectoryWidgetOpacity = v);
+        page.Add(widgetOpacity);
+
+        TextMenu.OnOff widgetDelta = new(Dialog.Clean(DialogIds.TrajectoryWidgetDeltaId), _settings.TrajectoryWidgetDelta);
+        widgetDelta.Change(v => _settings.TrajectoryWidgetDelta = v);
+        page.Add(widgetDelta);
+        widgetDelta.AddDescription(page, Dialog.Clean(DialogIds.TrajectoryWidgetDeltaDescId));
 
         page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.GraphEnabledId)));
 

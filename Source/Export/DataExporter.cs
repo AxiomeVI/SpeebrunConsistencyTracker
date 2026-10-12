@@ -15,8 +15,7 @@ public static class DataExporter
 
     private static bool TryGetExportData(out PracticeSession session)
     {
-        // `?.TotalAttempts == 0` was false for a null session, so exporting from the pause menu
-        // before any attempt existed wrote an empty file, or threw inside the history exporter.
+        // A null session counts as empty: the pause menu can ask before any attempt exists.
         if (SessionManager.CurrentSession is not { TotalAttempts: > 0 })
         {
             session = null;
@@ -115,6 +114,27 @@ public static class DataExporter
     }
 
     private const string WindowsReserved = "<>:\"/\\|?*";
+
+    // A chart's image, into the level's folder beside its CSV exports: `write` fills the file named.
+    public static void SaveChartImage(string title, Action<string> write)
+    {
+        string folder = Path.Combine(Everest.PathEverest, "SCT_Exports", SanitizeFileName(SessionManager.LevelName));
+        string name   = CelesteCharts.ExportName.For(title, DateTime.Now, "");
+        string path   = Path.Combine(folder, name + ".png");
+        // The name is to the second: a second save in it gets a number, never the first one's file.
+        for (int n = 2; File.Exists(path); n++) path = Path.Combine(folder, $"{name} ({n}).png");
+        try
+        {
+            write(path);
+        }
+        catch (Exception ex)
+        {
+            Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker), $"Chart image failed: {ex.Message}");
+            SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupExportToFileFailedId));
+            return;
+        }
+        SpeebrunConsistencyTrackerModule.PopupMessage(Utility.DialogText.Format(DialogIds.PopupChartSavedFmt, Path.GetFileName(path)));
+    }
 
     public static string SanitizeFileName(string input)
     {

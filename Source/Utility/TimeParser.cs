@@ -48,9 +48,7 @@ public static class TimeParser
             System.Globalization.CultureInfo.InvariantCulture,
             out result);
 
-        // A bare number means seconds, the same unit the `ss` format above gives it. It used to
-        // mean milliseconds, which only ever applied past 59 because `ss` swallowed everything
-        // below: "59" was 59 seconds and "60" was 60 milliseconds.
+        // A bare number means seconds at any size, the unit the `ss` format above gives one up to 59.
         if (!success && int.TryParse(trimmed, System.Globalization.NumberStyles.None,
                                      System.Globalization.CultureInfo.InvariantCulture, out int seconds))
         {

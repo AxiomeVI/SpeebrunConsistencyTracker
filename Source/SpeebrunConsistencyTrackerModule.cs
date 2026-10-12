@@ -87,7 +87,11 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
                 $"SpeedrunTool member not found: property Time (public instance) on {currentRoomTimerDataField.FieldType.FullName}. Room times cannot be read, every timing feature stays inert.");
         }
+        // The charts draw after the level, over other mods' overlays.
+        CelesteCharts.ChartLayer.Load();
         On.Celeste.Level.Update += LevelOnUpdate;
+        // Hook: runs the charts on a frame whose Level.Update another mod skipped
+        On.Monocle.Scene.AfterUpdate += SceneOnAfterUpdate;
         On.Celeste.Level.Render += LevelOnRender;
         Everest.Events.Level.OnLoadLevel += OnLoadLevel;
 
@@ -110,6 +114,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public override void Unload() {
         SaveLoadIntegration.Unregister(SaveLoadInstance);
         On.Celeste.Level.Update -= LevelOnUpdate;
+        On.Monocle.Scene.AfterUpdate -= SceneOnAfterUpdate;
+        CelesteCharts.ChartLayer.Unload();
         On.Celeste.Level.Render -= LevelOnRender;
         Everest.Events.Level.OnLoadLevel -= OnLoadLevel;
         Clear();
@@ -163,10 +169,43 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
 
+    // SpeedrunTool does not call Level.Update while it holds the game after a load state, so
+    // LevelOnUpdate does not run then. The hotkeys and the charts still answer then.
+    private static bool _levelUpdated;
+
+    private static void SceneOnAfterUpdate(On.Monocle.Scene.orig_AfterUpdate orig, Scene self) {
+        orig(self);
+        bool updated = _levelUpdated;
+        _levelUpdated = false;
+        if (updated || self is not Level level) return;
+
+        UI.Hotkeys.Set.Update(Settings.Enabled);
+        CelesteCharts.GameInput.Current();
+        if (!Settings.Enabled) return;
+        if (UI.Hotkeys.Pressed(UI.Hotkeys.ImportTargetTime)) ImportTargetTimeFromClipboard();
+        if (SessionManager.CurrentSession == null) return;
+        UpdateKeysAndCharts(level);
+    }
+
+    private static void UpdateKeysAndCharts(Level self) {
+        HandleExportButton();
+        HandleClearButton();
+        UpdateGraphOverlay(self);
+        HandlePauseHide(self);
+        // Before the chart: what the widget holds, the chart under it must not also read.
+        bool mouseTaken = Charts.TrajectoryWidget.Update(CelesteCharts.GameInput.Current());
+        if (GraphManager.IsShowing())
+            // In Edit mode the chart is hidden: nothing of it may answer a click.
+            GraphManager.UpdateInteractivity(mouseTaken || Charts.TrajectoryWidget.Editing);
+    }
+
     private static void LevelOnUpdate(On.Celeste.Level.orig_Update orig, Level self) {
+        _levelUpdated = true;
         // Polled before the Enabled check: off counts as a pause, so a combo held while the mod is
         // switched back on does not fire.
         UI.Hotkeys.Set.Update(Settings.Enabled);
+        // Read every update, shown or not: a button held while a chart opens is then not a fresh press.
+        CelesteCharts.GameInput.Current();
         if (!Settings.Enabled) {
             orig(self);
             return;
@@ -185,13 +224,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         // orig(self) can destroy the session, so re-check.
         if (SessionManager.CurrentSession == null) return;
 
-        HandleExportButton();
-        HandleClearButton();
-        UpdateGraphOverlay(self);
-        HandlePauseHide(self);
         // LevelOnUpdate returned above when Settings.Enabled is false.
-        if (GraphManager.IsShowing())
-            GraphManager.UpdateInteractivity();
+        UpdateKeysAndCharts(self);
     }
 
     private static void LevelOnRender(On.Celeste.Level.orig_Render orig, Level self) {
@@ -199,7 +233,6 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (Settings.Enabled && SessionManager.CurrentSession != null) {
             Draw.SpriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend, SamplerState.LinearClamp, DepthStencilState.None, RasterizerState.CullNone, null, Engine.ScreenMatrix);
             TextOverlay.Render();
-            GraphManager.Render();
             Draw.SpriteBatch.End();
         }
     }
@@ -210,6 +243,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         // still held here would read as a fresh press -- and ClearStats wipes the session.
         UI.Hotkeys.Set.Resync();
         TextOverlay.Init();
+        // One of each per level: isFromLoader is true once, when the level is entered.
+        level.Add(CelesteCharts.ChartLayer.Add(new Charts.ChartSurface()));
+        level.Add(CelesteCharts.ChartLayer.Add(new CelesteCharts.ChartCursor()));
         SessionManager.LevelName = Utility.LevelNames.ForExportFolder(
             level.Session.Area.GetSID(), (int)level.Session.Area.Mode);
     }
@@ -244,13 +280,15 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     private static void HandleClearButton() {
-        if (UI.Hotkeys.Pressed(UI.Hotkeys.ClearStats)) {
-            // Counted before the clear: a single unconfirmed keypress wipes the session, and the
-            // popup said only that it had happened, not how much it took.
-            int attempts = SessionManager.CurrentSession?.TotalAttempts ?? 0;
-            Clear();
-            PopupMessage($"{Dialog.Clean(DialogIds.PopupDataClearId)} ({attempts} {(attempts == 1 ? "run" : "runs")})");
-        }
+        if (UI.Hotkeys.Pressed(UI.Hotkeys.ClearStats)) ClearSession();
+    }
+
+    // The hotkey's clear and the Mod Options one. The popup counts the runs, taken before the
+    // clear: the hotkey wipes the session on one unconfirmed press.
+    public static void ClearSession() {
+        int attempts = SessionManager.CurrentSession?.TotalAttempts ?? 0;
+        Clear();
+        PopupMessage($"{Dialog.Clean(DialogIds.PopupDataClearId)} ({attempts} {(attempts == 1 ? "run" : "runs")})");
     }
 
     private static void UpdateGraphOverlay(Level self) {
@@ -272,9 +310,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         } else if (GraphManager.IsShowing())
         {
             if (UI.Hotkeys.Pressed(UI.Hotkeys.NextGraph))
-                GraphManager.NextGraph();
+                GraphManager.Navigate(1);
             else if (UI.Hotkeys.Pressed(UI.Hotkeys.PreviousGraph))
-                GraphManager.PreviousGraph();
+                GraphManager.Navigate(-1);
         }
     }
 

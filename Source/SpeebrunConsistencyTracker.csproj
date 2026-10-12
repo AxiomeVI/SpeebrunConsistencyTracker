@@ -33,6 +33,15 @@
                Text="CelesteHotkeys/src is missing. It is committed in this repository; restore it from git." />
     </Target>
 
+    <!-- The shared chart layer, compiled into this DLL. -->
+    <ItemGroup>
+        <Compile Include="..\CelesteCharts\src\**\*.cs" />
+    </ItemGroup>
+    <Target Name="CheckCelesteCharts" BeforeTargets="PrepareForBuild">
+        <Error Condition="!Exists('$(MSBuildThisFileDirectory)..\CelesteCharts\src')"
+               Text="CelesteCharts/src is missing. It is committed in this repository; restore it from git." />
+    </Target>
+
     <ItemGroup>
         <PackageReference Include="MonoMod.RuntimeDetour" Version="25.3.1" PrivateAssets="all" ExcludeAssets="runtime" />
         <PackageReference Include="CelesteAnalyzer" Version="1.0.3.1" />

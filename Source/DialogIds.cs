@@ -4,6 +4,9 @@ public static class DialogIds {
     public const string SpeebrunConsistencyTracker = "SCT_SPEEBRUN_CONSISTENCY_TRACKER";
     public const string EnabledId = "SCT_ENABLE_MOD";
     public const string ExportNowId = "SCT_EXPORT_NOW";
+    public const string ClearSessionId = "SCT_CLEAR_SESSION";
+    public const string ClearSessionTitleId = "SCT_CLEAR_SESSION_TITLE";
+    public const string ClearSessionMessageId = "SCT_CLEAR_SESSION_MESSAGE";
 
     // Pages and their shared rows
     public const string BulkHeaderId = "SCT_BULK_HEADER";
@@ -29,9 +32,12 @@ public static class DialogIds {
 
     // Hotkeys
     public const string KeyStatsExportId = "SCT_KEY_STATS_EXPORT";
+    public const string KeyStatsExportDescId = "SCT_KEY_STATS_EXPORT_DESC";
     public const string ToggleGraphOverlayId = "SCT_TOGGLE_GRAPH_OVERLAY";
     public const string KeyClearStatsId = "SCT_KEY_CLEAR_STATS";
+    public const string KeyClearStatsDescId = "SCT_KEY_CLEAR_STATS_DESC";
     public const string KeyImportTargetTimeId = "SCT_KEY_IMPORT_TARGET_TIME";
+    public const string KeyImportTargetTimeDescId = "SCT_KEY_IMPORT_TARGET_TIME_DESC";
     public const string KeyNextGraphId = "SCT_KEY_NEXT_GRAPH";
     public const string KeyPreviousGraphId = "SCT_KEY_PREVIOUS_GRAPH";
 
@@ -64,8 +70,6 @@ public static class DialogIds {
     // Graph Overlay Menu
     public const string GraphEnabledId = "SCT_GRAPH_ENABLED";
     public const string GraphScatterId = "SCT_SCATTER";
-    public const string GraphRoomHistogramId = "SCT_ROOM_HISTOGRAM";
-    public const string GraphSegmentHistogramId = "SCT_SEGMENT_HISTOGRAM";
     public const string GraphDnfPercentId = "SCT_DNF_PERCENT_BAR_CHART";
     public const string GraphProblemRoomsId = "SCT_PROBLEM_ROOM_BAR_CHART";
     public const string RoomColorId = "SCT_ROOM_COLOR";
@@ -107,7 +111,6 @@ public static class DialogIds {
     public const string SoBId = "SCT_SOB";
     public const string TotalRunCountId = "SCT_TOTAL_RUN_COUNT";
     public const string DnfCountId = "SCT_DNF_COUNT";
-    public const string ConsistencyScoreId = "SCT_CONSISTENCY_SCORE";
     public const string MultimodalTestId = "SCT_MULTIMODAL_TEST";
     public const string RoomDependencyId = "SCT_ROOM_DEPENDENCY";
     public const string BestSplitId = "SCT_BEST_SPLIT";
@@ -127,13 +130,15 @@ public static class DialogIds {
     public const string ChartOneRoom = "SCT_CHART_ONE_ROOM";
     public const string ChartRoomsFmt = "SCT_CHART_ROOMS_FMT";
     public const string ChartOneRun = "SCT_CHART_ONE_RUN";
+    public const string ChartOneCompletedRun = "SCT_CHART_ONE_COMPLETED_RUN";
+    public const string ChartCompletedRunsFmt = "SCT_CHART_COMPLETED_RUNS_FMT";
+    public const string ChartScale = "SCT_CHART_SCALE";
+    public const string ChartThreshold = "SCT_CHART_THRESHOLD";
+    public const string ChartSegmentTime = "SCT_CHART_SEGMENT_TIME";
     public const string ChartRunsFmt = "SCT_CHART_RUNS_FMT";
     public const string ChartDelete = "SCT_CHART_DELETE";
     public const string ChartAbsolute = "SCT_CHART_ABSOLUTE";
     public const string ChartRelative = "SCT_CHART_RELATIVE";
-    public const string ChartPrimary = "SCT_CHART_PRIMARY";
-    public const string ChartSecondary = "SCT_CHART_SECONDARY";
-    public const string ChartValue = "SCT_CHART_VALUE";
     public const string ChartScatterTitle = "SCT_CHART_SCATTER_TITLE";
     public const string ChartTargetFmt = "SCT_CHART_TARGET_FMT";
     public const string ChartRunTimeFmt = "SCT_CHART_RUN_TIME_FMT";
@@ -142,7 +147,6 @@ public static class DialogIds {
     public const string ChartStatMedian = "SCT_CHART_STAT_MEDIAN";
     public const string ChartStatMin = "SCT_CHART_STAT_MIN";
     public const string ChartHistogramTitleFmt = "SCT_CHART_HISTOGRAM_TITLE_FMT";
-    public const string ChartTotalFmt = "SCT_CHART_TOTAL_FMT";
     public const string ChartBinOneRunFmt = "SCT_CHART_BIN_ONE_RUN_FMT";
     public const string ChartBinRunsFmt = "SCT_CHART_BIN_RUNS_FMT";
     public const string ChartResetSurvivalTitle = "SCT_CHART_RESET_SURVIVAL_TITLE";
@@ -154,18 +158,77 @@ public static class DialogIds {
     public const string ChartMedianLoss = "SCT_CHART_MEDIAN_LOSS";
     public const string ChartAvgLoss = "SCT_CHART_AVG_LOSS";
     public const string ChartTrajectoryTitle = "SCT_CHART_TRAJECTORY_TITLE";
+    public const string ChartTrajectoryTitleSob = "SCT_CHART_TRAJECTORY_TITLE_SOB";
+    public const string ChartAverage = "SCT_CHART_AVERAGE";
     public const string ChartAvg = "SCT_CHART_AVG";
     public const string ChartSob = "SCT_CHART_SOB";
     public const string ChartVsAvg = "SCT_CHART_VS_AVG";
     public const string ChartVsSob = "SCT_CHART_VS_SOB";
+    public const string ChartBestRun = "SCT_CHART_BEST_RUN";
+    public const string ChartBest = "SCT_CHART_BEST";
+    public const string ChartVsBestRun = "SCT_CHART_VS_BEST_RUN";
+    public const string ChartTrajectoryTitleBest = "SCT_CHART_TRAJECTORY_TITLE_BEST";
+    public const string ChartTrajectoryNoBestRun = "SCT_CHART_TRAJECTORY_NO_BEST_RUN";
+    public const string ChartRefTipBestRun = "SCT_CHART_REF_TIP_BEST_RUN";
+    public const string ChartRefTipAverage = "SCT_CHART_REF_TIP_AVERAGE";
+    public const string ChartRefTipSob = "SCT_CHART_REF_TIP_SOB";
+    public const string ChartBaseline = "SCT_CHART_BASELINE";
+    public const string ChartWidgetTip = "SCT_CHART_WIDGET_TIP";
+    public const string ChartWidgetPlace = "SCT_CHART_WIDGET_PLACE";
+    public const string ChartOn = "SCT_CHART_ON";
+    public const string ChartOff = "SCT_CHART_OFF";
+    public const string TrajectoryWidgetDeltaDescId = "SCT_TRAJECTORY_WIDGET_DELTA_DESC";
+    public const string ChartWidgetPlaceTip = "SCT_CHART_WIDGET_PLACE_TIP";
+    public const string ChartWidget = "SCT_CHART_WIDGET";
+    public const string TrajectoryWidgetId = "SCT_TRAJECTORY_WIDGET";
+    public const string TrajectoryWidgetDescId = "SCT_TRAJECTORY_WIDGET_DESC";
+    public const string TrajectoryWidgetOpacityId = "SCT_TRAJECTORY_WIDGET_OPACITY";
+    public const string TrajectoryWidgetHeaderId = "SCT_TRAJECTORY_WIDGET_HEADER";
+    public const string TrajectoryWidgetDeltaId = "SCT_TRAJECTORY_WIDGET_DELTA";
     public const string ChartVsRunFmt = "SCT_CHART_VS_RUN_FMT";
     public const string ChartRunFmt = "SCT_CHART_RUN_FMT";
     public const string ChartVsBestSplit = "SCT_CHART_VS_BEST_SPLIT";
     public const string ChartCumul = "SCT_CHART_CUMUL";
+    public const string ChartDifference = "SCT_CHART_DIFFERENCE";
     public const string ChartRoom = "SCT_CHART_ROOM";
     public const string ChartLegendAllThree = "SCT_CHART_LEGEND_ALL_THREE";
     public const string ChartLegendSobBest = "SCT_CHART_LEGEND_SOB_BEST";
     public const string ChartLegendBestLast = "SCT_CHART_LEGEND_BEST_LAST";
     public const string ChartLegendBest = "SCT_CHART_LEGEND_BEST";
     public const string ChartLegendLast = "SCT_CHART_LEGEND_LAST";
+
+    public const string GraphHistogramWallId = "SCT_HISTOGRAM_WALL_GRAPH";
+    public const string ChartSavePng = "SCT_CHART_SAVE_PNG";
+    public const string PopupChartSavedFmt = "SCT_CHART_SAVED_FMT";
+    public const string ChartSpread = "SCT_CHART_SPREAD";
+    public const string ChartMedianLine = "SCT_CHART_MEDIAN_LINE";
+    public const string ChartWallTitle = "SCT_CHART_WALL_TITLE";
+    public const string ChartWallBack = "SCT_CHART_WALL_BACK";
+    public const string ChartHintTitle = "SCT_CHART_HINT_TITLE";
+    public const string ChartClearPins = "SCT_CHART_CLEAR_PINS";
+    public const string ChartResetZoom = "SCT_CHART_RESET_ZOOM";
+    public const string HintSubScatter = "SCT_HINT_SUB_SCATTER";
+    public const string HintSubBox = "SCT_HINT_SUB_BOX";
+    public const string HintSubHistogram = "SCT_HINT_SUB_HISTOGRAM";
+    public const string HintSubResets = "SCT_HINT_SUB_RESETS";
+    public const string HintSubProblem = "SCT_HINT_SUB_PROBLEM";
+    public const string HintSubTimeLoss = "SCT_HINT_SUB_TIME_LOSS";
+    public const string HintSubTrajectory = "SCT_HINT_SUB_TRAJECTORY";
+    public const string HintSubWall = "SCT_HINT_SUB_WALL";
+    public const string HintAboutScatter = "SCT_HINT_ABOUT_SCATTER";
+    public const string HintMouseScatter = "SCT_HINT_MOUSE_SCATTER";
+    public const string HintMouseScatterTarget = "SCT_HINT_MOUSE_SCATTER_TARGET";
+    public const string HintAboutBox = "SCT_HINT_ABOUT_BOX";
+    public const string HintMouseBox = "SCT_HINT_MOUSE_BOX";
+    public const string HintAboutHistogram = "SCT_HINT_ABOUT_HISTOGRAM";
+    public const string HintMouseHistogram = "SCT_HINT_MOUSE_HISTOGRAM";
+    public const string HintAboutResets = "SCT_HINT_ABOUT_RESETS";
+    public const string HintAboutProblem = "SCT_HINT_ABOUT_PROBLEM";
+    public const string HintAboutTimeLoss = "SCT_HINT_ABOUT_TIME_LOSS";
+    public const string HintMouseBars = "SCT_HINT_MOUSE_BARS";
+    public const string HintAboutTrajectory = "SCT_HINT_ABOUT_TRAJECTORY";
+    public const string HintMouseTrajectory = "SCT_HINT_MOUSE_TRAJECTORY";
+    public const string HintAboutWall = "SCT_HINT_ABOUT_WALL";
+    public const string HintMouseWall = "SCT_HINT_MOUSE_WALL";
+    public const string ChartHintClose = "SCT_CHART_HINT_CLOSE";
 }

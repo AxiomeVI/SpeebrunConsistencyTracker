@@ -11,8 +11,8 @@ public static partial class GraphManager
 {
     private static PracticeSession _lastKnownSession;
 
-    private record GraphSlot(GraphType Type, int RoomIndex = -1);
-    private static List<GraphSlot> _enabledSlots = [];
+    // The enabled charts, in cycle order.
+    private static List<GraphType> _enabledSlots = [];
     private static int _currentSlotIndex = -1;
     private static BaseChartOverlay _currentOverlay;
 
@@ -21,8 +21,7 @@ public static partial class GraphManager
         set => SpeebrunConsistencyTrackerModule.Settings.LastShownGraph = value;
     }
 
-    // Named for what it answers: there is a session to build charts from. "Initialized" read as
-    // a statement about GraphManager, which it never was.
+    // There is a session to build charts from.
     public static bool HasSession => SessionManager.CurrentSession != null;
 
     public static void Init()
@@ -48,30 +47,15 @@ public static partial class GraphManager
 
     public static BaseChartOverlay CurrentOverlay => _currentOverlay;
 
-    // GetCurrentSlot() answers (Scatter, -1) both when the scatter is selected and when nothing
-    // is; these two say which. A string and not a GraphType member, because GraphType is persisted
-    // and every member must have a ChartDefinition row. The bounds check is deliberately wider
-    // than GetCurrentSlot's: these are read every frame and must not throw on a cursor left past
-    // a shrunken list.
+    // Says whether a chart is selected, and which. A string and not a GraphType member, because
+    // GraphType is persisted and every member must have a ChartDefinition row. Read every frame:
+    // the bounds check keeps it from throwing on a cursor left past a shrunken list.
     public const string NoSlotName = "None";
 
     public static string CurrentSlotName =>
         _currentSlotIndex < 0 || _currentSlotIndex >= _enabledSlots.Count
             ? NoSlotName
-            : _enabledSlots[_currentSlotIndex].Type.ToString();
-
-    public static int CurrentSlotRoom =>
-        _currentSlotIndex < 0 || _currentSlotIndex >= _enabledSlots.Count
-            ? -1
-            : _enabledSlots[_currentSlotIndex].RoomIndex;
-
-    public static (GraphType Type, int RoomIndex) GetCurrentSlot()
-    {
-        if (_currentSlotIndex < 0 || _enabledSlots.Count == 0)
-            return (GraphType.Scatter, -1);
-        var slot = _enabledSlots[_currentSlotIndex];
-        return (slot.Type, slot.RoomIndex);
-    }
+            : _enabledSlots[_currentSlotIndex].ToString();
 
     private static void InvalidateIfSessionChanged()
     {
@@ -94,11 +78,11 @@ public static partial class GraphManager
     }
 
     // Single entry point for one frame of mouse interaction, called while a graph is showing.
-    // GraphInteractivity hands back an intent rather than calling into this namespace; applying it
-    // here, with nothing in between, keeps the frame order it used to run inline.
-    public static void UpdateInteractivity()
+    // GraphInteractivity hands back an intent rather than calling into this namespace: it is
+    // applied here at once, in the same frame.
+    public static void UpdateInteractivity(bool mouseTaken = false)
     {
-        GraphInteraction interaction = GraphInteractivity.Update(_currentOverlay);
+        GraphInteraction interaction = GraphInteractivity.Update(_currentOverlay, mouseTaken);
 
         if (interaction.DeleteRequested)
         {
@@ -106,27 +90,18 @@ public static partial class GraphManager
             GraphInteractivity.ClearPins(_currentOverlay);
         }
 
-        if (interaction.NavigationSteps > 0)
-        {
-            NextGraph(interaction.NavigationSteps);
-        }
-        else if (interaction.NavigationSteps < 0)
-        {
-            PreviousGraph(-interaction.NavigationSteps);
-        }
+        if (interaction.NavigationSteps != 0) Navigate(interaction.NavigationSteps);
     }
 
     public static void RebuildEnabledSlots()
     {
         GraphType prevType = _currentSlotIndex >= 0 && _enabledSlots.Count > 0
-            ? _enabledSlots[_currentSlotIndex].Type : GraphType.Scatter;
-        int prevRoom = _currentSlotIndex >= 0 && _enabledSlots.Count > 0
-            ? _enabledSlots[_currentSlotIndex].RoomIndex : -1;
+            ? _enabledSlots[_currentSlotIndex] : LastShownType;
         bool wasShowing = IsShowing();
 
         _enabledSlots = BuildSlots();
 
-        int restored = FindBestSlot(prevType, prevRoom);
+        int restored = FindBestSlot(prevType);
         if (restored >= 0)
         {
             _currentSlotIndex = restored;
@@ -144,37 +119,18 @@ public static partial class GraphManager
         }
     }
 
-    private static List<GraphSlot> BuildSlots()
+    private static List<GraphType> BuildSlots()
+        => [.. _chartDefinitions.Where(chart => chart.Get(Settings)).Select(chart => chart.Type)];
+
+    private static int FindBestSlot(GraphType type) => _enabledSlots.IndexOf(type);
+
+    // Next and Previous as the player asks for them, by button or hotkey: first offered to the
+    // chart showing, which may have views of its own to move among.
+    public static void Navigate(int steps)
     {
-        var slots = new List<GraphSlot>();
-
-        foreach (ChartDefinition chart in _chartDefinitions)
-        {
-            if (!chart.Get(Settings)) continue;
-            foreach (int room in chart.Slots())
-                slots.Add(new GraphSlot(chart.Type, room));
-        }
-
-        return slots;
-    }
-
-    private static int FindBestSlot(GraphType type, int roomIndex)
-    {
-        if (type == GraphType.RoomHistogram)
-        {
-            int exact = _enabledSlots.FindIndex(s => s.Type == GraphType.RoomHistogram && s.RoomIndex == roomIndex);
-            if (exact >= 0) return exact;
-
-            int nearest = _enabledSlots
-                .Select((s, i) => (s, i))
-                .Where(x => x.s.Type == GraphType.RoomHistogram)
-                .OrderBy(x => Math.Abs(x.s.RoomIndex - roomIndex))
-                .Select(x => x.i)
-                .FirstOrDefault(-1);
-            if (nearest >= 0) return nearest;
-        }
-
-        return _enabledSlots.FindIndex(s => s.Type == type);
+        if (steps == 0 || (_currentOverlay?.Step(steps) ?? false)) return;
+        if (steps > 0) NextGraph(steps);
+        else PreviousGraph(-steps);
     }
 
     public static void NextGraph(int steps = 1)
@@ -219,7 +175,7 @@ public static partial class GraphManager
 
         if (_currentSlotIndex < 0)
         {
-            int restored = FindBestSlot(LastShownType, -1);
+            int restored = FindBestSlot(LastShownType);
             if (restored >= 0)
             {
                 _currentSlotIndex = restored;
@@ -237,24 +193,13 @@ public static partial class GraphManager
     {
         if (_currentSlotIndex < 0 || _currentSlotIndex >= _enabledSlots.Count) return;
 
-        GraphSlot slot = _enabledSlots[_currentSlotIndex];
+        GraphType type = _enabledSlots[_currentSlotIndex];
 
-        if (slot.Type == GraphType.RoomHistogram && SessionManager.CurrentSession != null)
-        {
-            int curRoomCount = SessionManager.RoomCount;
-            if (slot.RoomIndex >= curRoomCount)
-            {
-                int best = FindBestSlot(GraphType.RoomHistogram, curRoomCount - 1);
-                if (best < 0) best = FindBestSlot(GraphType.Scatter, -1);
-                _currentSlotIndex = best >= 0 ? best : 0;
-                slot = _enabledSlots[_currentSlotIndex];
-            }
-        }
+        // Saved here: Everest writes the settings file when Mod Options closes, not when the game does.
+        if (LastShownType != type) Charts.ChartOptions.Save(true, () => LastShownType = type);
 
-        LastShownType = slot.Type;
-
-        ChartDefinition chart = DefinitionFor(slot.Type);
-        _currentOverlay = chart == null ? null : GetOrCreate(chart, slot.RoomIndex);
+        ChartDefinition chart = DefinitionFor(type);
+        _currentOverlay = chart == null ? null : GetOrCreate(chart);
     }
 
     private static void ShowNoGraphsMessage()

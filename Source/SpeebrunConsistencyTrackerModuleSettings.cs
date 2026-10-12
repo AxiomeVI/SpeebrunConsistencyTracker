@@ -74,16 +74,43 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
 
     public int TimeLossThresholdMs { get; set; } = 493;
     public bool GraphScatter { get; set; } = true;
-    public bool GraphRoomHistogram { get; set; } = false;
-    public bool GraphSegmentHistogram { get; set; } = true;
     public bool GraphDnfPercent { get; set; } = true;
     public bool GraphProblemRooms { get; set; } = false;
     public bool GraphTimeLoss { get; set; } = false;
     public bool GraphRunTrajectory { get; set; } = true;
     public bool GraphBoxPlot { get; set; } = false;
+    public bool GraphHistogramWall { get; set; } = true;
 
     [SettingIgnore]
     public GraphType LastShownGraph { get; set; } = GraphType.Scatter;
+
+    // What the player switched on a chart itself. No menu entry: the chart's own buttons set them.
+    [SettingIgnore]
+    public bool ChartScatterRelative { get; set; } = false;
+    [SettingIgnore]
+    public bool ChartBoxPlotRelative { get; set; } = true;
+    [SettingIgnore]
+    public bool ChartScatterSpread { get; set; } = true;
+    [SettingIgnore]
+    public bool ChartHistogramMedian { get; set; } = true;
+    // Dead since the baseline became one of three: read from an old settings file, carried over
+    // to ChartTrajectoryBaseline by OnLoadSettings, then left false.
+    [SettingIgnore]
+    public bool ChartTrajectoryAgainstSob { get; set; } = false;
+    [SettingIgnore]
+    public TrajectoryBaseline ChartTrajectoryBaseline { get; set; } = TrajectoryBaseline.Average;
+    [SettingIgnore]
+    public bool ChartHelpOpen { get; set; } = false;
+
+    // The trajectory widget: the run in progress, in a corner while playing. On/off from the
+    // chart's Widget button or Mod Options; where it is and how large, from dragging it.
+    public bool TrajectoryWidget { get; set; } = false;
+    public int TrajectoryWidgetOpacity { get; set; } = 80;
+    // As CelesteCharts' WidgetPlacement.ToText writes it; null or unreadable means the default.
+    [SettingIgnore]
+    public string TrajectoryWidgetLayout { get; set; } = null;
+    // The current gap as a number in the widget's corner.
+    public bool TrajectoryWidgetDelta { get; set; } = true;
 
     // Metrics menu
     public bool History { get; set; } = false;
@@ -129,6 +156,13 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public void OnLoadSettings() {
         // Migrates a settings file written while the Sheets export still existed.
         if (ExportMode == ExportChoice.Sheet) ExportMode = ExportChoice.Clipboard;
+
+        // The two histogram charts became tiles of the wall.
+        if (LastShownGraph is GraphType.RoomHistogram or GraphType.SegmentHistogram) LastShownGraph = GraphType.HistogramWall;
+
+        // Average | SoB was a bool before the best run joined them.
+        ChartTrajectoryBaseline   = Charts.ChartOptions.MigratedBaseline(ChartTrajectoryAgainstSob, ChartTrajectoryBaseline);
+        ChartTrajectoryAgainstSob = false;
 
         MigrateColors();
 

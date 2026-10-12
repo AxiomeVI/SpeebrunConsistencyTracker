@@ -264,4 +264,46 @@ public class MetricHelperTests
         long expected = baseTicks + clusterOffset;
         Assert.InRange(report.FastPeak.Value.Ticks, expected - 2 * range / 49, expected + 2 * range / 49);
     }
+
+    // One frame is 170,000 ticks.
+    [Fact]
+    public void A_histogram_bin_is_never_narrower_than_a_frame()
+    {
+        Assert.Equal(170_000, MetricHelper.HistogramBinWidth(Ticks(10_000_000, 10_000_000, 10_000_000)));
+    }
+
+    [Fact]
+    public void A_histogram_bin_is_never_wider_than_a_tenth_of_the_fastest_time()
+    {
+        // Quartiles 20s and 80s apart from a 10s fastest: Freedman-Diaconis asks for far more than 1s.
+        Assert.Equal(10_000_000, MetricHelper.HistogramBinWidth(Ticks(100_000_000, 200_000_000, 500_000_000, 800_000_000, 900_000_000)));
+    }
+
+    [Fact]
+    public void A_histogram_bin_between_the_two_bounds_is_freedman_diaconis()
+    {
+        List<TimeTicks> sorted = Ticks(100_000_000, 101_000_000, 102_000_000, 103_000_000, 104_000_000, 105_000_000, 106_000_000, 107_000_000);
+        double q1 = MetricHelper.ComputePercentile(sorted, 25).Ticks, q3 = MetricHelper.ComputePercentile(sorted, 75).Ticks;
+        long expected = (long)System.Math.Ceiling(2 * (q3 - q1) * System.Math.Pow(8, -1.0 / 3.0));
+
+        Assert.InRange(expected, 170_001, 9_999_999);
+        Assert.Equal(expected, MetricHelper.HistogramBinWidth(sorted));
+    }
+
+    // Medians 100 and 200: the columns span 90% to 110% and 50% to 150%; a tenth of that range each side.
+    [Fact]
+    public void The_relative_range_reads_every_column_against_its_own_median()
+    {
+        (double min, double max) = MetricHelper.RelativeRange([Ticks(90, 100, 110), Ticks(100, 200, 300)]);
+
+        Assert.Equal(40.0, min, 6);
+        Assert.Equal(160.0, max, 6);
+    }
+
+    [Fact]
+    public void The_relative_range_passes_over_empty_columns_and_falls_back_with_none()
+    {
+        Assert.Equal((90.0 - 2.0, 110.0 + 2.0), MetricHelper.RelativeRange([Ticks()]));
+        Assert.Equal(MetricHelper.RelativeRange([Ticks(90, 100, 110)]), MetricHelper.RelativeRange([Ticks(), Ticks(90, 100, 110)]));
+    }
 }

@@ -36,6 +36,7 @@ public class PersistedEnumMembersTests
             "BottomLeft", "BottomCenter", "BottomRight",
         ],
         ["StatTextOrientation"] = ["Horizontal", "Vertical"],
+        ["TrajectoryBaseline"] = ["Average", "BestRun", "SumOfBest"],
         ["ColorChoice"] =
         [
             "Cyan", "Orange", "Blue", "Gold", "Purple", "Green", "Turquoise", "Coral",
@@ -47,6 +48,7 @@ public class PersistedEnumMembersTests
         [
             "Scatter", "RoomHistogram", "SegmentHistogram", "DnfPercent",
             "ProblemRooms", "TimeLoss", "RunTrajectory", "BoxPlot",
+            "HistogramWall",
         ],
     };
 
