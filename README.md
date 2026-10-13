@@ -1,11 +1,12 @@
 # Speebrun Stats Tracker
 
-A Celeste mod built for speedrunners to analyze consistency and pinpoint specific rooms or segments that require further practice. Track segment and room times with real-time statistics to emphasize repeatability over PBs.
+A Celeste mod that gives speedrunners statistics on their practice. It tracks segment and room times, shows them as real-time stats and charts, and points at the rooms or segments that need more work.
 
 ## High-level Features
 
 - Real-time HUD with statistics displayed after each completed attempt
-- Interactive charts with hover tooltips, clickable data points, and in-chart navigation arrows
+- Interactive charts: hover tooltips, pinned data points, zoom and pan, a help card on each chart, and Save PNG
+- A small live chart of the current run that stays on screen while you play (the trajectory widget)
 - Support for SpeedrunTool multiple save state slots
 - Data export to clipboard and CSV
 - Configurable hotkeys (keycombo behavior like SRT)
@@ -35,11 +36,13 @@ SpeedrunTool `3.26.4` or later is required (`everest.yaml` pins it).
 Configure the overlay to display the metrics that matter most to your current goals. Each metric is switched on separately for the overlay (the **Stats overlay** page in Mod Options) and for exports (the **Export options** page):
 
 * **Target Time Tracking:** Define a goal time for the segment, typed on a keypad or pasted from the clipboard, and track your **Success Rate** in real-time
-* **Live Charts:** Cycle through performance charts for the entire segment or individual rooms
+* **Live Charts:** Cycle through performance charts for the entire segment or individual rooms. On the scatter plot, drag the target line to change the target time
+* **Trajectory Widget:** Switch it on from the Run Trajectory chart, then move and resize it. It draws the current run against your average, your best run or your sum of bests
 
 ### 3. Exporting
 
-* **Data Export:** Export your complete session history and statistics to CSV (files are saved to `SCT_Exports/<level>/`, next to your `Mods` folder — the Celeste installation folder in a normal install)
+* **Data Export:** Export your complete session history and statistics to the clipboard or to CSV (files are saved to `SCT_Exports/<level>/`, next to your `Mods` folder — the Celeste installation folder in a normal install)
+* **Chart Images:** Save PNG on any chart writes an image of it to the same folder
 
 ## Charts
 
@@ -49,9 +52,9 @@ All charts are accessible in-game via keybinds and can be individually toggled o
 - **Box Plot:** time distribution as box-and-whisker with hover details
 - **Histogram Wall:** a time histogram for the segment and one per room; click a tile to open it
 - **Reset Rate per Room:** reset rate and run survival rate by room
-- **Problem Rooms:** combined reset rate and time-loss per room
+- **Problem Rooms:** combined reset rate and time-loss per room, with a slider for the time-loss threshold
 - **Time Loss per Room:** median and average loss vs. session best
-- **Run Trajectory:** cumulative deviation across rooms, measured from the average or the sum of bests, with best-split comparison
+- **Run Trajectory:** cumulative deviation across rooms, measured from the average, the best run or the sum of bests, with best-split comparison
 
 See [docs/charts.md](docs/charts.md) for full descriptions.
 
