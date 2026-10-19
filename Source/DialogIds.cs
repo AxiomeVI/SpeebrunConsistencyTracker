@@ -79,6 +79,12 @@ public static class DialogIds {
     public const string BestColorId = "SCT_BEST_COLOR";
     public const string LastColorId = "SCT_LAST_COLOR";
     public const string SobColorId = "SCT_SOB_COLOR";
+    public const string TargetColorId = "SCT_TARGET_COLOR";
+    public const string AheadColorId = "SCT_AHEAD_COLOR";
+    public const string BehindColorId = "SCT_BEHIND_COLOR";
+    public const string DeltaPreviewId = "SCT_DELTA_PREVIEW";
+    public const string PaleSwatchId = "SCT_PALE_SWATCH";
+    public const string DeltaColorDescId = "SCT_DELTA_COLOR_DESC";
     public const string ColorsHeaderId = "SCT_COLORS_HEADER";
     public const string ContentHeaderId = "SCT_CONTENT_HEADER";
     public const string FillOpacityId = "SCT_CHART_OPACITY";

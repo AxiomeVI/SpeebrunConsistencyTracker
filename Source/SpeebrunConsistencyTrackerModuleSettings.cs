@@ -60,7 +60,7 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public ColorChoice SegmentColor { get; set; } = ColorChoice.Orange;
     public int ChartOpacity { get; set; } = 75;
 
-    // The seven chart colours, as six hex digits without '#'. Read them through ChartPalette, which
+    // The nine chart colours, as six hex digits without '#'. Read them through ChartPalette, which
     // falls back to the default for anything unreadable. Room and segment start null so that
     // OnLoadSettings can tell a file written before them and fill them from RoomColor and
     // SegmentColor, which stay for that reason.
@@ -71,6 +71,9 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public string TrajectoryBestColorHex { get; set; } = ChartPalette.DefaultBestHex;
     public string TrajectoryLastColorHex { get; set; } = ChartPalette.DefaultLastHex;
     public string TrajectorySobColorHex { get; set; } = ChartPalette.DefaultSobHex;
+    public string TargetColorHex { get; set; } = ChartPalette.DefaultTargetHex;
+    public string AheadColorHex { get; set; } = ChartPalette.DefaultAheadHex;
+    public string BehindColorHex { get; set; } = ChartPalette.DefaultBehindHex;
 
     public int TimeLossThresholdMs { get; set; } = 493;
     public bool GraphScatter { get; set; } = true;

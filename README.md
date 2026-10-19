@@ -46,7 +46,7 @@ Configure the overlay to display the metrics that matter most to your current go
 
 ## Charts
 
-All charts are accessible in-game via keybinds and can be individually toggled on the **Charts** page of Mod Options, where their seven colors and the fill opacity can be changed too.
+All charts are accessible in-game via keybinds and can be individually toggled on the **Charts** page of Mod Options, where their ten colors and the fill opacity can be changed too.
 
 - **Scatter Plot:** outliers and time clusters per room
 - **Box Plot:** time distribution as box-and-whisker with hover details

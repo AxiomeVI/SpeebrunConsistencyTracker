@@ -4,11 +4,13 @@ The mod draws seven charts. Each can be switched on or off on the **Charts** pag
 
 ## Colors
 
-The Charts page sets seven colors, each on a color wheel that also offers the fourteen named colors as presets:
+The Charts page sets ten colors, each on a color wheel that also offers the fourteen named colors as presets:
 
 - **Room color** and **Segment color:** the scatter plot, box plot and Time Distributions, including their axis labels
 - **Bars, first** and **Bars, second:** the two series of the bar charts (Reset Rate per Room, Problem Rooms, Time Loss per Room)
 - **Best run**, **Last run** and **Sum of bests:** the highlighted lines of the Run Trajectory
+- **Target line:** the target time on the scatter plot and Time Distributions, red by default
+- **Ahead** and **Behind:** the gaps in the Run Trajectory's table and the widget, green and red by default. A paler shade of each marks a room that went the other way: ahead overall but lost time there, or behind but gained. The Ahead and Behind wheels show that shade next to After, and a Preview row under them shows a sample gap in each of the four colors
 
 **Fill opacity** fades the filled shapes only: bars, boxes and dots. Lines and text always draw at full color.
 
@@ -27,7 +29,7 @@ The Charts page sets seven colors, each on a color wheel that also offers the fo
 
 ## Scatter Plot
 
-One dot per run, a column per room, and the segment on the right. In a column the oldest run is on the left. A band behind the dots marks the middle half of the times, with a line at the median ("Median band", on by default). Absolute reads the rooms as times. Relative reads each room as a percent of its own median. A red target line can be dragged up or down to change the target time. Enabled by default.
+One dot per run, a column per room, and the segment on the right. In a column the oldest run is on the left. A band behind the dots marks the middle half of the times, with a line at the median ("Median band", on by default). Absolute reads the rooms as times. Relative reads each room as a percent of its own median. A target line, red by default, can be dragged up or down to change the target time. Enabled by default.
 
 ## Box Plot
 
@@ -53,11 +55,11 @@ A grouped bar chart of the median and the average time lost per room against the
 
 A line chart where each run is one line, read left to right, one room at a time. An Average | Best run | SoB switch under the chart picks the baseline the runs are compared with. Against Average, the middle line is the average run: a line above it is ahead, below it behind. Against SoB, the top line is the sum of bests, and the further below it a run is, the more time it lost. Against Best run, the flat line is your fastest completed run of the session; until one is complete the average is used, and the title says so. Older runs are dark grey and fade toward white for the most recent. The best run, the last run and the sum of bests use their own colors.
 
-Click a line to pin that run. While the columns are wide enough (about 20 rooms), the times stand along the pinned line and a table sits under the chart. Each room shows the gap at the end of the room (cumul) and in that room alone (room). With more rooms, the chart draws dots only and a card for the room under the mouse. Zooming in brings the table back. Click a second line to compare the two runs. "vs Best Split" compares the pinned run with every other run: green means the run was ahead of them all. Enabled by default.
+Click a line to pin that run. While the columns are wide enough (about 20 rooms), the times stand along the pinned line and a table sits under the chart. Each room shows the gap at the end of the room (cumul) and in that room alone (room). With more rooms, the chart draws dots only and a card for the room under the mouse. Zooming in brings the table back. Click a second line to compare the two runs. "vs Best Split" compares the pinned run with every other run: the Ahead color means the run was ahead of them all. Enabled by default.
 
 ### The widget
 
-Under the chart, bottom left, "Widget: On | Off" keeps a small chart of the current run on screen while you play. It draws one line, a room at a time, against the baseline chosen on the chart: green above the middle line where the run is ahead, red below it where it is behind. A new run clears it.
+Under the chart, bottom left, "Widget: On | Off" keeps a small chart of the current run on screen while you play. It draws one line, a room at a time, against the baseline chosen on the chart: in the Ahead color above the middle line where the run is ahead, in the Behind color below it where it is behind. A new run clears it.
 
 Its baseline leaves the current run out, so a new best room shows as a gain. On the first run of a session there is nothing to compare with, and it shows an empty widget with its middle line.
 

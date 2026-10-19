@@ -512,16 +512,17 @@ internal sealed class TrajectoryChart : SketchChart
     internal static string FormatDev(long ticks) =>
         ticks == 0 ? "±0" : (ticks > 0 ? "+" : "-") + new TimeTicks(Math.Abs(ticks));
 
-    private static readonly Rgba Ahead = GameCanvas.ToRgba(ChartConstants.Colors.AheadGaining);
-    private static readonly Rgba Behind = GameCanvas.ToRgba(ChartConstants.Colors.BehindLosing);
+    // Read each time, so a colour changed in Mod Options shows on the next draw.
+    private static Rgba Ahead => GameCanvas.ToRgba(ChartPalette.Current.Ahead);
+    private static Rgba Behind => GameCanvas.ToRgba(ChartPalette.Current.Behind);
     private static readonly Rgba Gray = GameCanvas.ToRgba(Color.Gray);
 
     // LiveSplit's four delta colours: ahead or behind overall, and gained or lost in this room.
     private static Rgba DeviationColor(long cumulative, long room) => (cumulative <= 0, room <= 0) switch
     {
         (true, true)   => Ahead,
-        (true, false)  => GameCanvas.ToRgba(ChartConstants.Colors.AheadLosing),
-        (false, true)  => GameCanvas.ToRgba(ChartConstants.Colors.BehindGaining),
+        (true, false)  => GameCanvas.ToRgba(ChartPalette.Current.AheadPale),
+        (false, true)  => GameCanvas.ToRgba(ChartPalette.Current.BehindPale),
         (false, false) => Behind,
     };
 
