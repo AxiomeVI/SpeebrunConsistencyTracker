@@ -13,7 +13,9 @@ namespace Celeste.Mod.MenuTools;
 /// brightness, typing or copying a hex code, and confirming. Changes preview live: <see cref="OnColorChange"/> is
 /// invoked on every change. Only the Confirm row keeps the color: Cancel, ESC and Pause go back to the color the
 /// page was entered with. The Enter key confirms from any row but the two hex code rows, which it presses, whatever
-/// it is bound to. Ctrl+V takes a hex code from the clipboard. The page draws its own key hints.
+/// it is bound to. Ctrl+V takes a hex code from the clipboard. The page draws its own key hints. Under the wheel, a
+/// strip shows the color the page was entered with (Before), the current color (After), and any derived swatches
+/// the caller asked for, each computed from the current color.
 /// </summary>
 /// <remarks>
 /// The wheel can also be clicked or dragged with the mouse. Enter the page with <see cref="Enter(Color)"/>.
@@ -33,6 +35,8 @@ public class ColorWheelPage : TextMenuPage {
     private const float swatchBorder     = 4f;
     private const float swatchLabelGap   = 12f;
     private const float swatchLabelScale = 0.7f;
+    private const float swatchGutter     = 12f;  // Least room between the labels of two swatches
+    private const float stripMaxWidth    = 840f;  // Keeps the swatch strip clear of the screen's edge and of the rows
     private const float menuCenterX      = 1440f;
     private const float mouseShownTime   = 2f;  // How long the mouse pointer stays drawn after it last moved
     private const float hintGap          = 26f;  // From the wheel's outline to the middle of the mouse hint
@@ -60,6 +64,20 @@ public class ColorWheelPage : TextMenuPage {
     /// <summary>The color the page was entered with, made opaque, which the page goes back to unless accepted</summary>
     public Color InitialColor { get; private set; } = Color.White;
 
+    /// <summary>
+    /// The derived swatches drawn after After, in order: each one's name and the color its derivation gives for
+    /// <see cref="Value"/>, made opaque. Computed on every read; empty without derived swatches.
+    /// </summary>
+    public IReadOnlyList<(string name, Color color)> DerivedColors {
+        get {
+            List<(string name, Color color)> colors = new(derivedSwatches.Count);
+            foreach ((string name, Func<Color, Color> derive) in derivedSwatches) {
+                colors.Add((name, Opaque(derive(value))));
+            }
+            return colors;
+        }
+    }
+
     private readonly string header;
     private readonly string beforeLabel = MenuToolsDialog.Get("COLORWHEEL_BEFORE", "Before");
     private readonly string afterLabel  = MenuToolsDialog.Get("COLORWHEEL_AFTER", "After");
@@ -70,6 +88,7 @@ public class ColorWheelPage : TextMenuPage {
     private readonly string mouseHint   =
         MenuToolsDialog.Get("COLORWHEEL_MOUSE", "Click or drag on the wheel with the mouse");
     private readonly List<(string name, Color color)> presets;
+    private readonly List<(string name, Func<Color, Color> derive)> derivedSwatches;
     private readonly WheelOption presetOption;  // Null without presets
     private readonly WheelOption hueOption;
     private readonly WheelOption saturationOption;
@@ -96,13 +115,29 @@ public class ColorWheelPage : TextMenuPage {
     ///     Named colors offered in the Preset row, which shows "Custom" for any other color; no Preset row if null
     ///     (the default) or empty. The list is copied.
     /// </param>
+    /// <param name="derivedSwatches">
+    ///     Named colors computed from the color being picked, each drawn as one more labeled swatch after After, in
+    ///     order. Every frame, a swatch shows its derivation applied to <see cref="Value"/>, made opaque. Use it to
+    ///     show a shade the mod derives from the chosen color, such as a paler one. None if null (the default) or
+    ///     empty, which leaves the strip as Before | After. The list is copied; a null name draws no label.
+    /// </param>
+    /// <exception cref="ArgumentException">A derivation in <paramref name="derivedSwatches"/> is null</exception>
     public ColorWheelPage(TextMenu parent, IInputHoldingItem subMenuParent = null, string header = "",
-                          IReadOnlyList<(string name, Color color)> presets = null)
+                          IReadOnlyList<(string name, Color color)> presets = null,
+                          IReadOnlyList<(string name, Func<Color, Color> derive)> derivedSwatches = null)
             : base(parent, subMenuParent) {
-        this.header  = header ?? "";
-        this.presets = presets == null ? [] : [..presets];
-        AutoScroll   = false;
-        Position     = new Vector2(menuCenterX, wheelCenter.Y);
+        this.header          = header ?? "";
+        this.presets         = presets == null ? [] : [..presets];
+        this.derivedSwatches = [];
+        AutoScroll           = false;
+        Position             = new Vector2(menuCenterX, wheelCenter.Y);
+
+        foreach ((string name, Func<Color, Color> derive) in derivedSwatches ?? []) {
+            if (derive == null) {
+                throw new ArgumentException($"The derived swatch '{name}' has no derivation", nameof(derivedSwatches));
+            }
+            this.derivedSwatches.Add((name ?? "", derive));
+        }
 
         if (this.presets.Count > 0) {
             string presetLabel = MenuToolsDialog.Get("COLORWHEEL_PRESET", "Preset");
@@ -450,8 +485,8 @@ public class ColorWheelPage : TextMenuPage {
 
     // =================================================== Rendering ===================================================
     /// <summary>
-    /// Draws the rows, the header, the wheel with its cursor, the mouse hint, the before and after swatches, the key
-    /// hints, and the mouse pointer while the mouse is in use
+    /// Draws the rows, the header, the wheel with its cursor, the mouse hint, the before, after and derived swatches,
+    /// the key hints, and the mouse pointer while the mouse is in use
     /// </summary>
     public override void Render() {
         base.Render();
@@ -480,19 +515,33 @@ public class ColorWheelPage : TextMenuPage {
         ActiveFont.DrawOutline(mouseHint, wheelCenter + Vector2.UnitY * (wheelRadius + outlineWidth + hintGap),
                                new Vector2(0.5f, 0.5f), Vector2.One * hintScale, Color.Gray * alpha, 2f, strokeColor);
 
-        // Before | After
-        float left = wheelCenter.X - swatchWidth;
-        Draw.Rect(left - swatchBorder, swatchTop - swatchBorder, swatchWidth * 2f + swatchBorder * 2f,
+        // Before | After | the derived swatches
+        (float left, float width) = SwatchStrip();
+        int count = 2 + derivedSwatches.Count;
+        Draw.Rect(left - swatchBorder, swatchTop - swatchBorder, width * count + swatchBorder * 2f,
                   swatchHeight + swatchBorder * 2f, strokeColor);
-        Draw.Rect(left, swatchTop, swatchWidth, swatchHeight, InitialColor * alpha);
-        Draw.Rect(wheelCenter.X, swatchTop, swatchWidth, swatchHeight, value * alpha);
-        Draw.Rect(wheelCenter.X - swatchBorder / 2f, swatchTop, swatchBorder, swatchHeight, strokeColor);
+        for (int i = 0; i < count; ++i) {
+            Color color = i switch {
+                0 => InitialColor,
+                1 => value,
+                _ => Opaque(derivedSwatches[i - 2].derive(value)),
+            };
+            Draw.Rect(left + i * width, swatchTop, width, swatchHeight, color * alpha);
+        }
+        for (int i = 1; i < count; ++i) {
+            Draw.Rect(left + i * width - swatchBorder / 2f, swatchTop, swatchBorder, swatchHeight, strokeColor);
+        }
         float labelY = swatchTop + swatchHeight + swatchBorder + swatchLabelGap;
-        ActiveFont.DrawOutline(beforeLabel, new Vector2(left + swatchWidth / 2f, labelY), new Vector2(0.5f, 0f),
-                               Vector2.One * swatchLabelScale, Color.White * alpha, 2f, strokeColor);
-        ActiveFont.DrawOutline(afterLabel, new Vector2(wheelCenter.X + swatchWidth / 2f, labelY),
-                               new Vector2(0.5f, 0f), Vector2.One * swatchLabelScale, Color.White * alpha, 2f,
-                               strokeColor);
+        for (int i = 0; i < count; ++i) {
+            string label = i switch {
+                0 => beforeLabel,
+                1 => afterLabel,
+                _ => derivedSwatches[i - 2].name,
+            };
+            ActiveFont.DrawOutline(label, new Vector2(left + i * width + width / 2f, labelY), new Vector2(0.5f, 0f),
+                                   Vector2.One * SwatchLabelScale(label, width), Color.White * alpha, 2f,
+                                   strokeColor);
+        }
 
         StringEntryPage.RenderHints(Hints());
 
@@ -504,6 +553,23 @@ public class ColorWheelPage : TextMenuPage {
             Draw.Line(pointer - Vector2.UnitX * 10f, pointer + Vector2.UnitX * 10f, Color.White * alpha, 2f);
             Draw.Line(pointer - Vector2.UnitY * 10f, pointer + Vector2.UnitY * 10f, Color.White * alpha, 2f);
         }
+    }
+
+    // The left edge of the strip's first swatch, and the width of each. Before | After keeps the place and width it
+    // has always had; derived swatches widen the strip about the wheel's centre, then narrow every swatch to keep it
+    // within stripMaxWidth.
+    private (float left, float width) SwatchStrip() {
+        int count   = 2 + derivedSwatches.Count;
+        float width = Math.Min(swatchWidth, stripMaxWidth / count);
+        return (wheelCenter.X - width * count / 2f, width);
+    }
+
+    // A label too wide for its swatch shrinks to fit, so that two labels never overlap. The shipped Before and After
+    // fit at swatchLabelScale.
+    private static float SwatchLabelScale(string label, float width) {
+        float room     = width - swatchGutter;
+        float measured = ActiveFont.Measure(label).X * swatchLabelScale;
+        return measured <= room ? swatchLabelScale : swatchLabelScale * room / measured;
     }
 
     // The page is opaque-only: every color it keeps or reports has alpha 255

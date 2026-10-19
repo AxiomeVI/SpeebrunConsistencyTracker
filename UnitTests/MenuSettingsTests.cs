@@ -264,4 +264,40 @@ public class MenuSettingsTests
         Assert.Equal(new Color(205, 92, 92), palette.Primary);
         Assert.Equal(new Color(0, 255, 255), palette.Room);
     }
+
+    [Fact]
+    public void Ahead_and_behind_default_to_livesplit_colours_and_shades()
+    {
+        ChartPalette palette = ChartPalette.For(new SpeebrunConsistencyTrackerModuleSettings());
+
+        Assert.Equal(new Color(41, 204, 84), palette.Ahead);
+        Assert.Equal(new Color(150, 220, 170), palette.AheadPale);
+        Assert.Equal(new Color(204, 55, 41), palette.Behind);
+        Assert.Equal(new Color(204, 120, 112), palette.BehindPale);
+    }
+
+    [Fact]
+    public void A_chosen_ahead_colour_pales_toward_white()
+    {
+        var settings = new SpeebrunConsistencyTrackerModuleSettings { AheadColorHex = "0000ff", BehindColorHex = "nope" };
+
+        ChartPalette palette = ChartPalette.For(settings);
+
+        Assert.Equal(new Color(0, 0, 255), palette.Ahead);
+        Assert.Equal(Color.Lerp(new Color(0, 0, 255), Color.White, 0.4f), palette.AheadPale);
+        Assert.Equal(new Color(204, 55, 41), palette.Behind);
+        Assert.Equal(new Color(204, 120, 112), palette.BehindPale);
+    }
+
+    [Fact]
+    public void The_target_line_defaults_to_red_and_follows_its_setting()
+    {
+        Assert.Equal(Color.Red, ChartPalette.For(new SpeebrunConsistencyTrackerModuleSettings()).Target);
+
+        var settings = new SpeebrunConsistencyTrackerModuleSettings { TargetColorHex = "0000ff" };
+        Assert.Equal(new Color(0, 0, 255), ChartPalette.For(settings).Target);
+
+        settings.TargetColorHex = "nope";
+        Assert.Equal(Color.Red, ChartPalette.For(settings).Target);
+    }
 }

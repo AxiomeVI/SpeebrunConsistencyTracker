@@ -5,12 +5,14 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Charts;
 
 // The run in progress against the baseline, in a corner while the player plays: one line that grows
-// a room at a time, green where the run is ahead and red where it is behind. It answers the mouse
-// only while it is being placed: under the Run Trajectory chart, once its Edit widget button is on.
+// a room at a time, in the Ahead colour where the run is ahead and the Behind colour where it is
+// behind. It answers the mouse only while it is being placed: under the Run Trajectory chart, once
+// its Edit widget button is on.
 // It is then moved by its middle and resized by its edges. Under a chart it is otherwise hidden.
 //
 // Nothing allocates per frame: the sketch is rebuilt when the session's version, the room count,
@@ -183,22 +185,23 @@ internal static class TrajectoryWidget
             ys[r + 1] = y.At(deviations[r]);
         }
         (LinePoints ahead, LinePoints behind) = Polyline.SplitAtY(new LinePoints(xs, ys), zeroY);
-        Rgba green = GameCanvas.ToRgba(ChartConstants.Colors.AheadGaining), red = GameCanvas.ToRgba(ChartConstants.Colors.BehindLosing);
+        ChartPalette palette = ChartPalette.Current;
+        Rgba aheadColour = GameCanvas.ToRgba(palette.Ahead), behindColour = GameCanvas.ToRgba(palette.Behind);
         if (ahead.Count > 1)
         {
-            Paint.AreaUnder(sketch, ahead, zeroY, green.Times(0.25f));
-            Paint.Line(sketch, ahead, green, 2f);
+            Paint.AreaUnder(sketch, ahead, zeroY, aheadColour.Times(0.25f));
+            Paint.Line(sketch, ahead, aheadColour, 2f);
         }
         if (behind.Count > 1)
         {
-            Paint.AreaUnder(sketch, behind, zeroY, red.Times(0.25f));
-            Paint.Line(sketch, behind, red, 2f);
+            Paint.AreaUnder(sketch, behind, zeroY, behindColour.Times(0.25f));
+            Paint.Line(sketch, behind, behindColour, 2f);
         }
         // The gap so far as a number, in the colour of its side: an option, on unless switched off.
         if (showDelta)
         {
             long last = deviations[^1];
-            sketch.Text(TrajectoryChart.FormatDev(last), plot.Right, numberY, style.Label with { Colour = last <= 0 ? green : red }, 1f, 0f);
+            sketch.Text(TrajectoryChart.FormatDev(last), plot.Right, numberY, style.Label with { Colour = last <= 0 ? aheadColour : behindColour }, 1f, 0f);
         }
     }
 }

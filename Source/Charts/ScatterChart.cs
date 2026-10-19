@@ -168,13 +168,13 @@ internal sealed class ScatterChart : RoomColumnsChart
     {
         _targetLayer.Clear();
         if (_targetShown <= 0) return;
-        Rgba red = GameCanvas.ToRgba(Color.Red);
+        Rgba colour = GameCanvas.ToRgba(ChartPalette.Current.Target);
         // From the divider's right edge to the right axis, on whole pixels: the column's own edge is
         // not on one, and the line stuck out a pixel on the left and stopped short on the right.
         float left = MathF.Round(SegmentArea.X) + 2f;
         Area across = new(left, Plot.Y, Plot.Right - left, Plot.Height);
         Paint.ReferenceY(_targetLayer, across, SegmentY, _targetShown, DialogText.Format(DialogIds.ChartTargetFmt, new TimeTicks(_targetShown)),
-                         Style with { Reference = red, Dash = 0f, Label = Style.Label with { Colour = red } }, _targetHot);
+                         Style with { Reference = colour, Dash = 0f, Label = Style.Label with { Colour = colour } }, _targetHot);
     }
 
     protected override void DrawLayers()

@@ -45,12 +45,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         internal static class Colors
         {
             internal static readonly Color BaselineColor         = Color.Gray * 0.6f;
-
-            // LiveSplit delta colors
-            internal static readonly Color AheadGaining = new Color(41,  204, 84);   // strong green: ahead & gained time
-            internal static readonly Color AheadLosing  = new Color(150, 220, 170);  // light green:  ahead but lost time
-            internal static readonly Color BehindGaining = new Color(204, 120, 112); // light red:    behind but gained time
-            internal static readonly Color BehindLosing  = new Color(204, 55,  41);  // strong red:   behind & lost time
         }
 
         internal static class XAxisLabel

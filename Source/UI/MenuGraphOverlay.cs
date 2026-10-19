@@ -20,9 +20,14 @@ public static partial class ModMenuOptions
             .Select(c => (EnumLabels.For(c), ColorHelper.ToColor(c)))];
         ChartPalette palette = ChartPalette.Current;
 
-        void AddColor(string labelId, Color current, Action<string> save) =>
-            page.Add(new ColorWheelButton(Dialog.Clean(labelId), current, presets: presets)
-                .Change(c => save(ColorHelper.ToHex(c))));
+        ColorWheelButton AddColor(string labelId, Color current, Action<string> save, Func<Color, Color> pale = null)
+        {
+            (string, Func<Color, Color>)[] derived = pale == null ? null : [(Dialog.Clean(DialogIds.PaleSwatchId), pale)];
+            ColorWheelButton button = new ColorWheelButton(Dialog.Clean(labelId), current, presets: presets, derivedSwatches: derived)
+                .Change(c => save(ColorHelper.ToHex(c)));
+            page.Add(button);
+            return button;
+        }
 
         page.Add(new TextMenu.SubHeader(Dialog.Clean(DialogIds.ColorsHeaderId)));
         AddColor(DialogIds.RoomColorId,      palette.Room,      hex => _settings.RoomColorHex = hex);
@@ -32,6 +37,12 @@ public static partial class ModMenuOptions
         AddColor(DialogIds.BestColorId,      palette.Best,      hex => _settings.TrajectoryBestColorHex = hex);
         AddColor(DialogIds.LastColorId,      palette.Last,      hex => _settings.TrajectoryLastColorHex = hex);
         AddColor(DialogIds.SobColorId,       palette.Sob,       hex => _settings.TrajectorySobColorHex = hex);
+        AddColor(DialogIds.TargetColorId,    palette.Target,    hex => _settings.TargetColorHex = hex);
+        AddColor(DialogIds.AheadColorId,     palette.Ahead,     hex => _settings.AheadColorHex = hex, ChartPalette.AheadPaleOf)
+            .AddDescription(page, Dialog.Clean(DialogIds.DeltaColorDescId));
+        AddColor(DialogIds.BehindColorId,    palette.Behind,    hex => _settings.BehindColorHex = hex, ChartPalette.BehindPaleOf)
+            .AddDescription(page, Dialog.Clean(DialogIds.DeltaColorDescId));
+        page.Add(new DeltaColourPreview(Dialog.Clean(DialogIds.DeltaPreviewId)));
 
         FormattedIntSlider fillOpacity = new(
             Dialog.Clean(DialogIds.FillOpacityId),

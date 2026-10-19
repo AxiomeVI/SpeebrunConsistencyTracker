@@ -147,7 +147,7 @@ internal sealed class HistogramChart : SketchChart
     {
         Scale<long> x = new(Durations.Times, _bins.All[0].Lower, _bins.All[^1].Upper,
                             _bands.BandStart(0), _bands.BandStart(count - 1) + _bands.Width);
-        Rgba red = GameCanvas.ToRgba(Color.Red);
+        Rgba targetColour = GameCanvas.ToRgba(ChartPalette.Current.Target);
         List<string> names = [];
         List<Rgba> colours = [];
         if (MedianOn)
@@ -159,9 +159,9 @@ internal sealed class HistogramChart : SketchChart
         }
         if (_target is { Ticks: > 0 } target)
         {
-            Paint.ReferenceX(Sketch, Plot, x, target.Ticks, "", style with { Reference = red, Dash = 0f });
+            Paint.ReferenceX(Sketch, Plot, x, target.Ticks, "", style with { Reference = targetColour, Dash = 0f });
             names.Add(DialogText.Format(DialogIds.ChartTargetFmt, target));
-            colours.Add(red);
+            colours.Add(targetColour);
         }
         if (names.Count == 0) return;
         Paint.Legend(Sketch, Plot.Right - Paint.LegendWidth(Sketch, names, style),
