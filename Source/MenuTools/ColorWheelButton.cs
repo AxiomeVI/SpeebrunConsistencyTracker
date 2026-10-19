@@ -13,15 +13,23 @@ namespace Celeste.Mod.MenuTools;
 /// </summary>
 public class ColorWheelButton : ColorSwatchButton {
     private readonly IReadOnlyList<(string name, Color color)> presets;
+    private readonly IReadOnlyList<(string name, Func<Color, Color> derive)> derivedSwatches;
 
     /// <param name="label">Label of the button</param>
     /// <param name="value">Color shown initially</param>
     /// <param name="pageHeader">Header of the color wheel page; the label if null</param>
     /// <param name="presets">Named colors the page offers in its Preset row; no Preset row if null or empty</param>
+    /// <param name="derivedSwatches">
+    ///     Named colors computed from the color being picked, which the page draws as labeled swatches after After;
+    ///     none if null or empty. Passed to every page the button opens, as <see cref="ColorWheelPage"/>'s parameter
+    ///     of the same name.
+    /// </param>
     public ColorWheelButton(string label, Color value, string pageHeader = null,
-                            IReadOnlyList<(string name, Color color)> presets = null)
+                            IReadOnlyList<(string name, Color color)> presets = null,
+                            IReadOnlyList<(string name, Func<Color, Color> derive)> derivedSwatches = null)
             : base(label, value, pageHeader) {
-        this.presets = presets;
+        this.presets         = presets;
+        this.derivedSwatches = derivedSwatches;
     }
 
     /// <summary>
@@ -44,7 +52,7 @@ public class ColorWheelButton : ColorSwatchButton {
     ///     what updates the button, so a caller that sets it must also update the button.
     /// </returns>
     public override ColorWheelPage OpenPage() {
-        ColorWheelPage page = new(Container, null, PageHeader, presets);
+        ColorWheelPage page = new(Container, null, PageHeader, presets, derivedSwatches);
         page.OnColorChange = SetValueFromPage;
         page.Enter(Value);
         return page;
