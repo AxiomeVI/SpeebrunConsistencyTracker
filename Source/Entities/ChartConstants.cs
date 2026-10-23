@@ -28,6 +28,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             internal const int   MaxTickMarks       = 13;
             internal const int   PercentTickCount   = 10;
             internal const float RightLabelMarginX  = 10f; // x + w + this for right-side axis labels
+            internal const float PanelEdgeGap       = 6f;  // between a side label and the panel's side
         }
 
         internal static class FontScale

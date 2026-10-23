@@ -24,8 +24,8 @@ The Charts page sets ten colors, each on a color wheel that also offers the four
 - **Hiding rooms.** On the charts with a column per room, click a room's label (R1, R2...) to hide it. A thin strip stays in its place: click it to bring the room back.
 - **Zoom and pan.** The scatter plot and the run trajectory zoom with the wheel around the mouse and pan by dragging. Reset zoom, or a double click, shows everything again.
 - **Sideways scroll.** The scatter plot, box plot and the three bar charts keep every room column at least 96 px wide. With more rooms than fit, the columns scroll sideways: use the wheel over the room labels, or drag the bar under them. On the scatter plot and the box plot the segment column stays pinned on the right.
-- **Switches.** A choice on a chart is a caption and a switch under it: "Scale: Absolute | Relative", "Median band: On | Off", "Median: On | Off", "Baseline: Average | Best run | SoB", "Widget: On | Off".
-- **Saved choices.** These survive a restart: Absolute or Relative on the scatter plot and the box plot, the scatter plot's "Median band", the histogram's median line, the trajectory's baseline, whether the help card is open, and the last chart shown.
+- **Switches.** A choice on a chart is a caption and a switch under it: "Scale: Absolute | Relative", "Scale: Absolute | Relative | Independent" on the Time Distributions wall, "Median band: On | Off", "Median: On | Off", "Baseline: Average | Best run | SoB", "Widget: On | Off".
+- **Saved choices.** These survive a restart: Absolute or Relative on the scatter plot and the box plot, the wall's scale, the scatter plot's "Median band", the histogram's median line, the trajectory's baseline, whether the help card is open, and the last chart shown.
 
 ## Scatter Plot
 
@@ -37,7 +37,11 @@ The spread of the times in each room and in the segment. A box covers the middle
 
 ## Time Distributions
 
-A wall with one time histogram for the segment and one for each room. A bar counts the runs that fell in a range of times, and a dashed line marks the median ("Median: On | Off"). Click a tile to open that histogram full size. Back, a right click or a double-click returns to the wall. Scroll or drag to reach the other rooms. Enabled by default. With a histogram open, the previous and next chart buttons and hotkeys go round the histograms instead. The run count follows each title; the segment's counts completed runs only.
+A wall with one time histogram for the segment and one for each room. A bar counts the runs that fell in a range of times, and a dashed line marks the median ("Median: On | Off"). Click a tile to open that histogram full size. Back, a right click or a double-click returns to the wall. Scroll or drag to reach the other rooms. Enabled by default.
+
+The Scale switch under the wall sets how the room tiles are read. Absolute and Relative put every room on one shared scale, centred on each room's median, so the widths compare: Absolute in time, Relative as a percent of the median, so short and long rooms can be compared. Runs too far out to fit are counted in the end bar, and a number at the edge says how many. Independent gives each tile its own range, from its fastest to its slowest run: it shows a room's shape, not how it compares. The segment tile always keeps its own range. Independent is the default.
+
+With a histogram open, the previous and next chart buttons and hotkeys go round the histograms instead. The run count follows each title; the segment's counts completed runs only.
 
 ## Reset Rate per Room
 

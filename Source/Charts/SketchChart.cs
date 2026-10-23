@@ -74,6 +74,10 @@ internal abstract class SketchChart : BaseChartOverlay
 
     protected void Invalidate() => _stale = true;
 
+    // How far the plot sits from the panel's left and right sides. A chart whose labels outgrow the
+    // default widens its own; Sketch is ready to measure with.
+    protected virtual (float Left, float Right) SideMargins(ChartStyle style) => (marginH, marginH);
+
     // A setting the chart reads live (the target time): a change rebuilds the sketch, and the chart
     // keeps what the player did to it, which a new chart would not.
     protected virtual int LiveKey => 0;
@@ -193,8 +197,9 @@ internal abstract class SketchChart : BaseChartOverlay
         Scrolled.Clear();
 
         Panel = new Area(position.X, position.Y, width, height);
-        float left = System.MathF.Round(position.X + marginH), top = System.MathF.Round(position.Y + margin);
-        Plot = new Area(left, top, System.MathF.Round(position.X + width - marginH) - left,
+        (float leftMargin, float rightMargin) = SideMargins(Style);
+        float left = System.MathF.Round(position.X + leftMargin), top = System.MathF.Round(position.Y + margin);
+        Plot = new Area(left, top, System.MathF.Round(position.X + width - rightMargin) - left,
                         System.MathF.Round(position.Y + height - margin) - top);
         ColumnsClip = Panel;
         Sketch.Fill(Panel, Style.Panel);

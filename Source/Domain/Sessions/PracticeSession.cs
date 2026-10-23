@@ -28,13 +28,25 @@ public sealed class PracticeSession
         StartNewAttempt();
     }
 
+    // Set by NoteTimeBeforeReload, spent by the next StartNewAttempt.
+    private bool _firstRoomPlayed;
+
+    // The room timer's reading just before a reload. Room 0 needs it: past it, a completed room
+    // already shows the attempt was played, but in room 0 nothing else tells a reset from a
+    // reload made before the timer started.
+    public void NoteTimeBeforeReload(TimeTicks segmentTime)
+    {
+        _firstRoomPlayed = CurrentAttemptIndex >= 0 && CurrentRoomIndex == 0 && segmentTime > TimeTicks.Zero;
+    }
+
     public void StartNewAttempt()
     {
-        // Finalize the prior attempt: its current room becomes a DNF. Deliberately not room 0:
-        // in CurrentRoom timer mode a reset there leaves no trace, so R1's reset rate is always 0
-        // and the attempt total undercounts. The alternative records a DNF for every save-state
-        // reload, which is most of what a practice session does.
-        if (CurrentAttemptIndex >= 0 && CurrentRoomIndex > 0)
+        // Finalize the prior attempt: its current room becomes a DNF. Room 0 only when the timer
+        // ran in it and it is in the segment (CurrentRoom timer mode). Marking it on every reload
+        // would count each save-state reload as a reset.
+        bool firstRoomReset = _firstRoomPlayed && CurrentRoomIndex >= StartRoomIndex;
+        _firstRoomPlayed = false;
+        if (CurrentAttemptIndex >= 0 && (CurrentRoomIndex > 0 || firstRoomReset))
         {
             _matrix.EnsureColumns(CurrentRoomIndex + 1);
             _matrix.SetCell(CurrentAttemptIndex, CurrentRoomIndex, RoomCell.DNF);

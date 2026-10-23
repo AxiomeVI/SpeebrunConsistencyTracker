@@ -41,6 +41,11 @@ public static class SessionManager
         UpdateRoomCount();
     }
 
+    // SRT OnBeforeLoadState. The timer still holds the abandoned attempt's time here: SpeedrunTool
+    // zeroes it in its own load action, which runs before OnLoadState.
+    public static void BeforeLoad(long ticks) =>
+        CurrentSession?.NoteTimeBeforeReload(new TimeTicks(ticks));
+
     // SRT OnLoadState. An unsaved slot gets a fresh session.
     public static void LoadSlot(string slotName)
     {

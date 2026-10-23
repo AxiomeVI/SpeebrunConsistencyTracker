@@ -58,7 +58,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             OnLoadState,
             OnClearState,
             null,
-            null,
+            OnBeforeLoadState,
             null
         );
         typeof(RoomTimerIntegration).ModInterop();
@@ -146,6 +146,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         _lastKnownRoomCount = 0;
         TextOverlay.SetTextVisible(false);
         GraphManager.HideGraph();
+    }
+
+    public static void OnBeforeLoadState(Level level)
+    {
+        if (!Settings.Enabled)
+            return;
+        SessionManager.BeforeLoad(_getCurrentRoomTime?.Invoke() ?? 0);
     }
 
     public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)

@@ -26,4 +26,5 @@ internal static class CaptureIds
     public const int WidgetButton     = 58;
     public const int WidgetEdit       = 59;
     public const int ThresholdFoot    = 60;
+    public const int WallFoot         = 61;
 }

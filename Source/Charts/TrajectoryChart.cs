@@ -135,7 +135,28 @@ internal sealed class TrajectoryChart : SketchChart
         };
         _scope = new TrajectoryScope(_model);
         _scope.Recompute(_hidden);
+        // The margins hold the labels of every room shown, so hiding one never moves the plot.
+        TrajectoryScope whole = new(_model);
+        whole.Recompute(new bool[_hidden.Length]);
+        _widest = (whole.MaxUpwardDeviation, whole.MaxDownwardDeviation, whole.RoomReferenceSum + whole.MaxDownwardDeviation);
         _layoutStale = true;
+    }
+
+    // The largest deviations either way, and an end time no label exceeds.
+    private (long Up, long Down, long SlowestEnd) _widest;
+
+    // Past a minute, a deviation on the left or an end time on the right outgrows the default margins.
+    protected override (float Left, float Right) SideMargins(ChartStyle style)
+    {
+        (float left, float right) = base.SideMargins(style);
+        // A tenth more range: the axis may round its last tick past the data.
+        long up = _widest.Up + _widest.Up / 10, down = _widest.Down + _widest.Down / 10;
+        float axis = Paint.YLabelWidth(Sketch, Durations.Deltas.Ticks(-up, down, ChartConstants.Trajectory.TotalYTicks), style)
+                   + style.LabelGap + ChartConstants.Axis.PanelEdgeGap;
+        // Best run, SoB and last run can end on one time: one square each.
+        float ends = ChartConstants.Axis.RightLabelMarginX + ChartConstants.Axis.PanelEdgeGap
+                   + Paint.SideLabelWidth(Sketch, new TimeTicks(_widest.SlowestEnd).ToString(), 3, style);
+        return (Math.Max(left, axis), Math.Max(right, ends));
     }
 
     // The flat line: the average run, the best run, or the sum of bests.

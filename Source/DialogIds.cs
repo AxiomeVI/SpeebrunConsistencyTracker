@@ -210,6 +210,7 @@ public static class DialogIds {
     public const string ChartMedianLine = "SCT_CHART_MEDIAN_LINE";
     public const string ChartWallTitle = "SCT_CHART_WALL_TITLE";
     public const string ChartWallBack = "SCT_CHART_WALL_BACK";
+    public const string ChartWallIndependent = "SCT_CHART_WALL_INDEPENDENT";
     public const string ChartHintTitle = "SCT_CHART_HINT_TITLE";
     public const string ChartClearPins = "SCT_CHART_CLEAR_PINS";
     public const string ChartResetZoom = "SCT_CHART_RESET_ZOOM";

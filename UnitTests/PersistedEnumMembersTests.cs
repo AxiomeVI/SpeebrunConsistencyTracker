@@ -37,6 +37,7 @@ public class PersistedEnumMembersTests
         ],
         ["StatTextOrientation"] = ["Horizontal", "Vertical"],
         ["TrajectoryBaseline"] = ["Average", "BestRun", "SumOfBest"],
+        ["WallScale"] = ["Absolute", "Relative", "Fit"],
         ["ColorChoice"] =
         [
             "Cyan", "Orange", "Blue", "Gold", "Purple", "Green", "Turquoise", "Coral",

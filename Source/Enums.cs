@@ -66,6 +66,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Enums {
         SumOfBest
     }
 
+    // How the Time Distributions wall reads its room tiles. Persisted by name: a member is never
+    // removed or renamed (PersistedEnumMembersTests). The order is the wall's switch.
+    public enum WallScale
+    {
+        // One axis for every room: time away from the room's own median.
+        Absolute,
+        // One axis for every room: percent away from the room's own median.
+        Relative,
+        // Each tile on its own axis, from its fastest to its slowest time. Shown as Independent; the
+        // member keeps its name because settings files already hold it.
+        Fit,
+    }
+
     public enum ColorChoice
     {
         Cyan,
