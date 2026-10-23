@@ -34,12 +34,21 @@ internal static class GameInput {
         return _pointer;
     }
 
+    /// <summary>Where the mouse is, in HUD pixels, without advancing the pointer: for drawing.</summary>
+    // ⚠️ Not Current() from a Render. Current() advances the pointer on the first call of a frame, and on
+    // a frame no update ran (a freeze frame: Engine.FrameCounter still advances) a Render's call was the
+    // first, consuming that frame's press, release or wheel before the mod's update could read it.
+    public static (float X, float Y) Position() => ToHud(Mouse.GetState());
+
+    private static (float X, float Y) ToHud(MouseState mouse) {
+        Viewport viewport = Engine.Viewport;
+        return ((mouse.X - viewport.X) * (1920f / viewport.Width), (mouse.Y - viewport.Y) * (1080f / viewport.Height));
+    }
+
     // Private: the wheel is read as a change, so a second read in one frame would lose it.
     private static PointerInput Read() {
         MouseState mouse = Mouse.GetState();
-        Viewport viewport = Engine.Viewport;
-        float x = (mouse.X - viewport.X) * (1920f / viewport.Width);
-        float y = (mouse.Y - viewport.Y) * (1080f / viewport.Height);
+        (float x, float y) = ToHud(mouse);
 
         // 120 per notch; a part of a notch (a smooth-scrolling wheel) is kept for the next frame.
         int wheel = 0;

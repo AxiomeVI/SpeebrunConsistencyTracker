@@ -64,7 +64,7 @@ internal static partial class Paint {
     ///     Hidden ones take their place and draw nothing.
     /// </summary>
     public static void SideLabels(Sketch sketch, IReadOnlyList<PlacedSideLabel> labels, float x, ChartStyle style) {
-        float chip = MathF.Round(sketch.LineHeight(style.Label) * 0.4f);
+        float chip = SideChip(sketch, style);
         foreach (PlacedSideLabel label in labels) {
             if (label.Hidden) continue;
             float left = x;
@@ -75,6 +75,15 @@ internal static partial class Paint {
             sketch.Text(label.Text, left + 3f, label.At, style.Label with { Colour = label.Colours[0] }, alignY: 0.5f);
         }
     }
+
+    /// <summary>
+    ///     How much room one label of <see cref="SideLabels"/> takes right of its x: <paramref name="colours"/>
+    ///     squares, as many as lines may end on it together, then the text.
+    /// </summary>
+    public static float SideLabelWidth(Sketch sketch, string text, int colours, ChartStyle style) =>
+        colours * (SideChip(sketch, style) + 3f) + 3f + sketch.Width(text, style.Label);
+
+    private static float SideChip(Sketch sketch, ChartStyle style) => MathF.Round(sketch.LineHeight(style.Label) * 0.4f);
 
     /// <summary>
     ///     How much room <see cref="XAxis{T}"/> or <see cref="BandLabels{TBands}"/> needs below a plot; two

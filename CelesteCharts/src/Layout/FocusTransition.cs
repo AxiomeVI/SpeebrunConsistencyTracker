@@ -68,6 +68,13 @@ internal sealed class FocusTransition {
         if (State is FocusState.Opening or FocusState.Open) State = FocusState.Closing;
     }
 
+    /// <summary>Starts shrinking into <paramref name="to"/> instead of the tile it came from: the tile moved, or another item is shown.</summary>
+    public void Close(Area to) {
+        if (State is not (FocusState.Opening or FocusState.Open)) return;
+        From = to;
+        State = FocusState.Closing;
+    }
+
     /// <summary>Moves the frame on by <paramref name="seconds"/> of real time.</summary>
     public void Update(float seconds) {
         float step = Seconds <= 0f ? 1f : seconds / Seconds;
