@@ -103,6 +103,8 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     [SettingIgnore]
     public TrajectoryBaseline ChartTrajectoryBaseline { get; set; } = TrajectoryBaseline.Average;
     [SettingIgnore]
+    public WallScale ChartWallScale { get; set; } = WallScale.Fit;
+    [SettingIgnore]
     public bool ChartHelpOpen { get; set; } = false;
 
     // The trajectory widget: the run in progress, in a corner while playing. On/off from the

@@ -73,6 +73,60 @@ public class PracticeSessionTests
         Assert.Equal(RoomCellState.NotReached, session.GetCell(0, 0).State);
     }
 
+    // CurrentRoom timer mode: the first room is R1, and a reload after the timer ran in it is a
+    // reset there. Without the reading, R1's reset rate stayed at 0%.
+    [Fact]
+    public void A_reload_after_time_in_the_first_room_records_a_DNF_there()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(startRoomIndex: 0, roomCount: 3));
+
+        session.NoteTimeBeforeReload(new TimeTicks(50));
+        session.StartNewAttempt();
+
+        Assert.Equal(RoomCellState.DNF, session.GetCell(0, 0).State);
+        Assert.Equal(1, session.DnfPerRoom[0]);
+        Assert.Equal(1, session.TotalAttemptsPerRoom[0]);
+    }
+
+    [Fact]
+    public void A_reload_before_the_timer_ran_records_no_DNF()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(startRoomIndex: 0, roomCount: 3));
+
+        session.NoteTimeBeforeReload(TimeTicks.Zero);
+        session.StartNewAttempt();
+
+        Assert.Equal(RoomCellState.NotReached, session.GetCell(0, 0).State);
+        Assert.Equal(0, session.TotalAttempts);
+    }
+
+    // The reading is spent by the reload it came with: the next attempt starts clean.
+    [Fact]
+    public void The_reading_applies_to_one_reload_only()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(startRoomIndex: 0, roomCount: 3));
+
+        session.NoteTimeBeforeReload(new TimeTicks(50));
+        session.StartNewAttempt();
+        session.StartNewAttempt();
+
+        Assert.Equal(RoomCellState.NotReached, session.GetCell(1, 0).State);
+        Assert.Equal(1, session.TotalDnfs);
+    }
+
+    // NextRoom timer mode: raw room 0 is the room before the segment, so time there is no reset.
+    [Fact]
+    public void Time_in_the_room_before_the_segment_records_no_DNF()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(startRoomIndex: 1, roomCount: 3));
+
+        session.NoteTimeBeforeReload(new TimeTicks(50));
+        session.StartNewAttempt();
+
+        Assert.Equal(0, session.TotalDnfs);
+        Assert.Equal(0, session.TotalAttempts);
+    }
+
     [Fact]
     public void IsCompleted_requires_every_visible_room_in_an_unbroken_run()
     {

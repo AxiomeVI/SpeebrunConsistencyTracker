@@ -48,6 +48,12 @@ internal static class ChartOptions
         set => Save(Settings.TrajectoryWidget != value, () => Settings.TrajectoryWidget = value);
     }
 
+    public static WallScale WallScale
+    {
+        get => Settings.ChartWallScale;
+        set => Save(Settings.ChartWallScale != value, () => Settings.ChartWallScale = value);
+    }
+
     public static bool HelpOpen
     {
         get => Settings.ChartHelpOpen;

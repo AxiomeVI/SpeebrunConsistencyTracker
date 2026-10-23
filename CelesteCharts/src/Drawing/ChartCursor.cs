@@ -35,9 +35,10 @@ internal sealed class ChartCursor : Entity {
     public override void Render() {
         base.Render();
         if (!CursorClaim.Shared.TryDraw(GameInput.Frame, out CursorShape shape, out Rgba colour, out Rgba outline, again: ChartLayer.Drawing)) return;
-        Pointer pointer = GameInput.Current();
+        // Position, not Current(): drawing must not advance the pointer (see GameInput.Position).
+        (float x, float y) = GameInput.Position();
         _sketch.Clear();
-        CursorArt.Paint(_sketch, shape, pointer.X, pointer.Y, colour, outline);
+        CursorArt.Paint(_sketch, shape, x, y, colour, outline);
         GameCanvas.Draw(_sketch);
     }
 }

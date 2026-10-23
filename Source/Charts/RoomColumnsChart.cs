@@ -103,6 +103,45 @@ internal abstract class RoomColumnsChart : SketchChart
         return new PinnedEndBands(rooms, Rooms, Plot.X, Plot.Right - segment, segment, ColumnFill);
     }
 
+    private (long Min, long Max) SegmentRange()
+    {
+        List<TimeTicks> segmentTimes = SortedSegmentTimes;
+        long low = long.MaxValue, high = long.MinValue;
+        if (segmentTimes.Count > 0) (low, high) = (segmentTimes[0].Ticks, segmentTimes[^1].Ticks);
+        if (AlsoOnSegmentAxis is long also && also > 0)
+        {
+            low  = Math.Min(low, also);
+            high = Math.Max(high, also);
+        }
+        return Widened(low, high);
+    }
+
+    // Long times outgrow the default margins: the rooms' axis on the left, the segment's on the right.
+    // Measured over every room in absolute times, so hiding a room or switching the scale never moves
+    // the plot; a zoom only shortens the labels.
+    protected override (float Left, float Right) SideMargins(ChartStyle style)
+    {
+        (float left, float right) = base.SideMargins(style);
+        int maxTicks = ChartConstants.Axis.MaxTickMarks;
+        float gap = ChartConstants.Axis.PanelEdgeGap;
+        long low = long.MaxValue, high = long.MinValue;
+        for (int r = 0; r < Rooms; r++)
+        {
+            List<TimeTicks> times = SortedRoomTimes(r);
+            if (times.Count == 0) continue;
+            low  = Math.Min(low, times[0].Ticks);
+            high = Math.Max(high, times[^1].Ticks);
+        }
+        if (low <= high)
+        {
+            (long min, long max) = Widened(low, high);
+            left = Math.Max(left, Paint.YLabelWidth(Sketch, Durations.Times.Ticks(min, max, maxTicks), style) + style.LabelGap + gap);
+        }
+        (long segMin, long segMax) = SegmentRange();
+        right = Math.Max(right, Paint.YRightWidth(Sketch, Durations.Times.Ticks(segMin, segMax, maxTicks), style) + gap);
+        return (left, right);
+    }
+
     protected sealed override void Build(ChartStyle style)
     {
         ChartPalette palette = ChartPalette.Current;
@@ -153,15 +192,7 @@ internal abstract class RoomColumnsChart : SketchChart
         }
 
         // The segment, on the right axis, with grid lines over its own column only.
-        List<TimeTicks> segmentTimes = SortedSegmentTimes;
-        long segLow = long.MaxValue, segHigh = long.MinValue;
-        if (segmentTimes.Count > 0) (segLow, segHigh) = (segmentTimes[0].Ticks, segmentTimes[^1].Ticks);
-        if (AlsoOnSegmentAxis is long also && also > 0)
-        {
-            segLow  = Math.Min(segLow, also);
-            segHigh = Math.Max(segHigh, also);
-        }
-        (long segMin, long segMax) = Widened(segLow, segHigh);
+        (long segMin, long segMax) = SegmentRange();
         (segMin, segMax) = _segmentZoom.Range(Durations.Times, segMin, segMax);
         SegmentY = new Scale<long>(Durations.Times, segMin, segMax, Plot.Bottom, Plot.Y);
         IReadOnlyList<PlacedTick<long>> segmentTicks = SegmentY.Ticks(maxTicks);

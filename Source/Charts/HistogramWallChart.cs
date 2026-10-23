@@ -4,6 +4,7 @@ using System.Linq;
 using Celeste.Mod.CelesteCharts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Microsoft.Xna.Framework;
@@ -39,6 +40,10 @@ internal sealed class HistogramWallChart : SketchChart
     private int _openClicks;
     private readonly ButtonBar _backBar = new(captureId: CaptureIds.WallBack);
     private readonly BarButton _back;
+    // Absolute | Relative | Independent, under the wall.
+    private readonly ButtonBar _foot = new(captureId: CaptureIds.WallFoot);
+    private readonly BarSwitch _scale;
+    private WallAxis _axis;
 
     private Sketch _content, _over;
     private GridPlan _plan;
@@ -56,6 +61,10 @@ internal sealed class HistogramWallChart : SketchChart
         _segmentTitle = segmentTitle;
         _full   = new HistogramChart[Tiles];
         _back   = _backBar.Action(Dialog.Clean(DialogIds.ChartWallBack));
+        _foot.Caption(Dialog.Clean(DialogIds.ChartScale));
+        _foot.Space(4f);
+        _scale = _foot.Switch([Dialog.Clean(DialogIds.ChartAbsolute), Dialog.Clean(DialogIds.ChartRelative), Dialog.Clean(DialogIds.ChartWallIndependent)]);
+        _scale.Choice = (int)ChartOptions.WallScale;
     }
 
     // An open histogram's own help while one is open.
@@ -75,9 +84,14 @@ internal sealed class HistogramWallChart : SketchChart
         _over    ??= new Sketch(Sketch.Metrics);
         _content.Clear();
         _backBar.PlaceIn(Sketch.Metrics, style, Panel, WidgetAnchor.BottomLeft, 6f, 6f);
+        _foot.Place(Sketch.Metrics, style, Panel.X + Panel.Width / 2f, Panel.Bottom - 6f, 0.5f, 1f, Panel);
+        // The rooms only: the segment is a sum of rooms, and on a shared axis its spread would set
+        // the scale for all of them.
+        _axis = WallAxis.Of(ChartOptions.WallScale, _sorted[1..], Durations.CelesteFrameTicks);
 
-        // Under the title; the scrollbar takes the window's right edge.
-        _window = new Area(Panel.X + 20f, Panel.Y + 68f, Panel.Width - 40f, Panel.Height - 88f);
+        // Under the title and above the scale switch; the scrollbar takes the window's right edge.
+        float above = Panel.Bottom - _foot.Bounds.Y + 6f;
+        _window = new Area(Panel.X + 20f, Panel.Y + 68f, Panel.Width - 40f, Panel.Height - 68f - Math.Max(20f, above));
         float width = _window.Width - _view.BarWidth - 8f;
         int rows = (Tiles + PerRow - 1) / PerRow;
         float tileWidth  = MathF.Floor((width - (PerRow - 1) * Gutter) / PerRow);
@@ -116,6 +130,12 @@ internal sealed class HistogramWallChart : SketchChart
         _content.Fill(new Area(plot.X, plot.Bottom, plot.Width, 1f), style.Axis);
         if (sorted.Length == 0 || plot.IsEmpty) return;
 
+        if (!segment && _axis != null)
+        {
+            DrawSharedTile(tile - 1, sorted, plot, small, GameCanvas.ToRgba(palette.RoomFill));
+            return;
+        }
+
         (Bins<long> bins, BinCounts counts) = HistogramChart.BinsOf(sorted);
         double[] values = [.. counts.Counts.Select(c => (double)c)];
         Paint.SparkBars(_content, plot, Numbers.Integers, values, 0.0, Math.Max(1, counts.Tallest), GameCanvas.ToRgba(segment ? palette.SegmentFill : palette.RoomFill));
@@ -128,6 +148,41 @@ internal sealed class HistogramWallChart : SketchChart
         _content.Text(new TimeTicks(bins.All[0].Lower).ToString(), plot.X, plot.Bottom + 3f, small);
         _content.Text(new TimeTicks(bins.All[^1].Upper).ToString(), plot.Right, plot.Bottom + 3f, small, alignX: 1f);
     }
+
+    // A room on the axis every room shares: the median at the same place on every tile.
+    private void DrawSharedTile(int room, TimeTicks[] sorted, Area plot, TextStyle small, Rgba fill)
+    {
+        if (!_axis.HasRoom(room)) return;
+        var (bins, below, above) = _axis.Bins(room, sorted);
+        int tallest = Math.Max(1, bins.Max(b => b.Count));
+        float X(double v) => plot.X + (float)((v - _axis.Min) / (_axis.Max - _axis.Min)) * plot.Width;
+
+        foreach ((double from, double to, int count) in bins)
+        {
+            float left = X(from), right = X(to);
+            // A gap on each side, so two bins never read as one.
+            float inset = Math.Max(1f, (right - left) * 0.15f);
+            float width = Math.Max(1f, MathF.Round(right - left - 2f * inset));
+            float height = MathF.Round(plot.Height * count / tallest);
+            _content.Fill(new Area(MathF.Round(left + inset), plot.Bottom - height, width, height), fill);
+        }
+
+        float median = MathF.Round(X(0));
+        _content.Fill(new Area(Math.Min(median, plot.Right - 1f), plot.Y, 1f, plot.Height), Rgba.White.Times(0.8f));
+
+        // Runs past an end of the axis are counted in its end bar.
+        if (below > 0) _content.Text($"< {below}", plot.X, plot.Y, small);
+        if (above > 0) _content.Text($"{above} >", plot.Right, plot.Y, small, alignX: 1f);
+
+        _content.Text(AxisLabel(_axis.Min), plot.X, plot.Bottom + 3f, small);
+        _content.Text(AxisLabel(_axis.Max), plot.Right, plot.Bottom + 3f, small, alignX: 1f);
+    }
+
+    private string AxisLabel(double value) => _axis.Scale == WallScale.Relative
+        ? value.ToString("+0.#;-0.#;0") + "%"
+        : Durations.Deltas.Format((long)Math.Round(value));
+
+    protected override void DrawOwnControls() => GameCanvas.Draw(_foot.Sketch);
 
     private int TileAt(float x, float y)
     {
@@ -161,6 +216,14 @@ internal sealed class HistogramWallChart : SketchChart
         _focus.Update(pointer.Input.Seconds);
         _hoveredTile = -1;
         if (_focus.IsActive) return true;
+
+        _foot.Update(pointer);
+        if (_scale.Changed)
+        {
+            ChartOptions.WallScale = (WallScale)_scale.Choice;
+            Invalidate();
+        }
+        if (_foot.Contains(pointer.X, pointer.Y)) return true;
 
         _view.Update(pointer);
         if (!_view.DraggingContent && !_view.ThumbHot) _hoveredTile = TileAt(pointer.X, pointer.Y);
