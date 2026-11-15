@@ -127,12 +127,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             var roomValues = new List<string>(roomCount);
             TimeTicks sumTicks = TimeTicks.Zero;
 
+            RoomStats stats = MetricHelper.RoomStatsOf(session, context);
             for (int r = 0; r < roomCount; r++)
             {
-                var sorted = MetricHelper.SortedRoomValues(session, context, r);
-                if (sorted.Count == 0) { roomValues.Add(""); continue; }
-                TimeTicks bestRoom = MetricHelper.RoomMin(session, context, r);
-                sumTicks += bestRoom;
+                if (!stats.HasTime[r]) { roomValues.Add(""); continue; }
+                sumTicks += new TimeTicks(stats.Bests[r]);
                 roomValues.Add(sumTicks.ToString());
             }
 

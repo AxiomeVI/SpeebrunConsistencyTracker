@@ -1,6 +1,8 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using System.Linq;
 using Xunit;
 
 namespace SpeebrunConsistencyTracker.UnitTests;
@@ -33,19 +35,50 @@ public class TrajectoryModelTests
         Assert.Equal(new long[] { 10, 10 }, model.Attempts[1].CumulativeDeviations);
     }
 
-    // Deleting room 1 of the only run that reached room 2 breaks its contiguous prefix, so room 2
-    // has no average any more. GetRoomTimes still returned that run's room-2 cell, so the SoB line
-    // used to take it as a best against an average of 0 and jump a whole room time at that column.
+    // A room's average and best come from every completed cell of that room, whatever happened
+    // earlier in the run: deleting room 1 of the first run leaves its room-2 time in room 2.
     [Fact]
-    public void The_sob_line_stops_where_the_room_averages_do()
+    public void A_cell_after_a_deleted_one_still_counts_in_its_room()
     {
-        PracticeSession session = TrajectorySessions.Of(3, [10, 10, 10], [20, 20]);
+        PracticeSession session = TrajectorySessions.Of(3, [10, 10, 10], [20, 20, 20]);
         session.DeleteCell(attemptIndex: 0, visibleRoomIndex: 1);
 
         TrajectoryModel model = TrajectoryModel.Build(session, 3);
 
-        Assert.Equal(new long[] { 15, 20, 0 }, model.RoomReference);
-        Assert.Equal(2, model.SobLine.RoomsCompleted);
+        Assert.Equal(new long[] { 15, 20, 15 }, model.RoomReference);
+        Assert.Equal(new long[] { 10, 20, 10 }, model.SobLine.RoomTimes);
+        Assert.Equal(3, model.SobLine.RoomsCompleted);
+    }
+
+    // The sum of bests on the chart is the one the overlay and the CSV print.
+    [Fact]
+    public void The_sob_line_ends_on_the_overlays_sum_of_bests()
+    {
+        // Whole seconds: the overlay prints milliseconds, so ticks this small would all read 0.000.
+        const long s = 10_000_000;
+        PracticeSession session = TrajectorySessions.Of(3, [10 * s, 10 * s, 10 * s], [20 * s, 20 * s, 20 * s], [30 * s, 5 * s]);
+        session.DeleteCell(attemptIndex: 0, visibleRoomIndex: 1);
+
+        TrajectoryModel model = TrajectoryModel.Build(session, 3);
+        MetricResult overlay = Celeste.Mod.SpeebrunConsistencyTracker.Metrics.Metrics.SumOfBest(
+            session, new MetricContext(TimeTicks.Zero, 50), isExport: false);
+
+        Assert.Equal(new TimeTicks(model.SobLine.RoomTimes.Sum()).ToString(), overlay.SegmentValue);
+    }
+
+    // A room nobody completed still ends the SoB line, even when a later room has times: past it
+    // the line would have no room to draw.
+    [Fact]
+    public void The_sob_line_stops_at_a_room_no_run_completed_even_when_a_later_one_has_times()
+    {
+        PracticeSession session = TrajectorySessions.Of(3, [10, 10, 10], [20, 20, 20]);
+        session.DeleteCell(attemptIndex: 0, visibleRoomIndex: 1);
+        session.DeleteCell(attemptIndex: 1, visibleRoomIndex: 1);
+
+        TrajectoryModel model = TrajectoryModel.Build(session, 3);
+
+        Assert.Equal(new long[] { 15, 0, 15 }, model.RoomReference);
+        Assert.Equal(1, model.SobLine.RoomsCompleted);
     }
 
     [Fact]

@@ -33,7 +33,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             }
             else
             {
-                RoomStats stats = TrajectoryBaselines.Stats(session, contiguous, totalRooms, excluded: current);
+                RoomStats stats = RoomStats.Of(session, totalRooms, excluded: current);
                 reference = baseline == TrajectoryBaseline.SumOfBest ? stats.Bests : stats.Averages;
                 measured  = 0;
                 while (measured < totalRooms && stats.HasTime[measured]) measured++;

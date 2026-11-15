@@ -112,6 +112,20 @@ public class LiveTrajectoryTests
         Assert.Equal(new long[] { 2 }, line.CumulativeDeviations);
     }
 
+    // The reference counts every completed cell of an earlier run: the 10 in room 2 of the run
+    // whose room 1 was deleted still makes room 2's average 15.
+    [Fact]
+    public void An_earlier_runs_cell_after_a_deleted_one_still_counts_in_the_baseline()
+    {
+        PracticeSession session = TrajectorySessions.Of(3, [10, 10, 10], [20, 20, 20]);
+        session.DeleteCell(attemptIndex: 0, visibleRoomIndex: 1);
+        Playing(session, 12, 12, 12);
+
+        LiveLine line = LiveTrajectory.Build(session, 3, TrajectoryBaseline.Average);
+
+        Assert.Equal(new long[] { -3, -11, -14 }, line.CumulativeDeviations);
+    }
+
     [Fact]
     public void A_session_with_no_rooms_gives_an_empty_line()
     {

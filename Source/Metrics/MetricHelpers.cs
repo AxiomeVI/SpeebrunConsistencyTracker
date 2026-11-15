@@ -499,6 +499,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static double SegmentResetRate(PracticeSession session, MetricContext context) =>
             context.GetOrCompute("resetRate_segment", () => (double)session.TotalDnfs / session.TotalAttempts);
 
+        // The best and the average of every room in one pass: what the sum of bests reads, and the
+        // Run Trajectory's baselines.
+        public static RoomStats RoomStatsOf(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("room_stats", () => RoomStats.Of(session, session.RoomCount));
+
         public static List<TimeTicks> SortedRoomValues(PracticeSession session, MetricContext context, int r) =>
             context.GetOrCompute($"room_{r}_values_sorted", () => session.GetRoomTimes(r).OrderBy(t => t).ToList());
 

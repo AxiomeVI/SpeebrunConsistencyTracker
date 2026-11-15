@@ -58,7 +58,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
                 return new TrajectoryModel(totalRooms, [], new AttemptLine([], [], 0, 0), [], [], TrajectoryBaseline.Average);
 
             int[] contiguous = TrajectoryBaselines.Contiguous(session);
-            RoomStats stats = TrajectoryBaselines.Stats(session, contiguous, totalRooms);
+            RoomStats stats = RoomStats.Of(session, totalRooms);
             long[] roomBests   = stats.Bests;
             bool[] roomHasTime = stats.HasTime;
 
