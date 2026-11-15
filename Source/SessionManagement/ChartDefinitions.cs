@@ -84,7 +84,7 @@ public static partial class GraphManager
         if (!_caches.TryGetValue(chart.Type, out ChartCache<BaseChartOverlay> cache))
         {
             // A room finished under an open chart rebuilds it: the player's view of it stays.
-            cache = new ChartCache<BaseChartOverlay>(chart.Build, static (previous, fresh) => fresh.TakeViewFrom(previous));
+            cache = new ChartCache<BaseChartOverlay>(chart.Build, static (previous, fresh, renumbered) => fresh.Replace(previous, renumbered));
             _caches[chart.Type] = cache;
         }
 

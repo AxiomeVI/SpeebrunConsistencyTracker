@@ -98,8 +98,21 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         public virtual void ClearHiddenColumns() => _hiddenRooms.Clear();
 
-        // This chart replaces `previous`, the same chart on older data: it takes what the player
-        // did to that one (hidden rooms, scroll, zoom). An override calls base first.
+        // This chart replaces `previous`, the same chart on older data. renumbered: the visible
+        // rooms start from another raw room (SpeedrunTool's room timer type moved StartRoomIndex),
+        // so a hidden room or a pin kept by room index would name the room beside the one the
+        // player chose, and a Delete would remove that one.
+        // The scroll and the zoom name no room and are kept.
+        internal void Replace(BaseChartOverlay previous, bool renumbered)
+        {
+            TakeViewFrom(previous);
+            if (!renumbered) return;
+            ClearHiddenColumns();
+            // Taken by GraphInteractivity's next Update before it locates the pins on this chart.
+            DropPins();
+        }
+
+        // What the player did to `previous` (hidden rooms, scroll, zoom). An override calls base first.
         internal virtual void TakeViewFrom(BaseChartOverlay previous)
         {
             _hiddenRooms.UnionWith(previous._hiddenRooms);
