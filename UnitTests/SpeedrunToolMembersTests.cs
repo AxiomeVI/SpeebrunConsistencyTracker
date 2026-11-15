@@ -43,6 +43,8 @@ public class SpeedrunToolMembersTests
                 $"type {SpeedrunToolMembers.ManagerType}",
                 $"type {SpeedrunToolMembers.EndPointType}",
                 $"type {SpeedrunToolMembers.PopupType}",
+                $"type {SpeedrunToolMembers.TooltipType}",
+                $"type {SpeedrunToolMembers.DialogBoxType}",
             ],
             missing);
     }

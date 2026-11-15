@@ -27,6 +27,11 @@ including the split where the timer stopped: the touch of the end point, or the 
 end point's room. Its length is taken from the most recent run that reached the end point. A run
 that reached it is never a reset, and rooms run past it are kept but are outside the segment.
 Until one run reaches the end point, the segment is every room reached so far.
+An end point at the very entry of a room still gives that room a column: the screen transition into
+it, up to the touch. Under `NextRoom`, the room a run starts in is never part of the segment,
+because SpeedrunTool's NextRoom timer starts only when you leave it. So from a save state in one
+room, an end point at the entry of the next room gives a one-room segment. Under either timer, the
+segment time equals SpeedrunTool's own end-point time.
 
 A level end also stops the timer, in the room you are in. The segment then ends there, or at Number
 of Rooms if that comes first, and the run is not a reset.

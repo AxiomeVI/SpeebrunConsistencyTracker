@@ -54,6 +54,12 @@ public interface ISpeedrunTool
     /// <summary>The save slot SpeedrunTool is on, or null when it does not say.</summary>
     string SlotName { get; }
 
+    /// <summary>
+    ///     One of SpeedrunTool's popups is in the level: its tooltip or its dialog box, whichever
+    ///     its Popup Message Style setting picks. A save adds one, "Save to [slot]".
+    /// </summary>
+    bool PopupShowing { get; }
+
     /// <summary>SpeedrunTool's own room-times export, to its configured destination.</summary>
     void ExportRoomTimes();
 

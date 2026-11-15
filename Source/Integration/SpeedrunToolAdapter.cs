@@ -85,7 +85,8 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
     private static void Compile()
     {
         foreach (string name in new[] { nameof(ReadTimerType), nameof(ReadNumberOfRooms), nameof(ReadEndPointExists),
-                     nameof(ReadReachedRoomIdEndPoint), nameof(ExportRoomTimesNow), nameof(PopupNow) })
+                     nameof(ReadReachedRoomIdEndPoint), nameof(ExportRoomTimesNow), nameof(PopupNow),
+                     nameof(ReadPopupShowing) })
             RuntimeHelpers.PrepareMethod(
                 typeof(SpeedrunToolAdapter).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static).MethodHandle);
     }
@@ -169,6 +170,8 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
     public string SlotName =>
         (SaveLoadControlIntegration.GetSlotName ?? LegacySlotNameIntegration.GetSlotName)?.Invoke();
 
+    public bool PopupShowing => ReadPopupShowing();
+
     public void ExportRoomTimes() => ExportRoomTimesNow();
     public void Popup(string message) => PopupNow(message);
 
@@ -187,6 +190,12 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ExportRoomTimesNow() => RoomTimerManager.CmdExportRoomTimes();
+
+    // The entity list, not the tracker: SpeedrunTool's own Tooltip.Show falls back to it too.
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool ReadPopupShowing() =>
+        Engine.Scene is Level level
+        && (level.Entities.FindFirst<Tooltip>() != null || level.Entities.FindFirst<NonFrozenMiniTextbox>() != null);
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void PopupNow(string message) => PopupMessageUtils.Show(message, null);
