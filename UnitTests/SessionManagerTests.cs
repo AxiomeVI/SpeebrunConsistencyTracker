@@ -344,4 +344,84 @@ public sealed class SessionManagerTests : IDisposable
         SessionManager.ClearAll();
         Assert.False(SessionManager.AnyRuns);
     }
+
+    // SpeedrunTool clears a slot just before it saves over it (ClearBeforeSave), so this, and not
+    // SaveSlot's own replacement, is how a re-save reaches the mod in game.
+    [Fact]
+    public void A_re_save_as_SpeedrunTool_makes_it_stashes_the_session_and_restores_it()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession before = SessionManager.CurrentSession;
+        int attemptsBefore = before.AttemptCount;
+
+        SessionManager.ClearSlot(Slot);
+        bool replaced = SessionManager.SaveSlot(Slot);
+
+        Assert.True(replaced);
+        Assert.True(SessionManager.HasStash);
+        Assert.NotSame(before, SessionManager.CurrentSession);
+
+        SessionManager.RestoreStash();
+
+        Assert.Same(before, SessionManager.CurrentSession);
+        Assert.Equal(attemptsBefore, SessionManager.CurrentSession.AttemptCount);
+        Assert.Equal(3, SessionManager.RoomCount);
+    }
+
+    [Fact]
+    public void A_re_save_over_a_slot_without_runs_is_not_a_replacement()
+    {
+        SessionManager.SaveSlot(Slot);
+
+        SessionManager.ClearSlot(Slot);
+
+        Assert.False(SessionManager.SaveSlot(Slot));
+        Assert.False(SessionManager.HasStash);
+    }
+
+    // A save that follows a load, not a clear, is no replacement of the earlier clear's session.
+    [Fact]
+    public void A_load_ends_the_link_between_a_clear_and_the_next_save()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        SessionManager.ClearSlot(Slot);
+
+        SessionManager.LoadSlot(Slot);
+
+        Assert.False(SessionManager.SaveSlot(Slot));
+    }
+
+    [Fact]
+    public void Restoring_a_cleared_slot_that_is_not_current_leaves_the_current_one()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession first = SessionManager.CurrentSession;
+        SessionManager.SaveSlot(OtherSlot);
+        PracticeSession second = SessionManager.CurrentSession;
+
+        SessionManager.ClearSlot(Slot);
+        SessionManager.RestoreStash();
+
+        Assert.Same(second, SessionManager.CurrentSession);
+        SessionManager.LoadSlot(Slot);
+        Assert.Same(first, SessionManager.CurrentSession);
+    }
+
+    // The restored session replaces a newer one in the same slot, and that one is current.
+    [Fact]
+    public void Restoring_over_the_current_session_makes_the_restored_one_current()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession first = SessionManager.CurrentSession;
+        SessionManager.ClearSlot(Slot);
+        SessionManager.LoadSlot(Slot);
+
+        SessionManager.RestoreStash();
+
+        Assert.Same(first, SessionManager.CurrentSession);
+    }
 }

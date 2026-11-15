@@ -59,6 +59,10 @@ public static class SessionManager
     // Not persisted: a game restart loses it.
     private static readonly Dictionary<string, PracticeSession> _stash = new();
     private static string _stashedCurrentSlot;
+    // A slot clear stashed a session, and no save has followed yet: the save that does is the one
+    // that replaces it. SpeedrunTool clears a slot before it saves over it, so this is how a
+    // replacing save really arrives; see ClearSlot.
+    private static bool _slotClearedWithRuns;
 
     public static bool HasStash => _stash.Count > 0;
 
@@ -69,6 +73,7 @@ public static class SessionManager
     {
         _stash.Clear();
         _stashedCurrentSlot = null;
+        _slotClearedWithRuns = false;
     }
 
     // Puts the stash back, over any slot of the same name, and makes the session that was current
@@ -77,20 +82,30 @@ public static class SessionManager
     public static bool RestoreStash()
     {
         if (_stash.Count == 0) return false;
+        PracticeSession current = null;
         foreach (KeyValuePair<string, PracticeSession> entry in _stash)
+        {
+            // A session this puts back over the current one must take its place as current, or
+            // the current one is left outside every slot.
+            if (_slots.TryGetValue(entry.Key, out PracticeSession replaced) && ReferenceEquals(replaced, CurrentSession))
+                current = entry.Value;
             _slots[entry.Key] = entry.Value;
-        if (_stashedCurrentSlot != null && _slots.TryGetValue(_stashedCurrentSlot, out PracticeSession current))
-            CurrentSession = current;
+        }
+        if (_stashedCurrentSlot != null && _slots.TryGetValue(_stashedCurrentSlot, out PracticeSession wasCurrent))
+            current = wasCurrent;
+        if (current != null) CurrentSession = current;
         DropStash();
         UpdateRoomCount();
         return true;
     }
 
     // SRT OnSaveState. Overwrites any prior data for the slot, which goes to the stash when it
-    // held a run. Returns whether it did.
+    // held a run. Returns whether this save replaced a session that did: here, or in the clear
+    // SpeedrunTool made just before it.
     public static bool SaveSlot(string slotName)
     {
-        bool stashed = false;
+        bool stashed = _slotClearedWithRuns;
+        _slotClearedWithRuns = false;
         if (_slots.TryGetValue(slotName, out PracticeSession replaced) && replaced.HasRuns)
         {
             DropStash();
@@ -116,6 +131,7 @@ public static class SessionManager
     // attempt this load starts: a second one would leave attempt 0 empty and number runs from #2.
     public static void LoadSlot(string slotName)
     {
+        _slotClearedWithRuns = false;
         if (_slots.TryGetValue(slotName, out PracticeSession session))
         {
             CurrentSession = session;
@@ -129,11 +145,20 @@ public static class SessionManager
         CurrentSession = session;
     }
 
-    // SRT OnClearState.
+    // SRT OnClearState. SpeedrunTool also clears a slot just before it saves over it, so this is
+    // where a session replaced by a save arrives; it is stashed here, and the SaveSlot that follows
+    // finds no slot to replace.
     public static void ClearSlot(string slotName)
     {
         if (_slots.TryGetValue(slotName, out PracticeSession clearedSession))
         {
+            if (clearedSession.HasRuns)
+            {
+                DropStash();
+                _stash[slotName] = clearedSession;
+                if (ReferenceEquals(CurrentSession, clearedSession)) _stashedCurrentSlot = slotName;
+                _slotClearedWithRuns = true;
+            }
             _slots.Remove(slotName);
             if (ReferenceEquals(_countedFor, clearedSession)) _countedFor = null;
             if (ReferenceEquals(CurrentSession, clearedSession))
