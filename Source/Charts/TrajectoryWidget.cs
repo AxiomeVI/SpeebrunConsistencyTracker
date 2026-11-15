@@ -16,7 +16,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Charts;
 // It is then moved by its middle and resized by its edges. Under a chart it is otherwise hidden.
 //
 // Nothing allocates per frame: the sketch is rebuilt when the session's version, the room count,
-// the baseline, the gap option, the size or the style changes.
+// the baseline, the gap option, the size, the style or the palette changes.
 internal static class TrajectoryWidget
 {
     // Clear of the chart's own buttons, which stand in its panel's top right corner: on them, the
@@ -39,6 +39,9 @@ internal static class TrajectoryWidget
     private static TrajectoryBaseline _builtBaseline;
     private static (float W, float H) _builtSize;
     private static ChartStyle _builtStyle;
+    // The Ahead and Behind colours are baked into the sketch. ChartPalette.Current is a new
+    // instance whenever a colour setting changes, so the instance is the key.
+    private static ChartPalette _builtPalette;
     private static bool _builtDelta;
     private static int _builtTimer;
     // Whether the widget held the mouse on the last update: it then asks for the cursor.
@@ -118,6 +121,7 @@ internal static class TrajectoryWidget
         LiveWidget widget = Widget();
         PracticeSession session = SessionManager.CurrentSession;
         ChartStyle style = SctChartStyle.Current;
+        ChartPalette palette = ChartPalette.Current;
         Area bounds = widget.Bounds;
         (float, float) size = (bounds.Width, bounds.Height);
         int rooms = SessionManager.RoomCount;
@@ -127,12 +131,13 @@ internal static class TrajectoryWidget
         int timer = (int)Integration.Srt.Tool.TimerType;
 
         if (_chart == null || !ReferenceEquals(session, _builtFor) || session.Version != _builtVersion || rooms != _builtRooms
-            || baseline != _builtBaseline || size != _builtSize || !ReferenceEquals(style, _builtStyle) || delta != _builtDelta || timer != _builtTimer)
+            || baseline != _builtBaseline || size != _builtSize || !ReferenceEquals(style, _builtStyle) || !ReferenceEquals(palette, _builtPalette) || delta != _builtDelta || timer != _builtTimer)
         {
             (_builtFor, _builtVersion, _builtRooms, _builtBaseline, _builtSize, _builtStyle, _builtDelta, _builtTimer) = (session, session.Version, rooms, baseline, size, style, delta, timer);
+            _builtPalette = palette;
             _chart ??= new Sketch(GameCanvas.FontMetrics());
             _chart.Clear();
-            Build(_chart, new Area(0f, 0f, bounds.Width, bounds.Height), LiveTrajectory.Build(session, rooms, baseline), delta, style);
+            Build(_chart, new Area(0f, 0f, bounds.Width, bounds.Height), LiveTrajectory.Build(session, rooms, baseline), delta, style, palette);
         }
         GameCanvas.Draw(_chart, bounds.X, bounds.Y, bounds, widget.Opacity);
 
@@ -148,7 +153,7 @@ internal static class TrajectoryWidget
     }
 
     // In the widget's own coordinates, from (0, 0). Ahead is a negative deviation, drawn up.
-    private static void Build(Sketch sketch, Area area, LiveLine line, bool showDelta, ChartStyle style)
+    private static void Build(Sketch sketch, Area area, LiveLine line, bool showDelta, ChartStyle style, ChartPalette palette)
     {
         sketch.Fill(area, style.Panel);
         Area plot = area.Inset(Pad);
@@ -185,7 +190,6 @@ internal static class TrajectoryWidget
             ys[r + 1] = y.At(deviations[r]);
         }
         (LinePoints ahead, LinePoints behind) = Polyline.SplitAtY(new LinePoints(xs, ys), zeroY);
-        ChartPalette palette = ChartPalette.Current;
         Rgba aheadColour = GameCanvas.ToRgba(palette.Ahead), behindColour = GameCanvas.ToRgba(palette.Behind);
         if (ahead.Count > 1)
         {
