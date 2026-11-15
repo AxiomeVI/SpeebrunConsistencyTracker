@@ -20,7 +20,7 @@ A dash (`-`) means the session holds too little to compute the value yet: no com
 - **Best:** your fastest time
 - **Best Split:** (export only) for each room, the fastest you have ever reached that point across all your attempts. Unlike Sum of Bests, these are real paces from actual runs, not a mix of different runs' best individual rooms: a run stops counting at its first deleted room time
 - **Worst:** your slowest time
-- **Session Best Rate:** how often you match your best time *this session* in a room or segment. Not an all-time gold: the reference resets with the session
+- **Gold Rate:** how often you match your best time in a room or segment. A gold here is a time equal to your best *this session*, not your all-time best: the reference resets with the session
 - **Standard Deviation:** how consistent your times are, low means you're getting similar results every run, high means your times vary a lot
 - **Relative Standard Deviation:** same as Standard Deviation but as a percentage, so you can fairly compare consistency across rooms of different lengths
 - **Percentile:** the time that beats n% of your runs (default: 90th, meaning 90% of your runs were faster than this)
