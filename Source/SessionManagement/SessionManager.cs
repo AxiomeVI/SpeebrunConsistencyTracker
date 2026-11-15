@@ -74,7 +74,8 @@ public static class SessionManager
         }
     }
 
-    // Level exit or full clear.
+    // A full clear: the module's Clear(), on unload, the clear hotkey and the menu. The mod hooks no
+    // level exit; SpeedrunTool's clear-state callback reaches ClearSlot instead.
     public static void ClearAll()
     {
         _slots.Clear();
