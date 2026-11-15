@@ -227,7 +227,7 @@ public class MenuSettingsTests
     [InlineData("gggggg")]
     [InlineData("+12345")]
     [InlineData("1234567")]
-    public void Hex_rejects_anything_else(string text)
+    public void Hex_rejects_anything_else(string? text)
     {
         Assert.False(ColorHelper.TryParseHex(text, out _));
     }
