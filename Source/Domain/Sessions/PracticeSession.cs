@@ -166,6 +166,19 @@ public sealed class PracticeSession
 
     public int AttemptCount => _matrix.RowCount;
 
+    // Any cell recorded in any attempt, the open one included. Reads the matrix and not the
+    // segment shape, so it holds for a session that is not the current one.
+    public bool HasRuns
+    {
+        get
+        {
+            for (int a = 0; a < _matrix.RowCount; a++)
+                foreach (RoomCell cell in _matrix.GetRow(a))
+                    if (cell.State != RoomCellState.NotReached) return true;
+            return false;
+        }
+    }
+
     // Keyed on the segment shape as well as Version: changing SRT NumberOfRooms or
     // RoomTimerType moves the shape without bumping Version.
     private uint _cachedVersion = uint.MaxValue;

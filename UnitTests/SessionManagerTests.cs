@@ -1,4 +1,5 @@
 using System;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Xunit;
@@ -18,11 +19,13 @@ public sealed class SessionManagerTests : IDisposable
     {
         Srt.Tool = _srt;
         SessionManager.ClearAll();
+        SessionManager.DropStash();
     }
 
     public void Dispose()
     {
         SessionManager.ClearAll();
+        SessionManager.DropStash();
         Srt.Tool = _previous;
     }
 
@@ -177,5 +180,168 @@ public sealed class SessionManagerTests : IDisposable
         SessionManager.LoadSlot(Slot);
 
         Assert.Equal(1, SessionManager.CurrentSession.AttemptCount);
+    }
+
+    // #17: the stash. A slot saved again, a clear of every slot, the hotkey and Enabled off all end
+    // in SessionManager, and what they discard must be one call away from coming back.
+
+    private const string OtherSlot = "SaveSlot@3";
+
+    [Fact]
+    public void Saving_over_a_slot_with_runs_stashes_the_replaced_session()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession before = SessionManager.CurrentSession;
+
+        bool stashed = SessionManager.SaveSlot(Slot);
+
+        Assert.True(stashed);
+        Assert.True(SessionManager.HasStash);
+        Assert.NotSame(before, SessionManager.CurrentSession);
+        Assert.Equal(1, SessionManager.CurrentSession.AttemptCount);
+    }
+
+    [Fact]
+    public void Saving_over_a_slot_without_runs_stashes_nothing()
+    {
+        SessionManager.SaveSlot(Slot);
+
+        bool stashed = SessionManager.SaveSlot(Slot);
+
+        Assert.False(stashed);
+        Assert.False(SessionManager.HasStash);
+    }
+
+    [Fact]
+    public void A_first_save_stashes_nothing()
+    {
+        Assert.False(SessionManager.SaveSlot(Slot));
+        Assert.False(SessionManager.HasStash);
+    }
+
+    [Fact]
+    public void Restoring_after_a_replaced_save_brings_the_old_session_back()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession before = SessionManager.CurrentSession;
+        int attemptsBefore = before.AttemptCount;
+        SessionManager.SaveSlot(Slot);
+
+        bool restored = SessionManager.RestoreStash();
+
+        Assert.True(restored);
+        Assert.Same(before, SessionManager.CurrentSession);
+        Assert.Equal(attemptsBefore, SessionManager.CurrentSession.AttemptCount);
+        Assert.Equal(3, SessionManager.RoomCount);
+        Assert.False(SessionManager.HasStash);
+    }
+
+    // The restored session sits in its slot: a load of that slot finds it and not a fresh one.
+    [Fact]
+    public void A_restored_session_is_found_by_a_load_of_its_slot()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession before = SessionManager.CurrentSession;
+        SessionManager.SaveSlot(Slot);
+        SessionManager.RestoreStash();
+
+        SessionManager.LoadSlot(Slot);
+
+        Assert.Same(before, SessionManager.CurrentSession);
+    }
+
+    [Fact]
+    public void Clearing_every_slot_stashes_them_all_and_restore_brings_them_back()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession first = SessionManager.CurrentSession;
+        SessionManager.SaveSlot(OtherSlot);
+        RunThreeRoomsThenReload(OtherSlot);
+        PracticeSession second = SessionManager.CurrentSession;
+
+        SessionManager.ClearAll();
+
+        Assert.Null(SessionManager.CurrentSession);
+        Assert.Equal(0, SessionManager.RoomCount);
+        Assert.True(SessionManager.HasStash);
+
+        Assert.True(SessionManager.RestoreStash());
+
+        Assert.Same(second, SessionManager.CurrentSession);
+        SessionManager.LoadSlot(Slot);
+        Assert.Same(first, SessionManager.CurrentSession);
+        Assert.Equal(3, SessionManager.RoomCount);
+    }
+
+    [Fact]
+    public void A_second_wipe_replaces_the_stash()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        SessionManager.ClearAll();
+        SessionManager.SaveSlot(OtherSlot);
+        SessionManager.CompleteRoom(100);
+        PracticeSession newer = SessionManager.CurrentSession;
+
+        SessionManager.ClearAll();
+        SessionManager.RestoreStash();
+
+        Assert.Same(newer, SessionManager.CurrentSession);
+        // The first wipe's session is gone: its slot holds a fresh one on the next load.
+        SessionManager.LoadSlot(Slot);
+        Assert.Equal(1, SessionManager.CurrentSession.AttemptCount);
+    }
+
+    // The clear hotkey pressed twice: the second press finds nothing to discard.
+    [Fact]
+    public void A_clear_with_no_runs_keeps_the_stash()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession before = SessionManager.CurrentSession;
+        SessionManager.ClearAll();
+        SessionManager.ClearAll();
+
+        SessionManager.RestoreStash();
+
+        Assert.Same(before, SessionManager.CurrentSession);
+    }
+
+    [Fact]
+    public void Restoring_with_no_stash_changes_nothing()
+    {
+        SessionManager.SaveSlot(Slot);
+        PracticeSession current = SessionManager.CurrentSession;
+
+        Assert.False(SessionManager.RestoreStash());
+        Assert.Same(current, SessionManager.CurrentSession);
+    }
+
+    [Fact]
+    public void Restoring_twice_restores_once()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        SessionManager.ClearAll();
+
+        Assert.True(SessionManager.RestoreStash());
+        Assert.False(SessionManager.RestoreStash());
+    }
+
+    [Fact]
+    public void AnyRuns_is_true_only_while_a_slot_holds_a_run()
+    {
+        SessionManager.SaveSlot(Slot);
+        Assert.False(SessionManager.AnyRuns);
+
+        SessionManager.CompleteRoom(100);
+        Assert.True(SessionManager.AnyRuns);
+
+        SessionManager.ClearAll();
+        Assert.False(SessionManager.AnyRuns);
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
@@ -53,15 +54,57 @@ public static class SessionManager
 
     private static readonly ISegmentShape _segmentShape = new ManagerSegmentShape();
 
-    // SRT OnSaveState. Overwrites any prior data for the slot.
-    public static void SaveSlot(string slotName)
+    // What the last destructive action discarded, one deep: a second one replaces it. An action that
+    // discards no run leaves it alone, so a repeated clear does not erase what the first one kept.
+    // Not persisted: a game restart loses it.
+    private static readonly Dictionary<string, PracticeSession> _stash = new();
+    private static string _stashedCurrentSlot;
+
+    public static bool HasStash => _stash.Count > 0;
+
+    // Any slot holds a recorded run: what makes a wipe worth confirming.
+    public static bool AnyRuns => _slots.Values.Any(session => session.HasRuns);
+
+    public static void DropStash()
     {
+        _stash.Clear();
+        _stashedCurrentSlot = null;
+    }
+
+    // Puts the stash back, over any slot of the same name, and makes the session that was current
+    // then current again. The sessions it replaces are not stashed: restoring twice is not an undo.
+    // False when there was nothing to restore.
+    public static bool RestoreStash()
+    {
+        if (_stash.Count == 0) return false;
+        foreach (KeyValuePair<string, PracticeSession> entry in _stash)
+            _slots[entry.Key] = entry.Value;
+        if (_stashedCurrentSlot != null && _slots.TryGetValue(_stashedCurrentSlot, out PracticeSession current))
+            CurrentSession = current;
+        DropStash();
+        UpdateRoomCount();
+        return true;
+    }
+
+    // SRT OnSaveState. Overwrites any prior data for the slot, which goes to the stash when it
+    // held a run. Returns whether it did.
+    public static bool SaveSlot(string slotName)
+    {
+        bool stashed = false;
+        if (_slots.TryGetValue(slotName, out PracticeSession replaced) && replaced.HasRuns)
+        {
+            DropStash();
+            _stash[slotName] = replaced;
+            _stashedCurrentSlot = slotName;
+            stashed = true;
+        }
         var session = new PracticeSession(
             _segmentShape,
             initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4));
         _slots[slotName] = session;
         CurrentSession = session;
         UpdateRoomCount();
+        return stashed;
     }
 
     // SRT OnBeforeLoadState. The timer still holds the abandoned attempt's time here: SpeedrunTool
@@ -102,9 +145,19 @@ public static class SessionManager
     }
 
     // A full clear: the module's Clear(), on unload, the clear hotkey and the menu. The mod hooks no
-    // level exit; SpeedrunTool's clear-state callback reaches ClearSlot instead.
+    // level exit; SpeedrunTool's clear-state callback reaches ClearSlot instead. Every slot goes to
+    // the stash when any of them held a run.
     public static void ClearAll()
     {
+        if (AnyRuns)
+        {
+            DropStash();
+            foreach (KeyValuePair<string, PracticeSession> entry in _slots)
+            {
+                _stash[entry.Key] = entry.Value;
+                if (ReferenceEquals(entry.Value, CurrentSession)) _stashedCurrentSlot = entry.Key;
+            }
+        }
         _slots.Clear();
         CurrentSession = null;
         _countedFor = null;
