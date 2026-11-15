@@ -32,6 +32,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         // The rooms the player hid, by room index and not by column: a chart rebuilt with a column
         // fewer (the scatter's, when a room loses its last time) must hide the same room.
         protected readonly HashSet<int> _hiddenRooms = new();
+        internal IReadOnlyCollection<int> HiddenRooms => _hiddenRooms;
+        // What the player pinned here. GraphInteractivity reads and writes them on the chart showing.
+        public ChartPins Pins { get; } = new();
 
         protected BaseChartOverlay(string title)
         {
@@ -108,14 +111,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
             TakeViewFrom(previous);
             if (!renumbered) return;
             ClearHiddenColumns();
-            // Taken by GraphInteractivity's next Update before it locates the pins on this chart.
+            Pins.Clear();
+            // The chart's own pins (the trajectory's): taken by GraphInteractivity's next Update.
             DropPins();
         }
 
-        // What the player did to `previous` (hidden rooms, scroll, zoom). An override calls base first.
+        // What the player did to `previous` (hidden rooms, pins, scroll, zoom). An override calls base first.
         internal virtual void TakeViewFrom(BaseChartOverlay previous)
         {
             _hiddenRooms.UnionWith(previous._hiddenRooms);
+            Pins.TakeFrom(previous.Pins);
         }
 
         // A chart whose columns are not its rooms one for one translates the column first.

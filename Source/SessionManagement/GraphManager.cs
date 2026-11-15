@@ -86,7 +86,7 @@ public static partial class GraphManager
 
         if (interaction.DeleteRequested)
         {
-            SessionManager.DeletePinned([.. GraphInteractivity.PinnedItems.Select(p => p.Key)]);
+            SessionManager.DeletePinned([.. _currentOverlay.Pins.Items.Select(p => p.Key)]);
             GraphInteractivity.ClearPins(_currentOverlay);
         }
 
@@ -135,7 +135,7 @@ public static partial class GraphManager
 
     public static void NextGraph(int steps = 1)
     {
-        GraphInteractivity.Clear(_currentOverlay);
+        GraphInteractivity.Leave(_currentOverlay);
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -150,7 +150,7 @@ public static partial class GraphManager
 
     public static void PreviousGraph(int steps = 1)
     {
-        GraphInteractivity.Clear(_currentOverlay);
+        GraphInteractivity.Leave(_currentOverlay);
         _currentOverlay = null;
 
         if (_enabledSlots.Count == 0)
@@ -207,9 +207,10 @@ public static partial class GraphManager
         SpeebrunConsistencyTrackerModule.PopupMessage(Dialog.Clean(DialogIds.PopupNoGraphId));
     }
 
+    // A pause or the toggle. The chart keeps its pins and hidden rooms while the session holds.
     public static void HideGraph()
     {
-        GraphInteractivity.Clear(_currentOverlay);
+        GraphInteractivity.Leave(_currentOverlay);
         _currentOverlay = null;
     }
 }
