@@ -25,8 +25,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
         public float Scale { get; set; } = 1f;
         private float Alpha { get; set; } = alpha;
-        public PixelFont Font { get; set; }
-        public float FontFaceSize { get; set; }
         public Color TextColor { get; set; } = Color.White;
         public float StrokeSize { get; set; } = ChartConstants.Stroke.OutlineSize;
         public Color StrokeColor { get; set; } = Color.Black;
@@ -125,8 +123,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             
             if (Orientation == StatTextOrientation.Horizontal)
             {
-                Font.DrawOutline(
-                    FontFaceSize,
+                // Through ActiveFont, never a captured PixelFont: switching language disposes the
+                // previous language's font, and drawing with it throws.
+                ActiveFont.DrawOutline(
                     _joined,
                     new Vector2(PosX, PosY),
                     Justify,
@@ -157,8 +156,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
                 {
                     float currentY = startY + i * lineHeight;
                     
-                    Font.DrawOutline(
-                        FontFaceSize,
+                    ActiveFont.DrawOutline(
                         Text[i],
                         new Vector2(PosX, currentY),
                         new Vector2(Justify.X, 0), // Only horizontal justify, vertical handled by offset

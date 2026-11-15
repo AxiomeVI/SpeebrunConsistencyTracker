@@ -10,16 +10,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         private static bool _textVisible = false;
 
         // The Text Overlay submenu is built on the title screen too, and its Change handlers land
-        // here, but StatText only exists once a level has loaded -- it needs Dialog.Language's
-        // font. Every setter returns early until then; Init() calls ApplyModSettings(), which
-        // replays whatever was changed in the meantime out of the settings themselves.
+        // here, but StatText only exists once a level has loaded. Every setter returns early until
+        // then; Init() calls ApplyModSettings(), which replays whatever was changed in the meantime
+        // out of the settings themselves.
         private static bool Ready => StatText != null;
 
         public static void Init() {
-            StatText ??= new TextComponent(StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f) {
-                Font = Dialog.Language.Font,
-                FontFaceSize = Dialog.Language.FontFaceSize
-            };
+            StatText ??= new TextComponent(StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f);
             ApplyModSettings();
         }
 
