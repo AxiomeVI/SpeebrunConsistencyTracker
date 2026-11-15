@@ -74,10 +74,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             {
                 // bool settings are export-only by convention.
                 bool b => b && mode == MetricOutput.Export,
-                MetricOutputChoice choice => (FromChoice(choice) & mode) != 0,
+                MetricOutputChoice choice => IsMetricEnabled(choice, mode),
                 _ => throw new InvalidOperationException($"Unsupported type {value.GetType()}"),
             };
         }
+
+        // Typed, so a caller with a choice in hand boxes nothing: the charts ask this every frame.
+        public static bool IsMetricEnabled(MetricOutputChoice choice, MetricOutput mode) => (FromChoice(choice) & mode) != 0;
 
         private static MetricOutput FromChoice(MetricOutputChoice choice) => choice switch
         {

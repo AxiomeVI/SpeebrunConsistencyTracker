@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Xunit;
 
@@ -306,4 +307,27 @@ public class MetricHelperTests
         Assert.Equal((90.0 - 2.0, 110.0 + 2.0), MetricHelper.RelativeRange([Ticks()]));
         Assert.Equal(MetricHelper.RelativeRange([Ticks(90, 100, 110)]), MetricHelper.RelativeRange([Ticks(), Ticks(90, 100, 110)]));
     }
+
+    // The charts ask whether the target is on the overlay several times a frame. Through the object
+    // overload the enum was boxed on every call.
+    [Fact]
+    public void Asking_whether_a_choice_is_enabled_allocates_nothing()
+    {
+        MetricHelper.IsMetricEnabled(MetricOutputChoice.Both, MetricOutput.Overlay);
+        long before = System.GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 100; i++) MetricHelper.IsMetricEnabled(MetricOutputChoice.Both, MetricOutput.Overlay);
+        Assert.Equal(0, System.GC.GetAllocatedBytesForCurrentThread() - before);
+    }
+
+    [Theory]
+    [InlineData(MetricOutputChoice.Off, MetricOutput.Overlay)]
+    [InlineData(MetricOutputChoice.Overlay, MetricOutput.Overlay)]
+    [InlineData(MetricOutputChoice.Export, MetricOutput.Overlay)]
+    [InlineData(MetricOutputChoice.Both, MetricOutput.Overlay)]
+    [InlineData(MetricOutputChoice.Off, MetricOutput.Export)]
+    [InlineData(MetricOutputChoice.Overlay, MetricOutput.Export)]
+    [InlineData(MetricOutputChoice.Export, MetricOutput.Export)]
+    [InlineData(MetricOutputChoice.Both, MetricOutput.Export)]
+    public void A_choice_reads_the_same_whether_passed_typed_or_as_an_object(MetricOutputChoice choice, MetricOutput mode)
+        => Assert.Equal(MetricHelper.IsMetricEnabled((object)choice, mode), MetricHelper.IsMetricEnabled(choice, mode));
 }
