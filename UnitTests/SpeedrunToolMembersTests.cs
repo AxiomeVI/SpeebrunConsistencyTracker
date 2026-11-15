@@ -41,6 +41,7 @@ public class SpeedrunToolMembersTests
                 $"type {SpeedrunToolMembers.SettingsType}",
                 $"type {SpeedrunToolMembers.TimerTypeEnum}",
                 $"type {SpeedrunToolMembers.ManagerType}",
+                $"type {SpeedrunToolMembers.EndPointType}",
                 $"type {SpeedrunToolMembers.PopupType}",
             ],
             missing);

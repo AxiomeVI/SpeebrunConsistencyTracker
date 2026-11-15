@@ -228,6 +228,16 @@ public static class SessionManager
         }
     }
 
+    // SpeedrunTool's UpdateTimerState, before SpeedrunTool's own: endPoint is its argument, and
+    // the room timer still holds the time of the room being left.
+    public static void TimerStateUpdating(bool endPoint)
+    {
+        if (CurrentSession == null || CurrentSession.CurrentAttemptIndex < 0) return;
+        long segmentTime = Srt.Tool.CurrentRoomTime;
+        if (segmentTime > 0)
+            CompleteRoom(segmentTime);
+    }
+
     // Drops whatever the given pin keys name. Segment pins first: room pins on the same attempt
     // then become no-ops.
     public static void DeletePinned(IReadOnlyList<string> pinKeys)

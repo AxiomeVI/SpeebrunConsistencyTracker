@@ -33,6 +33,18 @@ public interface ISpeedrunTool
     /// <summary>The selected room timer has completed.</summary>
     bool TimerCompleted { get; }
 
+    /// <summary>An end point is set: an end point entity in the level, or a room-id end point.</summary>
+    bool EndPointExists { get; }
+
+    /// <summary>The player is in the room-id end point's room.</summary>
+    bool ReachedRoomIdEndPoint { get; }
+
+    /// <summary>The room the room timer sees: the current level's room name, or null outside a level.</summary>
+    string RoomName { get; }
+
+    /// <summary>The current level has completed, which ends the room timer's run.</summary>
+    bool LevelCompleted { get; }
+
     /// <summary>The save slot SpeedrunTool is on, or null when it does not say.</summary>
     string SlotName { get; }
 

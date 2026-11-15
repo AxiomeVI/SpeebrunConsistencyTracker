@@ -12,6 +12,10 @@ public sealed class StubSpeedrunTool : ISpeedrunTool
     public int NumberOfRooms { get; set; } = 1;
     public long CurrentRoomTime { get; set; }
     public bool TimerCompleted { get; set; }
+    public bool EndPointExists { get; set; }
+    public bool ReachedRoomIdEndPoint { get; set; }
+    public string RoomName { get; set; }
+    public bool LevelCompleted { get; set; }
     public string SlotName { get; set; }
 
     public int RoomTimesExports { get; private set; }

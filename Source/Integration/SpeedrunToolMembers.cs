@@ -16,6 +16,7 @@ internal static class SpeedrunToolMembers
     internal const string TimerTypeEnum = "Celeste.Mod.SpeedrunTool.RoomTimer.RoomTimerType";
     internal const string ManagerType = "Celeste.Mod.SpeedrunTool.RoomTimer.RoomTimerManager";
     internal const string PopupType = "Celeste.Mod.SpeedrunTool.Message.PopupMessageUtils";
+    internal const string EndPointType = "Celeste.Mod.SpeedrunTool.RoomTimer.EndPoint";
 
     internal const string CurrentRoomTimerData = "CurrentRoomTimerData";
     internal const string Time = "Time";
@@ -52,6 +53,13 @@ internal static class SpeedrunToolMembers
                 RequireProperty(data.FieldType, Time, PublicInstance, typeof(long), missing);
             RequireMethod(manager, UpdateTimerState, [typeof(bool)], missing);
             RequireMethod(manager, "CmdExportRoomTimes", [], missing);
+        }
+
+        Type endPoint = RequireType(speedrunTool, EndPointType, missing);
+        if (endPoint != null)
+        {
+            RequireProperty(endPoint, "IsExist", PublicStatic, typeof(bool), missing);
+            RequireProperty(endPoint, "IsReachedRoomIdEndPoint", PublicStatic, typeof(bool), missing);
         }
 
         Type popup = RequireType(speedrunTool, PopupType, missing);

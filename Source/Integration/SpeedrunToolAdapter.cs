@@ -6,6 +6,7 @@ using System.Runtime.CompilerServices;
 using Celeste.Mod.SpeedrunTool;
 using Celeste.Mod.SpeedrunTool.Message;
 using Celeste.Mod.SpeedrunTool.RoomTimer;
+using Monocle;
 using MonoMod.ModInterop;
 using MonoMod.RuntimeDetour;
 
@@ -78,7 +79,8 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
     // the name check missed fails here rather than in Level.Update.
     private static void Compile()
     {
-        foreach (string name in new[] { nameof(ReadTimerType), nameof(ReadNumberOfRooms), nameof(ExportRoomTimesNow), nameof(PopupNow) })
+        foreach (string name in new[] { nameof(ReadTimerType), nameof(ReadNumberOfRooms), nameof(ReadEndPointExists),
+                     nameof(ReadReachedRoomIdEndPoint), nameof(ExportRoomTimesNow), nameof(PopupNow) })
             RuntimeHelpers.PrepareMethod(
                 typeof(SpeedrunToolAdapter).GetMethod(name, BindingFlags.NonPublic | BindingFlags.Static).MethodHandle);
     }
@@ -143,6 +145,11 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
     }
 
     public bool TimerCompleted => RoomTimerIntegration.RoomTimerIsCompleted();
+    public bool EndPointExists => ReadEndPointExists();
+    public bool ReachedRoomIdEndPoint => ReadReachedRoomIdEndPoint();
+    // The level SpeedrunTool's own reads take: Engine.Scene.
+    public string RoomName => (Engine.Scene as Level)?.Session?.Level;
+    public bool LevelCompleted => Engine.Scene is Level { Completed: true };
     public string SlotName =>
         (SaveLoadControlIntegration.GetSlotName ?? LegacySlotNameIntegration.GetSlotName)?.Invoke();
 
@@ -155,6 +162,12 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static int ReadNumberOfRooms() => SpeedrunToolSettings.Instance.NumberOfRooms;
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool ReadEndPointExists() => EndPoint.IsExist;
+
+    [MethodImpl(MethodImplOptions.NoInlining)]
+    private static bool ReadReachedRoomIdEndPoint() => EndPoint.IsReachedRoomIdEndPoint;
 
     [MethodImpl(MethodImplOptions.NoInlining)]
     private static void ExportRoomTimesNow() => RoomTimerManager.CmdExportRoomTimes();

@@ -293,11 +293,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     // Runs before SpeedrunTool's own UpdateTimerState, so the time read is the room being left.
     private static void OnUpdateTimerState(bool endPoint) {
-        if (Settings.Enabled && SessionManager.CurrentSession?.CurrentAttemptIndex >= 0) {
-            long segmentTime = Srt.Tool.CurrentRoomTime;
-            if (segmentTime > 0)
-                SessionManager.CompleteRoom(segmentTime);
-        }
+        if (Settings.Enabled)
+            SessionManager.TimerStateUpdating(endPoint);
     }
 
     public static void Clear()
