@@ -13,7 +13,7 @@ public enum RoomTimerMode
 ///     Everything the mod reads from SpeedrunTool, and the two things it asks it to do. The one
 ///     instance in play is <see cref="Srt.Tool"/>.
 /// </summary>
-// Nothing outside Source/Integration/ (and the twin's Source/Testing/) may name a SpeedrunTool
+// Nothing outside Source/Integration/ may name a SpeedrunTool
 // type: a member SpeedrunTool renames then throws when the calling method is JIT-compiled, which
 // is inside Level.Update for most readers.
 public interface ISpeedrunTool
