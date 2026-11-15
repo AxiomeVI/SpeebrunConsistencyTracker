@@ -300,4 +300,30 @@ public class MenuSettingsTests
         settings.TargetColorHex = "nope";
         Assert.Equal(Color.Red, ChartPalette.For(settings).Target);
     }
+
+    // ------------------------------------------------------------------ a retired setting
+
+    // TextOffsetX and TextOffsetY were removed. Everest loads module settings through a deserializer
+    // built with IgnoreUnmatchedProperties (Celeste.Mod/YamlHelper.cs), which this mirrors, so a
+    // file that still holds them must load and keep every other value.
+    [Fact]
+    public void A_settings_file_that_still_holds_the_removed_text_offsets_loads_the_rest()
+    {
+        Assert.Null(typeof(SpeebrunConsistencyTrackerModuleSettings).GetProperty("TextOffsetX"));
+        Assert.Null(typeof(SpeebrunConsistencyTrackerModuleSettings).GetProperty("TextOffsetY"));
+
+        var settings = new SpeebrunConsistencyTrackerModuleSettings();
+        const string yaml = "TextSize: 80\nTextOffsetX: 5\nTextOffsetY: 0\nTextAlpha: 40\nMedian: Export\n";
+        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+            .IgnoreUnmatchedProperties()
+            .WithObjectFactory(type => type == typeof(SpeebrunConsistencyTrackerModuleSettings)
+                ? settings : Activator.CreateInstance(type))
+            .Build();
+
+        deserializer.Deserialize<SpeebrunConsistencyTrackerModuleSettings>(yaml);
+
+        Assert.Equal(80, settings.TextSize);
+        Assert.Equal(40, settings.TextAlpha);
+        Assert.Equal(MetricOutputChoice.Export, settings.Median);
+    }
 }

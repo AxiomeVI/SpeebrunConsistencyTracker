@@ -48,8 +48,6 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     // Text Overlay menu
     public bool OverlayEnabled { get; set; } = true;
     public int TextSize { get; set; } = 65;
-    public int TextOffsetX { get; set; } = 5;
-    public int TextOffsetY { get; set; } = 0;
     public int TextAlpha { get; set; } = 90;
 
     public StatTextPosition TextPosition { get; set; } = StatTextPosition.TopLeft;

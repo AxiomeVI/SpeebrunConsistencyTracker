@@ -30,7 +30,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public Color StrokeColor { get; set; } = Color.Black;
 
         public int OffsetX { get; set; } = 5;
-        public int OffsetY { get; set; } = 5;
+        // 5 and 0 are the values the removed TextOffsetX/TextOffsetY settings defaulted to.
+        public int OffsetY { get; set; } = 0;
 
         public Vector2 Justify { get; set; } = new Vector2();
 

@@ -23,8 +23,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public static void ApplyModSettings() {
             var s = SpeebrunConsistencyTrackerModule.Settings;
             SetTextPosition(s.TextPosition);
-            SetTextOffsetX(s.TextOffsetX);
-            SetTextOffsetY(s.TextOffsetY);
             SetTextSize(s.TextSize);
             SetTextAlpha(s.TextAlpha);
             SetTextOrientation(s.TextOrientation);
@@ -58,18 +56,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public static void SetTextPosition(StatTextPosition pos) {
             if (!Ready) return;
             StatText.SetPosition(pos);
-        }
-
-        public static void SetTextOffsetX(int offset) {
-            if (!Ready) return;
-            StatText.OffsetX = offset;
-            StatText.SetPosition();
-        }
-
-        public static void SetTextOffsetY(int offset) {
-            if (!Ready) return;
-            StatText.OffsetY = offset;
-            StatText.SetPosition();
         }
 
         // size in percent as int
