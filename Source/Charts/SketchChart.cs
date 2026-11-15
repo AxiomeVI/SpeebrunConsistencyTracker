@@ -232,10 +232,11 @@ internal abstract class SketchChart : BaseChartOverlay
         Invalidate();
     }
 
-    protected bool[] HiddenFlags(int count)
+    // One flag per column, for a chart whose column i is room i.
+    protected virtual bool[] HiddenFlags(int count)
     {
         bool[] hidden = new bool[count];
-        foreach (int column in _hiddenColumns)
+        foreach (int column in _hiddenRooms)
             if (column >= 0 && column < count) hidden[column] = true;
         return hidden;
     }

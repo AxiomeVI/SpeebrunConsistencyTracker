@@ -29,7 +29,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
         // HUD space.
         internal Microsoft.Xna.Framework.Rectangle ChartBounds =>
             new((int)position.X, (int)position.Y, (int)width, (int)height);
-        protected readonly HashSet<int> _hiddenColumns = new();
+        // The rooms the player hid, by room index and not by column: a chart rebuilt with a column
+        // fewer (the scatter's, when a room loses its last time) must hide the same room.
+        protected readonly HashSet<int> _hiddenRooms = new();
 
         protected BaseChartOverlay(string title)
         {
@@ -94,19 +96,20 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities
 
         public virtual void ClearPins() { }
 
-        public virtual void ClearHiddenColumns() => _hiddenColumns.Clear();
+        public virtual void ClearHiddenColumns() => _hiddenRooms.Clear();
 
         // This chart replaces `previous`, the same chart on older data: it takes what the player
         // did to that one (hidden rooms, scroll, zoom). An override calls base first.
         internal virtual void TakeViewFrom(BaseChartOverlay previous)
         {
-            _hiddenColumns.UnionWith(previous._hiddenColumns);
+            _hiddenRooms.UnionWith(previous._hiddenRooms);
         }
 
+        // A chart whose columns are not its rooms one for one translates the column first.
         public virtual void ToggleColumn(int columnIndex)
         {
-            if (!_hiddenColumns.Remove(columnIndex))
-                _hiddenColumns.Add(columnIndex);
+            if (!_hiddenRooms.Remove(columnIndex))
+                _hiddenRooms.Add(columnIndex);
         }
 
         // The column whose strip, under the axis, the mouse is on: a click hides or shows it.

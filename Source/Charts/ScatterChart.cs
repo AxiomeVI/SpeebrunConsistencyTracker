@@ -20,7 +20,7 @@ internal sealed class ScatterChart : RoomColumnsChart
     private const float DotSize = ChartConstants.Scatter.DotRadius * 2f;
 
     // Rooms with no time have no column; these keep each column's own room index, which is what a
-    // label and a pin must name.
+    // label, a pin and a hidden column must name.
     private readonly List<int> _roomIndex;
     private readonly List<List<TimeTicks>> _times, _sorted;
     private readonly List<List<int>> _attempts;
@@ -47,7 +47,7 @@ internal sealed class ScatterChart : RoomColumnsChart
                         List<int> segmentIndices, Func<TimeTicks?> target, Action<TimeTicks> setTarget)
         : base(Dialog.Clean(DialogIds.ChartScatterTitle), relative: ChartOptions.ScatterRelative)
     {
-        _roomIndex = [.. Enumerable.Range(0, rooms.Count).Where(i => rooms[i].Count > 0)];
+        _roomIndex = RoomColumns.WithTimes(rooms);
         _times     = [.. _roomIndex.Select(i => rooms[i])];
         _sorted    = [.. _times.Select(t => (List<TimeTicks>)[.. t.OrderBy(v => v)])];
         _attempts  = [.. _roomIndex.Select(i => roomIndices[i])];
@@ -85,6 +85,14 @@ internal sealed class ScatterChart : RoomColumnsChart
     protected override List<TimeTicks> SortedSegmentTimes => _segmentSorted;
     protected override long? AlsoOnSegmentAxis => _target?.Ticks;
     protected override float ColumnFill => 1f;
+
+    // A column is not a room here: a hidden column is kept as the room it shows.
+    protected override bool[] HiddenFlags(int count) => RoomColumns.HiddenFlags(_hiddenRooms, _roomIndex, count);
+    public override void ToggleColumn(int columnIndex)
+    {
+        int room = RoomColumns.RoomOf(_roomIndex, columnIndex);
+        if (room >= 0) base.ToggleColumn(room);
+    }
 
     protected override void OnModeChosen(bool relative) => ChartOptions.ScatterRelative = relative;
 
