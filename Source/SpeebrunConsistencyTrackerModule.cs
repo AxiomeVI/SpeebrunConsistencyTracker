@@ -196,6 +196,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         level.Add(CelesteCharts.ChartLayer.Add(new CelesteCharts.ChartCursor()));
         SessionManager.LevelName = Utility.LevelNames.ForExportFolder(
             level.Session.Area.GetSID(), (int)level.Session.Area.Mode);
+        // Celeste's own textbox: SpeedrunTool's popup may be the very thing that is missing.
+        if (Settings.Enabled && !Srt.Tool.Available)
+            level.Add(new MiniTextbox(DialogIds.PopupSrtUnavailableId));
     }
 
     private static void UpdateTextOverlay(Level _) {

@@ -57,6 +57,7 @@ public static class DialogIds {
     public const string PopupExportToFileFailedId = "SCT_EXPORT_TO_FILE_FAILED";
     public const string PopupDataClearId = "SCT_DATA_CLEAR";
     public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
+    public const string PopupSrtUnavailableId = "SCT_SRT_UNAVAILABLE";
 
     // Text Overlay Menu
     public const string OverlayEnabledId = "SCT_OVERLAY_ENABLED";
