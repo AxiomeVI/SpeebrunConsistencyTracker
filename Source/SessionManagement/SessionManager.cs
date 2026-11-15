@@ -48,18 +48,21 @@ public static class SessionManager
     public static void BeforeLoad(long ticks) =>
         CurrentSession?.NoteTimeBeforeReload(new TimeTicks(ticks));
 
-    // SRT OnLoadState. An unsaved slot gets a fresh session.
+    // SRT OnLoadState. An unsaved slot gets a fresh session, whose constructor already opened the
+    // attempt this load starts: a second one would leave attempt 0 empty and number runs from #2.
     public static void LoadSlot(string slotName)
     {
-        if (!_slots.TryGetValue(slotName, out PracticeSession session))
+        if (_slots.TryGetValue(slotName, out PracticeSession session))
         {
-            session = new PracticeSession(
-                _segmentShape,
-                initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4));
-            _slots[slotName] = session;
+            CurrentSession = session;
+            CurrentSession.StartNewAttempt();
+            return;
         }
+        session = new PracticeSession(
+            _segmentShape,
+            initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4));
+        _slots[slotName] = session;
         CurrentSession = session;
-        CurrentSession.StartNewAttempt();
     }
 
     // SRT OnClearState.
