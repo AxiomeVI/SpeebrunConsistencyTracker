@@ -33,14 +33,14 @@ of Rooms if that comes first, and the run is not a reset.
 
 SpeedrunTool `3.26.4` or later is required (`everest.yaml` pins it).
 
-All six hotkeys ship unbound. Until you bind one under *Mod Options -> Hotkeys*, no chart can be opened.
+All six hotkeys ship unbound. Until you bind *Show/hide the chart overlay* under *Mod Options -> Hotkeys*, no chart can be opened.
 
 ## Usage
 
 ### 1. Practice Workflow
 
 * **Set a Save State:** Starting a new practice session. Creating or clearing a save state will reset all current session data for that slot
-* **Undo a wipe:** Saving over a slot that holds runs, clearing a save state, clearing the session (the menu row or the hotkey) and switching the mod off each wipe a session, and keep it. **Restore last session** in Mod Options puts it back. The row appears only while there is something to restore. One wipe is remembered, and the next one replaces it. After you save again, the restored statistics belong to the previous save state's position. Nothing survives a game restart
+* **Undo a wipe:** Saving over a slot that holds runs, clearing a save state, clearing the session (the menu row or the hotkey) and switching the mod off each wipe a session, and keep it. **Restore last session** in Mod Options puts it back. The row appears only while there is something to restore. One wipe is remembered, and the next one replaces it. Entering another level drops it. After you save again, the restored statistics belong to the previous save state's position. Nothing survives a game restart
 * **Run the Segment:** Practice the segment as you usually do
 * **Review Performance:** After every completed run, a customizable text overlay displays your session statistics. Cycle through performance charts in-game via your configured keybinds or the navigation arrows on the chart overlay
 
