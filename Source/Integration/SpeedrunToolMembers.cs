@@ -20,6 +20,7 @@ internal static class SpeedrunToolMembers
 
     internal const string CurrentRoomTimerData = "CurrentRoomTimerData";
     internal const string Time = "Time";
+    internal const string ThisRunTimes = "ThisRunTimes";
     internal const string UpdateTimerState = "UpdateTimerState";
 
     internal const BindingFlags PublicStatic = BindingFlags.Public | BindingFlags.Static;
@@ -50,7 +51,10 @@ internal static class SpeedrunToolMembers
             if (data == null)
                 missing.Add($"{Short(ManagerType)}.{CurrentRoomTimerData} (non-public static field)");
             else
+            {
                 RequireProperty(data.FieldType, Time, PublicInstance, typeof(long), missing);
+                RequireProperty(data.FieldType, ThisRunTimes, PublicInstance, typeof(Dictionary<string, long>), missing);
+            }
             RequireMethod(manager, UpdateTimerState, [typeof(bool)], missing);
             RequireMethod(manager, "CmdExportRoomTimes", [], missing);
         }

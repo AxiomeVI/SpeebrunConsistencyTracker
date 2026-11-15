@@ -19,7 +19,7 @@ public static class Srt
         Action<Dictionary<Type, Dictionary<string, object>>, Level> onLoadState,
         Action onClearState,
         Action<Level> onBeforeLoadState,
-        Action<bool> onUpdateTimerState)
+        Action<bool, bool> onUpdateTimerState)
     {
         ISpeedrunTool tool = SpeedrunToolAdapter.Resolve();
         if (tool is SpeedrunToolAdapter adapter)

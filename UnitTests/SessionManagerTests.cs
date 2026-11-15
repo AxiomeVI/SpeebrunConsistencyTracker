@@ -542,13 +542,14 @@ public sealed class SessionManagerTests : IDisposable
     // About one frame of room timer, in the ticks these tests use.
     private const long Frame = 17;
 
-    // One call of SpeedrunTool's UpdateTimerState as the detour sees it: the room the player is in
-    // and the room timer's running time.
-    private void Call(string room, long time, bool endPoint = false)
+    // One call of SpeedrunTool's UpdateTimerState as the detour sees it: the room the player is in,
+    // the room timer's running time, and whether SpeedrunTool wrote a split time it did not hold.
+    // newSplit is left false on room changes, which record either way.
+    private void Call(string room, long time, bool endPoint = false, bool newSplit = false)
     {
         _srt.RoomName = room;
         _srt.CurrentRoomTime = time;
-        SessionManager.TimerStateUpdating(endPoint);
+        SessionManager.TimerStateUpdated(endPoint, newSplit);
     }
 
     // SpeedrunTool calls UpdateTimerState on every frame while the player stands on an end point,
@@ -592,7 +593,7 @@ public sealed class SessionManagerTests : IDisposable
     private void RunToEndPointEntity()
     {
         EnterRoomsTwoToFour();
-        Call("4", 500, endPoint: true);
+        Call("4", 500, endPoint: true, newSplit: true);
         CallEveryFrame("4", 500, 60, endPoint: true);
     }
 
@@ -651,7 +652,7 @@ public sealed class SessionManagerTests : IDisposable
         Call("2", 100);
         Call("3", 250);
         _srt.ReachedRoomIdEndPoint = true;
-        Call("4", 450);
+        Call("4", 450, newSplit: true);
         CallEveryFrame("4", 450, 60);
         Assert.Equal(3, SessionManager.CurrentSession.CurrentRoomIndex);
 
@@ -675,7 +676,7 @@ public sealed class SessionManagerTests : IDisposable
         {
             EnterRoomsTwoToFour();
             _srt.LevelCompleted = true;
-            Call("4", 500);
+            Call("4", 500, newSplit: true);
             CallEveryFrame("4", 500, 60, timeMoves: false);
             Reload();
         }
@@ -741,6 +742,59 @@ public sealed class SessionManagerTests : IDisposable
         CallEveryFrame("2", 100, 30);
 
         Assert.Equal(1, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    // A heart, a cassette or a summit flag: SpeedrunTool splits with no room change, and counts
+    // the split toward NumberOfRooms. With 3, its timer completes on the heart in room 3, two
+    // splits after the timer started.
+    [Fact]
+    public void A_split_inside_a_room_is_a_room_and_the_segment_counts_it()
+    {
+        _srt.NumberOfRooms = 3;
+        Save();
+        for (int run = 0; run < 2; run++)
+        {
+            Call("2", 100);
+            Call("3", 250);
+            Call("3", 300, newSplit: true);
+            Call("4", 450);
+            Reload();
+        }
+
+        // R1 room 2 (150), R2 room 3 up to the heart (50), R3 the rest of room 3 (150).
+        Assert.Equal(3, SessionManager.RoomCount);
+        Assert.Equal(2, SessionManager.CurrentSession.TotalCompleted);
+        Assert.Equal(0, SessionManager.CurrentSession.TotalDnfs);
+        Assert.Equal([150L, 150L], SessionManager.CurrentSession.GetRoomTimes(2).Select(t => t.Ticks));
+    }
+
+    // The adapter reports a rewrite of a split SpeedrunTool already held as no new split: a frozen
+    // level's per-frame calls, the arrival split after a SomeSplitButtons load (#7).
+    [Fact]
+    public void A_call_that_writes_no_new_split_in_the_same_room_records_nothing()
+    {
+        Save();
+        Call("2", 100);
+
+        Call("2", 160, newSplit: false);
+
+        Assert.Equal(1, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    // On an end point SpeedrunTool writes one split, at the touch; the frames after write none.
+    [Fact]
+    public void A_split_inside_a_room_after_the_finish_is_outside_the_segment()
+    {
+        _srt.EndPointExists = true;
+        Save();
+        RunToEndPointEntity();
+
+        Call("4", 1600, newSplit: true);
+        Reload();
+
+        Assert.Equal(3, SessionManager.RoomCount);
+        Assert.Equal(1, SessionManager.CurrentSession.TotalCompleted);
+        Assert.Equal([400L], SessionManager.CurrentSession.GetSegmentTimes().Select(t => t.Ticks));
     }
 
     // The last attempt ended in room 2, and the save is in room 1: the next entry into room 2 is

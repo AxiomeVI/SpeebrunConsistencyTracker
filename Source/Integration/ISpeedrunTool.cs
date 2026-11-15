@@ -33,6 +33,12 @@ public interface ISpeedrunTool
     /// <summary>The selected room timer has completed.</summary>
     bool TimerCompleted { get; }
 
+    /// <summary>
+    ///     How many split times the CurrentRoom timer holds for this run. A split adds one; a
+    ///     rewrite of an existing split does not.
+    /// </summary>
+    int SplitCount { get; }
+
     /// <summary>An end point is set: an end point entity in the level, or a room-id end point.</summary>
     bool EndPointExists { get; }
 

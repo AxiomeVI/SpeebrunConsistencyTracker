@@ -238,15 +238,17 @@ public static class SessionManager
     // state's room.
     private static string _lastSplitRoom;
 
-    // SpeedrunTool's UpdateTimerState, before SpeedrunTool's own: endPoint is its argument, and
-    // the room timer still holds the time of the room being left.
+    // SpeedrunTool's UpdateTimerState, just after SpeedrunTool's own: endPoint is its argument,
+    // newSplit says it wrote a split time it did not hold, and the room timer still holds the time
+    // of the room being left.
     //
-    // A call is a split when it enters a room other than the last split's, or when it is the
-    // first to end the attempt's timer. SpeedrunTool repeats the call on every frame on an end
-    // point, in the room-id end point's room and after a level end, and Time keeps moving on the
-    // first two (#15). Do not read Srt.Tool.TimerCompleted here: SpeedrunTool sets it one
-    // transition early when roomNumber reaches NumberOfRooms.
-    public static void TimerStateUpdating(bool endPoint)
+    // A call is a split when it enters a room other than the last split's, when it is the first
+    // to end the attempt's timer, or when SpeedrunTool split without a room change (a heart, a
+    // cassette, a summit flag). SpeedrunTool repeats the call on every frame on an end point, in
+    // the room-id end point's room and after a level end, and Time keeps moving on the first two
+    // (#15); those repeats write no new split. Do not read Srt.Tool.TimerCompleted here:
+    // SpeedrunTool sets it one transition early when roomNumber reaches NumberOfRooms.
+    public static void TimerStateUpdated(bool endPoint, bool newSplit)
     {
         PracticeSession session = CurrentSession;
         if (session == null || session.CurrentAttemptIndex < 0) return;
@@ -257,7 +259,7 @@ public static class SessionManager
         bool finishes = !session.ActiveAttemptFinished
             && session.CurrentRoomIndex >= StartRoomIndex
             && (endPoint || srt.ReachedRoomIdEndPoint || srt.LevelCompleted);
-        if (!entersRoom && !finishes) return;
+        if (!entersRoom && !finishes && !newSplit) return;
 
         _lastSplitRoom = room;
         int recordedBefore = session.CurrentRoomIndex;

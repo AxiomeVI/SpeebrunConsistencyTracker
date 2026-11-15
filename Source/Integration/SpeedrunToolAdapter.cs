@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -20,16 +21,19 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
 {
     private readonly FieldInfo _currentRoomTimerData;
     private readonly PropertyInfo _time;
+    private readonly PropertyInfo _thisRunTimes;
     private readonly MethodInfo _updateTimerState;
 
     private object _saveLoadHandle;
     private Hook _updateTimerStateHook;
-    private Action<bool> _onUpdateTimerState;
+    private Action<bool, bool> _onUpdateTimerState;
 
-    private SpeedrunToolAdapter(FieldInfo currentRoomTimerData, PropertyInfo time, MethodInfo updateTimerState)
+    private SpeedrunToolAdapter(FieldInfo currentRoomTimerData, PropertyInfo time, PropertyInfo thisRunTimes,
+        MethodInfo updateTimerState)
     {
         _currentRoomTimerData = currentRoomTimerData;
         _time = time;
+        _thisRunTimes = thisRunTimes;
         _updateTimerState = updateTimerState;
     }
 
@@ -65,6 +69,7 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
             var adapter = new SpeedrunToolAdapter(
                 data,
                 data.FieldType.GetProperty(SpeedrunToolMembers.Time, SpeedrunToolMembers.PublicInstance),
+                data.FieldType.GetProperty(SpeedrunToolMembers.ThisRunTimes, SpeedrunToolMembers.PublicInstance),
                 manager.GetMethod(SpeedrunToolMembers.UpdateTimerState, SpeedrunToolMembers.PublicStatic, null, [typeof(bool)], null));
             Compile();
             return adapter;
@@ -91,7 +96,7 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
         Action<Dictionary<Type, Dictionary<string, object>>, Level> onLoadState,
         Action onClearState,
         Action<Level> onBeforeLoadState,
-        Action<bool> onUpdateTimerState)
+        Action<bool, bool> onUpdateTimerState)
     {
         try
         {
@@ -117,12 +122,15 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
         _onUpdateTimerState = null;
     }
 
-    // Called before SpeedrunTool's own UpdateTimerState, with its argument: the room it reads is
-    // the one being left.
+    // Calls back after SpeedrunTool's own UpdateTimerState, with its argument and whether it wrote
+    // a new split. UpdateTimerState never moves Time, so the time read is still the room's being left.
+    // A new split is a new key: a rewrite of an existing one (a frozen level's per-frame calls, the
+    // arrival split after a SomeSplitButtons load, #7) adds none.
     private void OnUpdateTimerState(Action<bool> orig, bool endPoint)
     {
-        _onUpdateTimerState?.Invoke(endPoint);
+        int splitsBefore = SplitCount;
         orig(endPoint);
+        _onUpdateTimerState?.Invoke(endPoint, SplitCount > splitsBefore);
     }
 
     public bool Available => true;
@@ -145,6 +153,14 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
     }
 
     public bool TimerCompleted => RoomTimerIntegration.RoomTimerIsCompleted();
+
+    // The CurrentRoom timer's, whatever the selected type: its Time is the one the mod records, so its
+    // splits are the ones the recorded rooms line up with. SpeedrunTool clears the store on every reset.
+    public int SplitCount =>
+        _currentRoomTimerData.GetValue(null) is { } data && _thisRunTimes.GetValue(data) is ICollection times
+            ? times.Count
+            : 0;
+
     public bool EndPointExists => ReadEndPointExists();
     public bool ReachedRoomIdEndPoint => ReadReachedRoomIdEndPoint();
     // The level SpeedrunTool's own reads take: Engine.Scene.

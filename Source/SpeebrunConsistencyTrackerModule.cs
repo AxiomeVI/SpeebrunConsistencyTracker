@@ -291,10 +291,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             GraphManager.HideGraph();
     }
 
-    // Runs before SpeedrunTool's own UpdateTimerState, so the time read is the room being left.
-    private static void OnUpdateTimerState(bool endPoint) {
+    // Runs after SpeedrunTool's own UpdateTimerState, which does not move the time read.
+    private static void OnUpdateTimerState(bool endPoint, bool newSplit) {
         if (Settings.Enabled)
-            SessionManager.TimerStateUpdating(endPoint);
+            SessionManager.TimerStateUpdated(endPoint, newSplit);
     }
 
     public static void Clear()

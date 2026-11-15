@@ -12,6 +12,7 @@ internal sealed class UnavailableSpeedrunTool(string reason) : ISpeedrunTool
     public int NumberOfRooms => 0;
     public long CurrentRoomTime => 0L;
     public bool TimerCompleted => false;
+    public int SplitCount => 0;
     public bool EndPointExists => false;
     public bool ReachedRoomIdEndPoint => false;
     public string RoomName => null;
