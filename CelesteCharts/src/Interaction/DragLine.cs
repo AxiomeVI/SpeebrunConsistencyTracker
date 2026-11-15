@@ -11,7 +11,8 @@ namespace Celeste.Mod.CelesteCharts;
 ///     <see cref="Released"/> says the drag is over.
 /// </summary>
 // A line is one pixel wide, so it is grabbed within GrabDistance of it. A press there captures the
-// pointer, so the drag keeps the line wherever the mouse goes; the line stays inside the plot. A right
+// pointer, so the drag keeps the line wherever the mouse goes, at the offset it was grabbed with, so it
+// does not jump to the pointer; the line stays inside the plot. A right
 // click during the drag cancels it (Cancelled), and the mod goes back to the value it had.
 //
 // Not Escape to cancel: it is Celeste's pause key. Pure and allocation-free.
@@ -34,11 +35,13 @@ internal sealed class DragLine {
     public bool Hovered { get; private set; }
 
     public bool Dragging { get; private set; }
+    private UpdateWatch _watch;
+    private float _grabOffset, _startPixel;
 
     /// <summary>Where the drag has the line this frame, kept inside the plot. Meaningful while <see cref="Dragging"/> and on the frame it is <see cref="Released"/>.</summary>
     public float DragPixel { get; private set; }
 
-    /// <summary>Whether a drag ended this frame with the button let go: the mod keeps the value it has shown and saves it.</summary>
+    /// <summary>Whether a drag ended this frame with the button let go somewhere other than where it was grabbed: the mod keeps the value it has shown and saves it. A click that never moved the line releases nothing.</summary>
     public bool Released { get; private set; }
 
     /// <summary>Whether a drag was given up this frame (a right click): the mod shows the value it had before.</summary>
@@ -51,6 +54,7 @@ internal sealed class DragLine {
     /// <param name="linePixel">Where the line is drawn now: its value's pixel on the plot's axis.</param>
     public void Update(Pointer pointer, Area plot, float linePixel) {
         Released = Cancelled = false;
+        if (_watch.Missed(pointer)) Dragging = false;
         float along = Vertical ? pointer.X : pointer.Y;
         float low = Vertical ? plot.X : plot.Y, high = Vertical ? plot.Right : plot.Bottom;
 
@@ -59,21 +63,24 @@ internal sealed class DragLine {
                 Dragging = false;
                 Cancelled = true;
             } else {
-                DragPixel = Math.Clamp(along, low, high);
+                DragPixel = Clamped.Within(along + _grabOffset, low, high);
                 if (!pointer.Held()) {
                     Dragging = false;
-                    Released = true;
+                    Released = DragPixel != _startPixel;
                 }
             }
             Hovered = Dragging;
             if (Dragging || Released) return;
         }
 
-        // A line off the plot is not drawn (the reference painters skip it), so it cannot be grabbed.
-        Hovered = linePixel >= low && linePixel <= high && Near(along, linePixel) && Across(pointer, plot) && pointer.FreeFor(CaptureId);
+        // A line off the plot is not drawn (the reference painters skip it), so it cannot be grabbed. Rounded as the
+        // painters round it: a line let go on the plot's edge can read back a hair outside it, and is drawn there.
+        float drawnAt = MathF.Round(linePixel);
+        Hovered = drawnAt >= low && drawnAt <= high && Near(along, linePixel) && Across(pointer, plot) && pointer.FreeFor(CaptureId);
         if (Hovered && pointer.Pressed() && pointer.Capture(CaptureId)) {
             Dragging = true;
-            DragPixel = Math.Clamp(linePixel, low, high);
+            DragPixel = _startPixel = Clamped.Within(linePixel, low, high);
+            _grabOffset = linePixel - along;
         }
     }
 

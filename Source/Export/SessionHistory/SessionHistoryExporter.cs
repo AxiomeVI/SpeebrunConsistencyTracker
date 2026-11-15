@@ -17,13 +17,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
             // the room after the last one, which a finished run is standing in when the next reset
             // records a DNF there -- so every completed run exported as a death outside the segment.
             int columnCount = session.RoomCount;
+            // "\n" and not AppendLine(): the file must not depend on the platform, and the metrics
+            // export joins its lines the same way.
             var sb = new StringBuilder();
 
             sb.Append("Attempt");
             for (int i = 0; i < columnCount; i++)
                 sb.Append($"{separator}R{i + 1}");
             sb.Append($"{separator}Segment");
-            sb.AppendLine();
+            sb.Append('\n');
 
             var rowCells = new StringBuilder();
             for (int a = 0; a < session.AttemptCount; a++)
@@ -49,7 +51,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory
                 sb.Append(a + 1);
                 sb.Append(rowCells);
                 sb.Append(session.IsCompleted(a) ? $"{separator}{session.SegmentTime(a)}" : $"{separator}");
-                sb.AppendLine();
+                sb.Append('\n');
             }
 
             return sb.ToString();

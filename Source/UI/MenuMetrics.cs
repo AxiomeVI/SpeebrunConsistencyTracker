@@ -13,14 +13,14 @@ public static partial class ModMenuOptions
     private static Action AddMetricGroups(TextMenu page, MetricOutput bit)
     {
         PercentileChoice[] percentiles = Enum.GetValues<PercentileChoice>();
-        List<(MetricToggles.Metric Metric, TextMenu.OnOff Row)> rows = [];
+        List<(MetricDefinition Metric, TextMenu.OnOff Row)> rows = [];
         TextMenu.Slider percentileValue = null;
-        MetricToggles.Metric percentile = null;
+        MetricDefinition percentile = null;
 
         foreach (MetricToggles.Group group in MetricToggles.Groups)
         {
             page.Add(new TextMenu.SubHeader(Dialog.Clean(group.HeaderKey)));
-            foreach (MetricToggles.Metric metric in group.Metrics)
+            foreach (MetricDefinition metric in group.Metrics)
             {
                 TextMenu.OnOff row = new(Dialog.Clean(metric.LabelKey), MetricToggles.Get(_settings, metric, bit));
                 row.Change(on =>
@@ -59,7 +59,7 @@ public static partial class ModMenuOptions
 
         return () =>
         {
-            foreach ((MetricToggles.Metric metric, TextMenu.OnOff row) in rows)
+            foreach ((MetricDefinition metric, TextMenu.OnOff row) in rows)
                 row.Index = MetricToggles.Get(_settings, metric, bit) ? 1 : 0;
             percentileValue.Index    = Array.IndexOf(percentiles, _settings.PercentileValue);
             percentileValue.Disabled = !MetricToggles.Get(_settings, percentile, bit);

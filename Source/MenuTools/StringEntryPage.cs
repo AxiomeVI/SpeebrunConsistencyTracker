@@ -1,4 +1,5 @@
 // MenuTools requires: TextMenuPage.cs MenuToolsDialog.cs IInputHoldingItem.cs
+#nullable disable
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Input;
 using Monocle;
@@ -64,6 +65,7 @@ public class StringEntryPage : TextMenuPage {
     private const float valueScale   = 2f;
     private const float caretGap     = 4f;  // Between the caret and the character before it
     private const float counterScale = 0.75f;
+    private const float counterGap   = 24f;  // Between the entered string and the length counter
     // How long after Cancel deleted a character a Cancel on the emptied string is ignored: a player who deletes with
     // repeated presses must not leave the page with one press too many
     private const float cancelGuardTime = 0.5f;
@@ -142,6 +144,9 @@ public class StringEntryPage : TextMenuPage {
     // Whether the player is typing rather than using the letter grid. With Everest's keyboard text input setting on,
     // the page starts in typing mode, a controller press switches it to the grid, and typing switches it back.
     private bool typing;
+    // What SetUp took and CleanUp owes back
+    private bool subscribed;
+    private bool consoleTaken;
 
     private static readonly Buttons[] gridSwitchButtons = [
         Buttons.DPadUp, Buttons.DPadDown, Buttons.DPadLeft, Buttons.DPadRight,
@@ -246,18 +251,24 @@ public class StringEntryPage : TextMenuPage {
     }
 
     /// <summary>
-    /// Starts receiving typed text, and starts in typing mode if Everest's keyboard text input setting is on. Hides
+    /// If Everest's keyboard text input setting is on, starts receiving typed text and starts in typing mode. Hides
     /// the overworld's Confirm and Back hints, which the page replaces with its own, and keeps the debug console
     /// from opening. An override must call the base method.
     /// </summary>
     protected override void SetUp() {
         typing           = UseKeyboardInput;
         cancelGuardTimer = 0f;
-        TextInput.OnInput -= OnTextInput;
-        TextInput.OnInput += OnTextInput;
+        // Only with the setting on, as Everest's own pages do: a subscriber starts SDL text input, which can bring up
+        // an IME or an on-screen keyboard. A setting changed while the page is open changes nothing here: OnTextInput
+        // checks it on every call, and CleanUp undoes what was done.
+        if (typing) {
+            TextInput.OnInput += OnTextInput;
+            subscribed         = true;
+        }
         // The debug console opens on . and ~ by default, which are text here
         consoleWasEnabled       = Engine.Commands.Enabled;
         Engine.Commands.Enabled = false;
+        consoleTaken            = true;
         // Those hints name the bound buttons, which here type, enter a letter or delete one
         HideOverworldHints();
         if (!typing) {
@@ -270,8 +281,15 @@ public class StringEntryPage : TextMenuPage {
     /// the overworld its hints back. An override must call the base method.
     /// </summary>
     protected override void CleanUp() {
-        TextInput.OnInput -= OnTextInput;
-        Engine.Commands.Enabled = consoleWasEnabled;
+        // CleanUp also runs after a SetUp that threw part way
+        if (subscribed) {
+            TextInput.OnInput -= OnTextInput;
+            subscribed         = false;
+        }
+        if (consoleTaken) {
+            Engine.Commands.Enabled = consoleWasEnabled;
+            consoleTaken            = false;
+        }
         RestoreOverworldHints();
     }
 
@@ -737,10 +755,10 @@ public class StringEntryPage : TextMenuPage {
     }
 
     // =================================================== Rendering ===================================================
-    private void DrawEntryText(string text, Vector2 position, Vector2 justify) {
+    private void DrawEntryText(string text, Vector2 position, Vector2 justify, float scale = valueScale) {
         ActiveFont.DrawEdgeOutline(text,
                                    position, justify,
-                                   Vector2.One * valueScale,
+                                   Vector2.One * scale,
                                    Color.Gray,
                                    4f, Color.DarkSlateBlue,
                                    2f, Color.Black);
@@ -788,20 +806,17 @@ public class StringEntryPage : TextMenuPage {
         DrawEntryText(header, headerPos, new Vector2(0.5f, 0.5f));
 
         // Draw the string being entered
-        // Align the text center if no prompt, left if there is a prompt
-        float reservedTextWidth =
-            (prompt == "") ? ActiveFont.Measure(value).X * valueScale
-                           : (ActiveFont.Measure(prompt).X + widestLetter * maxValueLength) * valueScale;
-        Vector2 textPos = new(960f - reservedTextWidth / 2f, 300f);
-        ValueRight      = 960f + reservedTextWidth / 2f;
-        DrawEntryText(prompt, textPos, new Vector2(0f, 0.5f));
-        textPos.X += ActiveFont.Measure(prompt).X * valueScale;
-        DrawEntryText(value, textPos, new Vector2(0f, 0.5f));
+        (float entryScale, float valueX, float right) = ValueLayout();
+        Vector2 textPos = new(valueX - ActiveFont.Measure(prompt).X * entryScale, 300f);
+        ValueRight      = right;
+        DrawEntryText(prompt, textPos, new Vector2(0f, 0.5f), entryScale);
+        textPos.X = valueX;
+        DrawEntryText(value, textPos, new Vector2(0f, 0.5f), entryScale);
 
         // Draw the caret: where typed text goes, which on the letter grid is the end of the string
         if (caretBlinkTimer % 1f < 0.5f) {
-            float caretX      = textPos.X + ActiveFont.Measure(value.Substring(0, caret)).X * valueScale + caretGap;
-            float caretHeight = ActiveFont.LineHeight * valueScale * 0.8f;
+            float caretX      = textPos.X + ActiveFont.Measure(value.Substring(0, caret)).X * entryScale + caretGap;
+            float caretHeight = ActiveFont.LineHeight * entryScale * 0.8f;
             Draw.Rect(caretX, textPos.Y - caretHeight / 2f, 4f, caretHeight, Color.Gray);
         }
 
@@ -818,6 +833,23 @@ public class StringEntryPage : TextMenuPage {
     }
 
     // ========================================== Rendering / layout helpers ===========================================
+    // Where the entered string is drawn: its scale, the x its text starts at (after the prompt) and the right end of
+    // the area it reserves, centred on x = 960. Without a prompt the area is as wide as the value; with one it is as
+    // wide as the prompt and the widest value, so that the prompt does not move while typing. The line shrinks to
+    // end left of the counter, as wide as "max/max" and so not moving either, which is also what keeps it on the
+    // screen; vanilla's 12 characters never reach that.
+    private (float scale, float valueX, float right) ValueLayout() {
+        float promptWidth = ActiveFont.Measure(prompt).X;
+        float reserved    = (prompt == "") ? ActiveFont.Measure(value).X * valueScale
+                                           : (promptWidth + widestLetter * maxValueLength) * valueScale;
+        float halfRoom    = counterPos.X - ActiveFont.Measure($"{maxValueLength}/{maxValueLength}").X * counterScale -
+                            counterGap - 960f;
+        float fit         = reserved / 2f <= halfRoom ? 1f : 2f * halfRoom / reserved;
+        float scale       = valueScale * fit;
+        reserved         *= fit;
+        return (scale, 960f - reserved / 2f + promptWidth * scale, 960f + reserved / 2f);
+    }
+
     private Vector2 GetCharPosition(int findLineIdx, int findCharIdx) {
         return boxTopLeft +
                    new Vector2((boxWidth - widestLine) / 2f, boxPadding) +

@@ -1,4 +1,5 @@
 // MenuTools requires: nothing else
+#nullable disable
 namespace Celeste.Mod.MenuTools;
 
 /// <summary>

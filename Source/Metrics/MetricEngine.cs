@@ -18,16 +18,33 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             _settingsHash = ComputeOverlaySettingsHash();
         }
 
-        public static int GetOverlaySettingsHash() => _settingsHash;
+        // What the overlay text was computed from. Only the metric toggles are a stored hash that a
+        // menu must refresh; the target and the percentile are read live, so a path that changes
+        // them (clipboard import, a drag of the target line) cannot leave the overlay stale.
+        public readonly record struct OverlayKey(int Toggles, long TargetTicks, PercentileChoice Percentile);
 
-        public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
+        public static OverlayKey GetOverlayKey() => OverlayKeyFor(SpeebrunConsistencyTrackerModule.Settings, _settingsHash);
+
+        public static OverlayKey OverlayKeyFor(SpeebrunConsistencyTrackerModuleSettings settings, int toggles)
+            => new(toggles, TargetTimeTicksFor(settings).Ticks, settings.PercentileValue);
+
+        // A metric's names as the settings it was computed under give them.
+        public readonly record struct ComputedMetric(string CsvHeader, string OverlayName, MetricResult Result);
+
+        public static List<ComputedMetric> Compute(PracticeSession session, MetricOutput mode)
+            => Compute(session, mode, SpeebrunConsistencyTrackerModule.Settings);
+
+        public static List<ComputedMetric> Compute(PracticeSession session, MetricOutput mode, SpeebrunConsistencyTrackerModuleSettings settings)
         {
-            MetricContext context = new(GetTargetTimeTicks(), MetricHelper.ToInt(SpeebrunConsistencyTrackerModule.Settings.PercentileValue));
-            List<(MetricDescriptor, MetricResult)> result = [];
+            MetricContext context = new(TargetTimeTicksFor(settings), MetricHelper.ToInt(settings.PercentileValue));
+            List<ComputedMetric> result = [];
 
-            foreach (MetricDescriptor metric in FilterMetrics(mode))
+            foreach (MetricDefinition metric in FilterMetrics(settings, mode))
             {
-                result.Add((metric, metric.Compute(session, context, mode == MetricOutput.Export)));
+                result.Add(new ComputedMetric(
+                    metric.CsvHeader(settings),
+                    metric.OverlayName?.Invoke(settings),
+                    metric.Compute(session, context, mode == MetricOutput.Export)));
             }
 
             return result;
@@ -35,23 +52,20 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         private static int ComputeOverlaySettingsHash()
         {
-            var settings = SpeebrunConsistencyTrackerModule.Settings;
+            SpeebrunConsistencyTrackerModuleSettings settings = SpeebrunConsistencyTrackerModule.Settings;
             var hashCode = new HashCode();
-            foreach (string header in FilterMetrics(MetricOutput.Overlay).Select(m => m.CsvHeader()))
+            foreach (string header in FilterMetrics(settings, MetricOutput.Overlay).Select(m => m.CsvHeader(settings)))
                 hashCode.Add(header);
-            hashCode.Add(GetTargetTimeTicks());
-            hashCode.Add(settings.PercentileValue);
             return hashCode.ToHashCode();
         }
 
-        private static List<MetricDescriptor> FilterMetrics(MetricOutput mode)
-        {
-            return [.. MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode))];
-        }
+        private static IEnumerable<MetricDefinition> FilterMetrics(SpeebrunConsistencyTrackerModuleSettings settings, MetricOutput mode)
+            => MetricTable.All.Where(m => m.IsEnabled(settings, mode));
 
-        public static TimeTicks GetTargetTimeTicks()
+        public static TimeTicks GetTargetTimeTicks() => TargetTimeTicksFor(SpeebrunConsistencyTrackerModule.Settings);
+
+        public static TimeTicks TargetTimeTicksFor(SpeebrunConsistencyTrackerModuleSettings settings)
         {
-            var settings = SpeebrunConsistencyTrackerModule.Settings;
             int totalMilliseconds = settings.Minutes * 60000 + settings.Seconds * 1000 + settings.MillisecondsFirstDigit * 100 + settings.MillisecondsSecondDigit * 10 + settings.MillisecondsThirdDigit;
             return new TimeTicks(TimeSpan.FromMilliseconds(totalMilliseconds).Ticks);
         }

@@ -89,8 +89,8 @@ public sealed class ChartPalette
     }
 
     // Rebuilt whenever an input differs from the last build, so a menu change shows on the next
-    // frame with nothing to invalidate by hand. TasTestSuite swaps the settings object per test,
-    // which is why the instance is part of the key.
+    // frame with nothing to invalidate by hand. The settings object itself can be replaced at
+    // runtime, which is why the instance is part of the key.
     private static ChartPalette _cached;
     private static SctSettings _cachedFor;
     private static string _room, _segment, _primary, _secondary, _best, _last, _sob, _target, _ahead, _behind;

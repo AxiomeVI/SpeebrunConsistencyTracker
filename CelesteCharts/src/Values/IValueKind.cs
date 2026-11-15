@@ -47,6 +47,9 @@ internal interface IValueKind<T> {
     // behind a cache keyed on the data's version, never once per frame.
     IReadOnlyList<Tick<T>> Ticks(T min, T max, int maxTicks);
 
-    /// <summary>One value at full precision, for a tooltip, where no step applies.</summary>
+    /// <summary>
+    ///     One value at the precision the kind was built with, for a tooltip, where no step applies.
+    ///     Values finer than that read as zero.
+    /// </summary>
     string Format(T value);
 }

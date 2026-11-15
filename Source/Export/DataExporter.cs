@@ -6,7 +6,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Export.SessionHistory;
 using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
-using Celeste.Mod.SpeedrunTool.RoomTimer;
+using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Export;
 
@@ -42,7 +42,7 @@ public static class DataExporter
             _ = sb.Append("\n\n\n");
             // The SRT export may go to a file, leaving a stale clipboard behind.
             TextInput.SetClipboardText("");
-            RoomTimerManager.CmdExportRoomTimes();
+            Srt.Tool.ExportRoomTimes();
             // Speedrun Tool writes commas and never quotes: its fields are room numbers and times.
             _ = sb.Append(TextInput.GetClipboardText()?.Replace(Csv.FileSeparator, separator));
         }
@@ -64,7 +64,7 @@ public static class DataExporter
         }
 
         if (SpeebrunConsistencyTrackerModule.Settings.ExportWithSRT)
-            RoomTimerManager.CmdExportRoomTimes();
+            Srt.Tool.ExportRoomTimes();
 
         // PathEverest, not PathGame: they are the same folder in a normal install, but in XDG mode
         // (an EverestXDGFlag file, for read-only game folders) Everest moves Mods and its settings

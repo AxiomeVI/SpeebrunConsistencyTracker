@@ -1,4 +1,5 @@
 // MenuTools requires: ColorSwatchButton.cs ColorWheelPage.cs
+#nullable disable
 using System;
 using System.Collections.Generic;
 using Microsoft.Xna.Framework;
@@ -9,7 +10,8 @@ namespace Celeste.Mod.MenuTools;
 /// A menu button showing a color, as its hex code and a swatch, on the right of its label. Pressing it opens a
 /// <see cref="ColorWheelPage"/> to pick a new color. The page previews changes live: the handler given to
 /// <see cref="Change"/> receives every color the player moves through. If the player leaves the page without
-/// confirming, the handler is invoked once more, with the color the button had when the page opened.
+/// confirming and the color had changed, the handler is invoked once more, with the color the button had when the
+/// page opened.
 /// </summary>
 public class ColorWheelButton : ColorSwatchButton {
     private readonly IReadOnlyList<(string name, Color color)> presets;

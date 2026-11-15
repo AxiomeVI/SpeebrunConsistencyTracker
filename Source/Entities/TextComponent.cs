@@ -25,14 +25,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         }
         public float Scale { get; set; } = 1f;
         private float Alpha { get; set; } = alpha;
-        public PixelFont Font { get; set; }
-        public float FontFaceSize { get; set; }
         public Color TextColor { get; set; } = Color.White;
         public float StrokeSize { get; set; } = ChartConstants.Stroke.OutlineSize;
         public Color StrokeColor { get; set; } = Color.Black;
 
         public int OffsetX { get; set; } = 5;
-        public int OffsetY { get; set; } = 5;
+        // 5 and 0 are the values the removed TextOffsetX/TextOffsetY settings defaulted to.
+        public int OffsetY { get; set; } = 0;
 
         public Vector2 Justify { get; set; } = new Vector2();
 
@@ -125,8 +124,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             
             if (Orientation == StatTextOrientation.Horizontal)
             {
-                Font.DrawOutline(
-                    FontFaceSize,
+                // Through ActiveFont, never a captured PixelFont: switching language disposes the
+                // previous language's font, and drawing with it throws.
+                ActiveFont.DrawOutline(
                     _joined,
                     new Vector2(PosX, PosY),
                     Justify,
@@ -138,8 +138,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             }
             else
             {
-                if (Text.Count == 0) return;
-
                 Vector2 sampleSize = ActiveFont.Measure(Text[0]) * Scale;
                 float lineHeight = sampleSize.Y * LineSpacing;
                 
@@ -159,8 +157,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
                 {
                     float currentY = startY + i * lineHeight;
                     
-                    Font.DrawOutline(
-                        FontFaceSize,
+                    ActiveFont.DrawOutline(
                         Text[i],
                         new Vector2(PosX, currentY),
                         new Vector2(Justify.X, 0), // Only horizontal justify, vertical handled by offset

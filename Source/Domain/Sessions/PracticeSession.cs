@@ -11,6 +11,9 @@ public sealed class PracticeSession
     public int MaxRoomCount { get; set; } = 0;
     public uint Version { get; private set; } = 0;
 
+    // The level the session was recorded in, as the manager names it. Not read by the statistics.
+    public string LevelName { get; init; }
+
     public int CurrentAttemptIndex { get; private set; } = -1;
     public int CurrentRoomIndex { get; private set; } = 0;
     public TimeTicks RunningSegmentTime { get; private set; } = TimeTicks.Zero;
@@ -39,14 +42,38 @@ public sealed class PracticeSession
         _firstRoomPlayed = CurrentAttemptIndex >= 0 && CurrentRoomIndex == 0 && segmentTime > TimeTicks.Zero;
     }
 
+    // Each finished attempt's finishing split, as a raw room index. An attempt finishes when its
+    // room timer completes on an end point or a level end; completing by NumberOfRooms is not
+    // tracked, so rooms past it still reshape the session when NumberOfRooms grows.
+    private readonly Dictionary<int, int> _finishingRoom = new();
+    private int _lastFinishedAttempt = -1;
+
+    public bool ActiveAttemptFinished => _finishingRoom.ContainsKey(CurrentAttemptIndex);
+
+    // Latches the active attempt as finished at the room it recorded last. Ignored when that room
+    // is before the segment: under NextRoom, SpeedrunTool's timer has not started there.
+    public void FinishActiveAttempt()
+    {
+        int lastRecorded = CurrentRoomIndex - 1;
+        if (CurrentAttemptIndex < 0 || ActiveAttemptFinished || lastRecorded < StartRoomIndex) return;
+        _finishingRoom[CurrentAttemptIndex] = lastRecorded;
+        _lastFinishedAttempt = CurrentAttemptIndex;
+    }
+
+    // The rooms the most recent finished attempt showed, up to and including its finishing split.
+    // Null while no attempt has finished.
+    public int? FinishedRoomCount => _lastFinishedAttempt < 0
+        ? null
+        : Math.Max(0, _finishingRoom[_lastFinishedAttempt] - StartRoomIndex + 1);
+
     public void StartNewAttempt()
     {
         // Finalize the prior attempt: its current room becomes a DNF. Room 0 only when the timer
         // ran in it and it is in the segment (CurrentRoom timer mode). Marking it on every reload
-        // would count each save-state reload as a reset.
+        // would count each save-state reload as a reset. A finished attempt was not reset.
         bool firstRoomReset = _firstRoomPlayed && CurrentRoomIndex >= StartRoomIndex;
         _firstRoomPlayed = false;
-        if (CurrentAttemptIndex >= 0 && (CurrentRoomIndex > 0 || firstRoomReset))
+        if (CurrentAttemptIndex >= 0 && !ActiveAttemptFinished && (CurrentRoomIndex > 0 || firstRoomReset))
         {
             _matrix.EnsureColumns(CurrentRoomIndex + 1);
             _matrix.SetCell(CurrentAttemptIndex, CurrentRoomIndex, RoomCell.DNF);
@@ -145,8 +172,10 @@ public sealed class PracticeSession
         return Math.Max(0, highest - StartRoomIndex + 1);
     }
 
+    // RoomCount is 0 before the first room transition after a load; every attempt would otherwise
+    // satisfy ">= 0" and read as a completed run of time 0.
     public bool IsCompleted(int attemptIndex)
-        => ContiguousCount(attemptIndex) >= RoomCount;
+        => RoomCount > 0 && ContiguousCount(attemptIndex) >= RoomCount;
 
     public TimeTicks SegmentTime(int attemptIndex)
     {
@@ -163,6 +192,19 @@ public sealed class PracticeSession
     }
 
     public int AttemptCount => _matrix.RowCount;
+
+    // Any cell recorded in any attempt, the open one included. Reads the matrix and not the
+    // segment shape, so it holds for a session that is not the current one.
+    public bool HasRuns
+    {
+        get
+        {
+            for (int a = 0; a < _matrix.RowCount; a++)
+                foreach (RoomCell cell in _matrix.GetRow(a))
+                    if (cell.State != RoomCellState.NotReached) return true;
+            return false;
+        }
+    }
 
     // Keyed on the segment shape as well as Version: changing SRT NumberOfRooms or
     // RoomTimerType moves the shape without bumping Version.
@@ -275,9 +317,11 @@ public sealed class PracticeSession
         BumpMaxForActiveAttempt();
     }
 
+    // An attempt still running reaches the room it is in. A finished one has no room being
+    // entered: it reaches the last room it recorded, as ReachedRoomCount counts it after a reload.
     public void BumpMaxForActiveAttempt()
     {
-        int activeReach = Math.Max(0, CurrentRoomIndex - StartRoomIndex + 1);
+        int activeReach = Math.Max(0, CurrentRoomIndex - StartRoomIndex + (ActiveAttemptFinished ? 0 : 1));
         if (activeReach > MaxRoomCount) MaxRoomCount = activeReach;
     }
 }

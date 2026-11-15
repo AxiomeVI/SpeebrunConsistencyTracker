@@ -17,11 +17,13 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Charts;
 // The dataset is TrajectoryModel's and what depends on the hidden columns is TrajectoryScope's,
 // both unit-tested under Metrics/. This places them and words nothing they did not compute.
 //
-// The whole chart is one sketch, rebuilt when the hovered line, a pin or a hidden column changes:
-// which lines are dimmed depends on all three. The lines' pixels are kept between rebuilds.
+// The chart is rebuilt when a pin, a hidden column, the zoom or the baseline changes. A hover
+// rebuilds nothing: the runs' lines are kept twice, bright and dimmed, and a hover draws again only
+// what it changes, in layers of their own: the lines it lights, the end labels, the tooltips and
+// the comparison.
 //
-// Three layers: the frame, then the lines, cut to the plot and moved while a zoomed axis is
-// dragged, then the tooltips and the comparison table over them.
+// Layers: the frame, then the lines, cut to the plot and moved while a zoomed axis is dragged,
+// then the tooltips and the comparison table over them.
 internal sealed class TrajectoryChart : SketchChart
 {
     private const float Snap = 4f;
@@ -71,7 +73,12 @@ internal sealed class TrajectoryChart : SketchChart
     // The wheel zooms both axes around the mouse, the deviations and the rooms; a drag then pans.
     // One capture id: a drag pans both at once.
     private AxisZoom _zoom = new(captureId: CaptureIds.TrajectoryZoom, vertical: true), _zoomX = new(captureId: CaptureIds.TrajectoryZoom);
-    private Sketch _lineLayer, _labelLayer, _top, _tips, _cells;
+    private Sketch _labelLayer, _top, _tips, _cells;
+    // The runs' lines as they stand with none lit, bright or all dimmed, each kept until the layout
+    // or the style changes; then the lines a hover or a pin lights, and the labels at their ends.
+    private Sketch _bright, _dimmed, _lit, _ends;
+    private int _layoutVersion, _brightFor = -1, _dimmedFor = -1;
+    private ChartStyle _brightStyle, _dimmedStyle;
     private bool Zoomed => _zoom.Zoomed || _zoomX.Zoomed;
     private bool Panning => _zoom.Panning || _zoomX.Panning;
     private bool InPlotX(float x) => x >= Plot.X - 0.5f && x <= Plot.Right + 0.5f;
@@ -210,6 +217,7 @@ internal sealed class TrajectoryChart : SketchChart
     private void Layout()
     {
         _layoutStale = false;
+        _layoutVersion++;
         _hidden = HiddenFlags(_rooms);
         _scope.Recompute(_hidden);
         // Zoomed, the rooms are laid out wider than the plot and the part shown is cut out of them.
@@ -251,41 +259,47 @@ internal sealed class TrajectoryChart : SketchChart
     protected override void Build(ChartStyle style)
     {
         if (_layoutStale || _bands == null) Layout();
-        _lineLayer ??= new Sketch(Sketch.Metrics);
         _top       ??= new Sketch(Sketch.Metrics);
         // The times along a line and the table's cells follow a pan, each in a layer of its own.
         _tips      ??= new Sketch(Sketch.Metrics);
         _cells     ??= new Sketch(Sketch.Metrics);
-        _tips.Clear();
-        _cells.Clear();
+        _lit       ??= new Sketch(Sketch.Metrics);
+        _ends      ??= new Sketch(Sketch.Metrics);
         _labelLayer ??= new Sketch(Sketch.Metrics);
-        _lineLayer.Clear();
         _labelLayer.Clear();
-        _top.Clear();
         if (Empty)
         {
             DrawAxisLines();
+            DrawHovered();
             return;
         }
-        TextStyle small = SctChartStyle.Small(style);
 
-        // Grid: a line where each room starts, and one per deviation tick.
-        for (int r = 0; r < _rooms; r++)
-            _lineLayer.Fill(new Area(MathF.Round(_bands.BandStart(r)), _linesArea.Y, 1f, _linesArea.Height), style.Grid);
         Paint.YAxis(Sketch, _linesArea, _y.Ticks(ChartConstants.Trajectory.TotalYTicks), style);
-        Paint.HiddenStubs(_lineLayer, _bands, Plot, -1, style);
         DrawAxisLines();
-        float bandsStart = _bands.BandStart(0), bandsEnd = RightEdge(_rooms - 1);
-        _lineLayer.Fill(new Area(bandsStart, MathF.Round(_baselineY) - 1f, bandsEnd - bandsStart, 2f), GameCanvas.ToRgba(ChartConstants.Colors.BaselineColor));
-
-        DrawLines();
-
         Paint.BandLabels(_labelLayer, _bands, RoomNames(), Plot.Bottom, style, LabelFit.Thin);
-        DrawEndLabels(style, style.Label);
         DrawLegend(style);
         _foot.Place(Sketch.Metrics, style, Panel.X + Panel.Width / 2f, Panel.Bottom - 6f, 0.5f, 1f, Panel);
 
         _crowded = _bands.Width < ChartConstants.Trajectory.MinDetailWidth;
+        DrawHovered();
+    }
+
+    // What the hovered line and the focused room change, drawn again without a build: the lines lit
+    // over the others, the end labels, the tooltips along a line, and the comparison.
+    private void DrawHovered()
+    {
+        _lit.Clear();
+        _ends.Clear();
+        _tips.Clear();
+        _cells.Clear();
+        _top.Clear();
+        if (Empty) return;
+        ChartStyle style = Style;
+        TextStyle small = SctChartStyle.Small(style);
+        // Built now, if this is the first hover since the layout changed, and not in the draw.
+        LinesBehind(AnyDimmed);
+        DrawLitLines();
+        DrawEndLabels(style, style.Label);
         if (!_mainPin.IsNone) DrawLineTooltips(_mainPin, style, small);
         if (_crowded) DrawRoomCard(style);
         else DrawComparisonTable(style);
@@ -335,6 +349,9 @@ internal sealed class TrajectoryChart : SketchChart
 
     private LinePoints PointsOf(LineId id) => id.IsSob ? _lines[^1] : _lines[id.Value];
 
+    // Every run's line is dimmed while one is hovered or pinned, but for the lit ones.
+    private bool AnyDimmed => !_hovered.IsNone || !_mainPin.IsNone;
+
     // One line may carry two identities when the sum of bests, the best and the last coincide. It
     // thickens when either is hovered or pinned, and dims only when both are dim.
     private void DrawSpecial(LineId drawn, LineId a, LineId b)
@@ -342,30 +359,55 @@ internal sealed class TrajectoryChart : SketchChart
         bool lit    = IsHovered(a) || IsHovered(b) || IsPinned(a) || IsPinned(b);
         bool dimmed = IsDimmed(a) && IsDimmed(b);
         Rgba colour = LineColor(drawn);
-        Paint.Line(_lineLayer, PointsOf(drawn), dimmed ? colour.Times(ChartConstants.Trajectory.DimFactor) : colour,
+        Paint.Line(_lit, PointsOf(drawn), dimmed ? colour.Times(ChartConstants.Trajectory.DimFactor) : colour,
                    lit ? ChartConstants.Trajectory.SpecialLineHitThickness : ChartConstants.Trajectory.SpecialLineThickness);
     }
 
-    private void DrawLines()
+    // The grid, the baseline and every run's line but the three drawn on top, with none lit: bright,
+    // or dimmed. A lit line is drawn again over its own in DrawLitLines.
+    private Sketch LinesBehind(bool dimmed)
+    {
+        ref Sketch sketch = ref dimmed ? ref _dimmed : ref _bright;
+        ref int builtFor = ref dimmed ? ref _dimmedFor : ref _brightFor;
+        ref ChartStyle builtStyle = ref dimmed ? ref _dimmedStyle : ref _brightStyle;
+        if (builtFor == _layoutVersion && ReferenceEquals(builtStyle, Style)) return sketch;
+        (builtFor, builtStyle) = (_layoutVersion, Style);
+        sketch ??= new Sketch(Sketch.Metrics);
+        sketch.Clear();
+        ChartStyle style = Style;
+
+        // Grid: a line where each room starts. The deviation ticks are the axis's, in the frame.
+        for (int r = 0; r < _rooms; r++)
+            sketch.Fill(new Area(MathF.Round(_bands.BandStart(r)), _linesArea.Y, 1f, _linesArea.Height), style.Grid);
+        Paint.HiddenStubs(sketch, _bands, Plot, -1, style);
+        float bandsStart = _bands.BandStart(0), bandsEnd = RightEdge(_rooms - 1);
+        sketch.Fill(new Area(bandsStart, MathF.Round(_baselineY) - 1f, bandsEnd - bandsStart, 2f), GameCanvas.ToRgba(ChartConstants.Colors.BaselineColor));
+
+        int total = _model.Attempts.Count;
+        for (int i = 0; i < total; i++)
+        {
+            if (i == _scope.BestIdx || i == total - 1) continue;
+            // Older runs are darker. Dimming scales a line's own place on that ramp, so a dimmed
+            // line and the oldest undimmed one can still be told apart.
+            float brightness = total <= 1
+                ? ChartConstants.Trajectory.BrightnessMax
+                : MathHelper.Lerp(ChartConstants.Trajectory.BrightnessMin, ChartConstants.Trajectory.BrightnessMax, (float)i / (total - 1));
+            if (dimmed) brightness *= ChartConstants.Trajectory.DimFactor;
+            Paint.Line(sketch, _lines[i], Rgba.White.Times(brightness), dimmed ? 1f : 1.5f);
+        }
+        return sketch;
+    }
+
+    // The hovered and pinned runs, white and thick over the others, then the sum of bests, the best
+    // and the last.
+    private void DrawLitLines()
     {
         int total = _model.Attempts.Count;
         for (int i = 0; i < total; i++)
         {
             if (i == _scope.BestIdx || i == total - 1) continue;
             LineId id = LineId.Attempt(i);
-            if (IsHovered(id) || IsPinned(id))
-            {
-                Paint.Line(_lineLayer, _lines[i], Rgba.White, 2.5f);
-                continue;
-            }
-            // Older runs are darker. Dimming scales a line's own place on that ramp, so a dimmed
-            // line and the oldest undimmed one can still be told apart.
-            float brightness = total <= 1
-                ? ChartConstants.Trajectory.BrightnessMax
-                : MathHelper.Lerp(ChartConstants.Trajectory.BrightnessMin, ChartConstants.Trajectory.BrightnessMax, (float)i / (total - 1));
-            bool dimmed = IsDimmed(id);
-            if (dimmed) brightness *= ChartConstants.Trajectory.DimFactor;
-            Paint.Line(_lineLayer, _lines[i], Rgba.White.Times(brightness), dimmed ? 1f : 1.5f);
+            if (IsHovered(id) || IsPinned(id)) Paint.Line(_lit, _lines[i], Rgba.White, 2.5f);
         }
 
         // Sum of bests, best and last go on top of the others, in that order.
@@ -427,14 +469,14 @@ internal sealed class TrajectoryChart : SketchChart
         // and a second mark beside it would name a line the legend does not.
         if (_scope.AnyCompleted && !ends.Contains(0)) Add(0, BaselineId, Told(BaselineId));
 
-        float lineHeight = Sketch.LineHeight(small);
+        float lineHeight = _ends.LineHeight(small);
         PlacedSideLabel[] placed = LabelColumn.Place(labels, lineHeight + ChartConstants.Trajectory.LabelMinSpacingExtra,
                                                      _linesArea.Y, _linesArea.Bottom, margin: lineHeight / 2f);
-        Paint.SideLabels(Sketch, placed, Plot.Right + ChartConstants.Axis.RightLabelMarginX, style with { Label = small });
+        Paint.SideLabels(_ends, placed, Plot.Right + ChartConstants.Axis.RightLabelMarginX, style with { Label = small });
         // What the column holds: totals, beside an axis of gaps. Above the plot and clear of a label
         // centred on its top edge, and against the panel's side: the column is narrower than its heading.
         if (placed.Length > 0)
-            Sketch.Text(Dialog.Clean(DialogIds.ChartSegmentTime), Panel.Right - 6f, Plot.Y - lineHeight / 2f - 4f,
+            _ends.Text(Dialog.Clean(DialogIds.ChartSegmentTime), Panel.Right - 6f, Plot.Y - lineHeight / 2f - 4f,
                         small with { Colour = Rgba.LightGray }, alignX: 1f, alignY: 1f);
     }
 
@@ -706,12 +748,17 @@ internal sealed class TrajectoryChart : SketchChart
 
     // ------------------------------------------------------------------------- mouse and pins
 
+    private static readonly Area Screen = new(0f, 0f, ChartConstants.Screen.ScreenWidth, ChartConstants.Screen.ScreenHeight);
+
     protected override void DrawLayers()
     {
+        // First: they were part of the frame, under everything else.
+        DrawLayer(_ends, 0f, 0f, Screen);
         // Zoomed, cut to the plot. Not zoomed, a thick line on the plot's edge keeps its whole width,
         // but for the left one: there it would lie across the deviation axis.
-        DrawLayer(_lineLayer, _zoomX.PanPixels, _zoom.PanPixels,
-                  Zoomed ? _linesArea : new Area(Plot.X + 1f, Panel.Y, Panel.Right - Plot.X - 1f, Panel.Height));
+        Area lines = Zoomed ? _linesArea : new Area(Plot.X + 1f, Panel.Y, Panel.Right - Plot.X - 1f, Panel.Height);
+        if (!Empty) DrawLayer(LinesBehind(AnyDimmed), _zoomX.PanPixels, _zoom.PanPixels, lines);
+        DrawLayer(_lit, _zoomX.PanPixels, _zoom.PanPixels, lines);
         // A room's name shows while it is whole between the plot's sides.
         DrawLayer(_labelLayer, _zoomX.PanPixels, 0f, new Area(Plot.X - 2f, Plot.Bottom, Plot.Width + 4f, Panel.Bottom - Plot.Bottom));
         // Not cut to the panel: the comparison table's row names stand left of it.
@@ -720,7 +767,7 @@ internal sealed class TrajectoryChart : SketchChart
         const float past = 40f;
         DrawLayer(_tips, _zoomX.PanPixels, _zoom.PanPixels, new Area(_linesArea.X - past, _linesArea.Y, _linesArea.Width + 2f * past, _linesArea.Height));
         DrawLayer(_cells, _zoomX.PanPixels, 0f, new Area(Plot.X - past, _linesArea.Bottom, Plot.Width + 2f * past, Plot.Bottom - _linesArea.Bottom));
-        DrawLayer(_top, 0f, 0f, new Area(0f, 0f, ChartConstants.Screen.ScreenWidth, ChartConstants.Screen.ScreenHeight));
+        DrawLayer(_top, 0f, 0f, Screen);
     }
 
     // The strip under a room's name, for the rooms in view.
@@ -807,21 +854,25 @@ internal sealed class TrajectoryChart : SketchChart
     {
         EnsureBuilt();
         LineId found = Empty || Panning || !_linesArea.Contains(mouseHudPos.X, mouseHudPos.Y) ? LineId.None : LineAt(mouseHudPos.X, mouseHudPos.Y);
-        if (found != _hovered)
-        {
-            _hovered = found;
-            Invalidate();
-        }
+        bool changed = found != _hovered;
+        _hovered = found;
         int focus = Empty || Panning || !_linesArea.Contains(mouseHudPos.X, mouseHudPos.Y) ? -1 : _bands.IndexAt(mouseHudPos.X);
         if (focus != _focusRoom)
         {
             _focusRoom = focus;
             // Only a crowded chart draws anything for it.
-            if (_crowded && !(_mainPin.IsNone && _hovered.IsNone)) Invalidate();
+            changed |= _crowded && !(_mainPin.IsNone && _hovered.IsNone);
         }
-        // Empty label: the sketch carries the tooltips.
-        return found.IsNone ? null : new HoverInfo("", Vector2.Zero, Key: found.ToKey());
+        if (changed) DrawHovered();
+        if (found.IsNone) return null;
+        // Empty label: the sketch carries the tooltips. Kept while the same line is hovered, so a
+        // still mouse allocates nothing.
+        if (_hoverInfo == null || _hoverInfoFor != found) (_hoverInfo, _hoverInfoFor) = (new HoverInfo("", Vector2.Zero, Key: found.ToKey()), found);
+        return _hoverInfo;
     }
+
+    private HoverInfo _hoverInfo;
+    private LineId _hoverInfoFor = LineId.None;
 
     // The line passing nearest the mouse, measured straight up or down: attempts first, then the
     // sum of bests, then the baseline, so the earliest of equals wins. No line is picked over a

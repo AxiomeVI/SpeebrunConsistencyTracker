@@ -1,4 +1,5 @@
 // MenuTools requires: StringEntryPage.cs ColorHex.cs MenuToolsDialog.cs IInputHoldingItem.cs
+#nullable disable
 using Microsoft.Xna.Framework;
 using Monocle;
 

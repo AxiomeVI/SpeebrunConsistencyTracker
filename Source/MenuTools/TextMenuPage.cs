@@ -1,4 +1,5 @@
 // MenuTools requires: IInputHoldingItem.cs
+#nullable disable
 using System;
 using System.Runtime.ExceptionServices;
 using Monocle;
@@ -45,20 +46,20 @@ public class TextMenuPage : TextMenu {
     // Lets the parent's recursive submenus handle input again
     private Action releaseParentInput;
     private bool parentWasFocused;
-    private bool parentWasAutoscrolling;
     // Whether SetUp has run with no CleanUp since
     private bool needsCleanUp;
     // The overworld whose Confirm and Back hints the page hid, and whether it was showing them
     private Overworld hintsOverworld;
     private bool overworldHintsShown;
 
-    /// <param name="parent">The menu to return to. Must not be null.</param>
+    /// <param name="parent">The menu to return to</param>
     /// <param name="subMenuParent">
     ///     The recursive submenu the page is entered from, if any. If null (the default), the submenu that has the
     ///     selection in <paramref name="parent"/> when the page is entered is used.
     /// </param>
+    /// <exception cref="ArgumentNullException"><paramref name="parent"/> is null</exception>
     public TextMenuPage(TextMenu parent, IInputHoldingItem subMenuParent = null) {
-        this.parent                = parent;
+        this.parent                = parent ?? throw new ArgumentNullException(nameof(parent));
         this.subMenuParent         = subMenuParent;
         OnCancel = OnESC = OnPause = delegate {
             if (Input.MenuCancel.Pressed || Input.ESC.Pressed || Input.Pause.Pressed) {
@@ -72,47 +73,74 @@ public class TextMenuPage : TextMenu {
 
     /// <summary>
     /// Shows the page over its parent. The parent is hidden and unfocused, the recursive submenu the page was entered
-    /// from stops handling input, and the page joins the current scene with its selected item hovered.
-    /// <see cref="SetUp"/> runs first. Does nothing if the page is already entered.
+    /// from stops handling input, and the page joins the current scene with its selected item hovered. The parent's
+    /// <see cref="TextMenu.AutoScroll"/> is left as it is, so what a handler does to the scrolling under the page
+    /// stands. <see cref="SetUp"/> runs first. Does nothing if the page is already entered. If <see cref="SetUp"/> or a later
+    /// step throws, the page is not entered: <see cref="CleanUp"/> has run and the parent is as it was.
     /// </summary>
     public virtual void Enter() {
         if (Entered) {
             // Entering twice would save the already-unfocused parent state and never restore it
             return;
         }
-        SetUp();
-        // A key bound to Confirm and to Pause leaves Pause buffered: the press that opened the page must not close it
-        Input.Pause.ConsumeBuffer();
-        needsCleanUp           = true;
-        Entered                = true;
-        parentWasFocused       = parent.Focused;
-        parentWasAutoscrolling = parent.AutoScroll;
-        parent.Focused         = false;
-        parent.AutoScroll      = false;
-        // The innermost submenu that handles the input: a caller may have given one that holds a nested one
-        restoreSubMenuInput    = (subMenuParent?.InputHolder ?? subMenuParent ??
-                                      (parent.Current as IInputHoldingItem)?.InputHolder)
-                                     ?.SuspendInput(stopAutoScroll: true);
-        // Also when no submenu had the input: a handler can move the selection into one while the page is open
-        releaseParentInput     = MenuInputBlock.Block(parent);
-        parent.Visible = false;
-        Active         = true;
-        Visible        = true;
-        if (Scene?.Entities.removing.Contains(this) ?? false) {
-            // Entered again in the frame it returned: the page is still in the scene, waiting to be removed, and Add
-            // would do nothing. Take it off the removal list instead.
-            Scene.Entities.removing.Remove(this);
-            Scene.Entities.toRemove.Remove(this);
-        } else {
-            Scene scene = Engine.Scene;
-            scene.Add(this);
-            // The scene takes the page in at the start of its next frame. If it ends before that, it never tells
-            // the page, and what SetUp took would stay taken.
-            scene.OnEndOfFrame += () => {
-                if (Scene == null && Engine.NextScene != scene) {
-                    RunCleanUp();
-                }
-            };
+        // Everything that reads the parent comes before anything is taken. The innermost submenu that handles the
+        // input: a caller may have given one that holds a nested one. HolderIn also repairs a selection that
+        // TextMenu.Remove left past the last row, where reading Current throws.
+        IInputHoldingItem holder = subMenuParent?.InputHolder ?? subMenuParent ?? MenuInputBlock.HolderIn(parent);
+        parentWasFocused      = parent.Focused;
+        bool parentWasVisible = parent.Visible;
+        bool wasActive        = Active;
+        bool wasVisible       = Visible;
+        try {
+            // Set first: a SetUp that throws part way has taken something, and its CleanUp must run
+            needsCleanUp = true;
+            SetUp();
+            // A key bound to Confirm and to Pause leaves Pause buffered: the press that opened the page must not
+            // close it
+            Input.Pause.ConsumeBuffer();
+            Entered             = true;
+            parent.Focused      = false;
+            // The menu's AutoScroll is left alone: a handler under the page may take the scrolling or give it back,
+            // and the submenus read it as what they owe. The hidden menu may scroll meanwhile.
+            restoreSubMenuInput = holder?.SuspendInput(stopAutoScroll: true);
+            // Also when no submenu had the input: a handler can move the selection into one while the page is open
+            releaseParentInput  = MenuInputBlock.Block(parent);
+            parent.Visible = false;
+            Active         = true;
+            Visible        = true;
+            if (Scene?.Entities.removing.Contains(this) ?? false) {
+                // Entered again in the frame it returned: the page is still in the scene, waiting to be removed, and
+                // Add would do nothing. Take it off the removal list instead.
+                Scene.Entities.removing.Remove(this);
+                Scene.Entities.toRemove.Remove(this);
+            } else {
+                Scene scene = Engine.Scene;
+                scene.Add(this);
+                // The scene takes the page in at the start of its next frame. If it ends before that, it never tells
+                // the page, and what SetUp took would stay taken.
+                scene.OnEndOfFrame += () => {
+                    if (Scene == null && Engine.NextScene != scene) {
+                        RunCleanUp();
+                    }
+                };
+            }
+        } catch {
+            // The page is not in a scene, so nothing else would ever give back what was taken
+            Entered           = false;
+            Active            = wasActive;
+            Visible           = wasVisible;
+            parent.Focused = parentWasFocused;
+            parent.Visible = parentWasVisible;
+            releaseParentInput?.Invoke();
+            releaseParentInput = null;
+            restoreSubMenuInput?.Invoke();
+            restoreSubMenuInput = null;
+            try {
+                RunCleanUp();
+            } catch {
+                // The failure that got us here is the one to report
+            }
+            throw;
         }
         Current?.SelectWiggler.Start();
         Current?.OnEnter?.Invoke();
@@ -120,7 +148,7 @@ public class TextMenuPage : TextMenu {
 
     /// <summary>
     /// Goes back to the parent. <see cref="CleanUp"/> runs, the page leaves the scene, and the parent gets back its
-    /// visibility, focus, scrolling and the submenu's input. Then <see cref="OnReturned"/> is invoked. Consumes
+    /// visibility, focus and the submenu's input. Then <see cref="OnReturned"/> is invoked. Consumes
     /// Confirm, Cancel, Pause and ESC first, so the press that closed the page does not act on the parent in the same
     /// frame. Does nothing if the page is not entered. If <see cref="CleanUp"/> or the <c>OnLeave</c> of the selected
     /// item throws, all of this still happens, then the exception leaves this method: a callback its caller invokes
@@ -149,8 +177,7 @@ public class TextMenuPage : TextMenu {
     }
 
     private void GiveParentBack() {
-        parent.Focused    = parentWasFocused;
-        parent.AutoScroll = parentWasAutoscrolling;
+        parent.Focused = parentWasFocused;
         releaseParentInput?.Invoke();
         releaseParentInput = null;
         restoreSubMenuInput?.Invoke();
@@ -178,9 +205,9 @@ public class TextMenuPage : TextMenu {
     protected virtual void SetUp() {}
 
     /// <summary>
-    /// Called once for every <see cref="SetUp"/>, as soon as the page stops being shown: by <see cref="Return"/>,
+    /// Called once for every <see cref="SetUp"/>, also one that threw part way, as soon as the page stops being shown: by <see cref="Return"/>,
     /// before any handler runs, or else when the page is removed from the scene or the scene ends. Let go here of
-    /// whatever <see cref="SetUp"/> took. An override in a subclass of a page that has one must call the base method.
+    /// whatever <see cref="SetUp"/> took, which after a throw may be only part of it. An override in a subclass of a page that has one must call the base method.
     /// It is called once even if it throws: the page still returns, and the exception reaches the caller of
     /// <see cref="Return"/>.
     /// </summary>

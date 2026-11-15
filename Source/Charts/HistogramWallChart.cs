@@ -283,8 +283,12 @@ internal sealed class HistogramWallChart : SketchChart
         if (previous is HistogramWallChart wall && wall.Tiles == Tiles) (_view, _focus, _stepped) = (wall._view, wall._focus, wall._stepped);
     }
 
-    // Coming back shows the wall, not the histogram left open.
-    internal override void OnLeft() => (_focus, _stepped) = (new FocusTransition(), -1);
+    // Coming back shows the wall, not the histogram left open. The pins were that histogram's.
+    internal override void OnLeft()
+    {
+        (_focus, _stepped) = (new FocusTransition(), -1);
+        Pins.Clear();
+    }
 
     // Open, Next and Previous go round the histograms, the segment's first.
     internal override bool Step(int steps)

@@ -36,9 +36,9 @@ internal sealed class BarsChart : SketchChart
     internal readonly record struct Retuned(string Title, List<double> Secondary, string SecondaryLabel);
     internal const int MinThresholdFrames = 1, MaxThresholdFrames = 118, FrameMs = 17;
     private const float SliderWidth = 260f;
-    private readonly ButtonBar _foot;
-    private readonly BarSlider _threshold;
-    private readonly BarCaption _thresholdValue;
+    private ButtonBar _foot;
+    private BarSlider _threshold;
+    private BarCaption _thresholdValue;
     private readonly Func<int, Retuned> _retune;
     private bool _unsaved;
 
@@ -237,6 +237,15 @@ internal sealed class BarsChart : SketchChart
         return _threshold.Dragging | _foot.Contains(pointer.X, pointer.Y) | UpdateColumns(pointer);
     }
 
+    // A room finished during a drag of the slider: the drag goes on here, and is saved when it
+    // ends. This chart's shares were computed at the threshold the drag had written.
+    internal override void TakeViewFrom(BaseChartOverlay previous)
+    {
+        base.TakeViewFrom(previous);
+        if (_foot != null && previous is BarsChart { _foot: not null } chart)
+            (_foot, _threshold, _thresholdValue, _unsaved) = (chart._foot, chart._threshold, chart._thresholdValue, chart._unsaved);
+    }
+
     protected override void DrawOwnControls()
     {
         if (_foot != null) GameCanvas.Draw(_foot.Sketch);
@@ -281,6 +290,9 @@ internal sealed class BarsChart : SketchChart
     private HoverInfo InfoOf(int i, bool primary)
     {
         Area bar = primary ? _primaryBar[i] : _secondaryBar[i];
+        Vector2 at = new(bar.X + bar.Width / 2f - Shift, bar.Y);
+        int mark = 2 * i + (primary ? 0 : 1);
+        if (LastHover(mark, at, out HoverInfo kept)) return kept;
         string label, key;
         if (_shape == Shape.StackedPercent)
         {
@@ -294,7 +306,7 @@ internal sealed class BarsChart : SketchChart
             label = primary ? DialogText.LabelValue(_primaryLabel, _primaryText[i]) : DialogText.LabelValue(_secondaryLabel, _secondaryText[i]);
             key   = $"{GroupKey}{i}:{(primary ? "p" : "s")}";
         }
-        return new HoverInfo(label, new Vector2(bar.X + bar.Width / 2f - Shift, bar.Y), key, 2 * i + (primary ? 0 : 1));
+        return KeepHover(new HoverInfo(label, at, key, mark));
     }
 
     public override void DrawHighlight(HoverInfo info)

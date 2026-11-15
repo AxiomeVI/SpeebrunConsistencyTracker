@@ -56,6 +56,8 @@ internal sealed record BinCounts(int[] Counts, int Below, int Above) {
 /// <remarks>
 ///     Build one with the factories on <see cref="Bins"/>: a bin per whole number, groups of whole
 ///     numbers (1-3, 4-6, 7-9), whole-frame widths for durations, or edges of your choosing.
+///     Edges that cut no bin — fewer than two, two equal (quantiles over tied values), or a NaN — make an
+///     empty set: <see cref="All"/> is empty, with or without underflow and overflow, so a histogram draws no bar.
 /// </remarks>
 internal sealed class Bins<T> {
     private readonly IValueKind<T> _kind;
@@ -68,22 +70,39 @@ internal sealed class Bins<T> {
     public bool HasUnderflow { get; }
     public bool HasOverflow { get; }
 
-    /// <param name="edges">At least two, strictly ascending. n edges make n - 1 range bins.</param>
+    /// <param name="edges">
+    ///     Ascending: n strictly ascending edges make n - 1 range bins. An edge below the one before it throws;
+    ///     ties, a NaN and fewer than two edges make an empty set.
+    /// </param>
     /// <param name="label">Writes each bin's label. The factories on <see cref="Bins"/> pass one.</param>
     public Bins(IValueKind<T> kind, IReadOnlyList<T> edges, Func<Bin<T>, string> label,
                 bool underflow = false, bool overflow = false) {
-        if (edges.Count < 2) throw new ArgumentException("bins need at least two edges", nameof(edges));
-        for (int i = 1; i < edges.Count; i++)
-            if (kind.Compare(edges[i - 1], edges[i]) >= 0)
-                throw new ArgumentException($"edges must be strictly ascending (edge {i})", nameof(edges));
+        // Descending edges are the caller's arithmetic; ties and NaN are the data's. NaN orders below every
+        // double, so a NaN edge is looked for, not left to the order.
+        bool cuts = edges.Count >= 2;
+        for (int i = 0; i < edges.Count; i++) {
+            if (IsNaN(edges[i])) {
+                cuts = false;
+                continue;
+            }
+            if (i == 0 || IsNaN(edges[i - 1])) continue;
+            int order = kind.Compare(edges[i - 1], edges[i]);
+            if (order > 0) throw new ArgumentException($"edges must ascend (edge {i})", nameof(edges));
+            if (order == 0) cuts = false;
+        }
 
         _kind = kind;
         _edges = [.. edges];
         _label = label;
-        HasUnderflow = underflow;
-        HasOverflow = overflow;
+        Empty = !cuts;
+        HasUnderflow = underflow && cuts;
+        HasOverflow = overflow && cuts;
 
         List<Bin<T>> all = new(_edges.Length + 1);
+        if (Empty) {
+            All = all;
+            return;
+        }
         if (underflow) all.Add(Labelled(_edges[0], _edges[0], BinShape.Underflow));
         for (int i = 0; i + 1 < _edges.Length; i++) all.Add(Labelled(_edges[i], _edges[i + 1], BinShape.Range));
         if (overflow) all.Add(Labelled(_edges[^1], _edges[^1], BinShape.Overflow));
@@ -93,6 +112,11 @@ internal sealed class Bins<T> {
     /// <summary>The same bins, with everything from the last edge up gathered in one more: "10+".</summary>
     public Bins<T> WithOverflow() => new(_kind, _edges, _label, HasUnderflow, overflow: true);
 
+    // Whether the edges cut no bin. HasUnderflow and HasOverflow are false then, so With* keeps it empty.
+    private bool Empty { get; }
+
+    private static bool IsNaN(T value) => (value is double d && double.IsNaN(d)) || (value is float f && float.IsNaN(f));
+
     /// <summary>The same bins, with everything below the first edge gathered in one more.</summary>
     public Bins<T> WithUnderflow() => new(_kind, _edges, _label, underflow: true, HasOverflow);
 
@@ -101,6 +125,7 @@ internal sealed class Bins<T> {
 
     /// <summary>The index in <see cref="All"/> of the bin holding a value, or -1 when none does.</summary>
     public int IndexOf(T value) {
+        if (Empty) return -1;
         int range = RangeIndex(value);
         if (range == -1) return HasUnderflow ? 0 : -1;
         if (range == _edges.Length - 1) return HasOverflow ? All.Count - 1 : -1;
@@ -123,7 +148,13 @@ internal sealed class Bins<T> {
         return new BinCounts(counts, below, above);
     }
 
+    // An empty set still counts every value: Below under the first edge, Above otherwise.
     private void Tally(T value, int times, int[] counts, ref int below, ref int above) {
+        if (Empty) {
+            if (_edges.Length > 0 && _kind.Compare(value, _edges[0]) < 0) below += times;
+            else above += times;
+            return;
+        }
         int index = IndexOf(value);
         if (index >= 0) counts[index] += times;
         else if (RangeIndex(value) == -1) below += times;
@@ -156,13 +187,19 @@ internal static class Bins {
     ///     Whole numbers from <paramref name="first"/> to <paramref name="last"/>, in groups of
     ///     <paramref name="width"/>: width 1 gives one bin per value ("0" ... "9"), width 3 from 1 gives
     ///     "1-3", "4-6", "7-9". A last group that would run past <paramref name="last"/> is cut there.
-    ///     Chain <see cref="Bins{T}.WithOverflow"/> for "10+".
+    ///     The groups are widened, whole numbers at a time, if the range would need more than
+    ///     <paramref name="maxBins"/>. A <paramref name="last"/> below <paramref name="first"/> (the extremes of
+    ///     no values) makes an empty set. Chain <see cref="Bins{T}.WithOverflow"/> for "10+".
     /// </summary>
-    public static Bins<double> Integers(int first, int last, int width = 1) {
-        if (last < first) throw new ArgumentException("last must not be below first", nameof(last));
+    public static Bins<double> Integers(int first, int last, int width = 1, int maxBins = 50) {
         if (width < 1) throw new ArgumentOutOfRangeException(nameof(width), width, "a group holds at least one value");
+        if (maxBins < 1) throw new ArgumentOutOfRangeException(nameof(maxBins), maxBins, "at least one bin");
+        if (last < first) return new Bins<double>(Numbers.Integers, [], IntegerLabel);
+        long values = (long) last - first + 1;
+        long step = width;
+        if ((values + step - 1) / step > maxBins) step = (values + maxBins - 1) / maxBins;
         List<double> edges = new();
-        for (long at = first; at <= last; at += width) edges.Add(at);
+        for (long at = first; at <= last; at += step) edges.Add(at);
         edges.Add(last + 1.0);
         return new Bins<double>(Numbers.Integers, edges, IntegerLabel);
     }
@@ -172,12 +209,22 @@ internal static class Bins {
     ///     preferred one rounded up to whole frames, widened further if the range would need more than
     ///     <paramref name="maxBins"/>. Edges are whole widths counted from <paramref name="origin"/>: from zero
     ///     (the default) they line up with the axis's ticks; from the smallest value, the first bin starts
-    ///     on it and no bin is spent on the stretch before it.
+    ///     on it and no bin is spent on the stretch before it. A range, or edges, too wide for a long make an
+    ///     empty set. Throws <see cref="ArgumentOutOfRangeException"/> when <paramref name="maxBins"/> is below 1.
     /// </summary>
     // Whole frames because Celeste's times are whole frames: a bin a third of a frame wide holds
     // nothing two times in three, and the histogram combs — the shape is the binning's, not the data's.
     public static Bins<long> Frames(Durations kind, long min, long max, long preferredWidth, int maxBins = 50, long origin = 0) {
         if (maxBins < 1) throw new ArgumentOutOfRangeException(nameof(maxBins), maxBins, "at least one bin");
+        try {
+            return CheckedFrames(kind, min, max, preferredWidth, maxBins, origin);
+        } catch (OverflowException) {
+            return new Bins<long>(kind, [], bin => RangeLabel(kind, bin));
+        }
+    }
+
+    private static Bins<long> CheckedFrames(Durations kind, long min, long max, long preferredWidth, int maxBins, long origin) {
+        checked {
         if (min > max) (min, max) = (max, min);
         long frame = kind.FrameTicks;
         long width = WholeFrames(Math.Max(preferredWidth, 1), frame);
@@ -198,6 +245,7 @@ internal static class Bins {
         long[] edges = new long[count + 1];
         for (long i = 0; i <= count; i++) edges[i] = first + i * width;
         return new Bins<long>(kind, edges, bin => RangeLabel(kind, bin));
+        }
     }
 
     /// <summary>Bins between edges of your choosing, uneven ones included, labelled "a to b".</summary>
@@ -224,7 +272,7 @@ internal static class Bins {
         _ => $"{kind.Format(bin.Lower)} to {kind.Format(bin.Upper)}",
     };
 
-    private static long WholeFrames(long ticks, long frame) => (ticks + frame - 1) / frame * frame;
+    private static long WholeFrames(long ticks, long frame) => checked((ticks + frame - 1) / frame * frame);
 
     private static long FloorTo(long value, long step) => value / step * step - (value % step < 0 ? step : 0);
 }

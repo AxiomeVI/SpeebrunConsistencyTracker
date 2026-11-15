@@ -5,24 +5,18 @@ using System;
 namespace Celeste.Mod.CelesteCharts;
 
 /// <summary>
-///     Bands in a row, one per column of a chart: <see cref="Bands"/> (evenly spaced) and
-///     <see cref="RouteAxis"/> (rooms grouped under checkpoints, with gaps). Painters take either.
+///     Bands in a row, one per column of a chart: <see cref="Bands"/> (evenly spaced), or any other layout
+///     of columns, such as rooms grouped under checkpoints with gaps. Painters take any of them.
 /// </summary>
 // Painters take it as a generic constraint (Paint.Bars<T, TBands>), so a Bands struct is not boxed.
 internal interface IBandLayout {
     int Count { get; }
 
-    /// <summary>One band's width.</summary>
-    float Width { get; }
-
-    /// <summary>A bar's width inside its band.</summary>
-    float BarWidth { get; }
-
     float BandStart(int index);
     float BarStart(int index);
     float Centre(int index);
 
-    /// <summary>Band <paramref name="index"/>'s own width: <see cref="Width"/>, unless the layout lets bands differ (a hidden column's stub).</summary>
+    /// <summary>Band <paramref name="index"/>'s own width. Bands may differ (a hidden column's stub), so a painter never assumes one width.</summary>
     float WidthOf(int index);
 
     /// <summary>
@@ -58,7 +52,11 @@ internal readonly struct Bands : IBandLayout {
     /// <summary>Whether bands and bars were snapped to whole pixels.</summary>
     public bool WholePixels { get; }
 
-    /// <param name="count">How many bands. Zero gives an empty set that holds no pixel.</param>
+    /// <param name="count">
+    ///     How many bands. Zero gives an empty set that holds no pixel. So does a whole-pixel layout whose bands would be
+    ///     under one pixel wide (more bands than pixels, <paramref name="minWidth"/> aside): <see cref="Width"/> and
+    ///     <see cref="BarWidth"/> are 0, <see cref="Start"/> is <paramref name="start"/>, and <see cref="IndexAt"/> finds nothing.
+    /// </param>
     /// <param name="start">The stretch's first pixel.</param>
     /// <param name="length">The stretch's length in pixels.</param>
     /// <param name="fill">How much of a band its bar takes, between 0 and 1.</param>
@@ -88,10 +86,15 @@ internal readonly struct Bands : IBandLayout {
         if (width < minWidth) width = wholePixels ? MathF.Ceiling(minWidth) : minWidth;
         float bar = width * fill;
         if (wholePixels) {
-            // The fill of the SNAPPED band, so every bar is the same fraction of what is drawn. At least
-            // one pixel, and at least one pixel of gap whenever the band is wide enough for one.
-            bar = Math.Clamp(MathF.Floor(width * fill), 1f, Math.Max(1f, width - (width >= 2f ? 1f : 0f)));
-            start = MathF.Round(start + Math.Max(0f, length - width * count) / 2f);
+            if (width < 1f) {
+                Start = start;
+                Width = 0f;
+                BarWidth = 0f;
+                return;
+            }
+            // The fill of the SNAPPED band, so every bar is the same fraction of what is drawn.
+            bar = BandSnap.Bar(width, fill);
+            start = BandSnap.Centred(start, length - width * count);
         }
         Start = start;
         Width = width;
@@ -103,10 +106,7 @@ internal readonly struct Bands : IBandLayout {
 
     /// <summary>The first pixel of the bar in band <paramref name="index"/>.</summary>
     // Rounded down in whole-pixel mode, so an odd leftover sits on the same side of every bar.
-    public float BarStart(int index) {
-        float offset = (Width - BarWidth) / 2f;
-        return BandStart(index) + (WholePixels ? MathF.Floor(offset) : offset);
-    }
+    public float BarStart(int index) => BandStart(index) + BandSnap.Offset(Width, BarWidth, WholePixels);
 
     /// <summary>The middle of band <paramref name="index"/>, where its label centres.</summary>
     public float Centre(int index) => BandStart(index) + Width / 2f;
@@ -117,7 +117,8 @@ internal readonly struct Bands : IBandLayout {
 
     /// <summary>
     ///     Bands inside the bar of band <paramref name="index"/> of <paramref name="outer"/>: one per series
-    ///     of a grouped bar chart. Hit-testing is the outer band, then the inner one.
+    ///     of a grouped bar chart. Hit-testing is the outer band, then the inner one. The inner bands are fractional: they
+    ///     sit inside a whole-pixel outer bar but are not themselves snapped to pixels.
     /// </summary>
     public static Bands Within<TBands>(TBands outer, int index, int count, float fill = 0.9f) where TBands : IBandLayout =>
         new(count, outer.BarStart(index), outer.BarWidthOf(index), fill);

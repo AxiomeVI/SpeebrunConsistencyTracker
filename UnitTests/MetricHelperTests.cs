@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Xunit;
 
@@ -147,33 +148,6 @@ public class MetricHelperTests
     }
 
     [Fact]
-    public void ComputeConsistencyScore_is_zero_for_a_non_positive_median()
-    {
-        Assert.Equal(0, MetricHelper.ComputeConsistencyScore(0, TimeTicks.Zero, 0, 0, 0));
-        Assert.Equal(0, MetricHelper.ComputeConsistencyScore(-1, TimeTicks.Zero, 0, 0, 0));
-    }
-
-    [Fact]
-    public void ComputeConsistencyScore_is_one_for_a_perfectly_repeated_run()
-    {
-        double score = MetricHelper.ComputeConsistencyScore(100, new TimeTicks(100), 0, 0, 0);
-        Assert.Equal(1.0, score, 10);
-    }
-
-    [Fact]
-    public void ComputeConsistencyScore_collapses_when_every_run_is_a_reset()
-    {
-        Assert.Equal(0, MetricHelper.ComputeConsistencyScore(100, new TimeTicks(100), 0, 1.0, 0));
-    }
-
-    [Fact]
-    public void ComputeConsistencyScore_stays_within_zero_and_one()
-    {
-        double score = MetricHelper.ComputeConsistencyScore(100, new TimeTicks(10), 0.5, 0.3, 0.4);
-        Assert.InRange(score, 0.0, 1.0);
-    }
-
-    [Fact]
     public void LinearRegression_reports_the_per_attempt_slope()
     {
         Assert.Equal(10, MetricHelper.LinearRegression(Ticks(10, 20, 30, 40)).Ticks);
@@ -305,5 +279,15 @@ public class MetricHelperTests
     {
         Assert.Equal((90.0 - 2.0, 110.0 + 2.0), MetricHelper.RelativeRange([Ticks()]));
         Assert.Equal(MetricHelper.RelativeRange([Ticks(90, 100, 110)]), MetricHelper.RelativeRange([Ticks(), Ticks(90, 100, 110)]));
+    }
+
+    // The charts ask whether the target is on the overlay several times a frame.
+    [Fact]
+    public void Asking_whether_a_choice_is_enabled_allocates_nothing()
+    {
+        MetricHelper.IsMetricEnabled(MetricOutputChoice.Both, MetricOutput.Overlay);
+        long before = System.GC.GetAllocatedBytesForCurrentThread();
+        for (int i = 0; i < 100; i++) MetricHelper.IsMetricEnabled(MetricOutputChoice.Both, MetricOutput.Overlay);
+        Assert.Equal(0, System.GC.GetAllocatedBytesForCurrentThread() - before);
     }
 }

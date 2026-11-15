@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Celeste.Mod.SpeebrunConsistencyTracker;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Xunit;
 
 namespace SpeebrunConsistencyTracker.UnitTests;
@@ -52,6 +53,16 @@ public class DialogKeyTests
         Assert.Equal([], missing);
     }
 
+    // A metric's label key is written in its MetricTable row, not in DialogIds.
+    [Fact]
+    public void Every_metric_label_has_a_line_in_English_txt()
+    {
+        HashSet<string> defined = KeysInEnglishTxt();
+        string[] missing = [.. MetricTable.All.Select(m => m.LabelKey).Where(k => !defined.Contains(k)).Order()];
+
+        Assert.Equal([], missing);
+    }
+
     [Fact]
     public void Every_line_in_English_txt_is_named_by_a_dialog_id_or_used_directly()
     {
@@ -61,7 +72,7 @@ public class DialogKeyTests
             "SCT_SPEEBRUN_CONSISTENCY_TRACKER", // Everest's own mod-options title key
         ];
 
-        HashSet<string> referenced = [.. DialogIdConstants()];
+        HashSet<string> referenced = [.. DialogIdConstants(), .. MetricTable.All.Select(m => m.LabelKey)];
         HashSet<string> menuTools = MenuToolsBlockKeys();
         string[] orphans = [.. KeysInEnglishTxt()
             .Where(k => !referenced.Contains(k) && !usedElsewhere.Contains(k) && !menuTools.Contains(k))

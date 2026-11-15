@@ -8,9 +8,12 @@ namespace Celeste.Mod.CelesteCharts;
 
 /// <summary>
 ///     Plain numbers: counts, rates, percentages, frames lost. Ticks fall on round multiples of a
-///     step that is a mantissa times a power of ten (1, 2 or 5 by default).
+///     step that is a mantissa times a power of ten (1, 2 or 5 by default). <see cref="Format"/> writes
+///     up to three decimals unless the kind was built with another number.
 /// </summary>
 internal sealed class Numbers : IValueKind<double> {
+    private const double ExactIntegerLimit = 9007199254740992; // 2^53
+
     private static readonly double[] DefaultMantissas = [1, 2, 5];
 
     /// <summary>Any real number.</summary>
@@ -25,21 +28,31 @@ internal sealed class Numbers : IValueKind<double> {
     private readonly bool _integersOnly;
     private readonly string _suffix;
     private readonly double[] _mantissas;
+    private readonly string _format;
 
     /// <param name="integersOnly">Steps of at least 1, and labels without decimals.</param>
     /// <param name="suffix">Appended to every label, e.g. "%" or " f".</param>
     /// <param name="mantissas">
     ///     The step candidates within one power of ten, ascending, each in [1, 10). Default 1, 2, 5.
     /// </param>
-    public Numbers(bool integersOnly = false, string suffix = "", double[]? mantissas = null) {
+    /// <param name="decimals">
+    ///     The most decimals <see cref="Format"/> writes, 0 to 15; trailing zeros are dropped. Ask for more
+    ///     when the values are small. Tick labels follow their step and ignore it.
+    /// </param>
+    public Numbers(bool integersOnly = false, string suffix = "", double[]? mantissas = null, int decimals = 3) {
+        if (decimals < 0 || decimals > 15) throw new ArgumentOutOfRangeException(nameof(decimals), decimals, "decimals must be in [0, 15]");
         _integersOnly = integersOnly;
         _suffix = suffix;
+        _format = integersOnly || decimals == 0 ? "0" : "0." + new string('#', decimals);
         _mantissas = mantissas ?? DefaultMantissas;
         foreach (double m in _mantissas)
             if (!(m >= 1 && m < 10)) throw new ArgumentOutOfRangeException(nameof(mantissas), m, "each mantissa must be in [1, 10)");
         for (int i = 1; i < _mantissas.Length; i++)
             if (_mantissas[i] <= _mantissas[i - 1]) throw new ArgumentException("mantissas must ascend", nameof(mantissas));
     }
+
+    /// <summary>The same kind writing up to <paramref name="decimals"/> decimals from <see cref="Format"/>.</summary>
+    public Numbers WithDecimals(int decimals) => new(_integersOnly, _suffix, _mantissas, decimals);
 
     public int Compare(double a, double b) => a.CompareTo(b);
 
@@ -76,6 +89,12 @@ internal sealed class Numbers : IValueKind<double> {
                 // through floating-point noise (0.30000000000000004), inside the range.
                 double first = Math.Ceiling(min / step - 1e-9);
                 double last = Math.Floor(max / step + 1e-9);
+                // From 2^53 a double cannot count by one, and a step of 0 or infinity gives NaN: the
+                // step is finer than the doubles here can tell apart, so there are no round ticks.
+                if (step == 0 || !double.IsFinite(step) || !(Math.Abs(first) < ExactIntegerLimit) || !(Math.Abs(last) < ExactIntegerLimit)) {
+                    ticks.Add(new Tick<double>(min, Format(min)));
+                    return ticks;
+                }
                 double count = last - first + 1;
                 if (count > maxTicks) continue;
 
@@ -86,10 +105,15 @@ internal sealed class Numbers : IValueKind<double> {
                     ticks.Add(new Tick<double>(min, Format(min)));
                     return ticks;
                 }
-                for (double k = first; k <= last; k++) {
+                long firstK = (long) first;
+                for (long i = 0; i < (long) count; i++) {
+                    double k = firstK + i;
                     // Rounded to the step's own decimals, so 3 * 0.1 is 0.3 and not 0.30000000000000004,
                     // and + 0.0 turns -0 (from Math.Ceiling(-0.4)) into 0, which would otherwise print "-0".
-                    double value = Math.Round(k * step, Math.Min(decimals, 15)) + 0.0;
+                    // Past 15 decimals Math.Round cannot work and would round a tiny step to 0, so the
+                    // product stands; the clamp keeps it inside the range either way.
+                    double value = (decimals <= 15 ? Math.Round(k * step, decimals) : k * step) + 0.0;
+                    value = Math.Clamp(value, min, max);
                     ticks.Add(new Tick<double>(value, Label(value, decimals)));
                 }
                 return ticks;
@@ -98,7 +122,7 @@ internal sealed class Numbers : IValueKind<double> {
     }
 
     public string Format(double value) =>
-        (_integersOnly ? Math.Round(value) + 0.0 : value + 0.0).ToString(_integersOnly ? "0" : "0.###", CultureInfo.InvariantCulture) + _suffix;
+        (_integersOnly ? Math.Round(value) + 0.0 : value + 0.0).ToString(_format, CultureInfo.InvariantCulture) + _suffix;
 
     // How many decimals a step of mantissa * 10^exponent has: the mantissa's own decimals shifted by
     // the exponent. 2.5 needs one at 10^0 (2.5), two at 10^-1 (0.25) and none at 10^1 (25).

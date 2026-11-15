@@ -16,18 +16,31 @@ A Celeste mod that gives speedrunners statistics on their practice. It tracks se
 The mod reads its data from SpeedrunTool's room timer, so two of SpeedrunTool's own settings
 decide what it records. Both are under *Mod Options -> Speedrun Tool -> Room Timer*:
 
-- **Room Timer** — `NextRoom` or `CurrentRoom`. With the timer **Off**, nothing is recorded and
-  every chart stays empty.
+- **Room Timer** — `NextRoom` or `CurrentRoom`. With the timer **Off**, rooms are still recorded,
+  as under `NextRoom`. Only the text overlay stays hidden.
 - **Number of Rooms** — how many rooms one attempt spans. This is the segment the metrics and
   charts are computed over; changing it reshapes the current session's view of the same data.
 
+**With an end point** (SpeedrunTool's end point, or a room-id end point set from the debug map),
+SpeedrunTool ignores Number of Rooms, and so does this mod. The segment is the rooms up to and
+including the split where the timer stopped: the touch of the end point, or the entry into the
+end point's room. Its length is taken from the most recent run that reached the end point. A run
+that reached it is never a reset, and rooms run past it are kept but are outside the segment.
+Until one run reaches the end point, the segment is every room reached so far.
+
+A level end also stops the timer, in the room you are in. The segment then ends there, or at Number
+of Rooms if that comes first, and the run is not a reset.
+
 SpeedrunTool `3.26.4` or later is required (`everest.yaml` pins it).
+
+All six hotkeys ship unbound. Until you bind *Show/hide the chart overlay* under *Mod Options -> Hotkeys*, no chart can be opened.
 
 ## Usage
 
 ### 1. Practice Workflow
 
 * **Set a Save State:** Starting a new practice session. Creating or clearing a save state will reset all current session data for that slot
+* **Undo a wipe:** Saving over a slot that holds runs, clearing a save state, clearing the session (the menu row or the hotkey) and switching the mod off each wipe a session, and keep it. **Restore last session** in Mod Options puts it back. The row appears only while there is something to restore. One wipe is remembered, and the next one replaces it. Entering another level drops it. After you save again, the restored statistics belong to the previous save state's position. Nothing survives a game restart
 * **Run the Segment:** Practice the segment as you usually do
 * **Review Performance:** After every completed run, a customizable text overlay displays your session statistics. Cycle through performance charts in-game via your configured keybinds or the navigation arrows on the chart overlay
 

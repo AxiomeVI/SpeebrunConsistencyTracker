@@ -29,8 +29,8 @@ public static class GraphInteractivity
     private static readonly Area Screen = new(0f, 0f, ChartConstants.Screen.ScreenWidth, ChartConstants.Screen.ScreenHeight);
     private static readonly Vector2 Nowhere = new(-9999f, -9999f);
 
-    private static readonly List<HoverInfo> _pinnedItems = new();
-    public static IReadOnlyList<HoverInfo> PinnedItems => _pinnedItems;
+    // The pins of the chart Update last ran on. They are held by the chart (ChartPins).
+    public static IReadOnlyList<HoverInfo> PinnedItems => _pinsFor?.Pins.Items ?? Array.Empty<HoverInfo>();
 
     public static HoverInfo? CurrentHover { get; private set; }
 
@@ -41,7 +41,6 @@ public static class GraphInteractivity
     private static readonly BarButton _back = _nav.Action("<"), _next = _nav.Action(">");
     private static readonly BarButton _delete = _deleteBar.Action(" ");
     private static BaseChartOverlay _placedFor, _pinsFor;
-    private static int _pinsRevision;
     private static bool _placed, _showDelete, _showClear;
     private static float _placedLeft, _placedFoot;
     private static ChartHelp _placedHelp;
@@ -119,8 +118,9 @@ public static class GraphInteractivity
         }
         Place(overlay);
 
-        _showDelete = _pinnedItems.Count > 0 && overlay.SupportsDeleteRuns;
-        _showClear  = _pinnedItems.Count > 0 || overlay.HasPins;
+        ChartPins pins = overlay.Pins;
+        _showDelete = pins.Count > 0 && overlay.SupportsDeleteRuns;
+        _showClear  = pins.Count > 0 || overlay.HasPins;
         // First: the card lies over the chart and takes what is pressed on it.
         _hint.Update(mouse);
         bool onHint = _hint.Contains(mouse.X, mouse.Y);
@@ -153,11 +153,7 @@ public static class GraphInteractivity
         if (CurrentHover != null)
         {
             if (overlay.HandleClick(CurrentHover)) return GraphInteraction.None;
-            int existing = CurrentHover.Key != null
-                ? _pinnedItems.FindIndex(p => p.Key == CurrentHover.Key)
-                : _pinnedItems.FindIndex(p => p.Label == CurrentHover.Label);
-            if (existing >= 0) _pinnedItems.RemoveAt(existing);
-            else _pinnedItems.Add(CurrentHover);
+            pins.Toggle(CurrentHover);
             _tipsStale = true;
         }
         else if (column.HasValue)
@@ -176,40 +172,39 @@ public static class GraphInteractivity
     }
 
     // A pin stays where its mark goes: through a scroll, a zoom, and a chart rebuilt from new data.
-    // On the same chart a mark that no longer shows keeps its pin, for when it shows again.
     private static void LocatePins(BaseChartOverlay overlay)
     {
-        bool sameChart = ReferenceEquals(overlay, _pinsFor);
-        int revision = overlay.Revision;
-        if (sameChart && revision == _pinsRevision) return;
-        (_pinsFor, _pinsRevision) = (overlay, revision);
-        if (_pinnedItems.Count == 0) return;
-        for (int i = _pinnedItems.Count - 1; i >= 0; i--)
+        if (!ReferenceEquals(overlay, _pinsFor))
         {
-            HoverInfo located = overlay.Locate(_pinnedItems[i].Key);
-            if (located != null) _pinnedItems[i] = located;
-            else if (sameChart) _pinnedItems[i] = _pinnedItems[i] with { Mark = -1 };
-            else _pinnedItems.RemoveAt(i);
+            _pinsFor   = overlay;
+            _tipsStale = true;
         }
-        _tipsStale = true;
+        if (overlay.Pins.Locate(overlay.Revision, overlay.Locate)) _tipsStale = true;
     }
 
-    public static void Clear(BaseChartOverlay overlay)
+    // The chart was closed (a pause, the toggle) or another was shown. What the player pinned and
+    // hid stays on the chart, for when it shows again: ChartCache drops it with the session.
+    public static void Leave(BaseChartOverlay overlay)
     {
         CurrentHover = null;
-        // Not kept past the chart they were for.
         (_placedFor, _pinsFor) = (null, null);
-        _tipsStale   = true;
-        _pinnedItems.Clear();
+        _tipsStale = true;
+        overlay?.OnLeft();
+    }
+
+    // The session was cleared: nothing the player picked on the chart is kept.
+    public static void Clear(BaseChartOverlay overlay)
+    {
+        overlay?.Pins.Clear();
         overlay?.ClearPins();
         overlay?.ClearHiddenColumns();
-        overlay?.OnLeft();
+        Leave(overlay);
     }
 
     public static void ClearPins(BaseChartOverlay overlay)
     {
-        _pinnedItems.Clear();
         _tipsStale = true;
+        overlay?.Pins.Clear();
         overlay?.ClearPins();
     }
 
@@ -217,8 +212,9 @@ public static class GraphInteractivity
     {
         if (overlay == null || !_placed) return;
 
-        foreach (HoverInfo pinned in _pinnedItems)
-            if (pinned.Mark >= 0) overlay.DrawHighlight(pinned);
+        IReadOnlyList<HoverInfo> pins = overlay.Pins.Items;
+        for (int i = 0; i < pins.Count; i++)
+            if (pins[i].Mark >= 0) overlay.DrawHighlight(pins[i]);
         if (CurrentHover != null) overlay.DrawHighlight(CurrentHover);
 
         // Buttons before tooltips, so tooltips land on top.
@@ -228,7 +224,7 @@ public static class GraphInteractivity
         if (_showClear) GameCanvas.Draw(_clearBar.Sketch);
         GameCanvas.Draw(_hint.Sketch);
 
-        if (_tipsStale) BuildTooltips();
+        if (_tipsStale) BuildTooltips(pins);
         // A tooltip is read, not looked through: drawn even while the chart is hidden for Edit mode.
         float fade = GameCanvas.Fade;
         GameCanvas.Fade = 1f;
@@ -241,7 +237,7 @@ public static class GraphInteractivity
 
     // A tooltip over each pinned item and over the hovered one, moved off each other. Rebuilt when
     // the hover or the pins change, never per frame.
-    private static void BuildTooltips()
+    private static void BuildTooltips(IReadOnlyList<HoverInfo> pins)
     {
         _tipsStale = false;
         _tips ??= new Sketch(GameCanvas.FontMetrics());
@@ -249,7 +245,7 @@ public static class GraphInteractivity
         ChartStyle style = SctChartStyle.Current;
 
         List<(HoverInfo Item, bool Pinned)> shown = [];
-        foreach (HoverInfo pinned in _pinnedItems)
+        foreach (HoverInfo pinned in pins)
             if (pinned.Mark >= 0 && pinned.Label.Length > 0) shown.Add((pinned, true));
         if (CurrentHover is { Label.Length: > 0 } hover && !shown.Exists(s => s.Item.Key != null && s.Item.Key == hover.Key))
             shown.Add((hover, false));

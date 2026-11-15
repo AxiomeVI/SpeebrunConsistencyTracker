@@ -6,26 +6,17 @@ using System.Collections.Generic;
 namespace Celeste.Mod.CelesteCharts;
 
 /// <summary>
-///     Painters: each adds the marks of one part of a chart to a sketch — axes, bars, a box, a title,
-///     a tooltip. They take the geometry the other layers computed (<see cref="Scale{T}"/>,
+///     Painters: each adds the marks of one part of a chart to a sketch — axes, bars, a box, a
+///     tooltip. They take the geometry the other layers computed (<see cref="Scale{T}"/>,
 ///     <see cref="Bands"/>, <see cref="BoxMarks"/>), so what is drawn and what the mouse hits come
 ///     from the same numbers.
 /// </summary>
 // A plot is an Area: its left edge is the value axis, its bottom edge the baseline. Labels go outside
-// it, so a mod sizes the plot inside its tile to leave room for them: YLabelWidth on the left,
-// XLabelHeight below.
+// it, so a mod sizes the plot inside its tile to leave room for them: YLabelWidth on the left, the
+// labels' line height below.
 //
 // ⚠️ Painters measure text and build strings: call them when the data or the size changes, never per frame.
 internal static partial class Paint {
-    /// <summary>
-    ///     A title at the top-left of <paramref name="tile"/>, shortened to its width with
-    ///     <see cref="TextFit.Truncate"/> (keeping everything from " · "). Returns the height it took.
-    /// </summary>
-    public static float Title(Sketch sketch, Area tile, string text, ChartStyle style) {
-        string fitted = TextFit.Truncate(text, tile.Width, s => sketch.Width(s, style.Title));
-        return sketch.Text(fitted, tile.X, tile.Y, style.Title).Height;
-    }
-
     /// <summary>
     ///     The widest of these tick labels, so a mod can leave that much room left of its plot. It takes
     ///     the kind's own ticks (<see cref="IValueKind{T}.Ticks"/>), which need no pixels: the plot's
@@ -86,13 +77,6 @@ internal static partial class Paint {
     private static float SideChip(Sketch sketch, ChartStyle style) => MathF.Round(sketch.LineHeight(style.Label) * 0.4f);
 
     /// <summary>
-    ///     How much room <see cref="XAxis{T}"/> or <see cref="BandLabels{TBands}"/> needs below a plot; two
-    ///     <paramref name="rows"/> for labels that may be staggered.
-    /// </summary>
-    public static float XLabelHeight(Sketch sketch, ChartStyle style, int rows = 1) =>
-        style.TickLength + style.LabelGap / 2f + rows * sketch.LineHeight(style.Label);
-
-    /// <summary>
     ///     A vertical value axis on the plot's left edge: a grid line across the plot at every tick, and
     ///     its label right-aligned left of the axis, centred on the tick.
     /// </summary>
@@ -107,32 +91,12 @@ internal static partial class Paint {
     }
 
     /// <summary>
-    ///     A horizontal value axis on the plot's bottom edge: the baseline, a tick mark at every tick, and
-    ///     labels centred under them, thinned to every Nth when they would overlap.
-    /// </summary>
-    public static void XAxis<T>(Sketch sketch, Area plot, IReadOnlyList<PlacedTick<T>> ticks, ChartStyle style) {
-        sketch.Fill(new Area(plot.X, plot.Bottom, plot.Width, style.AxisThickness), style.Axis);
-        float[] centres = new float[ticks.Count], widths = new float[ticks.Count];
-        for (int i = 0; i < ticks.Count; i++) {
-            centres[i] = ticks[i].At;
-            widths[i] = sketch.Width(ticks[i].Label, style.Label);
-        }
-        int stride = TextFit.Stride(centres, widths, style.LabelSpacing);
-        float labelTop = plot.Bottom + style.TickLength + style.LabelGap / 2f;
-        for (int i = 0; i < ticks.Count; i++) {
-            if (ticks[i].At < plot.X - 0.5f || ticks[i].At > plot.Right + 0.5f) continue;
-            sketch.Fill(new Area(MathF.Round(ticks[i].At), plot.Bottom, 1f, style.TickLength), style.Axis);
-            if (i % stride == 0) sketch.Text(ticks[i].Label, ticks[i].At, labelTop, style.Label, alignX: 0.5f);
-        }
-    }
-
-    /// <summary>
     ///     One label under each band, centred, below <paramref name="top"/> (a plot's bottom), fitted as
     ///     <paramref name="fit"/> says when they would not all fit on one row.
     /// </summary>
     public static void BandLabels<TBands>(Sketch sketch, TBands bands, IReadOnlyList<string> labels, float top, ChartStyle style,
                                           LabelFit fit = LabelFit.Thin) where TBands : IBandLayout {
-        // Starts at the same height as XAxis's labels, so both kinds of chart line up side by side.
+        // Starts below a tick mark's length, where a value axis's labels start, so both kinds of chart line up side by side.
         top += style.TickLength + style.LabelGap / 2f;
         int count = Math.Min(bands.Count, labels.Count);
         string[] shown = new string[count];
@@ -161,36 +125,6 @@ internal static partial class Paint {
         for (int i = first + 2; i < centres.Length; i += 2)
             if (centres[i] - widths[i] / 2f - (centres[i - 2] + widths[i - 2] / 2f) < style.LabelSpacing) return false;
         return true;
-    }
-
-    /// <summary>
-    ///     Each group's name under its items' labels, from <paramref name="top"/>: a bracket line across the
-    ///     group, then the name centred on it, shortened to the group's width.
-    /// </summary>
-    /// <param name="folded">
-    ///     For groups that fold (<see cref="RouteFold"/>): whether each is folded. Each name then starts
-    ///     with a "+" (folded: a click opens it) or a "-" (open), and reads as clickable.
-    /// </param>
-    public static void GroupLabels(Sketch sketch, RouteAxis route, float top, ChartStyle style, Func<int, bool>? folded = null) {
-        for (int g = 0; g < route.GroupCount; g++) {
-            (float start, float end) = route.GroupSpan(g);
-            sketch.Fill(new Area(start, top, end - start, 1f), style.Axis);
-            string text = folded == null ? route.Groups[g].Name : (folded(g) ? "+ " : "- ") + route.Groups[g].Name;
-            TextStyle label = folded == null ? style.Label : style.Label with { Colour = style.Header.Colour };
-            string name = TextFit.Truncate(text, end - start, s => sketch.Width(s, label), keepFrom: "");
-            sketch.Text(name, (start + end) / 2f, top + 3f, label, alignX: 0.5f);
-        }
-    }
-
-    /// <summary>How much room <see cref="GroupLabels"/> needs.</summary>
-    public static float GroupLabelHeight(Sketch sketch, ChartStyle style) => 3f + sketch.LineHeight(style.Label);
-
-    /// <summary>A faint line down the plot in the middle of each gap between groups.</summary>
-    public static void GroupDividers(Sketch sketch, RouteAxis route, Area plot, ChartStyle style) {
-        for (int g = 1; g < route.GroupCount; g++) {
-            float x = MathF.Round(route.GroupSpan(g).Start - route.GroupGap / 2f);
-            sketch.Fill(new Area(x, plot.Y, 1f, plot.Height), style.Grid);
-        }
     }
 
     /// <summary>
@@ -251,21 +185,6 @@ internal static partial class Paint {
     }
 
     /// <summary>
-    ///     A horizontal bar in each row band (bands laid down the plot, from its top), from
-    ///     <paramref name="baseline"/> to its value on <paramref name="x"/>. Label the rows with
-    ///     <see cref="RowLabels{TBands}"/>; hit-test with the bands' IndexAt on the mouse's y.
-    /// </summary>
-    public static void BarsAcross<T, TBands>(Sketch sketch, TBands rows, Scale<T> x, IReadOnlyList<T> values, T baseline, Rgba colour)
-        where TBands : IBandLayout {
-        float from = x.At(baseline);
-        for (int i = 0; i < Math.Min(rows.Count, values.Count); i++) sketch.Fill(BarAcross(rows, i, from, x.At(values[i])), colour);
-    }
-
-    /// <summary>The rectangle of the horizontal bar in row <paramref name="index"/> between two pixels.</summary>
-    public static Area BarAcross<TBands>(TBands rows, int index, float from, float to) where TBands : IBandLayout =>
-        new(Math.Min(from, to), rows.BarStart(index), Math.Abs(to - from), rows.BarWidthOf(index));
-
-    /// <summary>
     ///     Grouped bars: in each band, one bar per series side by side (<see cref="Bands.Within{TBands}"/>),
     ///     series <c>s</c> in <paramref name="colours"/>[s].
     /// </summary>
@@ -281,33 +200,34 @@ internal static partial class Paint {
     }
 
     /// <summary>
-    ///     Stacked bars: in each band, each series' segment on the one before, series <c>s</c> in
-    ///     <paramref name="colours"/>[s]. The scale runs from 0 to <see cref="Stacks.Tallest"/> (100 for shares).
-    /// </summary>
-    public static void StackedBars<TBands>(Sketch sketch, TBands bands, Scale<double> y, Stacks stacks, IReadOnlyList<Rgba> colours)
-        where TBands : IBandLayout {
-        for (int c = 0; c < Math.Min(bands.Count, stacks.Categories); c++)
-            for (int s = 0; s < stacks.Series; s++)
-                sketch.Fill(Bar(bands, c, y.At(stacks.Start(s, c)), y.At(stacks.End(s, c))), colours[s % colours.Count]);
-    }
-
-    /// <summary>
     ///     The area between two lines over the same x, filled: a min-max or quartile band behind a line.
-    ///     Drawn as vertical strips <paramref name="strip"/> pixels wide, each at the two lines' heights
-    ///     in its middle; both lines need ascending x, and the band covers where both have points.
+    ///     Drawn as vertical strips <paramref name="strip"/> pixels wide (2 when it is 0 or less), each at the
+    ///     two lines' heights in its middle; both lines need ascending x (it draws nothing otherwise), and the band
+    ///     covers where both have points. Pass the plot's left and right as <paramref name="visibleFrom"/> and
+    ///     <paramref name="visibleTo"/> to build no strip outside them.
     /// </summary>
     // Strips because a mark is a rectangle, a line or a text: 2 pixels keeps the edges smooth and costs
-    // one rectangle per 2 pixels of width, built once.
-    public static void Band(Sketch sketch, LinePoints lower, LinePoints upper, Rgba colour, float strip = 2f) {
-        if (lower.Count < 2 || upper.Count < 2) return;
-        float from = MathF.Round(Math.Max(lower.X[0], upper.X[0]));
-        float to = MathF.Round(Math.Min(lower.X[^1], upper.X[^1]));
-        for (float x = from; x < to; x += strip) {
-            float width = Math.Min(strip, to - x), middle = x + width / 2f;
+    // one rectangle per 2 pixels of width, built once. The strips are counted with an integer, never by
+    // adding to x (a float far from zero stops changing), and MaxStrips widens them over an unclipped span.
+    public static void Band(Sketch sketch, LinePoints lower, LinePoints upper, Rgba colour, float strip = 2f,
+                            float visibleFrom = float.NegativeInfinity, float visibleTo = float.PositiveInfinity) {
+        if (lower.Count < 2 || upper.Count < 2 || !lower.Ascending || !upper.Ascending) return;
+        if (!(strip > 0f)) strip = 2f;
+        float from = MathF.Round(Math.Max(Math.Max(lower.X[0], upper.X[0]), visibleFrom));
+        float to = MathF.Round(Math.Min(Math.Min(lower.X[^1], upper.X[^1]), visibleTo));
+        if (!(to > from)) return;
+        double span = (double)to - from;
+        double step = Math.Max(strip, span / MaxStrips);
+        int count = (int)Math.Ceiling(span / step);
+        for (int i = 0; i < count; i++) {
+            float x = (float)(from + i * step), next = i == count - 1 ? to : (float)(from + (i + 1) * step);
+            float width = next - x, middle = x + width / 2f;
             float a = HeightAt(lower, middle), b = HeightAt(upper, middle);
             sketch.Fill(new Area(x, MathF.Round(Math.Min(a, b)), width, MathF.Round(Math.Abs(b - a))), colour);
         }
     }
+
+    private const int MaxStrips = 8192;
 
     // The line's height at x, straight between its points.
     private static float HeightAt(LinePoints line, float x) {
@@ -323,11 +243,12 @@ internal static partial class Paint {
 
     /// <summary>
     ///     A box plot in band <paramref name="index"/>: whisker, caps, the box from Q1 to Q3, the median,
-    ///     and a square per outlier. The marks are pixels on a vertical value axis (<see cref="Box.Place{T}"/>).
+    ///     and a square per outlier. The marks are pixels on a vertical value axis (<see cref="Box.Place{T}"/>);
+    ///     <see cref="BoxMarks.IsEmpty"/> marks draw nothing.
     /// </summary>
     public static void Box<TBands>(Sketch sketch, TBands bands, int index, BoxMarks marks, ChartStyle style) where TBands : IBandLayout {
         float x = bands.BarStart(index), width = bands.BarWidthOf(index), centre = MathF.Round(bands.Centre(index));
-        if (width <= 0f) return;   // a hidden column
+        if (width <= 0f || marks.IsEmpty) return;   // a hidden column, or no box
         float capLeft = MathF.Round(centre - width / 4f), capWidth = MathF.Round(width / 2f);
         // Pixel y grows downward: High is the top of the whisker, Q3 the top of the box.
         sketch.Fill(new Area(centre, marks.High, 1f, marks.Low - marks.High), style.Data);
@@ -357,11 +278,6 @@ internal static partial class Paint {
                 sketch.Line(x1, y1, x2, y2, colour, thickness);
             }
         }
-    }
-
-    /// <summary>A square of <paramref name="size"/> pixels centred on each point.</summary>
-    public static void Points(Sketch sketch, LinePoints points, Rgba colour, float size) {
-        for (int i = 0; i < points.Count; i++) Point(sketch, points.X[i], points.Y[i], colour, size);
     }
 
     /// <summary>A square of <paramref name="size"/> pixels centred on (x, y).</summary>
@@ -443,66 +359,18 @@ internal static partial class Paint {
         return (MathF.Floor(t / 2f), t);
     }
 
+    private const int MaxDashes = 4096;
+
     private static void Dashes(Sketch sketch, float from, float to, float at, bool horizontal, ChartStyle style) {
         (float lo, float t) = ReferenceSpan(style, false);
-        float dash = style.Dash > 0f ? style.Dash : to - from;
+        float span = to - from;
+        if (!(span > 0f) || float.IsInfinity(span)) return;
+        // A span of millions of pixels would otherwise be millions of dashes.
+        float dash = Math.Max(style.Dash > 0f ? style.Dash : span, span / (2 * MaxDashes));
         for (float start = from; start < to; start += 2 * dash) {
             float length = Math.Min(dash, to - start);
             sketch.Fill(horizontal ? new Area(start, at - lo, length, t) : new Area(at - lo, start, t, length), style.Reference);
         }
-    }
-
-    /// <summary>
-    ///     Every cell of a grid in the colour <paramref name="colour"/> gives it; a cell given
-    ///     <see cref="Rgba.Transparent"/> is drawn as an outline in the style's grid colour, so a cell with
-    ///     no data never reads as a low value.
-    /// </summary>
-    public static void Cells(Sketch sketch, CellGrid grid, Func<int, int, Rgba> colour, ChartStyle style) {
-        for (int row = 0; row < grid.RowCount; row++)
-            for (int column = 0; column < grid.ColumnCount; column++) {
-                Rgba c = colour(column, row);
-                if (c.IsInvisible) sketch.Outline(grid.Cell(column, row), style.Grid);
-                else sketch.Fill(grid.Cell(column, row), c);
-            }
-    }
-
-    /// <summary>
-    ///     One label per row band, right-aligned at <paramref name="right"/> and centred on its row,
-    ///     shortened to <paramref name="maxWidth"/>; thinned to every Nth row when rows are shorter than a
-    ///     line of text.
-    /// </summary>
-    public static void RowLabels<TBands>(Sketch sketch, TBands rows, IReadOnlyList<string> labels, float right, float maxWidth,
-                                         ChartStyle style) where TBands : IBandLayout {
-        int count = Math.Min(rows.Count, labels.Count);
-        float height = sketch.LineHeight(style.Label);
-        float[] centres = new float[count], heights = new float[count];
-        for (int i = 0; i < count; i++) {
-            centres[i] = rows.Centre(i);
-            heights[i] = height;
-        }
-        int stride = TextFit.Stride(centres, heights, gap: 0f);
-        for (int i = 0; i < count; i += stride) {
-            string text = TextFit.Truncate(labels[i], maxWidth, s => sketch.Width(s, style.Label), keepFrom: "");
-            sketch.Text(text, right, centres[i], style.Label, alignX: 1f, alignY: 0.5f);
-        }
-    }
-
-    /// <summary>
-    ///     A colour legend: <paramref name="ramp"/> drawn across <paramref name="bar"/>, and the ticks of
-    ///     the scale that maps values onto it under the bar, as <see cref="XAxis{T}"/> draws them. The
-    ///     scale must run from the bar's left edge to its right.
-    /// </summary>
-    public static void RampLegend<T>(Sketch sketch, Area bar, ColourRamp ramp, IReadOnlyList<PlacedTick<T>> ticks,
-                                     ChartStyle style) {
-        // Whole-pixel strips, at most 64: past that no step between neighbours is visible.
-        int strips = (int) Math.Clamp(MathF.Floor(bar.Width), 1f, 64f);
-        float left = MathF.Round(bar.X);
-        for (int i = 0; i < strips; i++) {
-            float right = MathF.Round(bar.X + bar.Width * (i + 1) / strips);
-            sketch.Fill(new Area(left, bar.Y, right - left, bar.Height), ramp.At((i + 0.5) / strips));
-            left = right;
-        }
-        XAxis(sketch, bar, ticks, style);
     }
 
     /// <summary>
@@ -517,46 +385,6 @@ internal static partial class Paint {
         Area snapped = view.Horizontal ? new Area(MathF.Round(thumb.X), thumb.Y, MathF.Round(thumb.Width), thumb.Height)
                                        : new Area(thumb.X, MathF.Round(thumb.Y), thumb.Width, MathF.Round(thumb.Height));
         sketch.Fill(snapped, view.ThumbHot ? style.Hovered : style.Axis);
-    }
-
-    /// <summary>
-    ///     A close button: a square with a cross, brighter while <paramref name="hot"/>. Drawn from lines, as
-    ///     the game's font may have no multiplication sign.
-    /// </summary>
-    /// <summary>A square with a bar along its foot: it sends the window to the dock.</summary>
-    public static void MinimizeButton(Sketch sketch, Area button, bool hot, ChartStyle style) {
-        Rgba colour = hot ? style.Hovered : style.Axis;
-        sketch.Fill(button, style.TooltipBack);
-        sketch.Outline(button, colour);
-        float inset = MathF.Round(Math.Min(button.Width, button.Height) * 0.3f);
-        sketch.Fill(new Area(button.X + inset, button.Bottom - inset - 2f, button.Width - 2 * inset, 2f), colour);
-    }
-
-    /// <summary>
-    ///     The dock along the bottom of the windows' screen: a button per minimised window with its title,
-    ///     lit under the mouse (<see cref="WindowManager.HoveredDock"/>). A click restores it. Rebuild it when a
-    ///     window is minimised or restored, or the hovered button changes; nothing when no window is docked.
-    /// </summary>
-    public static void Dock(Sketch sketch, WindowManager windows, int hot, ChartStyle style) {
-        for (int i = 0; i < windows.Docked.Count; i++) {
-            Area button = windows.DockButton(i);
-            sketch.Fill(button, Rgba.Black.Times(0.9f));
-            sketch.Fill(button with { Height = 2f }, i == hot ? style.Hovered : style.Data);
-            sketch.Outline(button, i == hot ? style.Hovered : style.Axis);
-            TextStyle title = style.Label with { Colour = i == hot ? Rgba.White : style.Label.Colour };
-            string text = TextFit.Truncate(windows.Docked[i].Title, button.Width - 2 * style.LabelGap, s => sketch.Width(s, title));
-            sketch.Text(text, button.X + style.LabelGap, button.Y + button.Height / 2f, title, alignY: 0.5f);
-        }
-    }
-
-    public static void CloseButton(Sketch sketch, Area button, bool hot, ChartStyle style) {
-        Rgba colour = hot ? style.Hovered : style.Axis;
-        sketch.Fill(button, style.TooltipBack);
-        sketch.Outline(button, colour);
-        float inset = MathF.Round(Math.Min(button.Width, button.Height) * 0.3f);
-        Area cross = button.Inset(inset);
-        sketch.Line(cross.X, cross.Y, cross.Right, cross.Bottom, colour, 2f);
-        sketch.Line(cross.X, cross.Bottom, cross.Right, cross.Y, colour, 2f);
     }
 
     /// <summary>
@@ -580,36 +408,6 @@ internal static partial class Paint {
         for (int i = 0; i < names.Count; i++)
             width += (i > 0 ? 3 * style.LabelGap : 0f) + chip + style.LabelGap / 2f + sketch.Width(names[i], style.Label);
         return width;
-    }
-
-    /// <summary>
-    ///     A window's frame in its own coordinates, from (0, 0) to its size: the backing, the title bar with
-    ///     its title (shortened to fit), the border, a resize grip, and the minimise and close buttons. Draw it moved to
-    ///     the window's <see cref="ChartWindow.Bounds"/>; rebuild it when the window is resized, comes to
-    ///     the front or goes back, or the part under the mouse changes — never because it moved.
-    /// </summary>
-    public static void Window(Sketch sketch, WindowManager windows, ChartWindow window, bool front, WindowZone hot, ChartStyle style) {
-        Area local = new(0f, 0f, window.Bounds.Width, window.Bounds.Height);
-        Area bar = local with { Height = windows.TitleHeight };
-        sketch.Fill(local, Rgba.Black.Times(0.9f));
-        sketch.Fill(bar, front ? Rgba.White.Times(0.14f) : Rgba.White.Times(0.06f));
-        bool hotEdge = hot is not (WindowZone.None or WindowZone.Body or WindowZone.Close or WindowZone.Minimize);
-        sketch.Outline(local, hotEdge ? style.Hovered : front ? style.Axis : style.Grid, hotEdge ? 2f : 1f);
-
-        Area close = windows.CloseButton(window).Offset(-window.Bounds.X, -window.Bounds.Y);
-        Area minimize = windows.MinimizeButton(window).Offset(-window.Bounds.X, -window.Bounds.Y);
-        float titleRight = window.Minimizable ? minimize.X - style.LabelGap : window.Closable ? close.X - style.LabelGap : bar.Right - style.LabelGap;
-        TextStyle title = style.Label with { Colour = front ? Rgba.White : style.Label.Colour };
-        string text = TextFit.Truncate(window.Title, titleRight - style.LabelGap, s => sketch.Width(s, title));
-        sketch.Text(text, style.LabelGap, bar.Height / 2f, title, alignY: 0.5f);
-        if (window.Closable) CloseButton(sketch, close, hot == WindowZone.Close, style);
-        if (window.Minimizable) MinimizeButton(sketch, minimize, hot == WindowZone.Minimize, style);
-
-        // Three dots on a diagonal in the bottom-right corner: it resizes.
-        if (window.Resizable)
-            for (int i = 0; i < 3; i++)
-                for (int j = 0; j <= i; j++)
-                    sketch.Fill(new Area(local.Right - 6f - 4f * (i - j) - 2f, local.Bottom - 6f - 4f * j - 2f, 2f, 2f), style.Axis);
     }
 
     /// <summary>

@@ -38,7 +38,7 @@ internal sealed class PinnedEndBands : IBandLayout {
     public float WidthOf(int index) => index < _scrollingCount ? Scrolling.WidthOf(index) : _pinnedWidth;
     public float BarWidthOf(int index) => index < _scrollingCount ? Scrolling.BarWidthOf(index) : _pinnedBar;
     public float BarStart(int index) =>
-        index < _scrollingCount ? Scrolling.BarStart(index) : _pinnedStart + MathF.Floor((_pinnedWidth - _pinnedBar) / 2f);
+        index < _scrollingCount ? Scrolling.BarStart(index) : _pinnedStart + BandSnap.Offset(_pinnedWidth, _pinnedBar, floor: true);
     public float Centre(int index) => BandStart(index) + WidthOf(index) / 2f;
 
     public int IndexAt(float pixel) => IndexAt(pixel, 0f);

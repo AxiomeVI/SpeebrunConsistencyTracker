@@ -20,7 +20,7 @@ internal sealed class ScatterChart : RoomColumnsChart
     private const float DotSize = ChartConstants.Scatter.DotRadius * 2f;
 
     // Rooms with no time have no column; these keep each column's own room index, which is what a
-    // label and a pin must name.
+    // label, a pin and a hidden column must name.
     private readonly List<int> _roomIndex;
     private readonly List<List<TimeTicks>> _times, _sorted;
     private readonly List<List<int>> _attempts;
@@ -30,7 +30,7 @@ internal sealed class ScatterChart : RoomColumnsChart
     private readonly Func<TimeTicks?> _targetSetting;
     private readonly Action<TimeTicks> _setTarget;
     private TimeTicks? _target;
-    private readonly DragLine _targetDrag = new(captureId: CaptureIds.TargetDrag, vertical: false);
+    private DragLine _targetDrag = new(captureId: CaptureIds.TargetDrag, vertical: false);
     // Where the line shows: the target, or where a drag has it.
     private long _targetShown;
     private bool _targetHot;
@@ -42,12 +42,17 @@ internal sealed class ScatterChart : RoomColumnsChart
     private float[] _x = [], _y = [];
     private (bool Segment, int Attempt, int Room, TimeTicks Time)[] _dots = [];
     private int _count;
+    // Where each column's dots start in the arrays above, and where the segment's do: a column's
+    // dots ascend in x, so the hit test looks only at those near the mouse.
+    private int[] _starts = [];
+    private int _columns, _firstSegment;
+    private readonly Func<int, bool> _shows;
 
     public ScatterChart(List<List<TimeTicks>> rooms, List<List<int>> roomIndices, List<TimeTicks> segment,
                         List<int> segmentIndices, Func<TimeTicks?> target, Action<TimeTicks> setTarget)
         : base(Dialog.Clean(DialogIds.ChartScatterTitle), relative: ChartOptions.ScatterRelative)
     {
-        _roomIndex = [.. Enumerable.Range(0, rooms.Count).Where(i => rooms[i].Count > 0)];
+        _roomIndex = RoomColumns.WithTimes(rooms);
         _times     = [.. _roomIndex.Select(i => rooms[i])];
         _sorted    = [.. _times.Select(t => (List<TimeTicks>)[.. t.OrderBy(v => v)])];
         _attempts  = [.. _roomIndex.Select(i => roomIndices[i])];
@@ -61,6 +66,7 @@ internal sealed class ScatterChart : RoomColumnsChart
         Foot.Space(4f);
         _spread          = Foot.Switch([Dialog.Clean(DialogIds.ChartOn), Dialog.Clean(DialogIds.ChartOff)]);
         _spread.Choice   = ChartOptions.ScatterSpread ? 0 : 1;
+        _shows           = Shows;
     }
 
     protected override bool Zoomable => true;
@@ -86,7 +92,24 @@ internal sealed class ScatterChart : RoomColumnsChart
     protected override long? AlsoOnSegmentAxis => _target?.Ticks;
     protected override float ColumnFill => 1f;
 
+    // A column is not a room here: a hidden column is kept as the room it shows.
+    protected override bool[] HiddenFlags(int count) => RoomColumns.HiddenFlags(_hiddenRooms, _roomIndex, count);
+    public override void ToggleColumn(int columnIndex)
+    {
+        int room = RoomColumns.RoomOf(_roomIndex, columnIndex);
+        if (room >= 0) base.ToggleColumn(room);
+    }
+
     protected override void OnModeChosen(bool relative) => ChartOptions.ScatterRelative = relative;
+
+    // A room finished during a drag of the target line: the drag goes on here, and its release
+    // still saves the target. A fresh line would wait for a new press under a held button.
+    internal override void TakeViewFrom(BaseChartOverlay previous)
+    {
+        base.TakeViewFrom(previous);
+        if (previous is ScatterChart chart)
+            (_targetDrag, _targetShown, _targetHot) = (chart._targetDrag, chart._targetShown, chart._targetHot);
+    }
 
     protected override void DrawData(ChartStyle style)
     {
@@ -112,11 +135,14 @@ internal sealed class ScatterChart : RoomColumnsChart
             _dots = new (bool, int, int, TimeTicks)[count];
         }
         _count = count;
+        if (_starts.Length < Rooms + 2) _starts = new int[Rooms + 2];
+        _columns = 0;
 
         int at = 0;
         for (int r = 0; r < Rooms; r++)
         {
             if (!RoomDrawn(r)) continue;
+            _starts[_columns++] = at;
             for (int i = 0; i < _times[r].Count; i++)
             {
                 _x[at] = Along(r, i, _times[r].Count);
@@ -125,12 +151,15 @@ internal sealed class ScatterChart : RoomColumnsChart
             }
         }
         int firstSegment = at;
+        _firstSegment = firstSegment;
+        _starts[_columns++] = at;
         for (int i = 0; i < _segment.Count; i++)
         {
             _x[at] = Along(SegmentColumn, i, _segment.Count);
             _y[at] = SegmentY.At(_segment[i].Ticks);
             _dots[at++] = (true, _segmentAttempts[i], -1, _segment[i]);
         }
+        _starts[_columns] = at;
 
         Rgba room = GameCanvas.ToRgba(palette.RoomFill), segment = GameCanvas.ToRgba(palette.SegmentFill);
         if (SpreadOn) DrawSpread(room, segment);
@@ -235,16 +264,43 @@ internal sealed class ScatterChart : RoomColumnsChart
         EnsureBuilt();
         if (Panning) return null;
 
-        float best = ChartConstants.Interactivity.ScatterSnapRadius * ChartConstants.Interactivity.ScatterSnapRadius;
-        int found = -1;
-        for (int i = 0; i < _count; i++)
-        {
-            float dx = ShownX(i) - mouseHudPos.X, dy = ShownY(i) - mouseHudPos.Y, distance = dx * dx + dy * dy;
-            if (distance > best || (distance == best && found >= 0) || !Shows(i)) continue;
-            best  = distance;
-            found = i;
-        }
+        int found = Nearest(_x, _y, _starts, _columns, _firstSegment, new Vector2(-Shift, RoomPan), new Vector2(0f, SegmentPan),
+                            mouseHudPos, ChartConstants.Interactivity.ScatterSnapRadius, _shows);
         return found < 0 ? null : InfoOf(found);
+    }
+
+    // The dot nearest the mouse within the radius, the earliest of equals, or -1: what a scan of
+    // every dot finds, from the few near the mouse in each column. Column c is the dots from
+    // starts[c] to starts[c + 1], ascending in x. Those before firstSegment show moved by room, the
+    // others by segment.
+    internal static int Nearest(float[] x, float[] y, int[] starts, int columns, int firstSegment,
+                                Vector2 room, Vector2 segment, Vector2 mouse, float radius, Func<int, bool> shows)
+    {
+        float best = radius * radius;
+        int found = -1;
+        for (int c = 0; c < columns; c++)
+        {
+            int start = starts[c], end = starts[c + 1];
+            if (start == end) continue;
+            Vector2 by = start >= firstSegment ? segment : room;
+            // A pixel wider than the radius: what passes is still measured exactly below.
+            float from = mouse.X - by.X - radius - 1f, to = mouse.X - by.X + radius + 1f;
+            int low = start, high = end;
+            while (low < high)
+            {
+                int middle = (low + high) >> 1;
+                if (x[middle] < from) low = middle + 1;
+                else high = middle;
+            }
+            for (int i = low; i < end && x[i] <= to; i++)
+            {
+                float dx = x[i] + by.X - mouse.X, dy = y[i] + by.Y - mouse.Y, distance = dx * dx + dy * dy;
+                if (distance > best || (distance == best && found >= 0) || !shows(i)) continue;
+                best  = distance;
+                found = i;
+            }
+        }
+        return found;
     }
 
     public override HoverInfo? Locate(string key)
@@ -261,11 +317,12 @@ internal sealed class ScatterChart : RoomColumnsChart
 
     private HoverInfo InfoOf(int i)
     {
-        var dot = _dots[i];
-        string label = DialogText.Format(DialogIds.ChartRunTimeFmt, dot.Attempt + 1, dot.Time);
         Vector2 at = new(ShownX(i), ShownY(i) - ChartConstants.Scatter.DotRadius - ChartConstants.Interactivity.TooltipPaddingY
                                     - ChartConstants.Interactivity.TooltipBgPadding);
-        return new HoverInfo(label, at, dot.Segment ? PinKey.ForSegment(dot.Attempt) : PinKey.ForRoom(dot.Attempt, dot.Room), i);
+        if (LastHover(i, at, out HoverInfo kept)) return kept;
+        var dot = _dots[i];
+        string label = DialogText.Format(DialogIds.ChartRunTimeFmt, dot.Attempt + 1, dot.Time);
+        return KeepHover(new HoverInfo(label, at, dot.Segment ? PinKey.ForSegment(dot.Attempt) : PinKey.ForRoom(dot.Attempt, dot.Room), i));
     }
 
     public override void DrawHighlight(HoverInfo info)

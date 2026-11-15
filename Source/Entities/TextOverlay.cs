@@ -10,24 +10,19 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         private static bool _textVisible = false;
 
         // The Text Overlay submenu is built on the title screen too, and its Change handlers land
-        // here, but StatText only exists once a level has loaded -- it needs Dialog.Language's
-        // font. Every setter returns early until then; Init() calls ApplyModSettings(), which
-        // replays whatever was changed in the meantime out of the settings themselves.
+        // here, but StatText only exists once a level has loaded. Every setter returns early until
+        // then; Init() calls ApplyModSettings(), which replays whatever was changed in the meantime
+        // out of the settings themselves.
         private static bool Ready => StatText != null;
 
         public static void Init() {
-            StatText ??= new TextComponent(StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f) {
-                Font = Dialog.Language.Font,
-                FontFaceSize = Dialog.Language.FontFaceSize
-            };
+            StatText ??= new TextComponent(StatTextPosition.TopLeft, StatTextOrientation.Horizontal, 1f);
             ApplyModSettings();
         }
 
         public static void ApplyModSettings() {
             var s = SpeebrunConsistencyTrackerModule.Settings;
             SetTextPosition(s.TextPosition);
-            SetTextOffsetX(s.TextOffsetX);
-            SetTextOffsetY(s.TextOffsetY);
             SetTextSize(s.TextSize);
             SetTextAlpha(s.TextAlpha);
             SetTextOrientation(s.TextOrientation);
@@ -61,18 +56,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
         public static void SetTextPosition(StatTextPosition pos) {
             if (!Ready) return;
             StatText.SetPosition(pos);
-        }
-
-        public static void SetTextOffsetX(int offset) {
-            if (!Ready) return;
-            StatText.OffsetX = offset;
-            StatText.SetPosition();
-        }
-
-        public static void SetTextOffsetY(int offset) {
-            if (!Ready) return;
-            StatText.OffsetY = offset;
-            StatText.SetPosition();
         }
 
         // size in percent as int

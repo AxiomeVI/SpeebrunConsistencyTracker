@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Celeste.Mod.MenuTools;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
+using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Celeste.Mod.SpeebrunConsistencyTracker.UI;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.Menu;
@@ -21,6 +22,7 @@ public static partial class ModMenuOptions
     public static void CreateMenu(TextMenu menu, bool inGame)
     {
         List<TextMenu.Item> rows = [];
+        TextMenu.Button restoreRow = null;
 
         rows.Add(new ValueButton(Dialog.Clean(DialogIds.TargetTimeId), GetTargetTime)
             .Pressed(() => OpenTargetTimeEntry(menu)));
@@ -44,6 +46,19 @@ public static partial class ModMenuOptions
                 };
                 confirm.Enter();
             }));
+
+            // Shown while a save or a clear has left something to put back, read every frame: the
+            // wipe happens elsewhere (a hotkey, another row), and this row has no event to hear.
+            restoreRow = new TextMenu.Button(Dialog.Clean(DialogIds.RestoreSessionId));
+            restoreRow.Pressed(() =>
+            {
+                SpeebrunConsistencyTrackerModule.RestoreSession();
+                // Hidden at once, and the selection moved off it so no description stays up.
+                restoreRow.Visible = false;
+                menu.MoveSelection(-1);
+            });
+            restoreRow.OnUpdate = () => restoreRow.Visible = _settings.Enabled && SessionManager.HasStash;
+            rows.Add(restoreRow);
         }
 
         rows.Add(new ValueButton(Dialog.Clean(DialogIds.StatsOverlayPageId),
@@ -57,23 +72,45 @@ public static partial class ModMenuOptions
         rows.Add(CelesteHotkeys.HotkeyMenu.OpenButton(
             menu, Hotkeys.Set, Hotkeys.Text, SpeebrunConsistencyTrackerModule.Instance.SaveSettings));
 
-        // Turning this off calls Clear(), which erases every save-state slot's data.
+        // Turning this off calls Clear(), which erases every save-state slot's data: it asks first
+        // when a slot holds a run, as Clear session does. The toggle goes back to On until the
+        // answer, and Change does not fire for that.
         TextMenu.OnOff enabledToggle = new(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled);
-        enabledToggle.Change(value =>
+        void Apply(bool value)
         {
             _settings.Enabled = value;
             foreach (TextMenu.Item row in rows) row.Visible = value;
             if (!value)
                 SpeebrunConsistencyTrackerModule.Clear();
+        }
+        enabledToggle.Change(value =>
+        {
+            if (value || !SessionManager.AnyRuns)
+            {
+                Apply(value);
+                return;
+            }
+            enabledToggle.Index = 1;
+            ConfirmationPage confirm = new(menu, title: Dialog.Clean(DialogIds.DisableTitleId),
+                                           message: Dialog.Clean(DialogIds.DisableMessageId))
+            {
+                OnConfirmed = () =>
+                {
+                    enabledToggle.Index = 0;
+                    Apply(false);
+                },
+            };
+            confirm.Enter();
         });
 
         menu.Add(enabledToggle);
         foreach (TextMenu.Item row in rows)
         {
             // Change does not fire at construction, so the initial visibility is set here.
-            row.Visible = _settings.Enabled;
+            row.Visible = _settings.Enabled && (row != restoreRow || SessionManager.HasStash);
             menu.Add(row);
         }
+        restoreRow?.AddDescription(menu, Dialog.Clean(DialogIds.RestoreSessionDescId));
     }
 
     // A full-screen page under its own header. The caller adds the rows, then Enter()s it.

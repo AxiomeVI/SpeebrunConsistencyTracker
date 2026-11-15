@@ -3,19 +3,14 @@ using System.Collections.Generic;
 using Microsoft.Xna.Framework.Graphics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
-using Celeste.Mod.SpeedrunTool.Message;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Celeste.Mod.SpeebrunConsistencyTracker.Export;
 using Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics;
-using MonoMod.ModInterop;
-using Celeste.Mod.SpeedrunTool.RoomTimer;
 using FMOD.Studio;
 using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
-using MonoMod.RuntimeDetour;
-using System.Reflection;
 using Monocle;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker;
@@ -26,13 +21,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public override Type SettingsType => typeof(SpeebrunConsistencyTrackerModuleSettings);
     public static SpeebrunConsistencyTrackerModuleSettings Settings => (SpeebrunConsistencyTrackerModuleSettings) Instance._Settings;
 
-    private object SaveLoadInstance = null;
-
     private const string DefaultSlotName = "Default Slot";
 
-    private static Hook _updateTimerStateHook;
     private static int _lastKnownRoomCount = 0;
-    private static Func<long> _getCurrentRoomTime;
 
 
     public SpeebrunConsistencyTrackerModule() {
@@ -52,41 +43,9 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     public override void Load() {
-        typeof(SaveLoadIntegration).ModInterop();
-        SaveLoadInstance = SaveLoadIntegration.RegisterSaveLoadAction(
-            OnSaveState,
-            OnLoadState,
-            OnClearState,
-            null,
-            OnBeforeLoadState,
-            null
-        );
-        typeof(RoomTimerIntegration).ModInterop();
-        var currentRoomTimerDataField = typeof(RoomTimerManager)
-            .GetField("CurrentRoomTimerData", BindingFlags.NonPublic | BindingFlags.Static);
-        var timeProperty = currentRoomTimerDataField?.FieldType
-            .GetProperty("Time", BindingFlags.Public | BindingFlags.Instance);
-        if (currentRoomTimerDataField != null && timeProperty != null)
-        {
-            // Re-read on every call: SRT can replace the object mid-session, so a snapshot taken
-            // at Load() goes stale. Either GetValue returns null while the timer is unset.
-            _getCurrentRoomTime = () => {
-                object currentRoomTimerData = currentRoomTimerDataField.GetValue(null);
-                if (currentRoomTimerData == null) return 0L;
-                object time = timeProperty.GetValue(currentRoomTimerData);
-                return time == null ? 0L : (long)time;
-            };
-        }
-        else if (currentRoomTimerDataField == null)
-        {
-            Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
-                "SpeedrunTool member not found: RoomTimerManager.CurrentRoomTimerData (non-public static field). Room times cannot be read, every timing feature stays inert.");
-        }
-        else
-        {
-            Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
-                $"SpeedrunTool member not found: property Time (public instance) on {currentRoomTimerDataField.FieldType.FullName}. Room times cannot be read, every timing feature stays inert.");
-        }
+        // Registers the save-state callbacks and hooks the room timer, or leaves Srt.Tool
+        // unavailable and says why in the log. Never throws.
+        Srt.Load(OnSaveState, OnLoadState, OnClearState, OnBeforeLoadState, OnUpdateTimerState);
         // The charts draw after the level, over other mods' overlays.
         CelesteCharts.ChartLayer.Load();
         On.Celeste.Level.Update += LevelOnUpdate;
@@ -94,34 +53,17 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         On.Monocle.Scene.AfterUpdate += SceneOnAfterUpdate;
         On.Celeste.Level.Render += LevelOnRender;
         Everest.Events.Level.OnLoadLevel += OnLoadLevel;
-
-        var updateTimerStateMethod = typeof(RoomTimerManager).GetMethod("UpdateTimerState", BindingFlags.Public | BindingFlags.Static);
-        if (updateTimerStateMethod != null) {
-            var updateTimerStateDetour = typeof(SpeebrunConsistencyTrackerModule)
-                .GetMethod("OnUpdateTimerState", BindingFlags.NonPublic | BindingFlags.Static);
-            if (updateTimerStateDetour == null) {
-                Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
-                    "Own member not found: SpeebrunConsistencyTrackerModule.OnUpdateTimerState (non-public static method). The room timer hook cannot be built.");
-            } else {
-                _updateTimerStateHook = new Hook(updateTimerStateMethod, updateTimerStateDetour);
-            }
-        } else {
-            Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
-                "SpeedrunTool member not found: RoomTimerManager.UpdateTimerState (public static method). The room timer hook is not installed, no room completion is ever recorded.");
-        }
     }
 
     public override void Unload() {
-        SaveLoadIntegration.Unregister(SaveLoadInstance);
+        Srt.Unload();
         On.Celeste.Level.Update -= LevelOnUpdate;
         On.Monocle.Scene.AfterUpdate -= SceneOnAfterUpdate;
         CelesteCharts.ChartLayer.Unload();
         On.Celeste.Level.Render -= LevelOnRender;
         Everest.Events.Level.OnLoadLevel -= OnLoadLevel;
         Clear();
-        _updateTimerStateHook?.Dispose();
-        _updateTimerStateHook   = null;
-        _getCurrentRoomTime = null;
+        SessionManager.DropStash();
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
@@ -131,35 +73,36 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     }
 
     public static void PopupMessage(string message) {
-        PopupMessageUtils.Show(message, null);
+        Srt.Tool.Popup(message);
     }
 
     public static void OnSaveState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
     {
         if (!Settings.Enabled)
             return;
-        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
-        SessionManager.SaveSlot(slot);
+        string slot = Srt.Tool.SlotName ?? DefaultSlotName;
+        bool replaced = SessionManager.SaveSlot(slot);
         MetricsExporter.Clear();
         MetricEngine.Clear();
         GraphManager.Init();
         _lastKnownRoomCount = 0;
         TextOverlay.SetTextVisible(false);
         GraphManager.HideGraph();
+        if (replaced) PopupMessage($"{Dialog.Clean(DialogIds.PopupSessionReplacedId)}. {RestoreHint()}");
     }
 
     public static void OnBeforeLoadState(Level level)
     {
         if (!Settings.Enabled)
             return;
-        SessionManager.BeforeLoad(_getCurrentRoomTime?.Invoke() ?? 0);
+        SessionManager.BeforeLoad(Srt.Tool.CurrentRoomTime);
     }
 
     public static void OnLoadState(Dictionary<Type, Dictionary<string, object>> dictionary, Level level)
     {
         if (!Settings.Enabled)
             return;
-        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
+        string slot = Srt.Tool.SlotName ?? DefaultSlotName;
         SessionManager.LoadSlot(slot);
         _lastKnownRoomCount = 0;
         TextOverlay.SetTextVisible(false);
@@ -170,8 +113,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     {
         if (!Settings.Enabled)
             return;
-        string slot = SaveLoadIntegration.GetSlotName?.Invoke() ?? DefaultSlotName;
-        SessionManager.ClearSlot(slot);
+        string slot = Srt.Tool.SlotName ?? DefaultSlotName;
+        SessionManager.ClearSlot(slot, Engine.FrameCounter);
         _lastKnownRoomCount = 0;
     }
 
@@ -255,11 +198,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         level.Add(CelesteCharts.ChartLayer.Add(new CelesteCharts.ChartCursor()));
         SessionManager.LevelName = Utility.LevelNames.ForExportFolder(
             level.Session.Area.GetSID(), (int)level.Session.Area.Mode);
+        // Celeste's own textbox: SpeedrunTool's popup may be the very thing that is missing.
+        if (Settings.Enabled && !Srt.Tool.Available)
+            level.Add(new MiniTextbox(DialogIds.PopupSrtUnavailableId));
     }
 
     private static void UpdateTextOverlay(Level _) {
-        bool timerOff = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType == RoomTimerType.Off;
-        bool timerCompleted = !timerOff && RoomTimerIntegration.RoomTimerIsCompleted();
+        bool timerOff = Srt.Tool.TimerType == RoomTimerMode.Off;
+        bool timerCompleted = !timerOff && Srt.Tool.TimerCompleted;
 
         bool roomCountChanged = false;
         if (timerCompleted) {
@@ -295,7 +241,25 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public static void ClearSession() {
         int attempts = SessionManager.CurrentSession?.TotalAttempts ?? 0;
         Clear();
-        PopupMessage($"{Dialog.Clean(DialogIds.PopupDataClearId)} ({attempts} {(attempts == 1 ? "run" : "runs")})");
+        string cleared = $"{Dialog.Clean(DialogIds.PopupDataClearId)} ({DialogText.Count(attempts, DialogIds.ChartOneRun, DialogIds.ChartRunsFmt)})";
+        PopupMessage(SessionManager.HasStash ? $"{cleared}. {RestoreHint()}" : cleared);
+    }
+
+    // The Mod Options row that undoes a save or a clear, named from its own label.
+    private static string RestoreHint() =>
+        $"{Dialog.Clean(DialogIds.PopupRestoreHintId)} {Dialog.Clean(DialogIds.RestoreSessionId)}";
+
+    // The Mod Options row. What a save or a clear discarded comes back, and what was built on the
+    // discarded state is rebuilt from it.
+    public static void RestoreSession() {
+        if (!Settings.Enabled || !SessionManager.RestoreStash()) return;
+        MetricsExporter.Clear();
+        MetricEngine.Clear();
+        GraphManager.Init();
+        _lastKnownRoomCount = 0;
+        TextOverlay.SetTextVisible(false);
+        GraphManager.HideGraph();
+        PopupMessage(Dialog.Clean(DialogIds.PopupSessionRestoredId));
     }
 
     private static void UpdateGraphOverlay(Level self) {
@@ -328,13 +292,10 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             GraphManager.HideGraph();
     }
 
-    private static void OnUpdateTimerState(Action<bool> orig, bool endPoint) {
-        if (Settings.Enabled && SessionManager.CurrentSession?.CurrentAttemptIndex >= 0) {
-            long segmentTime = _getCurrentRoomTime?.Invoke() ?? 0;
-            if (segmentTime > 0)
-                SessionManager.CompleteRoom(segmentTime);
-        }
-        orig(endPoint);
+    // Runs after SpeedrunTool's own UpdateTimerState, which does not move the time read.
+    private static void OnUpdateTimerState(bool endPoint, bool newSplit) {
+        if (Settings.Enabled)
+            SessionManager.TimerStateUpdated(endPoint, newSplit);
     }
 
     public static void Clear()

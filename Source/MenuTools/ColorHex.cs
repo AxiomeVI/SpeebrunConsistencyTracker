@@ -1,4 +1,5 @@
 // MenuTools requires: nothing else
+#nullable disable
 using System;
 using System.Globalization;
 using Microsoft.Xna.Framework;

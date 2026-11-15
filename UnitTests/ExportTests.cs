@@ -148,6 +148,21 @@ public class SessionHistoryExporterTests
         Assert.Equal(["Attempt\tR1\tR2\tSegment", "1\t1.000\t2.000\t3.000"], lines);
     }
 
+    // The file is the same on every platform: AppendLine would write CRLF on Windows only, and the
+    // metrics export joins its lines with "\n".
+    [Fact]
+    public void Rows_end_with_a_line_feed_and_never_a_carriage_return()
+    {
+        PracticeSession session = new(new StubSegmentShape(roomCount: 2));
+        Run(session, 1, 2);
+        session.StartNewAttempt();
+        session.RecomputeMaxRoomCount();
+
+        string csv = SessionHistoryExporter.ExportSessionToCsv(session);
+
+        Assert.Equal("Attempt,R1,R2,Segment\n1,1.000,2.000,3.000\n", csv);
+    }
+
     [Fact]
     public void A_reset_inside_the_segment_still_exports_as_DNF()
     {

@@ -30,36 +30,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
     }
 
-    public sealed class MetricDescriptor(
-        Func<string> csvHeader,
-        Func<string> inGameName,
-        Func<PracticeSession, MetricContext, bool, MetricResult> compute,
-        Func<MetricOutput, bool> isEnabled) : IEquatable<MetricDescriptor>
-    {
-        public Func<string> CsvHeader { get; } = csvHeader ?? throw new ArgumentNullException(nameof(csvHeader));
-        public Func<string> InGameName { get; } = inGameName ?? throw new ArgumentNullException(nameof(inGameName));
-        public Func<PracticeSession, MetricContext, bool, MetricResult> Compute { get; } = compute ?? throw new ArgumentNullException(nameof(compute));
-        public Func<MetricOutput, bool> IsEnabled { get; } = isEnabled ?? throw new ArgumentNullException(nameof(isEnabled));
-
-        public MetricDescriptor(
-            string csvHeader,
-            string inGameName,
-            Func<PracticeSession, MetricContext, bool, MetricResult> compute,
-            Func<MetricOutput, bool> isEnabled)
-            : this(() => csvHeader, () => inGameName, compute, isEnabled)
-        { }
-
-        public bool Equals(MetricDescriptor other)
-        {
-            if (other is null) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return InGameName() == other.InGameName();
-        }
-
-        public override bool Equals(object obj) => Equals(obj as MetricDescriptor);
-        public override int GetHashCode() => InGameName().GetHashCode();
-    }
-
     public sealed class MetricResult(string segmentValue, IReadOnlyList<string> roomValues)
     {
         public string SegmentValue { get; init; } = segmentValue ?? throw new ArgumentNullException(nameof(segmentValue));
@@ -68,16 +38,18 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
     public static class MetricHelper
     {
-        public static bool IsMetricEnabled(object value, MetricOutput mode)
-        {
-            return value switch
-            {
-                // bool settings are export-only by convention.
-                bool b => b && mode == MetricOutput.Export,
-                MetricOutputChoice choice => (FromChoice(choice) & mode) != 0,
-                _ => throw new InvalidOperationException($"Unsupported type {value.GetType()}"),
-            };
-        }
+        // What every metric shows, in the overlay and the CSV, where the session holds too little
+        // to compute it. A cell stays empty only where the metric has no value by definition:
+        // Success Rate per room, Reset Share for the segment, Room Dependency for the first room.
+        public const string NoData = "-";
+
+        public static List<string> NoDataPerRoom(int roomCount) => [.. Enumerable.Repeat(NoData, roomCount)];
+
+        public static bool HasSegmentTimes(PracticeSession session, MetricContext context) =>
+            SortedSegmentValues(session, context).Count > 0;
+
+        // The charts ask this every frame: nothing here boxes or allocates.
+        public static bool IsMetricEnabled(MetricOutputChoice choice, MetricOutput mode) => (FromChoice(choice) & mode) != 0;
 
         private static MetricOutput FromChoice(MetricOutputChoice choice) => choice switch
         {
@@ -205,26 +177,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return ComputePercentile([.. deviations.Select(t => new TimeTicks((long)Math.Round(t)))], 50);
         }
 
-        public static double ComputeConsistencyScore(double median, TimeTicks min, double relMAD, double resetRate, double stdCV)
-        {
-            if (median <= 0) return 0;
-            
-            // Gaussian: a grace zone for low variance, then a sharp drop-off.
-            double stabilityScore = Math.Exp(-50 * Math.Pow(relMAD * stdCV, 2));
-
-            // How close the median sits to the session PB.
-            double gap = (median - (double)min) / median;
-            double floorProximity = Math.Exp(-50 * Math.Pow(gap, 2));
-
-            double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
-            double reliability = completionRate * completionRate; // Penalizes high reset rates heavily
-
-            // Multiplicative on purpose: one low factor sinks the score.
-            double finalScore = stabilityScore * floorProximity * reliability;
-
-            return Math.Clamp(finalScore, 0, 1.0);
-        }
-
         public static double CalculateBC(List<TimeTicks> values, double mean)
         {
             int n = values.Count;
@@ -289,7 +241,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (times == null || times.Count == 0) return new PeakReport();
 
-            const double ONE_FRAME = 170000; // one frame
+            const double ONE_FRAME = CelesteCharts.Durations.CelesteFrameTicks;
 
             // Bin resolution: the tighter of 10% of the min and Freedman-Diaconis, floored at
             // one frame — no bin is narrower than the game's own time quantum.
@@ -496,6 +448,11 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static double SegmentResetRate(PracticeSession session, MetricContext context) =>
             context.GetOrCompute("resetRate_segment", () => (double)session.TotalDnfs / session.TotalAttempts);
 
+        // The best and the average of every room in one pass: what the sum of bests reads, and the
+        // Run Trajectory's baselines.
+        public static RoomStats RoomStatsOf(PracticeSession session, MetricContext context) =>
+            context.GetOrCompute("room_stats", () => RoomStats.Of(session, session.RoomCount));
+
         public static List<TimeTicks> SortedRoomValues(PracticeSession session, MetricContext context, int r) =>
             context.GetOrCompute($"room_{r}_values_sorted", () => session.GetRoomTimes(r).OrderBy(t => t).ToList());
 
@@ -538,7 +495,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static List<string> ComputeRoomValues(
             bool isExport, PracticeSession session, MetricContext context,
             Func<int, List<TimeTicks>, string> computeValue,
-            int minCount = 1, string defaultValue = "0")
+            int minCount = 1, string defaultValue = NoData)
         {
             int roomCount = session.RoomCount;
             var roomValues = new List<string>(roomCount);

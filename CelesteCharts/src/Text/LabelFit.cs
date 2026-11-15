@@ -12,7 +12,7 @@ internal enum LabelFit {
 
     /// <summary>
     ///     Put every other label one line lower, as SpeebrunConsistencyTracker does, when each row then
-    ///     fits; otherwise thin. Needs <c>XLabelHeight(..., rows: 2)</c> below the plot.
+    ///     fits; otherwise thin. Needs room for two lines of labels below the plot.
     /// </summary>
     Stagger,
 }

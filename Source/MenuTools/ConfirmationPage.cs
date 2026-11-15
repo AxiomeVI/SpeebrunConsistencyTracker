@@ -1,4 +1,5 @@
 // MenuTools requires: TextMenuPage.cs IInputHoldingItem.cs
+#nullable disable
 using System;
 
 namespace Celeste.Mod.MenuTools;

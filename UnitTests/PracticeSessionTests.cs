@@ -140,6 +140,21 @@ public class PracticeSessionTests
         Assert.True(session.IsCompleted(0));
     }
 
+    // RoomCount is 0 after a save state and before the first room transition. ContiguousCount >= 0
+    // held for every attempt then, so each load read as a completed run of time 0.
+    [Fact]
+    public void With_no_rooms_in_the_segment_no_attempt_is_completed()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(startRoomIndex: 1, roomCount: 0));
+        session.StartNewAttempt();
+        session.StartNewAttempt();
+
+        Assert.False(session.IsCompleted(0));
+        Assert.Empty(session.GetSegmentTimes());
+        Assert.Empty(session.GetCompletedAttemptIndices());
+        Assert.Equal(0, session.TotalCompleted);
+    }
+
     [Fact]
     public void SegmentTime_sums_the_visible_rooms_of_a_completed_attempt()
     {
@@ -390,5 +405,75 @@ public class PracticeSessionTests
         session.CompleteRoom(T(200));
 
         Assert.Equal(before, session.Version);
+    }
+
+    // An attempt whose timer completed on an end point or a level end was not reset.
+    [Fact]
+    public void A_finished_attempt_records_no_DNF_on_the_next_attempt()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(roomCount: 9));
+        CompleteRooms(session, 100, 200);
+        session.FinishActiveAttempt();
+
+        session.StartNewAttempt();
+
+        Assert.Equal(RoomCellState.NotReached, session.GetCell(0, 2).State);
+        Assert.False(session.ActiveAttemptFinished);
+    }
+
+    [Fact]
+    public void A_finished_attempt_reaches_its_last_room_not_the_next()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(roomCount: 9));
+        CompleteRooms(session, 100, 200);
+        session.FinishActiveAttempt();
+
+        session.BumpMaxForActiveAttempt();
+
+        Assert.Equal(2, session.MaxRoomCount);
+    }
+
+    [Fact]
+    public void The_finished_room_count_is_the_most_recent_finished_attempts()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(roomCount: 9));
+        Assert.Null(session.FinishedRoomCount);
+
+        CompleteRooms(session, 100, 200, 300);
+        session.FinishActiveAttempt();
+        session.StartNewAttempt();
+        CompleteRooms(session, 100, 200);
+        session.FinishActiveAttempt();
+        session.StartNewAttempt();
+        CompleteRooms(session, 100, 200, 300, 400);
+
+        Assert.Equal(2, session.FinishedRoomCount);
+    }
+
+    // Under NextRoom the room before R1 is not timed by SpeedrunTool's selected timer.
+    [Fact]
+    public void A_finish_in_the_room_before_the_segment_is_ignored()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(startRoomIndex: 1, roomCount: 9));
+        CompleteRooms(session, 100);
+
+        session.FinishActiveAttempt();
+
+        Assert.False(session.ActiveAttemptFinished);
+        Assert.Null(session.FinishedRoomCount);
+    }
+
+    // The latch is taken once: a second call cannot move the finishing split.
+    [Fact]
+    public void A_finished_attempt_keeps_its_first_finishing_split()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(roomCount: 9));
+        CompleteRooms(session, 100, 200);
+        session.FinishActiveAttempt();
+        CompleteRooms(session, 300);
+
+        session.FinishActiveAttempt();
+
+        Assert.Equal(2, session.FinishedRoomCount);
     }
 }

@@ -7,6 +7,10 @@ public static class DialogIds {
     public const string ClearSessionId = "SCT_CLEAR_SESSION";
     public const string ClearSessionTitleId = "SCT_CLEAR_SESSION_TITLE";
     public const string ClearSessionMessageId = "SCT_CLEAR_SESSION_MESSAGE";
+    public const string RestoreSessionId = "SCT_RESTORE_SESSION";
+    public const string RestoreSessionDescId = "SCT_RESTORE_SESSION_DESC";
+    public const string DisableTitleId = "SCT_DISABLE_TITLE";
+    public const string DisableMessageId = "SCT_DISABLE_MESSAGE";
 
     // Pages and their shared rows
     public const string BulkHeaderId = "SCT_BULK_HEADER";
@@ -56,7 +60,11 @@ public static class DialogIds {
     public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";
     public const string PopupExportToFileFailedId = "SCT_EXPORT_TO_FILE_FAILED";
     public const string PopupDataClearId = "SCT_DATA_CLEAR";
+    public const string PopupSessionReplacedId = "SCT_SESSION_REPLACED";
+    public const string PopupSessionRestoredId = "SCT_SESSION_RESTORED";
+    public const string PopupRestoreHintId = "SCT_RESTORE_HINT";
     public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
+    public const string PopupSrtUnavailableId = "SCT_SRT_UNAVAILABLE";
 
     // Text Overlay Menu
     public const string OverlayEnabledId = "SCT_OVERLAY_ENABLED";
@@ -94,34 +102,14 @@ public static class DialogIds {
     public const string GraphTimeLossId = "SCT_TIME_LOSS_CHART";
     public const string GraphRunTrajectoryId = "SCT_TRAJECTORY_GRAPH";
 
-    // Stats Menu
+    // Stats Menu. A metric's own label key is in MetricTable; one is here only where other code names it.
     public const string ExtraSectionsId = "SCT_EXPORT_ONLY";
     public const string SuccessRateId = "SCT_SUCCESS_RATE";
-    public const string ResetRateId = "SCT_RESET_RATE";
-    public const string ResetShareId = "SCT_RESET_SHARE";
-    public const string AverageId = "SCT_AVERAGE";
-    public const string MedianId = "SCT_MEDIAN";
-    public const string MadId = "SCT_MAD";
-    public const string MinimumId = "SCT_MINIMUM";
-    public const string MaximumId = "SCT_MAXIMUM";
-    public const string StandardDeviationId = "SCT_STANDARD_DEVIATION";
-    public const string CoefficientOfVariationId = "SCT_COEFFICIENT_OF_VARIATION";
     public const string ShowTargetLineId = "SCT_SHOW_TARGET_LINE";
     public const string PercentileValueId = "SCT_PERCENTILE_VALUE";
     public const string PercentileId = "SCT_PERCENTILE";
-    public const string InterquartileRangeId = "SCT_IQR";
     public const string RunHistoryId = "SCT_RUN_HISTORY";
     public const string SuccessRateSubTextId = "SCT_SUCCESS_RATE_SUBTEXT";
-    public const string CompletedRunCountId = "SCT_COMPLETED_RUN_COUNT";
-    public const string LinearRegressionId = "SCT_LINEAR_REGRESSION";
-    public const string SoBId = "SCT_SOB";
-    public const string TotalRunCountId = "SCT_TOTAL_RUN_COUNT";
-    public const string DnfCountId = "SCT_DNF_COUNT";
-    public const string MultimodalTestId = "SCT_MULTIMODAL_TEST";
-    public const string RoomDependencyId = "SCT_ROOM_DEPENDENCY";
-    public const string BestSplitId = "SCT_BEST_SPLIT";
-    public const string RelMadId = "SCT_RELATIVE_MAD";
-    public const string GoldRateId = "SCT_GOLD_RATE";
     public const string GroupRunsId = "SCT_GROUP_RUNS";
     public const string GroupTimesId = "SCT_GROUP_TIMES";
     public const string GroupSpreadId = "SCT_GROUP_SPREAD";
