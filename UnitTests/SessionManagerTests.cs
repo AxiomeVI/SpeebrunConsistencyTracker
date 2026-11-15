@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Attempts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
@@ -533,5 +535,308 @@ public sealed class SessionManagerTests : IDisposable
 
         SessionManager.LoadSlot(Slot);
         Assert.NotSame(first, SessionManager.CurrentSession);
+    }
+
+    // ---------------------------------------------------------------- #15: real splits and end points
+
+    // About one frame of room timer, in the ticks these tests use.
+    private const long Frame = 17;
+
+    // One call of SpeedrunTool's UpdateTimerState as the detour sees it: the room the player is in
+    // and the room timer's running time.
+    private void Call(string room, long time, bool endPoint = false)
+    {
+        _srt.RoomName = room;
+        _srt.CurrentRoomTime = time;
+        SessionManager.TimerStateUpdating(endPoint);
+    }
+
+    // SpeedrunTool calls UpdateTimerState on every frame while the player stands on an end point,
+    // stands in the room-id end point's room, or after the level completed. Time keeps moving
+    // unless the level completed.
+    private void CallEveryFrame(string room, long from, int frames, bool endPoint = false, bool timeMoves = true)
+    {
+        for (int f = 1; f <= frames; f++)
+            Call(room, timeMoves ? from + f * Frame : from, endPoint);
+    }
+
+    private void Save(string room = "1")
+    {
+        _srt.RoomName = room;
+        _srt.CurrentRoomTime = 0;
+        SessionManager.SaveSlot(Slot);
+    }
+
+    // BeforeLoad reads the abandoned attempt's time; the load restores the save's room and zeroes
+    // the timer.
+    private void Reload(string saveRoom = "1")
+    {
+        SessionManager.BeforeLoad(_srt.CurrentRoomTime);
+        _srt.RoomName = saveRoom;
+        _srt.CurrentRoomTime = 0;
+        _srt.LevelCompleted = false;
+        _srt.ReachedRoomIdEndPoint = false;
+        SessionManager.LoadSlot(Slot);
+    }
+
+    // Rooms 1 to 4 under NextRoom: entering 2 records the unshown room 1, then R1 is 150 and R2 is 200.
+    private void EnterRoomsTwoToFour()
+    {
+        Call("2", 100);
+        Call("3", 250);
+        Call("4", 450);
+    }
+
+    // The route to an end point entity in room 4, touched 50 into the room: R3 is 50, and the
+    // segment is 400. Then a second of standing on it.
+    private void RunToEndPointEntity()
+    {
+        EnterRoomsTwoToFour();
+        Call("4", 500, endPoint: true);
+        CallEveryFrame("4", 500, 60, endPoint: true);
+    }
+
+    [Theory]
+    [InlineData(9)]
+    [InlineData(1)]
+    public void An_end_point_ends_the_segment_whatever_NumberOfRooms_says(int numberOfRooms)
+    {
+        _srt.NumberOfRooms = numberOfRooms;
+        _srt.EndPointExists = true;
+        Save();
+        RunToEndPointEntity();
+        Reload();
+        RunToEndPointEntity();
+        Reload();
+
+        Assert.Equal(3, SessionManager.RoomCount);
+        Assert.Equal(2, SessionManager.CurrentSession.TotalCompleted);
+        Assert.Equal(0, SessionManager.CurrentSession.TotalDnfs);
+        Assert.Equal([400L, 400L], SessionManager.CurrentSession.GetSegmentTimes().Select(t => t.Ticks));
+    }
+
+    [Fact]
+    public void Standing_on_an_end_point_records_one_room()
+    {
+        _srt.EndPointExists = true;
+        Save();
+
+        RunToEndPointEntity();
+
+        Assert.Equal(4, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    [Fact]
+    public void A_reload_after_the_end_point_records_no_reset()
+    {
+        _srt.EndPointExists = true;
+        Save();
+        RunToEndPointEntity();
+
+        Reload();
+
+        // R4, the room after the end point's split, is where the reset would have gone.
+        Assert.Equal(RoomCellState.NotReached, SessionManager.CurrentSession.GetCell(0, 3).State);
+        Assert.Equal(0, SessionManager.CurrentSession.TotalDnfs);
+    }
+
+    // The entry into the room-id end point's room is the finishing split, and SpeedrunTool calls
+    // again on every frame the player stays there.
+    [Fact]
+    public void A_room_id_end_point_finishes_on_entry_and_standing_there_records_nothing()
+    {
+        _srt.NumberOfRooms = 6;
+        _srt.EndPointExists = true;
+        Save();
+        Call("2", 100);
+        Call("3", 250);
+        _srt.ReachedRoomIdEndPoint = true;
+        Call("4", 450);
+        CallEveryFrame("4", 450, 60);
+        Assert.Equal(3, SessionManager.CurrentSession.CurrentRoomIndex);
+
+        Reload();
+
+        Assert.Equal(2, SessionManager.RoomCount);
+        Assert.Equal(1, SessionManager.CurrentSession.TotalCompleted);
+        Assert.Equal(0, SessionManager.CurrentSession.TotalDnfs);
+    }
+
+    // The chapter's last split happens in the room the player is in. Without an end point,
+    // NumberOfRooms still clamps: SpeedrunTool's timer completes on whichever comes first.
+    [Theory]
+    [InlineData(9, 3)]
+    [InlineData(2, 2)]
+    public void A_level_end_finishes_the_attempt(int numberOfRooms, int roomCount)
+    {
+        _srt.NumberOfRooms = numberOfRooms;
+        Save();
+        for (int run = 0; run < 2; run++)
+        {
+            EnterRoomsTwoToFour();
+            _srt.LevelCompleted = true;
+            Call("4", 500);
+            CallEveryFrame("4", 500, 60, timeMoves: false);
+            Reload();
+        }
+
+        Assert.Equal(roomCount, SessionManager.RoomCount);
+        Assert.Equal(2, SessionManager.CurrentSession.TotalCompleted);
+        Assert.Equal(0, SessionManager.CurrentSession.TotalDnfs);
+    }
+
+    // #7: a mod that hides level.Completed from the timer but not from the manager makes the
+    // per-frame calls with the clock still moving.
+    [Fact]
+    public void A_completed_level_records_one_room_while_the_clock_still_moves()
+    {
+        Save();
+        EnterRoomsTwoToFour();
+        _srt.LevelCompleted = true;
+
+        CallEveryFrame("4", 450, 60);
+
+        Assert.Equal(4, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    [Fact]
+    public void Running_past_the_end_point_records_the_later_rooms_outside_the_segment()
+    {
+        _srt.EndPointExists = true;
+        Save();
+        RunToEndPointEntity();
+        Call("5", 1600);
+        Call("6", 2000);
+        Assert.Equal(6, SessionManager.CurrentSession.CurrentRoomIndex);
+
+        Reload();
+
+        Assert.Equal(3, SessionManager.RoomCount);
+        Assert.Equal(1, SessionManager.CurrentSession.TotalCompleted);
+        Assert.Equal(0, SessionManager.CurrentSession.TotalDnfs);
+        Assert.Equal([400L], SessionManager.CurrentSession.GetSegmentTimes().Select(t => t.Ticks));
+        Assert.Equal(RoomCellState.Completed, SessionManager.CurrentSession.GetCell(0, 4).State);
+    }
+
+    [Fact]
+    public void Backtracking_into_an_earlier_room_is_a_room()
+    {
+        _srt.NumberOfRooms = 9;
+        Save();
+
+        Call("2", 100);
+        Call("3", 250);
+        Call("2", 400);
+
+        Assert.Equal(3, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    // #7: another mod's extra calls, made with no room change and no end of the timer.
+    [Fact]
+    public void Repeated_calls_in_one_room_record_nothing()
+    {
+        Save();
+        Call("2", 100);
+
+        CallEveryFrame("2", 100, 30);
+
+        Assert.Equal(1, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    // The last attempt ended in room 2, and the save is in room 1: the next entry into room 2 is
+    // a room.
+    [Fact]
+    public void A_reload_starts_again_from_the_save_states_room()
+    {
+        Save();
+        Call("2", 100);
+        Reload();
+
+        Call("2", 100);
+
+        Assert.Equal(1, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    // A route with one room fewer, run after the first: the segment is the route last finished.
+    [Fact]
+    public void With_an_end_point_the_most_recent_finished_attempt_sets_the_segment()
+    {
+        _srt.EndPointExists = true;
+        Save();
+        RunToEndPointEntity();
+        Reload();
+        Call("2", 100);
+        Call("4", 300);
+        Call("4", 350, endPoint: true);
+        Reload();
+        Assert.Equal(2, SessionManager.RoomCount);
+
+        RunToEndPointEntity();
+        Reload();
+
+        Assert.Equal(3, SessionManager.RoomCount);
+    }
+
+    [Fact]
+    public void Before_any_attempt_finishes_an_end_point_lifts_the_NumberOfRooms_clamp()
+    {
+        _srt.NumberOfRooms = 1;
+        _srt.EndPointExists = true;
+        Save();
+        EnterRoomsTwoToFour();
+        Reload();
+
+        // R1 and R2 completed, R3 the reset.
+        Assert.Equal(3, SessionManager.RoomCount);
+        Assert.Equal(1, SessionManager.CurrentSession.TotalDnfs);
+    }
+
+    [Fact]
+    public void The_room_count_follows_an_end_point_set_or_removed_before_any_update()
+    {
+        _srt.NumberOfRooms = 2;
+        _srt.EndPointExists = true;
+        Save();
+        RunToEndPointEntity();
+        Reload();
+        Assert.Equal(3, SessionManager.RoomCount);
+
+        _srt.EndPointExists = false;
+        Assert.Equal(2, SessionManager.RoomCount);
+
+        _srt.EndPointExists = true;
+        Assert.Equal(3, SessionManager.RoomCount);
+    }
+
+    // Under NextRoom SpeedrunTool's timer has not started before the first room change, so an end
+    // point touched there finishes nothing.
+    [Fact]
+    public void An_end_point_touched_before_the_first_room_change_under_NextRoom_finishes_nothing()
+    {
+        _srt.EndPointExists = true;
+        Save();
+
+        Call("1", 50, endPoint: true);
+        CallEveryFrame("1", 50, 30, endPoint: true);
+        Assert.Equal(0, SessionManager.CurrentSession.CurrentRoomIndex);
+
+        Call("2", 600);
+        Assert.Equal(1, SessionManager.CurrentSession.CurrentRoomIndex);
+    }
+
+    // The NumberOfRooms path is the one the earlier tests above pin through CompleteRoom; this is
+    // the same session through the detour's calls.
+    [Fact]
+    public void Without_an_end_point_the_room_changes_record_as_before()
+    {
+        Save();
+        EnterRoomsTwoToFour();
+        Reload();
+        EnterRoomsTwoToFour();
+        Reload();
+
+        Assert.Equal(3, SessionManager.RoomCount);
+        Assert.Equal(2, SessionManager.CurrentSession.TotalAttempts);
+        Assert.Equal(2, SessionManager.CurrentSession.TotalDnfs);
     }
 }

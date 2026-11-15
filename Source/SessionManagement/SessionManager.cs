@@ -27,7 +27,7 @@ public static class SessionManager
     }
     private static string _levelName = "unknown";
 
-    // Counted again on read when the session, the timer type or NumberOfRooms moved since the last count: the
+    // Counted again on read when the session, the timer type, NumberOfRooms or the end point moved since the last count: the
     // trajectory widget reads it with no chart open, where nothing else calls UpdateRoomCount
     // before the next room.
     public static int RoomCount
@@ -52,10 +52,12 @@ public static class SessionManager
     private static PracticeSession _countedFor;
     // NumberOfRooms changes from a hotkey with nothing calling UpdateRoomCount; it only moves the Math.Min.
     private static int _lastNumberOfRooms;
+    // An end point is set and removed from SpeedrunTool's hotkeys and its map editor, the same way.
+    private static bool _lastEndPointExists;
 
     private static bool CountIsStale => CurrentSession != null
         && (!ReferenceEquals(CurrentSession, _countedFor) || Srt.Tool.TimerType != _lastRoomTimerType
-            || Srt.Tool.NumberOfRooms != _lastNumberOfRooms);
+            || Srt.Tool.NumberOfRooms != _lastNumberOfRooms || Srt.Tool.EndPointExists != _lastEndPointExists);
 
     private sealed class ManagerSegmentShape : ISegmentShape
     {
@@ -142,6 +144,7 @@ public static class SessionManager
         var session = NewSession();
         _slots[slotName] = session;
         CurrentSession = session;
+        _lastSplitRoom = Srt.Tool.RoomName;
         UpdateRoomCount();
         return stashed;
     }
@@ -156,6 +159,8 @@ public static class SessionManager
     public static void LoadSlot(string slotName)
     {
         _slotClearedWithRuns = false;
+        // The level already holds the restored state here.
+        _lastSplitRoom = Srt.Tool.RoomName;
         if (_slots.TryGetValue(slotName, out PracticeSession session))
         {
             CurrentSession = session;
@@ -212,6 +217,7 @@ public static class SessionManager
         _slots.Clear();
         CurrentSession = null;
         _countedFor = null;
+        _lastSplitRoom = null;
         RoomCount = 0;
     }
 
@@ -228,14 +234,43 @@ public static class SessionManager
         }
     }
 
+    // The room the active attempt's last split entered. SaveSlot and LoadSlot set it to the save
+    // state's room.
+    private static string _lastSplitRoom;
+
     // SpeedrunTool's UpdateTimerState, before SpeedrunTool's own: endPoint is its argument, and
     // the room timer still holds the time of the room being left.
+    //
+    // A call is a split when it enters a room other than the last split's, or when it is the
+    // first to end the attempt's timer. SpeedrunTool repeats the call on every frame on an end
+    // point, in the room-id end point's room and after a level end, and Time keeps moving on the
+    // first two (#15). Do not read Srt.Tool.TimerCompleted here: SpeedrunTool sets it one
+    // transition early when roomNumber reaches NumberOfRooms.
     public static void TimerStateUpdating(bool endPoint)
     {
-        if (CurrentSession == null || CurrentSession.CurrentAttemptIndex < 0) return;
-        long segmentTime = Srt.Tool.CurrentRoomTime;
+        PracticeSession session = CurrentSession;
+        if (session == null || session.CurrentAttemptIndex < 0) return;
+        ISpeedrunTool srt = Srt.Tool;
+        string room = srt.RoomName;
+        bool entersRoom = room != _lastSplitRoom;
+        // Under NextRoom, before the first room change, SpeedrunTool's timer has not started.
+        bool finishes = !session.ActiveAttemptFinished
+            && session.CurrentRoomIndex >= StartRoomIndex
+            && (endPoint || srt.ReachedRoomIdEndPoint || srt.LevelCompleted);
+        if (!entersRoom && !finishes) return;
+
+        _lastSplitRoom = room;
+        int recordedBefore = session.CurrentRoomIndex;
+        long segmentTime = srt.CurrentRoomTime;
         if (segmentTime > 0)
             CompleteRoom(segmentTime);
+        if (finishes && session.CurrentRoomIndex > recordedBefore)
+        {
+            session.FinishActiveAttempt();
+            // CompleteRoom's count took the room after the finish as the one being entered.
+            session.RecomputeMaxRoomCount();
+            UpdateRoomCount();
+        }
     }
 
     // Drops whatever the given pin keys name. Segment pins first: room pins on the same attempt
@@ -270,11 +305,17 @@ public static class SessionManager
         {
             _lastRoomTimerType = Srt.Tool.TimerType;
             _lastNumberOfRooms = Srt.Tool.NumberOfRooms;
+            _lastEndPointExists = Srt.Tool.EndPointExists;
             _countedFor = CurrentSession;
             CurrentSession.RecomputeMaxRoomCount();
         }
 
         CurrentSession.BumpMaxForActiveAttempt();
-        RoomCount = Math.Min(CurrentSession.MaxRoomCount, Srt.Tool.NumberOfRooms);
+        // With an end point SpeedrunTool does not read NumberOfRooms: the segment ends on the end
+        // point's split, and the most recent finished attempt says where that is (#15).
+        if (_lastEndPointExists)
+            RoomCount = CurrentSession.FinishedRoomCount ?? CurrentSession.MaxRoomCount;
+        else
+            RoomCount = Math.Min(CurrentSession.MaxRoomCount, Srt.Tool.NumberOfRooms);
     }
 }
