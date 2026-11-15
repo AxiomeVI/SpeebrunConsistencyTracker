@@ -145,8 +145,10 @@ public sealed class PracticeSession
         return Math.Max(0, highest - StartRoomIndex + 1);
     }
 
+    // RoomCount is 0 before the first room transition after a load; every attempt would otherwise
+    // satisfy ">= 0" and read as a completed run of time 0.
     public bool IsCompleted(int attemptIndex)
-        => ContiguousCount(attemptIndex) >= RoomCount;
+        => RoomCount > 0 && ContiguousCount(attemptIndex) >= RoomCount;
 
     public TimeTicks SegmentTime(int attemptIndex)
     {

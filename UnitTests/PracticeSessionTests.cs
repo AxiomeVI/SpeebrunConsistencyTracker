@@ -140,6 +140,21 @@ public class PracticeSessionTests
         Assert.True(session.IsCompleted(0));
     }
 
+    // RoomCount is 0 after a save state and before the first room transition. ContiguousCount >= 0
+    // held for every attempt then, so each load read as a completed run of time 0.
+    [Fact]
+    public void With_no_rooms_in_the_segment_no_attempt_is_completed()
+    {
+        PracticeSession session = NewSession(new StubSegmentShape(startRoomIndex: 1, roomCount: 0));
+        session.StartNewAttempt();
+        session.StartNewAttempt();
+
+        Assert.False(session.IsCompleted(0));
+        Assert.Empty(session.GetSegmentTimes());
+        Assert.Empty(session.GetCompletedAttemptIndices());
+        Assert.Equal(0, session.TotalCompleted);
+    }
+
     [Fact]
     public void SegmentTime_sums_the_visible_rooms_of_a_completed_attempt()
     {
