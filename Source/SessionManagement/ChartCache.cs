@@ -1,10 +1,12 @@
 using System;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
 // Rebuild key: the session, its version, visible room count, SpeedrunTool room timer type, and the
-// raw index of the segment's first room. Another session's chart is rebuilt and takes nothing from
+// raw index of the segment's first room, and the chart palette. A palette change rebuilds the chart
+// and carries its view over, since the data did not change. Another session's chart is rebuilt and takes nothing from
 // the one it replaces: its pins and hidden rooms named that session's runs.
 internal sealed class ChartCache<T> where T : class
 {
@@ -17,6 +19,7 @@ internal sealed class ChartCache<T> where T : class
     private int _roomCount;
     private int _timerType;
     private int _startRoomIndex;
+    private ChartPalette _palette;
 
     // build receives the room count the key was read with, so both see the same value.
     // carry hands a rebuilt value what the one it replaces held (previous, then fresh), and whether
@@ -30,11 +33,12 @@ internal sealed class ChartCache<T> where T : class
         uint curVersion   = curSession.Version;
         int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)Integration.Srt.Tool.TimerType;
-        return Get(curSession, curVersion, curRoomCount, curTimerType, SessionManager.StartRoomIndex);
+        return Get(curSession, curVersion, curRoomCount, curTimerType, SessionManager.StartRoomIndex, ChartPalette.Current);
     }
 
-    // The key as read by Get(); a test passes its own.
-    internal T Get(PracticeSession curSession, uint curVersion, int curRoomCount, int curTimerType, int curStartRoomIndex)
+    // The key as read by Get(); a test passes its own. ChartPalette.Current is a new instance whenever
+    // a colour setting changes, so the instance is the key, as in TrajectoryWidget.
+    internal T Get(PracticeSession curSession, uint curVersion, int curRoomCount, int curTimerType, int curStartRoomIndex, ChartPalette curPalette = null)
     {
         if (!ReferenceEquals(_session, curSession)) _value = null;
 
@@ -43,7 +47,8 @@ internal sealed class ChartCache<T> where T : class
             _version   != curVersion   ||
             _timerType != curTimerType ||
             _roomCount != curRoomCount ||
-            _startRoomIndex != curStartRoomIndex))
+            _startRoomIndex != curStartRoomIndex ||
+            !ReferenceEquals(_palette, curPalette)))
         {
             previous = _value;
             _value   = null;
@@ -58,6 +63,7 @@ internal sealed class ChartCache<T> where T : class
             _roomCount = curRoomCount;
             _timerType = curTimerType;
             _startRoomIndex = curStartRoomIndex;
+            _palette   = curPalette;
             if (previous != null) _carry?.Invoke(previous, _value, renumbered);
         }
 
@@ -72,5 +78,6 @@ internal sealed class ChartCache<T> where T : class
         _roomCount = 0;
         _timerType = 0;
         _startRoomIndex = 0;
+        _palette   = null;
     }
 }
