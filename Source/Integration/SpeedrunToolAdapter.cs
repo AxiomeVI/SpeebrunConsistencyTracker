@@ -125,7 +125,7 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
     // Calls back after SpeedrunTool's own UpdateTimerState, with its argument and whether it wrote
     // a new split. UpdateTimerState never moves Time, so the time read is still the room's being left.
     // A new split is a new key: a rewrite of an existing one (a frozen level's per-frame calls, the
-    // arrival split after a SomeSplitButtons load, #7) adds none.
+    // arrival split after a SomeSplitButtons load) adds none.
     private void OnUpdateTimerState(Action<bool> orig, bool endPoint)
     {
         int splitsBefore = SplitCount;

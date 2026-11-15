@@ -6,7 +6,7 @@ using Xunit;
 
 namespace SpeebrunConsistencyTracker.UnitTests;
 
-// The scatter's hit test looks only at the dots near the mouse in each column (#35). It must name
+// The scatter's hit test looks only at the dots near the mouse in each column. It must name
 // the dot the scan of every dot named: the nearest within the radius, the earliest of equals.
 public class ScatterHitTests
 {

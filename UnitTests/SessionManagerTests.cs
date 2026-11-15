@@ -45,7 +45,7 @@ public sealed class SessionManagerTests : IDisposable
         SessionManager.LoadSlot(slot);
     }
 
-    // #8: two runs that never complete the timer (6 rooms, 3 reached), then a reload that puts the
+    // Two runs that never complete the timer (6 rooms, 3 reached), then a reload that puts the
     // active attempt back at room 0. Before the fix nothing counted the rooms, and RoomCount was 0.
     [Fact]
     public void Rooms_reached_by_runs_that_never_complete_the_timer_are_counted()
@@ -82,7 +82,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(1, SessionManager.RoomCount);
     }
 
-    // #55: the Increase and Decrease Timed Rooms hotkeys change NumberOfRooms with nothing calling
+    // The Increase and Decrease Timed Rooms hotkeys change NumberOfRooms with nothing calling
     // UpdateRoomCount, and the trajectory widget reads RoomCount with no chart open.
     [Fact]
     public void The_room_count_follows_a_change_of_NumberOfRooms_before_any_update()
@@ -111,7 +111,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(4, SessionManager.RoomCount);
     }
 
-    // #37: the switch is seen while slot B is current. Slot A's count was taken under NextRoom, and
+    // The switch is seen while slot B is current. Slot A's count was taken under NextRoom, and
     // a load of A must count it again under CurrentRoom.
     [Fact]
     public void A_timer_type_change_recounts_a_slot_loaded_after_it()
@@ -130,7 +130,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(4, SessionManager.RoomCount);
     }
 
-    // #37: the trajectory widget reads RoomCount with no chart open, where nothing calls
+    // The trajectory widget reads RoomCount with no chart open, where nothing calls
     // UpdateRoomCount until the next room.
     [Fact]
     public void The_room_count_follows_a_timer_type_change_before_any_update()
@@ -177,7 +177,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(0, SessionManager.RoomCount);
     }
 
-    // #33: a load on a slot with no session creates one. Its constructor already opened the attempt
+    // A load on a slot with no session creates one. Its constructor already opened the attempt
     // that load starts, so a second StartNewAttempt would leave attempt 0 empty for good.
     [Fact]
     public void A_load_on_a_slot_with_no_session_starts_exactly_one_attempt()
@@ -187,7 +187,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(1, SessionManager.CurrentSession.AttemptCount);
     }
 
-    // #17: the stash. A slot saved again, a clear of every slot, the hotkey and Enabled off all end
+    // The stash. A slot saved again, a clear of every slot, the hotkey and Enabled off all end
     // in SessionManager, and what they discard must be one call away from coming back.
 
     private const string OtherSlot = "SaveSlot@3";
@@ -537,7 +537,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.NotSame(first, SessionManager.CurrentSession);
     }
 
-    // ---------------------------------------------------------------- #15: real splits and end points
+    // ---------------------------------------------------------------- real splits and end points
 
     // About one frame of room timer, in the ticks these tests use.
     private const long Frame = 17;
@@ -686,7 +686,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(0, SessionManager.CurrentSession.TotalDnfs);
     }
 
-    // #7: a mod that hides level.Completed from the timer but not from the manager makes the
+    // A mod that hides level.Completed from the timer but not from the manager makes the
     // per-frame calls with the clock still moving.
     [Fact]
     public void A_completed_level_records_one_room_while_the_clock_still_moves()
@@ -732,7 +732,7 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(3, SessionManager.CurrentSession.CurrentRoomIndex);
     }
 
-    // #7: another mod's extra calls, made with no room change and no end of the timer.
+    // Another mod's extra calls, made with no room change and no end of the timer.
     [Fact]
     public void Repeated_calls_in_one_room_record_nothing()
     {
@@ -769,7 +769,7 @@ public sealed class SessionManagerTests : IDisposable
     }
 
     // The adapter reports a rewrite of a split SpeedrunTool already held as no new split: a frozen
-    // level's per-frame calls, the arrival split after a SomeSplitButtons load (#7).
+    // level's per-frame calls, the arrival split after a SomeSplitButtons load.
     [Fact]
     public void A_call_that_writes_no_new_split_in_the_same_room_records_nothing()
     {

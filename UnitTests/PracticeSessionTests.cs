@@ -407,7 +407,7 @@ public class PracticeSessionTests
         Assert.Equal(before, session.Version);
     }
 
-    // #15: an attempt whose timer completed on an end point or a level end was not reset.
+    // An attempt whose timer completed on an end point or a level end was not reset.
     [Fact]
     public void A_finished_attempt_records_no_DNF_on_the_next_attempt()
     {

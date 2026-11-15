@@ -9,7 +9,7 @@ using Xunit;
 namespace SpeebrunConsistencyTracker.UnitTests;
 
 // A hidden column and a pin must name a room, not a position: the chart under them is rebuilt with
-// a column more or fewer, and a Delete acts on what the pin names (issue #27).
+// a column more or fewer, and a Delete acts on what the pin names.
 public class RoomIdentityTests
 {
     private static List<List<int>> Rooms(int rooms, int runs)
@@ -175,7 +175,7 @@ public class RenumberedChartTests
         Assert.False(after.TakeDroppedPins());
     }
 
-    // #37: a load of another slot with the same version and room count. GraphManager also clears
+    // A load of another slot with the same version and room count. GraphManager also clears
     // its caches on a session change, but only from Render; the Update side reads the cache first.
     [Fact]
     public void Another_session_gets_a_chart_of_its_own_and_none_of_the_view()
@@ -190,7 +190,7 @@ public class RenumberedChartTests
         Assert.Empty(after.Hidden);
     }
 
-    // #53: ChartPalette.Current is a new instance whenever a colour setting changes. The data did
+    // ChartPalette.Current is a new instance whenever a colour setting changes. The data did
     // not change, so the view carries over.
     [Fact]
     public void A_new_palette_rebuilds_the_chart_and_keeps_the_view()

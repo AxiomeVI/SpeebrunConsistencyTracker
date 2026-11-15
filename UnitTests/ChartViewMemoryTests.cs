@@ -7,7 +7,7 @@ using Xunit;
 
 namespace SpeebrunConsistencyTracker.UnitTests;
 
-// #69: what the player pinned and hid on a chart survives a pause, a toggle and a visit to another
+// What the player pinned and hid on a chart survives a pause, a toggle and a visit to another
 // chart while the session holds. Each chart keeps its own. A session change, or a move of the
 // segment's first room, still starts the chart with nothing.
 public class ChartViewMemoryTests

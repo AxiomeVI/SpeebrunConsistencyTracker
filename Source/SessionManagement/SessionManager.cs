@@ -245,8 +245,8 @@ public static class SessionManager
     // A call is a split when it enters a room other than the last split's, when it is the first
     // to end the attempt's timer, or when SpeedrunTool split without a room change (a heart, a
     // cassette, a summit flag). SpeedrunTool repeats the call on every frame on an end point, in
-    // the room-id end point's room and after a level end, and Time keeps moving on the first two
-    // (#15); those repeats write no new split. Do not read Srt.Tool.TimerCompleted here:
+    // the room-id end point's room and after a level end, and Time keeps moving on the first two;
+    // those repeats write no new split. Do not read Srt.Tool.TimerCompleted here:
     // SpeedrunTool sets it one transition early when roomNumber reaches NumberOfRooms.
     public static void TimerStateUpdated(bool endPoint, bool newSplit)
     {
@@ -314,7 +314,7 @@ public static class SessionManager
 
         CurrentSession.BumpMaxForActiveAttempt();
         // With an end point SpeedrunTool does not read NumberOfRooms: the segment ends on the end
-        // point's split, and the most recent finished attempt says where that is (#15).
+        // point's split, and the most recent finished attempt says where that is.
         if (_lastEndPointExists)
             RoomCount = CurrentSession.FinishedRoomCount ?? CurrentSession.MaxRoomCount;
         else
