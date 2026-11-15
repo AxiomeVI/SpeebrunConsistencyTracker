@@ -63,6 +63,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         On.Celeste.Level.Render -= LevelOnRender;
         Everest.Events.Level.OnLoadLevel -= OnLoadLevel;
         Clear();
+        SessionManager.DropStash();
     }
 
     public override void CreateModMenuSection(TextMenu menu, bool inGame, EventInstance pauseSnapshot)
