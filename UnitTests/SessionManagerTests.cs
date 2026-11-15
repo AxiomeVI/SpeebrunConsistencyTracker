@@ -74,6 +74,22 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(1, SessionManager.RoomCount);
     }
 
+    // #55: the Increase and Decrease Timed Rooms hotkeys change NumberOfRooms with nothing calling
+    // UpdateRoomCount, and the trajectory widget reads RoomCount with no chart open.
+    [Fact]
+    public void The_room_count_follows_a_change_of_NumberOfRooms_before_any_update()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        Assert.Equal(3, SessionManager.RoomCount);
+
+        _srt.NumberOfRooms = 2;
+        Assert.Equal(2, SessionManager.RoomCount);
+
+        _srt.NumberOfRooms = 6;
+        Assert.Equal(3, SessionManager.RoomCount);
+    }
+
     // The reload left the active attempt at room 0, so only a rescan of every attempt finds room 3.
     [Fact]
     public void A_timer_type_change_recounts_every_attempt()
