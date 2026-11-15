@@ -15,7 +15,19 @@ public static class SessionManager
     // Shared across slots: every session in play is in the same level. Set from OnLoadLevel.
     public static string LevelName { get; set; } = "unknown";
 
-    public static int RoomCount { get; private set; } = 0;
+    // Counted again on read when the session or the timer type moved since the last count: the
+    // trajectory widget reads it with no chart open, where nothing else calls UpdateRoomCount
+    // before the next room.
+    public static int RoomCount
+    {
+        get
+        {
+            if (CountIsStale) UpdateRoomCount();
+            return _roomCount;
+        }
+        private set => _roomCount = value;
+    }
+    private static int _roomCount;
 
     public static int StartRoomIndex =>
         Srt.Tool.TimerType == RoomTimerMode.CurrentRoom ? 0 : 1;
@@ -26,6 +38,9 @@ public static class SessionManager
     // The session the count was last taken for. The timer type is one for every slot: a slot that
     // was not current when it changed still holds a count taken under the old type.
     private static PracticeSession _countedFor;
+
+    private static bool CountIsStale => CurrentSession != null
+        && (!ReferenceEquals(CurrentSession, _countedFor) || Srt.Tool.TimerType != _lastRoomTimerType);
 
     private sealed class ManagerSegmentShape : ISegmentShape
     {
@@ -134,10 +149,9 @@ public static class SessionManager
             return;
         }
 
-        RoomTimerMode currentType = Srt.Tool.TimerType;
-        if (currentType != _lastRoomTimerType || !ReferenceEquals(CurrentSession, _countedFor))
+        if (CountIsStale)
         {
-            _lastRoomTimerType = currentType;
+            _lastRoomTimerType = Srt.Tool.TimerType;
             _countedFor = CurrentSession;
             CurrentSession.RecomputeMaxRoomCount();
         }

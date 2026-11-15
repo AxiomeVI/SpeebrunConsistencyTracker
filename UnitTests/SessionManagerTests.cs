@@ -106,6 +106,30 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Equal(4, SessionManager.RoomCount);
     }
 
+    // #37: the trajectory widget reads RoomCount with no chart open, where nothing calls
+    // UpdateRoomCount until the next room.
+    [Fact]
+    public void The_room_count_follows_a_timer_type_change_before_any_update()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        _srt.TimerType = RoomTimerMode.CurrentRoom;
+
+        Assert.Equal(4, SessionManager.RoomCount);
+    }
+
+    [Fact]
+    public void The_room_count_follows_a_load_of_another_slot_before_any_update()
+    {
+        const string Other = "SaveSlot@3";
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+
+        SessionManager.LoadSlot(Other);
+
+        Assert.Equal(0, SessionManager.RoomCount);
+    }
+
     [Theory]
     [InlineData(RoomTimerMode.CurrentRoom, 0)]
     [InlineData(RoomTimerMode.NextRoom, 1)]
