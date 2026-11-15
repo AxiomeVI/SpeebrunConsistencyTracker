@@ -25,7 +25,7 @@ internal sealed class ChartCache<T> where T : class
     {
         uint curVersion   = SessionManager.CurrentSession.Version;
         int  curRoomCount = SessionManager.RoomCount;
-        int  curTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+        int  curTimerType = (int)Integration.Srt.Tool.TimerType;
         return Get(curVersion, curRoomCount, curTimerType, SessionManager.StartRoomIndex);
     }
 

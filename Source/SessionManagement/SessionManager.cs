@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
-using Celeste.Mod.SpeedrunTool.RoomTimer;
+using Celeste.Mod.SpeebrunConsistencyTracker.Integration;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
@@ -18,9 +18,11 @@ public static class SessionManager
     public static int RoomCount { get; private set; } = 0;
 
     public static int StartRoomIndex =>
-        SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType == RoomTimerType.CurrentRoom ? 0 : 1;
+        Srt.Tool.TimerType == RoomTimerMode.CurrentRoom ? 0 : 1;
 
-    private static RoomTimerType _lastRoomTimerType = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+    // Null until the first UpdateRoomCount, which then recounts. Not read at type initialisation:
+    // a failure there would poison this type for the whole process.
+    private static RoomTimerMode? _lastRoomTimerType;
 
     private sealed class ManagerSegmentShape : ISegmentShape
     {
@@ -35,7 +37,7 @@ public static class SessionManager
     {
         var session = new PracticeSession(
             _segmentShape,
-            initialColumnCapacity: Math.Max(16, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms + 4));
+            initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4));
         _slots[slotName] = session;
         CurrentSession = session;
         UpdateRoomCount();
@@ -53,7 +55,7 @@ public static class SessionManager
         {
             session = new PracticeSession(
                 _segmentShape,
-                initialColumnCapacity: Math.Max(16, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms + 4));
+                initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4));
             _slots[slotName] = session;
         }
         CurrentSession = session;
@@ -124,7 +126,7 @@ public static class SessionManager
             return;
         }
 
-        var currentType = SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+        RoomTimerMode currentType = Srt.Tool.TimerType;
         if (currentType != _lastRoomTimerType)
         {
             _lastRoomTimerType = currentType;
@@ -132,6 +134,6 @@ public static class SessionManager
         }
 
         CurrentSession.BumpMaxForActiveAttempt();
-        RoomCount = Math.Min(CurrentSession.MaxRoomCount, SpeedrunTool.SpeedrunToolSettings.Instance.NumberOfRooms);
+        RoomCount = Math.Min(CurrentSession.MaxRoomCount, Srt.Tool.NumberOfRooms);
     }
 }

@@ -124,7 +124,7 @@ internal static class TrajectoryWidget
         TrajectoryBaseline baseline = ChartOptions.TrajectoryBaseline;
         bool delta = Settings.TrajectoryWidgetDelta;
         // The room timer's type moves the segment without a new session version, as ChartCache knows.
-        int timer = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+        int timer = (int)Integration.Srt.Tool.TimerType;
 
         if (_chart == null || !ReferenceEquals(session, _builtFor) || session.Version != _builtVersion || rooms != _builtRooms
             || baseline != _builtBaseline || size != _builtSize || !ReferenceEquals(style, _builtStyle) || delta != _builtDelta || timer != _builtTimer)

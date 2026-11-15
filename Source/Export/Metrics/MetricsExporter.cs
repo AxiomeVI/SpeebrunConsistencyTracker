@@ -70,7 +70,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             }
 
             MetricEngine.OverlayKey key = MetricEngine.GetOverlayKey();
-            int roomTimerType = (int)SpeedrunTool.SpeedrunToolSettings.Instance.RoomTimerType;
+            int roomTimerType = (int)Integration.Srt.Tool.TimerType;
             if (session.Version == _lastVersion && roomCount == _lastRoomCount && key == _lastKey && roomTimerType == _lastRoomTimerType)
                 return false;
 
