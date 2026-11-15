@@ -28,13 +28,13 @@ public sealed class SessionManagerTests : IDisposable
 
     // One run through three room transitions, then SpeedrunTool's reload: BeforeLoad, LoadSlot.
     // CompleteRoom takes the segment's running time, as the room timer reports it.
-    private static void RunThreeRoomsThenReload()
+    private static void RunThreeRoomsThenReload(string slot = Slot)
     {
         SessionManager.CompleteRoom(100);
         SessionManager.CompleteRoom(250);
         SessionManager.CompleteRoom(450);
         SessionManager.BeforeLoad(450);
-        SessionManager.LoadSlot(Slot);
+        SessionManager.LoadSlot(slot);
     }
 
     // #8: two runs that never complete the timer (6 rooms, 3 reached), then a reload that puts the
@@ -82,6 +82,25 @@ public sealed class SessionManagerTests : IDisposable
         RunThreeRoomsThenReload();
         _srt.TimerType = RoomTimerMode.CurrentRoom;
 
+        SessionManager.UpdateRoomCount();
+
+        Assert.Equal(4, SessionManager.RoomCount);
+    }
+
+    // #37: the switch is seen while slot B is current. Slot A's count was taken under NextRoom, and
+    // a load of A must count it again under CurrentRoom.
+    [Fact]
+    public void A_timer_type_change_recounts_a_slot_loaded_after_it()
+    {
+        const string Other = "SaveSlot@3";
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        SessionManager.SaveSlot(Other);
+        RunThreeRoomsThenReload(Other);
+        _srt.TimerType = RoomTimerMode.CurrentRoom;
+        SessionManager.UpdateRoomCount();
+
+        SessionManager.LoadSlot(Slot);
         SessionManager.UpdateRoomCount();
 
         Assert.Equal(4, SessionManager.RoomCount);

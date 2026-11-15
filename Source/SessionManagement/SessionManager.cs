@@ -23,6 +23,9 @@ public static class SessionManager
     // Null until the first UpdateRoomCount, which then recounts. Not read at type initialisation:
     // a failure there would poison this type for the whole process.
     private static RoomTimerMode? _lastRoomTimerType;
+    // The session the count was last taken for. The timer type is one for every slot: a slot that
+    // was not current when it changed still holds a count taken under the old type.
+    private static PracticeSession _countedFor;
 
     private sealed class ManagerSegmentShape : ISegmentShape
     {
@@ -71,6 +74,7 @@ public static class SessionManager
         if (_slots.TryGetValue(slotName, out PracticeSession clearedSession))
         {
             _slots.Remove(slotName);
+            if (ReferenceEquals(_countedFor, clearedSession)) _countedFor = null;
             if (ReferenceEquals(CurrentSession, clearedSession))
             {
                 CurrentSession = null;
@@ -85,6 +89,7 @@ public static class SessionManager
     {
         _slots.Clear();
         CurrentSession = null;
+        _countedFor = null;
         RoomCount = 0;
     }
 
@@ -130,9 +135,10 @@ public static class SessionManager
         }
 
         RoomTimerMode currentType = Srt.Tool.TimerType;
-        if (currentType != _lastRoomTimerType)
+        if (currentType != _lastRoomTimerType || !ReferenceEquals(CurrentSession, _countedFor))
         {
             _lastRoomTimerType = currentType;
+            _countedFor = CurrentSession;
             CurrentSession.RecomputeMaxRoomCount();
         }
 
