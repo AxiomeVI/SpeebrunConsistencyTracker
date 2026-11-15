@@ -40,8 +40,8 @@ internal sealed class HideableBands : IBandLayout {
         if (shown > 0 && width < minWidth) width = wholePixels ? MathF.Ceiling(minWidth) : minWidth;
         float bar = width * fill;
         if (wholePixels && shown > 0) {
-            bar = Math.Clamp(MathF.Floor(width * fill), 1f, Math.Max(1f, width - (width >= 2f ? 1f : 0f)));
-            start = MathF.Round(start + Math.Max(0f, length - hiddenCount * stub - width * shown) / 2f);
+            bar = BandSnap.Bar(width, fill);
+            if (bar > 0f) start = BandSnap.Centred(start, length - hiddenCount * stub - width * shown);
         }
         Width = width;
         BarWidth = bar;
@@ -72,7 +72,8 @@ internal sealed class HideableBands : IBandLayout {
 
     public float BarWidthOf(int index) => _hidden[index] ? 0f : BarWidth;
 
-    public float BarStart(int index) => _hidden[index] ? _start[index] : _start[index] + MathF.Floor((Width - BarWidth) / 2f);
+    // The offset is floored even without whole pixels: a fractional band holds its bar on a whole pixel.
+    public float BarStart(int index) => _hidden[index] ? _start[index] : _start[index] + BandSnap.Offset(Width, BarWidth, floor: true);
 
     public float Centre(int index) => _start[index] + WidthOf(index) / 2f;
 

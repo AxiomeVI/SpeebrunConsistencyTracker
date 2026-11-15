@@ -21,6 +21,21 @@ internal enum BoxPart { None, Low, Q1, Median, Q3, High, Box }
 /// <param name="Outliers">Values outside the whiskers, as pixels, in the order given.</param>
 // Only the value axis. Across it, a box takes a band from Bands (BarStart, BarWidth), like a bar does.
 internal sealed record BoxMarks(float Low, float Q1, float Median, float Q3, float High, float[] Outliers) {
+    /// <summary>No box: what <see cref="Box.Place{T}"/> gives for no five numbers. Nothing is under any pixel.</summary>
+    public static readonly BoxMarks Empty = new(float.NaN, float.NaN, float.NaN, float.NaN, float.NaN, []);
+
+    /// <summary>Whether there is nothing to draw: no box, or a part or an outlier not at a finite pixel (a NaN among the values).</summary>
+    // Every part or none: a box missing its quartile would show a spread the data does not have.
+    public bool IsEmpty {
+        get {
+            if (!(float.IsFinite(Low) && float.IsFinite(Q1) && float.IsFinite(Median) && float.IsFinite(Q3) && float.IsFinite(High)))
+                return true;
+            foreach (float outlier in Outliers)
+                if (!float.IsFinite(outlier)) return true;
+            return false;
+        }
+    }
+
     /// <summary>
     ///     What sits under a pixel on the value axis: the nearest of the five lines within
     ///     <paramref name="tolerance"/> pixels, else the box between the quartiles, else nothing.
@@ -48,8 +63,9 @@ internal sealed record BoxMarks(float Low, float Q1, float Median, float Q3, flo
 }
 
 internal static class Box {
-    /// <summary>Places five numbers, and any outliers, on a scale.</summary>
-    public static BoxMarks Place<T>(Scale<T> scale, FiveNumbers<T> five, IReadOnlyList<T>? outliers = null) {
+    /// <summary>Places five numbers, and any outliers, on a scale. No five numbers (a room with no times) place <see cref="BoxMarks.Empty"/>.</summary>
+    public static BoxMarks Place<T>(Scale<T> scale, FiveNumbers<T>? numbers, IReadOnlyList<T>? outliers = null) {
+        if (numbers is not { } five) return BoxMarks.Empty;
         float[] placed = new float[outliers?.Count ?? 0];
         for (int i = 0; i < placed.Length; i++) placed[i] = scale.At(outliers![i]);
         return new BoxMarks(scale.At(five.Low), scale.At(five.Q1), scale.At(five.Median), scale.At(five.Q3),
@@ -58,13 +74,13 @@ internal static class Box {
 
     /// <summary>
     ///     Five numbers from sorted values, with whiskers at the minimum and maximum, using the
-    ///     percentile function the mod passes — the one its own statistics use.
+    ///     percentile function the mod passes — the one its own statistics use. Null for no values: there is no box.
     /// </summary>
     /// <param name="percentile">(sorted values, percent 0-100) to the value at that percentile.</param>
     // Whiskers at fences (1.5 × IQR) need arithmetic on the values, which is the mod's to do: it builds
     // the FiveNumbers itself and passes the values beyond the fences as outliers.
-    public static FiveNumbers<T> FromSorted<T>(IReadOnlyList<T> sorted, Func<IReadOnlyList<T>, int, T> percentile) {
-        if (sorted.Count == 0) throw new ArgumentException("a box needs at least one value", nameof(sorted));
+    public static FiveNumbers<T>? FromSorted<T>(IReadOnlyList<T> sorted, Func<IReadOnlyList<T>, int, T> percentile) {
+        if (sorted.Count == 0) return null;
         return new FiveNumbers<T>(sorted[0], percentile(sorted, 25), percentile(sorted, 50),
                                   percentile(sorted, 75), sorted[^1]);
     }

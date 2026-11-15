@@ -34,6 +34,7 @@ internal sealed class HintCard {
     /// <summary>Forgets that this run decided anything: the next Update decides again. For tests; a restart does the same.</summary>
     public static void ForgetRun() {
         _run = Run.Undecided;
+        _never = false;
         _changedAt = _tickedAt = -1;
     }
 

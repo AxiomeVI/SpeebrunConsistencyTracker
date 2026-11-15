@@ -19,12 +19,14 @@ internal static class TextFit {
     /// <summary>
     ///     The text itself when it fits in <paramref name="width"/>; otherwise its head shortened with an
     ///     ellipsis. When <paramref name="keepFrom"/> occurs in the text, everything from its first
-    ///     occurrence is kept whole: a title's count (" · 38 reps") is the part a player needs.
+    ///     occurrence is kept whole: a title's count (" · 38 reps") is the part a player needs. A tail
+    ///     too long to keep whole gives way to its last part, from the last occurrence.
     /// </summary>
     public static string Truncate(string text, float width, Func<string, float> measure, string keepFrom = " · ") {
         if (measure(text) <= width) return text;
 
         int split = keepFrom.Length == 0 ? -1 : text.IndexOf(keepFrom, StringComparison.Ordinal);
+        if (split >= 0 && measure(Ellipsis + text[split..]) > width) split = text.LastIndexOf(keepFrom, StringComparison.Ordinal);
         string head = split < 0 ? text : text[..split];
         string tail = split < 0 ? "" : text[split..];
 

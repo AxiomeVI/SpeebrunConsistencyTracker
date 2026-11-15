@@ -31,6 +31,25 @@ internal readonly record struct PointerInput(
 }
 
 /// <summary>
+///     Tells a surface that it was not updated for a frame while the pointer was. A drag it holds then
+///     has a stale origin, and the button that ended it may have come up unseen: it must end the drag
+///     without a release. One per surface, as a field; no allocation.
+/// </summary>
+internal struct UpdateWatch {
+    private long _seen;
+
+    /// <summary>
+    ///     Whether <paramref name="pointer"/> was updated since this was last asked, other than once.
+    ///     Ask once per <c>Update</c>, before reading the pointer.
+    /// </summary>
+    public bool Missed(Pointer pointer) {
+        bool missed = pointer.Updates - _seen > 1;
+        _seen = pointer.Updates;
+        return missed;
+    }
+}
+
+/// <summary>
 ///     The mouse, frame to frame: where it is, which buttons went down or up, clicks and double clicks,
 ///     drags, the wheel. Fed one <see cref="PointerInput"/> per frame with <see cref="Update"/>, it
 ///     answers questions about that frame; charts and windows ask it instead of reading the mouse.

@@ -49,7 +49,16 @@ internal sealed class Durations : IValueKind<long> {
     public int Compare(long a, long b) => a.CompareTo(b);
 
     public double Fraction(long value, long min, long max) =>
-        max == min ? 0.5 : (double) (value - min) / (max - min);
+        max == min ? 0.5 : Difference(value, min) / Difference(max, min);
+
+    // a - b, in a double only when the long subtraction would wrap.
+    private static double Difference(long a, long b) {
+        long d = unchecked(a - b);
+        return ((a ^ b) & (a ^ d)) < 0 ? (double) a - b : d;
+    }
+
+    // Math.Abs throws on long.MinValue; one tick short of its magnitude is below any displayed digit.
+    private static long Magnitude(long value) => value == long.MinValue ? long.MaxValue : Math.Abs(value);
 
     // The span as a double is exact to far below a frame for any duration a chart shows.
     public long Between(long min, long max, double fraction) {
@@ -58,7 +67,14 @@ internal sealed class Durations : IValueKind<long> {
     }
 
     /// <summary>The whole number of frames nearest <paramref name="ticks"/>, in ticks: a time the game can produce.</summary>
-    public long NearestFrame(long ticks) => (long) Math.Round((double) ticks / _frameTicks, MidpointRounding.AwayFromZero) * _frameTicks;
+    /// <remarks>Clamped to the last whole frame a long can hold.</remarks>
+    public long NearestFrame(long ticks) {
+        long frames = ticks / _frameTicks;
+        long rest = ticks % _frameTicks;
+        if (Magnitude(rest) >= _frameTicks - Magnitude(rest)) frames += ticks < 0 ? -1 : 1;
+        long limit = long.MaxValue / _frameTicks;
+        return Math.Clamp(frames, -limit, limit) * _frameTicks;
+    }
 
     public IReadOnlyList<Tick<long>> Ticks(long min, long max, int maxTicks) {
         List<Tick<long>> ticks = new();
@@ -84,7 +100,7 @@ internal sealed class Durations : IValueKind<long> {
             // ⚠️ One form for the whole axis, chosen by its LARGEST tick: formatted one by one, a column
             // read "0:00" above "1:00:00", or "59.983" above "1:00.000".
             bool wholeSeconds = step % TimeSpan.TicksPerSecond == 0;
-            Form form = FormOf(Math.Max(Math.Abs(first * step), Math.Abs(last * step)));
+            Form form = FormOf(Math.Max(Magnitude(first * step), Magnitude(last * step)));
             for (long k = first; k <= last; k++) {
                 long value = k * step;
                 ticks.Add(new Tick<long>(value, Write(value, form, milliseconds: !wholeSeconds)));
@@ -102,7 +118,7 @@ internal sealed class Durations : IValueKind<long> {
     // ⚠️ Formatted from the MAGNITUDE, with the sign put back afterwards. TimeSpan's custom format
     // specifiers print each component's absolute value, so choosing the short form from a signed
     // TotalSeconds made -75 s read "-15.000"; and a two-field form has nowhere to put an hour.
-    public string Format(long value) => Write(value, FormOf(Math.Abs(value)), milliseconds: true);
+    public string Format(long value) => Write(value, FormOf(Magnitude(value)), milliseconds: true);
 
     // How many clock fields a time needs. A clock step's labels always show minutes, so a column of
     // whole seconds reads 0:10, 0:20 rather than a bare 10, 20.
@@ -114,7 +130,7 @@ internal sealed class Durations : IValueKind<long> {
         : Form.Seconds;
 
     private string Write(long value, Form form, bool milliseconds) {
-        TimeSpan abs = TimeSpan.FromTicks(Math.Abs(value));
+        TimeSpan abs = TimeSpan.FromTicks(Magnitude(value));
         if (!milliseconds && form == Form.Seconds) form = Form.Minutes;
         string body = form switch {
             Form.Hours => $"{(long) abs.TotalHours}:{abs.Minutes:D2}:{abs.Seconds:D2}",

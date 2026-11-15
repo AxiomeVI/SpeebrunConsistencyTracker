@@ -23,6 +23,11 @@ internal sealed record ChartStyle {
         Label = new TextStyle(0.35f, Rgba.White),
         LineThickness = 3f,
         PointSize = 8f,
+        ChromeBack = Rgba.Black,
+        ActiveText = Rgba.White,
+        CaptionText = Rgba.White,
+        TitleBarFront = Rgba.White.Times(0.24f),
+        TitleBarBack = Rgba.White.Times(0.1f),
     };
 
     /// <summary>
@@ -39,18 +44,21 @@ internal sealed record ChartStyle {
     };
 
     /// <summary>
-    ///     The same style at another size: every text, gap, tick, line and point times <paramref name="factor"/>
+    ///     The same style at another size: every text and its outline, gap, tooltip padding, tick, line and point times <paramref name="factor"/>
     ///     (1.25 for a player who sits far from the screen). Layouts that measure their labels follow; sizes a mod
     ///     fixes itself (a tile's height) are the mod's to scale.
     /// </summary>
     public ChartStyle Scaled(float factor) {
         if (factor <= 0f || factor == 1f) return this;
         return this with {
-            Title = Title with { Scale = Title.Scale * factor },
-            Label = Label with { Scale = Label.Scale * factor },
-            Tooltip = Tooltip with { Scale = Tooltip.Scale * factor },
-            Header = Header with { Scale = Header.Scale * factor },
-            Stat = Stat with { Scale = Stat.Scale * factor },
+            Title = ScaledText(Title, factor),
+            Label = ScaledText(Label, factor),
+            Tooltip = ScaledText(Tooltip, factor),
+            Header = ScaledText(Header, factor),
+            Stat = ScaledText(Stat, factor),
+            TooltipPadX = System.MathF.Round(TooltipPadX * factor),
+            TooltipPadY = System.MathF.Round(TooltipPadY * factor),
+            TooltipColumnGap = System.MathF.Round(TooltipColumnGap * factor),
             LineThickness = System.MathF.Max(1f, System.MathF.Round(LineThickness * factor)),
             AxisThickness = System.MathF.Max(1f, System.MathF.Round(AxisThickness * factor)),
             ReferenceThickness = System.MathF.Max(1f, System.MathF.Round(ReferenceThickness * factor)),
@@ -61,6 +69,12 @@ internal sealed record ChartStyle {
             LabelSpacing = System.MathF.Round(LabelSpacing * factor),
         };
     }
+
+    // An outline stays at least a pixel wide, and an unoutlined text stays unoutlined.
+    private static TextStyle ScaledText(TextStyle text, float factor) => text with {
+        Scale = text.Scale * factor,
+        Stroke = text.Stroke > 0f ? System.MathF.Max(1f, System.MathF.Round(text.Stroke * factor)) : 0f,
+    };
 
     /// <summary>
     ///     The same style with every text outlined: readable over a busy level with a faint panel or none. An
@@ -136,6 +150,21 @@ internal sealed record ChartStyle {
     /// <summary>Where a tooltip's lines sit when it has several: 0 against the left, 0.5 centred, 1 against the right.</summary>
     public float TooltipAlign { get; init; }
 
+    /// <summary>The backing of a window and of a dock button.</summary>
+    public Rgba ChromeBack { get; init; } = Rgba.Black.Times(0.9f);
+
+    /// <summary>A title or label that is lit: the front window's title, the dock button, tab or bar button under the mouse, a tab or button that is on.</summary>
+    public Rgba ActiveText { get; init; } = Rgba.White;
+
+    /// <summary>A button bar's caption.</summary>
+    public Rgba CaptionText { get; init; } = Rgba.LightGray;
+
+    /// <summary>The tint of the title bar of the front window.</summary>
+    public Rgba TitleBarFront { get; init; } = Rgba.White.Times(0.14f);
+
+    /// <summary>The tint of the title bar of a window behind another.</summary>
+    public Rgba TitleBarBack { get; init; } = Rgba.White.Times(0.06f);
+
     public TextStyle Title { get; init; } = new(0.45f, Rgba.White);
     public TextStyle Label { get; init; } = new(0.35f, Rgba.LightGray);
     public TextStyle Tooltip { get; init; } = new(0.35f, Rgba.Yellow);
@@ -147,7 +176,7 @@ internal sealed record ChartStyle {
     public TextStyle Stat { get; init; } = new(1.4f, Rgba.White);
 
     /// <summary>
-    ///     An axis line's width in pixels, for <c>Paint.YAxis</c>, <c>XAxis</c> and <c>YAxisRight</c>. One pixel can
+    ///     An axis line's width in pixels, for <c>Paint.YAxis</c>, <c>YAxisRight</c> and a horizontal axis. One pixel can
     ///     vanish in a window smaller than 1920x1080 unless the chart is drawn through <c>ChartLayer</c>.
     /// </summary>
     public float AxisThickness { get; init; } = 1f;

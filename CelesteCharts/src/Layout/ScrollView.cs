@@ -20,6 +20,7 @@ namespace Celeste.Mod.CelesteCharts;
 internal sealed class ScrollView {
     private float _target;
     private bool _draggingThumb, _draggingContent;
+    private UpdateWatch _watch;
     private float _grabOffset;   // content drag: the offset at the press plus the press's position along the axis
     private float _grabAt;       // thumb drag: where along the thumb it was grabbed
 
@@ -132,6 +133,7 @@ internal sealed class ScrollView {
     /// <summary>Reads this frame's input and moves the offset.</summary>
     public void Update(Pointer pointer) {
         float seconds = pointer.Input.Seconds;
+        if (_watch.Missed(pointer)) _draggingThumb = _draggingContent = false;
         bool inside = Window.Contains(pointer.X, pointer.Y);
         Area thumb = Thumb;
         float along = Horizontal ? pointer.X : pointer.Y;

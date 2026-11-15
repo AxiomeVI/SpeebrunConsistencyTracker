@@ -43,13 +43,17 @@ internal readonly record struct WidgetPlacement(WidgetAnchor Anchor, float InX, 
     /// <summary>One line for a mod's settings: <c>"TopRight 20 20 360 200"</c>.</summary>
     public string ToText() => string.Create(CultureInfo.InvariantCulture, $"{Anchor} {InX:0} {InY:0} {Width:0} {Height:0}");
 
-    /// <summary>A placement read back; false, and <paramref name="placement"/> untouched, when the text is not one.</summary>
+    /// <summary>
+    ///     A placement read back; false, and <paramref name="placement"/> untouched, when the text is not one:
+    ///     a number that is negative, NaN or infinite is refused. One larger than the screen is accepted,
+    ///     and a drag keeps the widget on the screen.
+    /// </summary>
     public static bool TryParse(string? text, ref WidgetPlacement placement) {
         string[] parts = (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length != 5 || !Enum.TryParse(parts[0], out WidgetAnchor anchor) || !Enum.IsDefined(anchor)) return false;
         float[] v = new float[4];
         for (int i = 0; i < 4; i++)
-            if (!float.TryParse(parts[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out v[i]) || v[i] < 0) return false;
+            if (!float.TryParse(parts[i + 1], NumberStyles.Float, CultureInfo.InvariantCulture, out v[i]) || !float.IsFinite(v[i]) || v[i] < 0) return false;
         placement = new WidgetPlacement(anchor, v[0], v[1], v[2], v[3]);
         return true;
     }
@@ -67,6 +71,7 @@ internal sealed class LiveWidget {
     private float _pulse;
     private long _dataVersion = long.MinValue;
     private bool _dragging;
+    private UpdateWatch _watch;
     private float _grabX, _grabY;
     private Area _dragBounds;
     private WindowZone _dragZone;
@@ -141,6 +146,7 @@ internal sealed class LiveWidget {
     public void Update(Pointer pointer, long dataVersion) {
         float seconds = pointer.Input.Seconds;
         Placed = false;
+        if (_watch.Missed(pointer)) _dragging = false;
 
         if (dataVersion != _dataVersion) {
             if (_dataVersion != long.MinValue) _pulse = 1f;
@@ -165,8 +171,8 @@ internal sealed class LiveWidget {
                 Placement = WidgetPlacement.Nearest(_dragBounds, Screen);
                 Placed = true;
             } else if (_dragZone == WindowZone.Body) {
-                float x = Math.Clamp(pointer.X - _grabX, Screen.X, Screen.Right - _dragBounds.Width);
-                float y = Math.Clamp(pointer.Y - _grabY, Screen.Y, Screen.Bottom - _dragBounds.Height);
+                float x = Clamped.Within(pointer.X - _grabX, Screen.X, Screen.Right - _dragBounds.Width);
+                float y = Clamped.Within(pointer.Y - _grabY, Screen.Y, Screen.Bottom - _dragBounds.Height);
                 _dragBounds = _dragBounds with { X = MathF.Round(x), Y = MathF.Round(y) };
             } else {
                 _dragBounds = Resized(_grabBounds, _dragZone, pointer.X - _pressX, pointer.Y - _pressY);
@@ -178,37 +184,22 @@ internal sealed class LiveWidget {
         if (Math.Abs(target - _opacity) < 0.005f) _opacity = target;
     }
 
-    // The same zones as a window's (Windows.ZoneAt), less its title bar: the middle is the handle.
+    // A window's edge zones, less its title bar: the middle is the handle.
     private WindowZone ZoneAt(Area b, float x, float y) {
         if (!b.Contains(x, y)) return WindowZone.None;
         if (!Resizable) return WindowZone.Body;
-        float e = EdgeWidth, corner = 2 * EdgeWidth;
-        bool left = x < b.X + e, right = x >= b.Right - e, top = y < b.Y + e, bottom = y >= b.Bottom - e;
-        bool nearLeft = x < b.X + corner, nearRight = x >= b.Right - corner, nearTop = y < b.Y + corner, nearBottom = y >= b.Bottom - corner;
-        if ((top && nearLeft) || (left && nearTop)) return WindowZone.TopLeft;
-        if ((top && nearRight) || (right && nearTop)) return WindowZone.TopRight;
-        if ((bottom && nearLeft) || (left && nearBottom)) return WindowZone.BottomLeft;
-        if ((bottom && nearRight) || (right && nearBottom)) return WindowZone.BottomRight;
-        if (left) return WindowZone.Left;
-        if (right) return WindowZone.Right;
-        if (top) return WindowZone.Top;
-        if (bottom) return WindowZone.Bottom;
-        return WindowZone.Body;
+        return EdgeZones.At(b, x, y, EdgeWidth);
     }
 
     // The side held follows the mouse; the opposite side stays. Not Math.Clamp: a placement read from
     // a settings file can be smaller than the minimum, and Clamp throws when its bounds cross.
     private Area Resized(Area from, WindowZone zone, float dx, float dy) {
-        static float Within(float v, float lo, float hi) => Math.Max(lo, Math.Min(hi, v));
-        bool left = zone is WindowZone.Left or WindowZone.TopLeft or WindowZone.BottomLeft;
-        bool right = zone is WindowZone.Right or WindowZone.TopRight or WindowZone.BottomRight;
-        bool top = zone is WindowZone.Top or WindowZone.TopLeft or WindowZone.TopRight;
-        bool bottom = zone is WindowZone.Bottom or WindowZone.BottomLeft or WindowZone.BottomRight;
+        var (left, right, top, bottom) = EdgeZones.Sides(zone);
         float x1 = from.X, y1 = from.Y, x2 = from.Right, y2 = from.Bottom;
-        if (left) x1 = Within(x1 + dx, Math.Max(Screen.X, x2 - MaxWidth), x2 - MinWidth);
-        if (right) x2 = Within(x2 + dx, x1 + MinWidth, Math.Min(Screen.Right, x1 + MaxWidth));
-        if (top) y1 = Within(y1 + dy, Math.Max(Screen.Y, y2 - MaxHeight), y2 - MinHeight);
-        if (bottom) y2 = Within(y2 + dy, y1 + MinHeight, Math.Min(Screen.Bottom, y1 + MaxHeight));
+        if (left) x1 = Clamped.Within(x1 + dx, Math.Max(Screen.X, x2 - MaxWidth), x2 - MinWidth);
+        if (right) x2 = Clamped.Within(x2 + dx, x1 + MinWidth, Math.Min(Screen.Right, x1 + MaxWidth));
+        if (top) y1 = Clamped.Within(y1 + dy, Math.Max(Screen.Y, y2 - MaxHeight), y2 - MinHeight);
+        if (bottom) y2 = Clamped.Within(y2 + dy, y1 + MinHeight, Math.Min(Screen.Bottom, y1 + MaxHeight));
         (x1, y1, x2, y2) = (MathF.Round(x1), MathF.Round(y1), MathF.Round(x2), MathF.Round(y2));
         return new Area(x1, y1, x2 - x1, y2 - y1);
     }

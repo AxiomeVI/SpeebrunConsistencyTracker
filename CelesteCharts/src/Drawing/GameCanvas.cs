@@ -10,16 +10,36 @@ namespace Celeste.Mod.CelesteCharts;
 ///     text. Call it from a HUD entity's <c>Render</c>, which draws in 1920x1080 pixels.
 /// </summary>
 // The one file that names game types, and so the only one tests cannot run: it is compiled against the
-// real game by tools/build-example.sh, and what it draws is checked by a person running the example.
+// real game by the example's build, and what it draws is checked by a person running the example.
 // Everything it draws was decided by pure code; keep it that thin.
 //
 // ⚠️ Draws only: nothing here measures text or allocates, so it can run every frame.
-internal static class GameCanvas {
+internal static partial class GameCanvas {
     /// <summary>
     ///     The game font's measurements, for building sketches. Call it when building, not in a static
-    ///     initialiser: the fonts are not loaded until the game has started, and a language change swaps them.
+    ///     initialiser: the fonts are not loaded until the game has started. The same instance comes back until
+    ///     the font changes (a language with another font face), so asking every frame allocates nothing.
     /// </summary>
-    public static TextMetrics FontMetrics() => new(text => ActiveFont.Measure(text).X, ActiveFont.LineHeight);
+    public static TextMetrics FontMetrics() => _fontMetrics.For(ActiveFont.Font, ActiveFont.BaseSize, MeasureActiveFont);
+
+    /// <summary>
+    ///     Moves when the game's font changes. A chart that keeps its sketches across a language change (one held
+    ///     past a level) remembers it when it builds and rebuilds, with new sketches, when it moved.
+    /// </summary>
+    public static int FontVersion {
+        get {
+            FontMetrics();
+            return _fontMetrics.Version;
+        }
+    }
+
+    private static readonly TextMetricsCache _fontMetrics = new();
+
+    // Measures with the font current when built, so metrics kept past a font change stay what they were.
+    private static readonly System.Func<TextMetrics> MeasureActiveFont = () => {
+        PixelFontSize size = ActiveFont.FontSize;
+        return new TextMetrics(text => size.Measure(text).X, size.LineHeight);
+    };
 
     /// <summary>Every mark of the sketch, where it was built.</summary>
     public static void Draw(Sketch sketch) {
@@ -51,35 +71,28 @@ internal static class GameCanvas {
     }
 
     /// <summary>
-    ///     A sketch of bars drawn growing in (<see cref="GrowIn"/>): each mark pulled towards the plot's
-    ///     baseline by how far it has grown, then moved and cut as <see cref="Draw(Sketch, float, float, Area)"/>
-    ///     does. Put only what grows in the sketch — the bars — and draw the axes plainly.
+    ///     Every mark drawn while this is under 1 has its colours faded to that opacity (0 to 1): a whole chart
+    ///     dims without an opacity passed to each <c>Draw</c>. Clamped; NaN reads as 1. Prefer
+    ///     <see cref="FadeTo"/>: a value set here stays set, on a throw too, until something sets it back.
     /// </summary>
-    public static void DrawGrown(Sketch sketch, GrowIn grow, Area plot, float dx, float dy, Area window) {
-        if (grow.Done) {
-            Draw(sketch, dx, dy, window);
-            return;
-        }
-        foreach (Mark mark in sketch.Marks)
-            if (Clip.To(window, grow.Apply(mark, plot), dx, dy, out Mark shown)) Draw(shown);
+    public static float Fade {
+        get => _fade.Value;
+        set => _fade.Value = value;
     }
 
     /// <summary>
-    ///     Every mark drawn while this is under 1 has its colours faded to that opacity (0 to 1). A caller
-    ///     sets it around the draws it wants faint and puts it back to 1: a whole chart dims without an
-    ///     opacity passed to each <c>Draw</c>. Values outside 0 to 1 are clamped.
+    ///     Fades every mark drawn until the scope is disposed, then puts back the fade that was there:
+    ///     <c>using (GameCanvas.FadeTo(0.4f)) { ... }</c>. A throw inside cannot leave later draws faded.
     /// </summary>
-    public static float Fade {
-        get => _fade;
-        set => _fade = value < 0f ? 0f : value > 1f ? 1f : value;
-    }
+    public static FadeScope FadeTo(float opacity) => _fade.To(opacity);
 
-    private static float _fade = 1f;
+    private static readonly FadeSetting _fade = new();
 
     public static void Draw(in Mark mark) {
-        if (_fade < 1f) {
-            if (_fade <= 0f) return;
-            DrawMark(mark with { Colour = mark.Colour.Times(_fade), StrokeColour = mark.StrokeColour.Times(_fade) });
+        float fade = _fade.Value;
+        if (fade < 1f) {
+            if (fade <= 0f) return;
+            DrawMark(mark with { Colour = mark.Colour.Times(fade), StrokeColour = mark.StrokeColour.Times(fade) });
             return;
         }
         DrawMark(mark);

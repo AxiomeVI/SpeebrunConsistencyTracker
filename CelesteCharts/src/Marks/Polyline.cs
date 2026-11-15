@@ -64,12 +64,9 @@ internal sealed class LinePoints {
     /// <summary>
     ///     The last point at or left of <paramref name="pixel"/>, or -1 when every point is right of it.
     ///     On a step line that holds its value after each point, this is the step under the pixel.
-    ///     Needs <see cref="Ascending"/>.
+    ///     -1 everywhere when x is not <see cref="Ascending"/> (a NaN among the values does that): no step is under any pixel.
     /// </summary>
-    public int LastAtOrBefore(float pixel) {
-        if (!Ascending) throw new InvalidOperationException("LastAtOrBefore needs points in ascending x");
-        return FirstAbove(pixel) - 1;
-    }
+    public int LastAtOrBefore(float pixel) => Ascending ? FirstAbove(pixel) - 1 : -1;
 
     /// <summary>
     ///     The point nearest (x, y), or -1 when none is within <paramref name="within"/> pixels. A NaN y
@@ -93,10 +90,10 @@ internal sealed class LinePoints {
     /// <summary>
     ///     The line's height at <paramref name="pixel"/>, between the points either side of it; NaN where there is
     ///     no line: left of the first point, right of the last, or across a break. For hovering a line anywhere
-    ///     along it, not only at its points. Needs <see cref="Ascending"/>.
+    ///     along it, not only at its points. NaN everywhere when x is not <see cref="Ascending"/>.
     /// </summary>
     public float YAt(float pixel) {
-        if (!Ascending) throw new InvalidOperationException("YAt needs points in ascending x");
+        if (!Ascending) return float.NaN;
         int after = FirstAbove(pixel);
         if (after == 0) return float.NaN;
         if (X[after - 1] == pixel) return Y[after - 1];

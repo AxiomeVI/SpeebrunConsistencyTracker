@@ -19,6 +19,7 @@ namespace Celeste.Mod.CelesteCharts;
 internal sealed class AxisZoom {
     private float _grabbed;
     private bool _panning;
+    private UpdateWatch _watch;
 
     public AxisZoom(int captureId, bool vertical = false) {
         if (captureId == 0) throw new ArgumentOutOfRangeException(nameof(captureId), "0 means nothing has captured the pointer");
@@ -71,6 +72,7 @@ internal sealed class AxisZoom {
     /// <param name="plot">The plot the axis spans: the wheel and a drag act inside it.</param>
     public void Update(Pointer pointer, Area plot) {
         Changed = false;
+        if (_watch.Missed(pointer) && _panning) (_panning, PanPixels) = (false, 0f);
         float length = Vertical ? plot.Height : plot.Width;
         if (length <= 0f) return;
         float along = Vertical ? plot.Bottom - pointer.Y : pointer.X - plot.X;   // pixels from the axis' low end

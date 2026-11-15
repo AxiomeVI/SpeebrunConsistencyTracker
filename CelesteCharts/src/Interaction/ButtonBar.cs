@@ -57,7 +57,7 @@ internal sealed class ButtonBar {
     private Area _keepIn;
     private float _x, _y, _alignX, _alignY, _space;
     private int _switches, _hovered = -1, _pressed = -1, _clicked = -1, _changedSwitch = -1, _tooltipFor = -2, _changedSlider = -1, _releasedSlider = -1;
-    private long _seen = -1;
+    private UpdateWatch _watch;
     private bool _placed, _held, _layoutStale, _dirty;
 
     /// <param name="captureId">This bar's id for <see cref="Pointer.Capture"/>: not 0, and no other surface's.</param>
@@ -97,10 +97,11 @@ internal sealed class ButtonBar {
 
     /// <summary>
     ///     A track <paramref name="width"/> pixels wide with a knob that picks a whole step from <paramref name="min"/>
-    ///     to <paramref name="max"/>, starting at <paramref name="min"/>.
+    ///     to <paramref name="max"/>, starting at <paramref name="min"/>. A <paramref name="max"/> that is not above
+    ///     <paramref name="min"/> (a range from tied values) pins the slider at <paramref name="min"/>: it takes no drag.
     /// </summary>
     public BarSlider Slider(int min, int max, float width, string? tooltip = null) {
-        if (max <= min) throw new ArgumentException("a slider needs a range", nameof(max));
+        if (max < min) max = min;
         if (!(width > 0f)) throw new ArgumentException("a slider needs a width", nameof(width));
         int index = Add("", tooltip, toggle: false, inSwitch: -1);
         Item item = _items[index];
@@ -177,8 +178,7 @@ internal sealed class ButtonBar {
         _clicked = -1;
         _changedSwitch = _changedSlider = _releasedSlider = -1;
         if (_pressed >= 0 && !_items[_pressed].Enabled) EndPress();
-        if (pointer.Updates - _seen > 1) EndPress();
-        _seen = pointer.Updates;
+        if (_watch.Missed(pointer)) EndPress();
 
         int under = -1;
         for (int i = 0; i < _items.Count; i++)
@@ -243,9 +243,11 @@ internal sealed class ButtonBar {
     /// </summary>
     public static int SliderStep(float x, Area track, float knobWidth, int min, int max) {
         float span = track.Width - knobWidth;
-        if (!(span > 0f)) return min;
+        if (!(span > 0f) || max <= min) return min;
         float t = Math.Clamp((x - track.X - knobWidth / 2f) / span, 0f, 1f);
-        return min + (int) MathF.Round(t * (max - min), MidpointRounding.AwayFromZero);
+        // A float holds 24 bits: a range of ints is stepped in long, and an end is taken exactly.
+        if (t >= 1f) return max;
+        return (int) Math.Clamp(min + (long) MathF.Round(t * ((long) max - min), MidpointRounding.AwayFromZero), min, max);
     }
 
     private void Click(int index) {
@@ -306,7 +308,8 @@ internal sealed class ButtonBar {
     /// <summary>Where a slider's value sits in its range, 0 at the minimum and 1 at the maximum.</summary>
     public float SliderFraction(int index) {
         Item item = _items[index];
-        return (item.Value - item.Min) / (float) (item.Max - item.Min);
+        if (item.Max <= item.Min) return 0f;
+        return ((long) item.Value - item.Min) / (float) ((long) item.Max - item.Min);
     }
 
     /// <summary>Whether the press that went down on a slider is still held.</summary>
