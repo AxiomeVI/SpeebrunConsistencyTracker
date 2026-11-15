@@ -289,7 +289,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         {
             if (times == null || times.Count == 0) return new PeakReport();
 
-            const double ONE_FRAME = 170000; // one frame
+            const double ONE_FRAME = CelesteCharts.Durations.CelesteFrameTicks;
 
             // Bin resolution: the tighter of 10% of the min and Freedman-Diaconis, floored at
             // one frame — no bin is narrower than the game's own time quantum.
