@@ -28,14 +28,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static OverlayKey OverlayKeyFor(SpeebrunConsistencyTrackerModuleSettings settings, int toggles)
             => new(toggles, TargetTimeTicksFor(settings).Ticks, settings.PercentileValue);
 
-        public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
-        {
-            MetricContext context = new(GetTargetTimeTicks(), MetricHelper.ToInt(SpeebrunConsistencyTrackerModule.Settings.PercentileValue));
-            List<(MetricDescriptor, MetricResult)> result = [];
+        // A metric's names as the settings it was computed under give them.
+        public readonly record struct ComputedMetric(string CsvHeader, string OverlayName, MetricResult Result);
 
-            foreach (MetricDescriptor metric in FilterMetrics(mode))
+        public static List<ComputedMetric> Compute(PracticeSession session, MetricOutput mode)
+            => Compute(session, mode, SpeebrunConsistencyTrackerModule.Settings);
+
+        public static List<ComputedMetric> Compute(PracticeSession session, MetricOutput mode, SpeebrunConsistencyTrackerModuleSettings settings)
+        {
+            MetricContext context = new(TargetTimeTicksFor(settings), MetricHelper.ToInt(settings.PercentileValue));
+            List<ComputedMetric> result = [];
+
+            foreach (MetricDefinition metric in FilterMetrics(settings, mode))
             {
-                result.Add((metric, metric.Compute(session, context, mode == MetricOutput.Export)));
+                result.Add(new ComputedMetric(
+                    metric.CsvHeader(settings),
+                    metric.OverlayName?.Invoke(settings),
+                    metric.Compute(session, context, mode == MetricOutput.Export)));
             }
 
             return result;
@@ -43,16 +52,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         private static int ComputeOverlaySettingsHash()
         {
+            SpeebrunConsistencyTrackerModuleSettings settings = SpeebrunConsistencyTrackerModule.Settings;
             var hashCode = new HashCode();
-            foreach (string header in FilterMetrics(MetricOutput.Overlay).Select(m => m.CsvHeader()))
+            foreach (string header in FilterMetrics(settings, MetricOutput.Overlay).Select(m => m.CsvHeader(settings)))
                 hashCode.Add(header);
             return hashCode.ToHashCode();
         }
 
-        private static List<MetricDescriptor> FilterMetrics(MetricOutput mode)
-        {
-            return [.. MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode))];
-        }
+        private static IEnumerable<MetricDefinition> FilterMetrics(SpeebrunConsistencyTrackerModuleSettings settings, MetricOutput mode)
+            => MetricTable.All.Where(m => m.IsEnabled(settings, mode));
 
         public static TimeTicks GetTargetTimeTicks() => TargetTimeTicksFor(SpeebrunConsistencyTrackerModule.Settings);
 

@@ -30,23 +30,23 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
                 return "";
 
             int segmentLength = SessionManager.RoomCount;
-            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
+            List<MetricEngine.ComputedMetric> computedMetrics = MetricEngine.Compute(session, MetricOutput.Export);
 
             if (computedMetrics.Count == 0)
                 return "";
 
-            List<string> headers = [.. computedMetrics.Select(res => Csv.Field(res.Item1.CsvHeader(), separator))];
+            List<string> headers = [.. computedMetrics.Select(res => Csv.Field(res.CsvHeader, separator))];
             headers.Insert(0, "Room/Segment");
 
             List<string> csvLines = [string.Join(separator, headers)];
 
-            List<string> segmentRow = [.. computedMetrics.Select(res => Csv.Field(res.Item2.SegmentValue, separator))];
+            List<string> segmentRow = [.. computedMetrics.Select(res => Csv.Field(res.Result.SegmentValue, separator))];
             segmentRow.Insert(0, "Segment");
             csvLines.Add(string.Join(separator, segmentRow));
 
             for (int roomIndex = 0; roomIndex < segmentLength; roomIndex++)
             {
-                List<string> roomRow = [.. computedMetrics.Select(res => Csv.Field(res.Item2.RoomValues.ElementAtOrDefault(roomIndex), separator))];
+                List<string> roomRow = [.. computedMetrics.Select(res => Csv.Field(res.Result.RoomValues.ElementAtOrDefault(roomIndex), separator))];
                 roomRow.Insert(0, $"R{roomIndex + 1}");
                 csvLines.Add(string.Join(separator, roomRow));
             }
@@ -74,9 +74,8 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Export.Metrics
             if (session.Version == _lastVersion && roomCount == _lastRoomCount && key == _lastKey && roomTimerType == _lastRoomTimerType)
                 return false;
 
-            List<(MetricDescriptor, MetricResult)> computedMetrics = MetricEngine.Compute(session, MetricOutput.Overlay);
-            foreach ((MetricDescriptor desc, MetricResult metricResult) in computedMetrics)
-                result.Add($"{desc.InGameName()}: {metricResult.SegmentValue}");
+            foreach (MetricEngine.ComputedMetric metric in MetricEngine.Compute(session, MetricOutput.Overlay))
+                result.Add($"{metric.OverlayName}: {metric.Result.SegmentValue}");
 
             _lastVersion = session.Version;
             _lastRoomCount = roomCount;

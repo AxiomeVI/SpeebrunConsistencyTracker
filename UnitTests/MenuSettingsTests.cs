@@ -1,9 +1,11 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Celeste.Mod.SpeebrunConsistencyTracker;
 using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Menu;
+using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Microsoft.Xna.Framework;
 using Xunit;
@@ -60,7 +62,7 @@ public class MenuSettingsTests
     public void A_toggle_writes_through_to_the_setting_it_names()
     {
         var settings = new SpeebrunConsistencyTrackerModuleSettings { Median = MetricOutputChoice.Both };
-        MetricToggles.Metric median = MetricToggles.All.Single(m => m.LabelKey == DialogIds.MedianId);
+        MetricDefinition median = MetricToggles.All.Single(m => m.LabelKey == "SCT_MEDIAN");
 
         MetricToggles.Set(settings, median, MetricOutput.Overlay, false);
 
@@ -78,7 +80,7 @@ public class MenuSettingsTests
             .Where(p => p.Name != "TargetTime")];
 
         // Which property each row writes: set it on an all-Off object and see what moved.
-        string Writes(MetricToggles.Metric metric)
+        string Writes(MetricDefinition metric)
         {
             var probe = new SpeebrunConsistencyTrackerModuleSettings();
             foreach (PropertyInfo p in properties) p.SetValue(probe, MetricOutputChoice.Off);
@@ -94,8 +96,67 @@ public class MenuSettingsTests
     public void KeepsTodaysDefaults()
     {
         var fresh = new SpeebrunConsistencyTrackerModuleSettings();
-        string[] drifted = [.. MetricToggles.All.Where(m => m.Get(fresh) != m.Default).Select(m => m.LabelKey)];
+        string[] drifted = [.. MetricTable.All.Where(m => m.Get(fresh) != m.Default).Select(m => m.LabelKey)];
         Assert.Equal([], drifted);
+    }
+
+    // The pages are derived from MetricTable, whose rows are in CSV order. This is the order a
+    // player sees, as it was when the pages were written out by hand.
+    [Fact]
+    public void The_pages_keep_their_order()
+    {
+        Assert.Equal(
+            [DialogIds.GroupRunsId, DialogIds.GroupTimesId, DialogIds.GroupSpreadId],
+            MetricToggles.Groups.Select(g => g.HeaderKey));
+        Assert.Equal(
+            [DialogIds.SuccessRateId, "SCT_COMPLETED_RUN_COUNT", "SCT_TOTAL_RUN_COUNT",
+             "SCT_DNF_COUNT", "SCT_RESET_RATE", "SCT_GOLD_RATE"],
+            MetricToggles.Groups[0].Metrics.Select(m => m.LabelKey));
+        Assert.Equal(
+            ["SCT_AVERAGE", "SCT_MEDIAN", "SCT_MINIMUM",
+             "SCT_MAXIMUM", DialogIds.PercentileId, "SCT_SOB"],
+            MetricToggles.Groups[1].Metrics.Select(m => m.LabelKey));
+        Assert.Equal(
+            ["SCT_STANDARD_DEVIATION", "SCT_COEFFICIENT_OF_VARIATION", "SCT_MAD",
+             "SCT_RELATIVE_MAD", "SCT_IQR", "SCT_LINEAR_REGRESSION"],
+            MetricToggles.Groups[2].Metrics.Select(m => m.LabelKey));
+        Assert.Equal(
+            [DialogIds.RunHistoryId, "SCT_RESET_SHARE", "SCT_MULTIMODAL_TEST",
+             "SCT_ROOM_DEPENDENCY", "SCT_BEST_SPLIT"],
+            MetricToggles.ExportSections.Select(s => s.LabelKey));
+    }
+
+    // Two rows on one slot would order by accident.
+    [Fact]
+    public void Each_metric_has_its_own_slot_under_its_subheader()
+    {
+        foreach (IGrouping<MetricGroup, MetricDefinition> group in MetricTable.All.GroupBy(m => m.Group))
+            Assert.Equal(Enumerable.Range(0, group.Count()), group.Select(m => m.MenuSlot).Order());
+    }
+
+    [Fact]
+    public void Every_metric_has_its_own_label_csv_header_and_overlay_name()
+    {
+        var settings = new SpeebrunConsistencyTrackerModuleSettings();
+        Assert.Equal(MetricTable.All.Length, MetricTable.All.Select(m => m.LabelKey).Distinct().Count());
+        Assert.Equal(MetricTable.All.Length, MetricTable.All.Select(m => m.CsvHeader(settings)).Distinct().Count());
+
+        MetricDefinition[] shown = [.. MetricTable.All.Where(m => !m.ExportOnly)];
+        Assert.All(shown, m => Assert.False(string.IsNullOrEmpty(m.OverlayName(settings)), m.LabelKey));
+        Assert.Equal(shown.Length, shown.Select(m => m.OverlayName(settings)).Distinct().Count());
+    }
+
+    // An export-only metric is a bool setting: it never reaches the overlay, whatever it holds.
+    [Fact]
+    public void An_export_only_metric_is_never_on_the_overlay()
+    {
+        var settings = new SpeebrunConsistencyTrackerModuleSettings();
+        foreach (MetricDefinition metric in MetricTable.All.Where(m => m.ExportOnly))
+        {
+            metric.Set(settings, MetricOutputChoice.Both);
+            Assert.True(metric.IsEnabled(settings, MetricOutput.Export), metric.LabelKey);
+            Assert.False(metric.IsEnabled(settings, MetricOutput.Overlay), metric.LabelKey);
+        }
     }
 
     // ------------------------------------------------------------------ the bulk buttons
@@ -109,14 +170,14 @@ public class MenuSettingsTests
     {
         MetricOutputChoice start = Enum.Parse<MetricOutputChoice>(startName);
         var settings = new SpeebrunConsistencyTrackerModuleSettings { PercentileValue = PercentileChoice.P10 };
-        foreach (MetricToggles.Metric m in MetricToggles.All) m.Set(settings, start);
+        foreach (MetricDefinition m in MetricToggles.All) m.Set(settings, start);
         foreach (MetricToggles.Section s in MetricToggles.ExportSections) s.Set(settings, !s.Default);
 
         MetricToggles.ApplyDefaults(settings, MetricOutput.Overlay);
         MetricToggles.ApplyDefaults(settings, MetricOutput.Export);
 
         var fresh = new SpeebrunConsistencyTrackerModuleSettings();
-        foreach (MetricToggles.Metric m in MetricToggles.All)
+        foreach (MetricDefinition m in MetricToggles.All)
             Assert.True(m.Get(fresh) == m.Get(settings), $"{m.LabelKey}: {m.Get(settings)}, expected {m.Get(fresh)}");
         foreach (MetricToggles.Section s in MetricToggles.ExportSections)
             Assert.True(s.Get(fresh) == s.Get(settings), s.LabelKey);

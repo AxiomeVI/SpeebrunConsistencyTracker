@@ -30,36 +30,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
     }
 
-    public sealed class MetricDescriptor(
-        Func<string> csvHeader,
-        Func<string> inGameName,
-        Func<PracticeSession, MetricContext, bool, MetricResult> compute,
-        Func<MetricOutput, bool> isEnabled) : IEquatable<MetricDescriptor>
-    {
-        public Func<string> CsvHeader { get; } = csvHeader ?? throw new ArgumentNullException(nameof(csvHeader));
-        public Func<string> InGameName { get; } = inGameName ?? throw new ArgumentNullException(nameof(inGameName));
-        public Func<PracticeSession, MetricContext, bool, MetricResult> Compute { get; } = compute ?? throw new ArgumentNullException(nameof(compute));
-        public Func<MetricOutput, bool> IsEnabled { get; } = isEnabled ?? throw new ArgumentNullException(nameof(isEnabled));
-
-        public MetricDescriptor(
-            string csvHeader,
-            string inGameName,
-            Func<PracticeSession, MetricContext, bool, MetricResult> compute,
-            Func<MetricOutput, bool> isEnabled)
-            : this(() => csvHeader, () => inGameName, compute, isEnabled)
-        { }
-
-        public bool Equals(MetricDescriptor other)
-        {
-            if (other is null) return false;
-            if (ReferenceEquals(this, other)) return true;
-            return InGameName() == other.InGameName();
-        }
-
-        public override bool Equals(object obj) => Equals(obj as MetricDescriptor);
-        public override int GetHashCode() => InGameName().GetHashCode();
-    }
-
     public sealed class MetricResult(string segmentValue, IReadOnlyList<string> roomValues)
     {
         public string SegmentValue { get; init; } = segmentValue ?? throw new ArgumentNullException(nameof(segmentValue));
@@ -78,18 +48,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static bool HasSegmentTimes(PracticeSession session, MetricContext context) =>
             SortedSegmentValues(session, context).Count > 0;
 
-        public static bool IsMetricEnabled(object value, MetricOutput mode)
-        {
-            return value switch
-            {
-                // bool settings are export-only by convention.
-                bool b => b && mode == MetricOutput.Export,
-                MetricOutputChoice choice => IsMetricEnabled(choice, mode),
-                _ => throw new InvalidOperationException($"Unsupported type {value.GetType()}"),
-            };
-        }
-
-        // Typed, so a caller with a choice in hand boxes nothing: the charts ask this every frame.
+        // The charts ask this every frame: nothing here boxes or allocates.
         public static bool IsMetricEnabled(MetricOutputChoice choice, MetricOutput mode) => (FromChoice(choice) & mode) != 0;
 
         private static MetricOutput FromChoice(MetricOutputChoice choice) => choice switch
