@@ -143,12 +143,6 @@ public class SpeebrunConsistencyTrackerModuleSettings : EverestModuleSettings {
     public MetricOutputChoice SoB { get; set; } = MetricOutputChoice.Overlay;
     public MetricOutputChoice MedianAbsoluteDeviation  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice RelativeMAD  { get; set; } = MetricOutputChoice.Off;
-    // Implemented but uncalibrated, and hidden on purpose. Its stability factor stays above 0.99
-    // while relMAD*CV < 0.014 -- tight and loose sessions alike -- so it reports (1 - resetRate)^2
-    // shaded by the PB gap.
-    // Recalibrate before exposing it: a menu row is one line, and a player reads the number as a verdict.
-    [SettingIgnore]
-    public MetricOutputChoice ConsistencyScore  { get; set; } = MetricOutputChoice.Off;
     public MetricOutputChoice GoldRate { get; set; } = MetricOutputChoice.Off;
     public bool MultimodalTest { get; set; } = false;
     public bool RoomDependency { get; set; } = false;

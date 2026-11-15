@@ -12,7 +12,7 @@ using MetricFunctions = Celeste.Mod.SpeebrunConsistencyTracker.Metrics.Metrics;
 namespace SpeebrunConsistencyTracker.UnitTests;
 
 // Pins what every function in Metrics.cs returns today, on one small hand-computed session.
-// The "no data" spellings differ per metric ("0", "0.000", "", "100%", "Insufficient data");
+// The "no data" spellings differ per metric ("0", "0.000", "", "Insufficient data");
 // they are pinned as they are, not as they should be.
 public class MetricFunctionsTests
 {
@@ -263,24 +263,6 @@ public class MetricFunctionsTests
         Check(Compute(MetricFunctions.TrendSlope, Main(), false), "1.700");
     }
 
-    // ---- ConsistencyScore --------------------------------------------------------------------
-
-    [Fact]
-    public void ConsistencyScore()
-    {
-        // Segment: stability e^(-50 (relMAD*CV)^2) ~ .99998, floor proximity e^(-50 (1/61)^2) ~ .98665,
-        // reliability (1 - 1/6)^2 = .69444. Product ~ .6852.
-        // Room 0 ~ .8915 (no resets), room 1 ~ .4895 (reliability .8^2), room 2 ~ .6041 (floor e^-.5).
-        Check(Compute(MetricFunctions.ConsistencyScore, Main(), true), "68.52%", "89.15%", "48.95%", "60.41%");
-        Check(Compute(MetricFunctions.ConsistencyScore, Main(), false), "68.52%");
-    }
-
-    [Fact]
-    public void ConsistencyScore_is_100_percent_under_two_completed_runs_even_on_export()
-    {
-        Check(Compute(MetricFunctions.ConsistencyScore, OneCompletedRun(), true), "100%");
-    }
-
     // ---- GoldRate ----------------------------------------------------------------------------
 
     [Fact]
@@ -403,7 +385,6 @@ public class MetricFunctionsTests
         { nameof(MetricFunctions.ResetRate), "", ["", "", ""] },
         { nameof(MetricFunctions.ResetShare), "", ["0%", "0%", "0%"] },
         { nameof(MetricFunctions.TrendSlope), "0.000", ["0.000", "0.000", "0.000"] },
-        { nameof(MetricFunctions.ConsistencyScore), "100%", [] },
         { nameof(MetricFunctions.MultimodalTest), "Insufficient data", [] },
         { nameof(MetricFunctions.GoldRate), "", ["0", "0", "0"] },
         { nameof(MetricFunctions.RoomDependency), "Insufficient data", [] },

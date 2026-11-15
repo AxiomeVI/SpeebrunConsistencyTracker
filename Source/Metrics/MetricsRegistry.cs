@@ -9,12 +9,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static readonly List<MetricDescriptor> AllMetrics =
         [
             new MetricDescriptor(
-                "Consistency Score",
-                "score",
-                Metrics.ConsistencyScore,
-                (mode) => false  // Forcefully disabled: implementation is not ready for use.
-            ),
-            new MetricDescriptor(
                 "Success Rate",
                 "success",
                 Metrics.SuccessRate,

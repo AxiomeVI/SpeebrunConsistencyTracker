@@ -148,33 +148,6 @@ public class MetricHelperTests
     }
 
     [Fact]
-    public void ComputeConsistencyScore_is_zero_for_a_non_positive_median()
-    {
-        Assert.Equal(0, MetricHelper.ComputeConsistencyScore(0, TimeTicks.Zero, 0, 0, 0));
-        Assert.Equal(0, MetricHelper.ComputeConsistencyScore(-1, TimeTicks.Zero, 0, 0, 0));
-    }
-
-    [Fact]
-    public void ComputeConsistencyScore_is_one_for_a_perfectly_repeated_run()
-    {
-        double score = MetricHelper.ComputeConsistencyScore(100, new TimeTicks(100), 0, 0, 0);
-        Assert.Equal(1.0, score, 10);
-    }
-
-    [Fact]
-    public void ComputeConsistencyScore_collapses_when_every_run_is_a_reset()
-    {
-        Assert.Equal(0, MetricHelper.ComputeConsistencyScore(100, new TimeTicks(100), 0, 1.0, 0));
-    }
-
-    [Fact]
-    public void ComputeConsistencyScore_stays_within_zero_and_one()
-    {
-        double score = MetricHelper.ComputeConsistencyScore(100, new TimeTicks(10), 0.5, 0.3, 0.4);
-        Assert.InRange(score, 0.0, 1.0);
-    }
-
-    [Fact]
     public void LinearRegression_reports_the_per_attempt_slope()
     {
         Assert.Equal(10, MetricHelper.LinearRegression(Ticks(10, 20, 30, 40)).Ticks);

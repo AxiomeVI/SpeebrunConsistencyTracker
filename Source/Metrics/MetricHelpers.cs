@@ -208,26 +208,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return ComputePercentile([.. deviations.Select(t => new TimeTicks((long)Math.Round(t)))], 50);
         }
 
-        public static double ComputeConsistencyScore(double median, TimeTicks min, double relMAD, double resetRate, double stdCV)
-        {
-            if (median <= 0) return 0;
-            
-            // Gaussian: a grace zone for low variance, then a sharp drop-off.
-            double stabilityScore = Math.Exp(-50 * Math.Pow(relMAD * stdCV, 2));
-
-            // How close the median sits to the session PB.
-            double gap = (median - (double)min) / median;
-            double floorProximity = Math.Exp(-50 * Math.Pow(gap, 2));
-
-            double completionRate = 1.0 - Math.Clamp(resetRate, 0, 1.0);
-            double reliability = completionRate * completionRate; // Penalizes high reset rates heavily
-
-            // Multiplicative on purpose: one low factor sinks the score.
-            double finalScore = stabilityScore * floorProximity * reliability;
-
-            return Math.Clamp(finalScore, 0, 1.0);
-        }
-
         public static double CalculateBC(List<TimeTicks> values, double mean)
         {
             int n = values.Count;

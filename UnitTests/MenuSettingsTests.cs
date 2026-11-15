@@ -70,12 +70,12 @@ public class MenuSettingsTests
     // ------------------------------------------------------------------ the table
 
     [Fact]
-    public void The_pages_list_every_metric_setting_but_the_target_line_and_the_hidden_score()
+    public void The_pages_list_every_metric_setting_but_the_target_line()
     {
         PropertyInfo[] properties = [.. typeof(SpeebrunConsistencyTrackerModuleSettings)
             .GetProperties(BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)
             .Where(p => p.PropertyType == typeof(MetricOutputChoice))
-            .Where(p => p.Name is not ("TargetTime" or "ConsistencyScore"))];
+            .Where(p => p.Name != "TargetTime")];
 
         // Which property each row writes: set it on an all-Off object and see what moved.
         string Writes(MetricToggles.Metric metric)
@@ -325,5 +325,27 @@ public class MenuSettingsTests
         Assert.Equal(80, settings.TextSize);
         Assert.Equal(40, settings.TextAlpha);
         Assert.Equal(MetricOutputChoice.Export, settings.Median);
+    }
+
+    // ConsistencyScore was removed, hidden since 2026-09-25. A file written before keeps its key,
+    // and must load the metrics declared on either side of it.
+    [Fact]
+    public void A_settings_file_that_still_holds_the_removed_consistency_score_loads_the_rest()
+    {
+        Assert.Null(typeof(SpeebrunConsistencyTrackerModuleSettings).GetProperty("ConsistencyScore"));
+
+        var settings = new SpeebrunConsistencyTrackerModuleSettings();
+        const string yaml = "RelativeMAD: Both\nConsistencyScore: Both\nGoldRate: Export\nBestSplit: false\n";
+        var deserializer = new YamlDotNet.Serialization.DeserializerBuilder()
+            .IgnoreUnmatchedProperties()
+            .WithObjectFactory(type => type == typeof(SpeebrunConsistencyTrackerModuleSettings)
+                ? settings : Activator.CreateInstance(type))
+            .Build();
+
+        deserializer.Deserialize<SpeebrunConsistencyTrackerModuleSettings>(yaml);
+
+        Assert.Equal(MetricOutputChoice.Both, settings.RelativeMAD);
+        Assert.Equal(MetricOutputChoice.Export, settings.GoldRate);
+        Assert.False(settings.BestSplit);
     }
 }

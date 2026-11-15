@@ -313,38 +313,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return new MetricResult(segmentValue, roomValues);
         }
 
-        public static MetricResult ConsistencyScore(PracticeSession session, MetricContext context, bool isExport)
-        {
-            int roomCount = session.RoomCount;
-            if (session.TotalCompleted < 2)
-                return new MetricResult("100%", []);
-
-            var roomValues = new List<string>(roomCount);
-            if (isExport)
-            {
-                for (int r = 0; r < roomCount; r++)
-                {
-                    var roomTimes = MetricHelper.SortedRoomValues(session, context, r);
-                    if (roomTimes.Count < 2) { roomValues.Add(""); continue; }
-                    double roomResetRate = MetricHelper.RoomResetRate(session, context, r);
-                    double roomMedian = MetricHelper.RoomMedian(session, context, r).Ticks;
-                    TimeTicks roomMin = MetricHelper.RoomMin(session, context, r);
-                    double roomCV = MetricHelper.RoomCV(session, context, r);
-                    double roomRelMAD = MetricHelper.RoomRelativeMAD(session, context, r);
-                    roomValues.Add(MetricHelper.FormatPercent(MetricHelper.ComputeConsistencyScore(roomMedian, roomMin, roomRelMAD, roomResetRate, roomCV)));
-                }
-            }
-
-            double segmentMedian = MetricHelper.SegmentMedian(session, context).Ticks;
-            double segmentResetRate = MetricHelper.SegmentResetRate(session, context);
-            TimeTicks segmentMin = MetricHelper.SegmentMin(session, context);
-            double cvSegment = MetricHelper.SegmentCV(session, context);
-            double relMADSegment = MetricHelper.SegmentRelativeMAD(session, context);
-
-            double score = MetricHelper.ComputeConsistencyScore(segmentMedian, segmentMin, relMADSegment, segmentResetRate, cvSegment);
-            return new MetricResult(MetricHelper.FormatPercent(score), roomValues);
-        }
-
         public static MetricResult MultimodalTest(PracticeSession session, MetricContext context, bool isExport)
         {
             int roomCount = session.RoomCount;
