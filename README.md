@@ -21,6 +21,16 @@ decide what it records. Both are under *Mod Options -> Speedrun Tool -> Room Tim
 - **Number of Rooms** — how many rooms one attempt spans. This is the segment the metrics and
   charts are computed over; changing it reshapes the current session's view of the same data.
 
+**With an end point** (SpeedrunTool's end point, or a room-id end point set from the debug map),
+SpeedrunTool ignores Number of Rooms, and so does this mod. The segment is the rooms up to and
+including the split where the timer stopped: the touch of the end point, or the entry into the
+end point's room. Its length is taken from the most recent run that reached the end point. A run
+that reached it is never a reset, and rooms run past it are kept but are outside the segment.
+Until one run reaches the end point, the segment is every room reached so far.
+
+A level end also stops the timer, in the room you are in. The segment then ends there, or at Number
+of Rooms if that comes first, and the run is not a reset.
+
 SpeedrunTool `3.26.4` or later is required (`everest.yaml` pins it).
 
 All six hotkeys ship unbound. Until you bind one under *Mod Options -> Hotkeys*, no chart can be opened.
