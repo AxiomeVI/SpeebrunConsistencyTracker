@@ -73,7 +73,19 @@ internal sealed class BoxChart : RoomColumnsChart
         return new Column(min, q1, med, q3, max, new BoxMarks(at(min), at(q1), at(med), at(q3), at(max), []));
     }
 
-    private const string BoxKey = "box:";
+    // A room's box is keyed by its room, the segment's by a name of its own: the segment's column
+    // index is the room count, which moves under an open chart, and a pin then named another box.
+    private const string BoxKey = "box:", SegmentKey = "box:segment";
+
+    // A pin's key for a column of a chart with `rooms` rooms, and the column a key names in one,
+    // or -1.
+    internal static string KeyOf(int column, int rooms) => column == rooms ? SegmentKey : BoxKey + column;
+
+    internal static int ColumnOf(string key, int rooms)
+    {
+        if (key == SegmentKey) return rooms;
+        return key != null && key.StartsWith(BoxKey) && int.TryParse(key.AsSpan(BoxKey.Length), out int i) && i >= 0 && i < rooms ? i : -1;
+    }
 
     public override HoverInfo? HitTest(Vector2 mouseHudPos)
     {
@@ -92,17 +104,17 @@ internal sealed class BoxChart : RoomColumnsChart
 
     public override HoverInfo? Locate(string key)
     {
-        if (key == null || !key.StartsWith(BoxKey) || !int.TryParse(key.AsSpan(BoxKey.Length), out int i)) return null;
         EnsureBuilt();
-        if (i < 0 || i >= _columns.Length || _columns[i] == null) return null;
+        int i = ColumnOf(key, Rooms);
+        if (i < 0 || _columns[i] == null) return null;
         // A room's box scrolled out of the plot does not show.
         float left = Bands.BarStart(i) - ShiftOf(i);
         return i < Rooms && (left + Bands.BarWidthOf(i) <= RoomArea.X || left >= RoomArea.Right) ? null : InfoOf(i);
     }
 
-    // Empty label: DrawHighlight draws the statistics itself. Keyed on the column, or every box
+    // Empty label: DrawHighlight draws the statistics itself. Keyed on the box, or every box
     // would share one pin.
-    private HoverInfo InfoOf(int i) => new("", new Vector2(Bands.Centre(i) - ShiftOf(i), Plot.Y), BoxKey + i, i);
+    private HoverInfo InfoOf(int i) => new("", new Vector2(Bands.Centre(i) - ShiftOf(i), Plot.Y), KeyOf(i, Rooms), i);
 
     public override void DrawHighlight(HoverInfo info)
     {

@@ -65,3 +65,44 @@ public class RoomIdentityTests
         Assert.Equal([false, false, false, false], flags);
     }
 }
+
+// The box plot's segment stands after the rooms: its pin must not name a room's box once the room
+// count moves under an open chart, nor a room's pin the segment.
+public class BoxPinKeyTests
+{
+    [Fact]
+    public void The_segment_pin_names_the_segment_after_a_room_is_added()
+    {
+        string key = BoxChart.KeyOf(column: 5, rooms: 5);
+        Assert.Equal(6, BoxChart.ColumnOf(key, rooms: 6));
+    }
+
+    [Fact]
+    public void The_segment_pin_names_the_segment_after_a_room_is_dropped()
+    {
+        string key = BoxChart.KeyOf(column: 5, rooms: 5);
+        Assert.Equal(4, BoxChart.ColumnOf(key, rooms: 4));
+    }
+
+    [Fact]
+    public void A_room_pin_does_not_name_the_segment_once_its_room_is_gone()
+    {
+        string key = BoxChart.KeyOf(column: 4, rooms: 6);
+        Assert.Equal(-1, BoxChart.ColumnOf(key, rooms: 4));
+    }
+
+    [Fact]
+    public void A_room_pin_names_its_room_whatever_the_room_count()
+    {
+        string key = BoxChart.KeyOf(column: 2, rooms: 4);
+        Assert.Equal(2, BoxChart.ColumnOf(key, rooms: 4));
+        Assert.Equal(2, BoxChart.ColumnOf(key, rooms: 7));
+    }
+
+    [Fact]
+    public void Another_charts_key_names_no_box()
+    {
+        Assert.Equal(-1, BoxChart.ColumnOf("bar:2", rooms: 4));
+        Assert.Equal(-1, BoxChart.ColumnOf(null, rooms: 4));
+    }
+}
