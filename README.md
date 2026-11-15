@@ -16,8 +16,8 @@ A Celeste mod that gives speedrunners statistics on their practice. It tracks se
 The mod reads its data from SpeedrunTool's room timer, so two of SpeedrunTool's own settings
 decide what it records. Both are under *Mod Options -> Speedrun Tool -> Room Timer*:
 
-- **Room Timer** — `NextRoom` or `CurrentRoom`. With the timer **Off**, nothing is recorded and
-  every chart stays empty.
+- **Room Timer** — `NextRoom` or `CurrentRoom`. With the timer **Off**, rooms are still recorded,
+  as under `NextRoom`. Only the text overlay stays hidden.
 - **Number of Rooms** — how many rooms one attempt spans. This is the segment the metrics and
   charts are computed over; changing it reshapes the current session's view of the same data.
 
