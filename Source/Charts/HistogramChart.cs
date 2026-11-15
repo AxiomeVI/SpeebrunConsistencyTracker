@@ -198,12 +198,14 @@ internal sealed class HistogramChart : SketchChart
     private HoverInfo InfoOf(int bin)
     {
         Area bar = BarOf(bin);
+        Vector2 at = new(bar.X + bar.Width / 2f, bar.Y);
+        if (LastHover(bin, at, out HoverInfo kept)) return kept;
         int inBin  = _counts.Counts[bin];
         double pct = 100.0 * inBin / _times.Count;
         // The range stays out of the dialog file: its loader reads "[...]" as a portrait tag.
         string runs  = DialogText.Format(inBin == 1 ? DialogIds.ChartBinOneRunFmt : DialogIds.ChartBinRunsFmt, inBin, pct.ToString("F1"));
         string label = $"{runs}\n[{new TimeTicks(_bins.All[bin].Lower)}, {new TimeTicks(_bins.All[bin].Upper)})";
-        return new HoverInfo(label, new Vector2(bar.X + bar.Width / 2f, bar.Y), BinKey + _bins.All[bin].Lower, bin);
+        return KeepHover(new HoverInfo(label, at, BinKey + _bins.All[bin].Lower, bin));
     }
 
     public override void DrawHighlight(HoverInfo info)

@@ -317,11 +317,12 @@ internal sealed class ScatterChart : RoomColumnsChart
 
     private HoverInfo InfoOf(int i)
     {
-        var dot = _dots[i];
-        string label = DialogText.Format(DialogIds.ChartRunTimeFmt, dot.Attempt + 1, dot.Time);
         Vector2 at = new(ShownX(i), ShownY(i) - ChartConstants.Scatter.DotRadius - ChartConstants.Interactivity.TooltipPaddingY
                                     - ChartConstants.Interactivity.TooltipBgPadding);
-        return new HoverInfo(label, at, dot.Segment ? PinKey.ForSegment(dot.Attempt) : PinKey.ForRoom(dot.Attempt, dot.Room), i);
+        if (LastHover(i, at, out HoverInfo kept)) return kept;
+        var dot = _dots[i];
+        string label = DialogText.Format(DialogIds.ChartRunTimeFmt, dot.Attempt + 1, dot.Time);
+        return KeepHover(new HoverInfo(label, at, dot.Segment ? PinKey.ForSegment(dot.Attempt) : PinKey.ForRoom(dot.Attempt, dot.Room), i));
     }
 
     public override void DrawHighlight(HoverInfo info)

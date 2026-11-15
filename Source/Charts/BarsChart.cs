@@ -290,6 +290,9 @@ internal sealed class BarsChart : SketchChart
     private HoverInfo InfoOf(int i, bool primary)
     {
         Area bar = primary ? _primaryBar[i] : _secondaryBar[i];
+        Vector2 at = new(bar.X + bar.Width / 2f - Shift, bar.Y);
+        int mark = 2 * i + (primary ? 0 : 1);
+        if (LastHover(mark, at, out HoverInfo kept)) return kept;
         string label, key;
         if (_shape == Shape.StackedPercent)
         {
@@ -303,7 +306,7 @@ internal sealed class BarsChart : SketchChart
             label = primary ? DialogText.LabelValue(_primaryLabel, _primaryText[i]) : DialogText.LabelValue(_secondaryLabel, _secondaryText[i]);
             key   = $"{GroupKey}{i}:{(primary ? "p" : "s")}";
         }
-        return new HoverInfo(label, new Vector2(bar.X + bar.Width / 2f - Shift, bar.Y), key, 2 * i + (primary ? 0 : 1));
+        return KeepHover(new HoverInfo(label, at, key, mark));
     }
 
     public override void DrawHighlight(HoverInfo info)

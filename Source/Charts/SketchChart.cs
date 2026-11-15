@@ -74,6 +74,24 @@ internal abstract class SketchChart : BaseChartOverlay
 
     protected void Invalidate() => _stale = true;
 
+    // The hover answered last, handed back while the mouse stays on the same mark of the same build:
+    // a still mouse then allocates nothing. The anchor is compared too, since a scroll or a pan
+    // moves the mark without a build.
+    private HoverInfo _lastHover;
+    private int _lastHoverBuild;
+
+    protected bool LastHover(int mark, Vector2 anchor, out HoverInfo hover)
+    {
+        hover = _lastHover;
+        return hover != null && _lastHoverBuild == _builds && hover.Mark == mark && hover.Anchor == anchor;
+    }
+
+    protected HoverInfo KeepHover(HoverInfo hover)
+    {
+        (_lastHover, _lastHoverBuild) = (hover, _builds);
+        return hover;
+    }
+
     // How far the plot sits from the panel's left and right sides. A chart whose labels outgrow the
     // default widens its own; Sketch is ready to measure with.
     protected virtual (float Left, float Right) SideMargins(ChartStyle style) => (marginH, marginH);

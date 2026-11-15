@@ -819,9 +819,15 @@ internal sealed class TrajectoryChart : SketchChart
             // Only a crowded chart draws anything for it.
             if (_crowded && !(_mainPin.IsNone && _hovered.IsNone)) Invalidate();
         }
-        // Empty label: the sketch carries the tooltips.
-        return found.IsNone ? null : new HoverInfo("", Vector2.Zero, Key: found.ToKey());
+        if (found.IsNone) return null;
+        // Empty label: the sketch carries the tooltips. Kept while the same line is hovered, so a
+        // still mouse allocates nothing.
+        if (_hoverInfo == null || _hoverInfoFor != found) (_hoverInfo, _hoverInfoFor) = (new HoverInfo("", Vector2.Zero, Key: found.ToKey()), found);
+        return _hoverInfo;
     }
+
+    private HoverInfo _hoverInfo;
+    private LineId _hoverInfoFor = LineId.None;
 
     // The line passing nearest the mouse, measured straight up or down: attempts first, then the
     // sum of bests, then the baseline, so the earliest of equals wins. No line is picked over a

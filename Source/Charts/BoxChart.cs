@@ -114,7 +114,11 @@ internal sealed class BoxChart : RoomColumnsChart
 
     // Empty label: DrawHighlight draws the statistics itself. Keyed on the box, or every box
     // would share one pin.
-    private HoverInfo InfoOf(int i) => new("", new Vector2(Bands.Centre(i) - ShiftOf(i), Plot.Y), KeyOf(i, Rooms), i);
+    private HoverInfo InfoOf(int i)
+    {
+        Vector2 at = new(Bands.Centre(i) - ShiftOf(i), Plot.Y);
+        return LastHover(i, at, out HoverInfo kept) ? kept : KeepHover(new HoverInfo("", at, KeyOf(i, Rooms), i));
+    }
 
     public override void DrawHighlight(HoverInfo info)
     {
