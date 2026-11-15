@@ -18,7 +18,7 @@ public class ChartLibraryParityTests
         new long[] {
             0, 1, 9_999, Frame, 12_345_678, 599_990_000, 600_000_000, 600_010_000, 750_000_000,
             35_999_990_000, 36_000_000_000, 36_610_010_000, 400_000_000_000,
-        }.SelectMany(t => new[] { new object[] { t }, new object[] { -t } });
+        }.SelectMany(t => t == 0 ? [[t]] : new[] { new object[] { t }, new object[] { -t } });
 
     [Theory]
     [MemberData(nameof(Times))]
