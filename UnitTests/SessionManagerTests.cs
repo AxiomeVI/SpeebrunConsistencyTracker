@@ -109,4 +109,14 @@ public sealed class SessionManagerTests : IDisposable
         Assert.Null(SessionManager.CurrentSession);
         Assert.Equal(0, SessionManager.RoomCount);
     }
+
+    // #33: a load on a slot with no session creates one. Its constructor already opened the attempt
+    // that load starts, so a second StartNewAttempt would leave attempt 0 empty for good.
+    [Fact]
+    public void A_load_on_a_slot_with_no_session_starts_exactly_one_attempt()
+    {
+        SessionManager.LoadSlot(Slot);
+
+        Assert.Equal(1, SessionManager.CurrentSession.AttemptCount);
+    }
 }
