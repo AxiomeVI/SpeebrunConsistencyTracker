@@ -52,11 +52,28 @@ public class SpeedrunToolMembersTests
     [InlineData(typeof(SaveLoadIntegration))]
     public void Every_interop_import_has_a_matching_export(Type imports)
     {
+        Assert.Equal([], Unmatched(imports, LibsSpeedrunTool()));
+    }
+
+    // GetSlotName moved from SpeedrunTool.SaveLoad to SpeedrunTool.SaveLoadControl in 3.29.2.
+    // Whichever release is in libs/, one of the two imports must bind.
+    [Fact]
+    public void The_slot_name_is_exported_under_one_of_its_two_names()
+    {
+        Assembly srt = LibsSpeedrunTool();
+        bool current = Unmatched(typeof(SaveLoadControlIntegration), srt) is [];
+        bool legacy = Unmatched(typeof(LegacySlotNameIntegration), srt) is [];
+        Assert.True(current || legacy, "Neither SpeedrunTool.SaveLoadControl nor SpeedrunTool.SaveLoad exports GetSlotName.");
+    }
+
+    // The import fields SpeedrunTool exports no matching method for; every field when it has no
+    // export of that name at all.
+    private static List<string> Unmatched(Type imports, Assembly srt)
+    {
         string exportName = (string)imports.GetCustomAttributesData()
             .Single(a => a.AttributeType.Name == "ModImportNameAttribute")
             .ConstructorArguments[0].Value;
-        Type[] exports = [.. ExportedTypes(LibsSpeedrunTool(), exportName)];
-        Assert.NotEmpty(exports);
+        Type[] exports = [.. ExportedTypes(srt, exportName)];
 
         List<string> unmatched = [];
         foreach (FieldInfo field in imports.GetFields(BindingFlags.Public | BindingFlags.Static))
@@ -70,8 +87,7 @@ public class SpeedrunToolMembersTests
                        && m.GetParameters().Select(p => p.ParameterType.FullName).SequenceEqual(wanted));
             if (!found) unmatched.Add(field.Name);
         }
-
-        Assert.Equal([], unmatched);
+        return unmatched;
     }
 
     private static IEnumerable<Type> ExportedTypes(Assembly assembly, string exportName)

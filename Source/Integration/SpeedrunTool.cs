@@ -19,5 +19,18 @@ public static class SaveLoadIntegration
         Action<Level>, Action<Level>, Action, object> RegisterSaveLoadAction;
     public static Action<object> Unregister;
     public static Action<Entity, bool> IgnoreSaveState;
-    public static Func<string> GetSlotName;  // maps to SaveLoadExports.GetSlotName (SRT >= v3.25.0)
+}
+
+// The current slot's name moved between exports in SpeedrunTool 3.29.2. Bind both; the adapter
+// takes whichever SpeedrunTool filled. With neither, every slot shares one session.
+[ModImportName("SpeedrunTool.SaveLoadControl")]
+public static class SaveLoadControlIntegration
+{
+    public static Func<string> GetSlotName;  // SRT >= 3.29.2
+}
+
+[ModImportName("SpeedrunTool.SaveLoad")]
+public static class LegacySlotNameIntegration
+{
+    public static Func<string> GetSlotName;  // SRT 3.25.0 to 3.29.1
 }

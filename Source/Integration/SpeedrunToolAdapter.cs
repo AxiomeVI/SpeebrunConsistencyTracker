@@ -48,11 +48,16 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
                 return new UnavailableSpeedrunTool($"{version} lacks: {string.Join("; ", missing)}.");
 
             typeof(SaveLoadIntegration).ModInterop();
+            typeof(SaveLoadControlIntegration).ModInterop();
+            typeof(LegacySlotNameIntegration).ModInterop();
             typeof(RoomTimerIntegration).ModInterop();
             if (SaveLoadIntegration.RegisterSaveLoadAction == null || SaveLoadIntegration.Unregister == null)
                 return new UnavailableSpeedrunTool($"{version} exports no SpeedrunTool.SaveLoad RegisterSaveLoadAction and Unregister.");
             if (RoomTimerIntegration.RoomTimerIsCompleted == null)
                 return new UnavailableSpeedrunTool($"{version} exports no SpeedrunTool.RoomTimer RoomTimerIsCompleted.");
+            if (SaveLoadControlIntegration.GetSlotName == null && LegacySlotNameIntegration.GetSlotName == null)
+                Logger.Log(LogLevel.Warn, nameof(SpeebrunConsistencyTracker),
+                    $"{version} exports no GetSlotName: every save slot shares one session.");
 
             Type manager = assembly.GetType(SpeedrunToolMembers.ManagerType);
             FieldInfo data = manager.GetField(SpeedrunToolMembers.CurrentRoomTimerData, SpeedrunToolMembers.NonPublicStatic);
@@ -138,7 +143,8 @@ internal sealed class SpeedrunToolAdapter : ISpeedrunTool
     }
 
     public bool TimerCompleted => RoomTimerIntegration.RoomTimerIsCompleted();
-    public string SlotName => SaveLoadIntegration.GetSlotName?.Invoke();
+    public string SlotName =>
+        (SaveLoadControlIntegration.GetSlotName ?? LegacySlotNameIntegration.GetSlotName)?.Invoke();
 
     public void ExportRoomTimes() => ExportRoomTimesNow();
     public void Popup(string message) => PopupNow(message);
