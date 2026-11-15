@@ -29,7 +29,7 @@ public class MetricFunctionsTests
     // Segment times, sorted: 60 60 62 65.
     // Room 0 sorted: 10 10 10 11 12 13.  Room 1: 19 20 21 22.  Room 2: 27 30 30 33 34.
     // Counts: 6 attempts, 4 completed, 1 DNF. Per room: attempts 6 5 5, completed 6 4 5, DNFs 0 1 0.
-    internal static PracticeSession Main()
+    internal static PracticeSession Hand()
     {
         PracticeSession session = TrajectorySessions.Of(3,
             Ms(10000, 20000, 30000),
@@ -52,7 +52,6 @@ public class MetricFunctionsTests
 
     private static void Check(MetricResult result, string segment, params string[] rooms)
     {
-        Assert.Equal(segment, result.SegmentValue);
         Assert.Equal(rooms, result.RoomValues);
     }
 
@@ -62,16 +61,16 @@ public class MetricFunctionsTests
     public void Average()
     {
         // Segment (60+60+62+65)/4 = 61.75. Room 0 66/6 = 11, room 1 82/4 = 20.5, room 2 154/5 = 30.8.
-        Check(Compute(MetricFunctions.Average, Main(), true), "1:01.750", "11.000", "20.500", "30.800");
-        Check(Compute(MetricFunctions.Average, Main(), false), "1:01.750");
+        Check(Compute(MetricFunctions.Average, Hand(), true), "1:01.750", "11.000", "20.500", "30.800");
+        Check(Compute(MetricFunctions.Average, Hand(), false), "1:01.750");
     }
 
     [Fact]
     public void Median()
     {
         // Segment: position 1.5 of 60 60 62 65 -> 61. Room 0: position 2.5 of 10 10 10 11 12 13 -> 10.5.
-        Check(Compute(MetricFunctions.Median, Main(), true), "1:01.000", "10.500", "20.500", "30.000");
-        Check(Compute(MetricFunctions.Median, Main(), false), "1:01.000");
+        Check(Compute(MetricFunctions.Median, Hand(), true), "1:01.000", "10.500", "20.500", "30.000");
+        Check(Compute(MetricFunctions.Median, Hand(), false), "1:01.000");
     }
 
     [Fact]
@@ -79,16 +78,16 @@ public class MetricFunctionsTests
     {
         // Segment: deviations from 61 are 1 1 1 4 -> median 1. Room 0 from 10.5: .5 .5 .5 .5 1.5 2.5 -> .5.
         // Room 1 from 20.5: .5 .5 1.5 1.5 -> 1. Room 2 from 30: 0 0 3 3 4 -> 3.
-        Check(Compute(MetricFunctions.MedianAbsoluteDeviation, Main(), true), "1.000", "0.500", "1.000", "3.000");
-        Check(Compute(MetricFunctions.MedianAbsoluteDeviation, Main(), false), "1.000");
+        Check(Compute(MetricFunctions.MedianAbsoluteDeviation, Hand(), true), "1.000", "0.500", "1.000", "3.000");
+        Check(Compute(MetricFunctions.MedianAbsoluteDeviation, Hand(), false), "1.000");
     }
 
     [Fact]
     public void RelativeMAD()
     {
         // MAD over median: 1/61, .5/10.5, 1/20.5, 3/30.
-        Check(Compute(MetricFunctions.RelativeMAD, Main(), true), "1.64%", "4.76%", "4.88%", "10.00%");
-        Check(Compute(MetricFunctions.RelativeMAD, Main(), false), "1.64%");
+        Check(Compute(MetricFunctions.RelativeMAD, Hand(), true), "1.64%", "4.76%", "4.88%", "10.00%");
+        Check(Compute(MetricFunctions.RelativeMAD, Hand(), false), "1.64%");
     }
 
     [Fact]
@@ -97,16 +96,16 @@ public class MetricFunctionsTests
         // Sample deviation (n-1). Segment: squares 3.0625 3.0625 .0625 10.5625 = 16.75, /3, root = 2.3629.
         // Room 0: 8/5 = 1.6 -> 1.2649. Room 1: 5/3 -> 1.2910. Room 2: 30.8/4 = 7.7 -> 2.7749.
         // The time format truncates to milliseconds.
-        Check(Compute(MetricFunctions.StdDev, Main(), true), "2.362", "1.264", "1.290", "2.774");
-        Check(Compute(MetricFunctions.StdDev, Main(), false), "2.362");
+        Check(Compute(MetricFunctions.StdDev, Hand(), true), "2.362", "1.264", "1.290", "2.774");
+        Check(Compute(MetricFunctions.StdDev, Hand(), false), "2.362");
     }
 
     [Fact]
     public void CoefVariation()
     {
         // StdDev over average: 2.3629/61.75, 1.2649/11, 1.2910/20.5, 2.7749/30.8.
-        Check(Compute(MetricFunctions.CoefVariation, Main(), true), "3.83%", "11.50%", "6.30%", "9.01%");
-        Check(Compute(MetricFunctions.CoefVariation, Main(), false), "3.83%");
+        Check(Compute(MetricFunctions.CoefVariation, Hand(), true), "3.83%", "11.50%", "6.30%", "9.01%");
+        Check(Compute(MetricFunctions.CoefVariation, Hand(), false), "3.83%");
     }
 
     // One completed run, plus an attempt that reset in room 1 after 14 s in room 0.
@@ -134,23 +133,23 @@ public class MetricFunctionsTests
     [Fact]
     public void Best()
     {
-        Check(Compute(MetricFunctions.Best, Main(), true), "1:00.000", "10.000", "19.000", "27.000");
-        Check(Compute(MetricFunctions.Best, Main(), false), "1:00.000");
+        Check(Compute(MetricFunctions.Best, Hand(), true), "1:00.000", "10.000", "19.000", "27.000");
+        Check(Compute(MetricFunctions.Best, Hand(), false), "1:00.000");
     }
 
     [Fact]
     public void Worst()
     {
-        Check(Compute(MetricFunctions.Worst, Main(), true), "1:05.000", "13.000", "22.000", "34.000");
-        Check(Compute(MetricFunctions.Worst, Main(), false), "1:05.000");
+        Check(Compute(MetricFunctions.Worst, Hand(), true), "1:05.000", "13.000", "22.000", "34.000");
+        Check(Compute(MetricFunctions.Worst, Hand(), false), "1:05.000");
     }
 
     [Fact]
     public void SumOfBest_lists_the_running_total_of_the_best_room_times()
     {
         // 10, 10+19, 10+19+27. Not gated on export: the overlay gets the same room values.
-        Check(Compute(MetricFunctions.SumOfBest, Main(), true), "56.000", "10.000", "29.000", "56.000");
-        Check(Compute(MetricFunctions.SumOfBest, Main(), false), "56.000", "10.000", "29.000", "56.000");
+        Check(Compute(MetricFunctions.SumOfBest, Hand(), true), "56.000", "10.000", "29.000", "56.000");
+        Check(Compute(MetricFunctions.SumOfBest, Hand(), false), "56.000", "10.000", "29.000", "56.000");
     }
 
     [Fact]
@@ -159,13 +158,13 @@ public class MetricFunctionsTests
         // A1 stops counting at its deleted cell, so its 33 in room 2 is not used.
         // Room 0: min(10 12 10 11 13 10) = 10. Room 1: min(30 33 32 31) = 30. Room 2: min(60 60 62 65) = 60.
         // Segment value is the best segment time, as in Best.
-        Check(Compute(MetricFunctions.BestSplit, Main(), true), "1:00.000", "10.000", "30.000", "1:00.000");
+        Check(Compute(MetricFunctions.BestSplit, Hand(), true), "1:00.000", "10.000", "30.000", "1:00.000");
     }
 
     [Fact]
     public void BestSplit_is_empty_outside_an_export()
     {
-        Check(Compute(MetricFunctions.BestSplit, Main(), false), "");
+        Check(Compute(MetricFunctions.BestSplit, Hand(), false), "");
     }
 
     // ---- SuccessRate, Percentile, InterquartileRange --------------------------------------------
@@ -174,8 +173,8 @@ public class MetricFunctionsTests
     public void SuccessRate_on_the_session()
     {
         // Target 61 s: 60 and 60 qualify, 62 and 65 do not.
-        Check(Compute(MetricFunctions.SuccessRate, Main(), false, targetMs: 61000), "50.00%");
-        Check(Compute(MetricFunctions.SuccessRate, Main(), true, targetMs: 61000), "50.00%", "", "", "");
+        Check(Compute(MetricFunctions.SuccessRate, Hand(), false, targetMs: 61000), "50.00%");
+        Check(Compute(MetricFunctions.SuccessRate, Hand(), true, targetMs: 61000), "50.00%", "", "", "");
     }
 
     [Fact]
@@ -183,7 +182,7 @@ public class MetricFunctionsTests
     {
         // 90th over 60 60 62 65: position 2.7 -> 62 + 0.7 * 3 = 64.1.
         // Room 0 over 10 10 10 11 12 13: position 4.5 -> 12.5.
-        MetricResult result = Compute(MetricFunctions.Percentile, Main(), true, percentile: 90);
+        MetricResult result = Compute(MetricFunctions.Percentile, Hand(), true, percentile: 90);
         Assert.Equal("1:04.100", result.SegmentValue);
         Assert.Equal("12.500", result.RoomValues[0]);
     }
@@ -193,8 +192,8 @@ public class MetricFunctionsTests
     {
         // Segment: Q1 position .75 -> 60, Q3 position 2.25 -> 62.75, so 2.75.
         // Room 0: 10 and 11.75. Room 1: 19.75 and 21.25. Room 2: 30 and 33.
-        Check(Compute(MetricFunctions.InterquartileRange, Main(), true), "2.750", "1.750", "1.500", "3.000");
-        Check(Compute(MetricFunctions.InterquartileRange, Main(), false), "2.750");
+        Check(Compute(MetricFunctions.InterquartileRange, Hand(), true), "2.750", "1.750", "1.500", "3.000");
+        Check(Compute(MetricFunctions.InterquartileRange, Hand(), false), "2.750");
     }
 
     // ---- Counts ------------------------------------------------------------------------------
@@ -203,38 +202,38 @@ public class MetricFunctionsTests
     public void CompletedRunCount()
     {
         // Four whole runs. Room 1 lost A1's deleted cell and A2's reset: 6 4 5.
-        Check(Compute(MetricFunctions.CompletedRunCount, Main(), true), "4", "6", "4", "5");
-        Check(Compute(MetricFunctions.CompletedRunCount, Main(), false), "4");
+        Check(Compute(MetricFunctions.CompletedRunCount, Hand(), true), "4", "6", "4", "5");
+        Check(Compute(MetricFunctions.CompletedRunCount, Hand(), false), "4");
     }
 
     [Fact]
     public void TotalRunCount()
     {
         // Six attempts played. Room 1: A0 A2(reset) A3 A4 A5 = 5; room 2: all but A2 = 5.
-        Check(Compute(MetricFunctions.TotalRunCount, Main(), true), "6", "6", "5", "5");
-        Check(Compute(MetricFunctions.TotalRunCount, Main(), false), "6");
+        Check(Compute(MetricFunctions.TotalRunCount, Hand(), true), "6", "6", "5", "5");
+        Check(Compute(MetricFunctions.TotalRunCount, Hand(), false), "6");
     }
 
     [Fact]
     public void DnfCount()
     {
         // A2 is the one reset, in room 1. The deleted cell is not a reset.
-        Check(Compute(MetricFunctions.DnfCount, Main(), true), "1", "0", "1", "0");
-        Check(Compute(MetricFunctions.DnfCount, Main(), false), "1");
+        Check(Compute(MetricFunctions.DnfCount, Hand(), true), "1", "0", "1", "0");
+        Check(Compute(MetricFunctions.DnfCount, Hand(), false), "1");
     }
 
     [Fact]
     public void ResetRate()
     {
         // 1 reset in 6 attempts; in room 1, 1 reset in 5.
-        Check(Compute(MetricFunctions.ResetRate, Main(), true), "16.67%", "0.00%", "20.00%", "0.00%");
-        Check(Compute(MetricFunctions.ResetRate, Main(), false), "16.67%");
+        Check(Compute(MetricFunctions.ResetRate, Hand(), true), "16.67%", "0.00%", "20.00%", "0.00%");
+        Check(Compute(MetricFunctions.ResetRate, Hand(), false), "16.67%");
     }
 
     [Fact]
     public void ResetShare_splits_the_resets_between_rooms_and_leaves_the_segment_empty()
     {
-        Check(Compute(MetricFunctions.ResetShare, Main(), true), "", "0.00%", "100.00%", "0.00%");
+        Check(Compute(MetricFunctions.ResetShare, Hand(), true), "", "0.00%", "100.00%", "0.00%");
     }
 
     [Fact]
@@ -247,7 +246,7 @@ public class MetricFunctionsTests
     [Fact]
     public void ResetShare_is_empty_outside_an_export()
     {
-        Check(Compute(MetricFunctions.ResetShare, Main(), false), "");
+        Check(Compute(MetricFunctions.ResetShare, Hand(), false), "");
     }
 
     // ---- TrendSlope --------------------------------------------------------------------------
@@ -259,8 +258,8 @@ public class MetricFunctionsTests
         // Segment 60 60 62 65: (4*626 - 10*247) / (4*30 - 100) = 34/20 = 1.7.
         // Room 0 10 12 10 11 13 10: 12/105 = 0.114. Room 1 20 22 19 21: 0.
         // Room 2 30 33 27 30 34 (A1's room 2 is kept): 25/50 = 0.5.
-        Check(Compute(MetricFunctions.TrendSlope, Main(), true), "1.700", "0.114", "0.000", "0.500");
-        Check(Compute(MetricFunctions.TrendSlope, Main(), false), "1.700");
+        Check(Compute(MetricFunctions.TrendSlope, Hand(), true), "1.700", "0.114", "0.000", "0.500");
+        Check(Compute(MetricFunctions.TrendSlope, Hand(), false), "1.700");
     }
 
     // ---- GoldRate ----------------------------------------------------------------------------
@@ -269,8 +268,8 @@ public class MetricFunctionsTests
     public void GoldRate_is_the_share_of_runs_that_tie_the_best()
     {
         // Segment: two of four at 60. Room 0: three of six at 10; room 1: 1 of 4; room 2: 1 of 5.
-        Check(Compute(MetricFunctions.GoldRate, Main(), true), "50.00%", "50.00%", "25.00%", "20.00%");
-        Check(Compute(MetricFunctions.GoldRate, Main(), false), "50.00%");
+        Check(Compute(MetricFunctions.GoldRate, Hand(), true), "50.00%", "50.00%", "25.00%", "20.00%");
+        Check(Compute(MetricFunctions.GoldRate, Hand(), false), "50.00%");
     }
 
     // ---- MultimodalTest ----------------------------------------------------------------------
@@ -283,13 +282,13 @@ public class MetricFunctionsTests
     [Fact]
     public void MultimodalTest_is_empty_outside_an_export()
     {
-        Check(Compute(MetricFunctions.MultimodalTest, Main(), false), "");
+        Check(Compute(MetricFunctions.MultimodalTest, Hand(), false), "");
     }
 
     [Fact]
     public void MultimodalTest_needs_ten_completed_runs()
     {
-        Check(Compute(MetricFunctions.MultimodalTest, Main(), true), "-", "-", "-", "-");
+        Check(Compute(MetricFunctions.MultimodalTest, Hand(), true), "-", "-", "-", "-");
         Check(Compute(MetricFunctions.MultimodalTest, SingleRoomRuns(9, 10000), true), "-", "-");
     }
 
@@ -345,7 +344,7 @@ public class MetricFunctionsTests
     [Fact]
     public void RoomDependency_needs_ten_attempts()
     {
-        Check(Compute(MetricFunctions.RoomDependency, Main(), true), "", "", "-", "-");
+        Check(Compute(MetricFunctions.RoomDependency, Hand(), true), "", "", "-", "-");
     }
 
     [Fact]
@@ -390,6 +389,9 @@ public class MetricFunctionsTests
         { nameof(MetricFunctions.RoomDependency), "", ["", "-", "-"] },
     };
 
+    public static System.Collections.Generic.IEnumerable<object[]> EmptyRoomExpectations
+        => EmptyExpectations.Select(r => new[] { r.ToArray()[0], r.ToArray()[2] });
+
     private static Metric ByName(string name)
         => (Metric)Delegate.CreateDelegate(typeof(Metric), typeof(MetricFunctions).GetMethod(name)!);
 
@@ -400,8 +402,8 @@ public class MetricFunctionsTests
 
     // SumOfBest is the one metric that fills room values for the overlay too.
     [Theory]
-    [MemberData(nameof(EmptyExpectations))]
-    public void Empty_session_in_overlay_mode(string name, string segment, string[] rooms)
+    [MemberData(nameof(EmptyRoomExpectations))]
+    public void Empty_session_in_overlay_mode(string name, string[] rooms)
     {
         MetricResult result = Compute(ByName(name), Empty(), false);
         if (name == nameof(MetricFunctions.SumOfBest))

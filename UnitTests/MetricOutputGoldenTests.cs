@@ -68,8 +68,8 @@ public sealed class MetricOutputGoldenTests : IDisposable
 
     private static IEnumerable<(string Name, Func<PracticeSession> Session, Func<SpeebrunConsistencyTrackerModuleSettings> Settings)> Cases()
     {
-        yield return ("main, every metric on", MetricFunctionsTests.Main, AllOn);
-        yield return ("main, default settings", MetricFunctionsTests.Main, () => new SpeebrunConsistencyTrackerModuleSettings());
+        yield return ("main, every metric on", MetricFunctionsTests.Hand, AllOn);
+        yield return ("main, default settings", MetricFunctionsTests.Hand, () => new SpeebrunConsistencyTrackerModuleSettings());
         yield return ("one completed run, every metric on", MetricFunctionsTests.OneCompletedRun, AllOn);
         yield return ("only a reset, every metric on", OnlyAReset, AllOn);
         yield return ("empty, every metric on", MetricFunctionsTests.Empty, AllOn);
