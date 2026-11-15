@@ -80,13 +80,14 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         string slot = Srt.Tool.SlotName ?? DefaultSlotName;
-        SessionManager.SaveSlot(slot);
+        bool replaced = SessionManager.SaveSlot(slot);
         MetricsExporter.Clear();
         MetricEngine.Clear();
         GraphManager.Init();
         _lastKnownRoomCount = 0;
         TextOverlay.SetTextVisible(false);
         GraphManager.HideGraph();
+        if (replaced) PopupMessage($"{Dialog.Clean(DialogIds.PopupSessionReplacedId)}. {RestoreHint()}");
     }
 
     public static void OnBeforeLoadState(Level level)
@@ -239,7 +240,25 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public static void ClearSession() {
         int attempts = SessionManager.CurrentSession?.TotalAttempts ?? 0;
         Clear();
-        PopupMessage($"{Dialog.Clean(DialogIds.PopupDataClearId)} ({DialogText.Count(attempts, DialogIds.ChartOneRun, DialogIds.ChartRunsFmt)})");
+        string cleared = $"{Dialog.Clean(DialogIds.PopupDataClearId)} ({DialogText.Count(attempts, DialogIds.ChartOneRun, DialogIds.ChartRunsFmt)})";
+        PopupMessage(SessionManager.HasStash ? $"{cleared}. {RestoreHint()}" : cleared);
+    }
+
+    // The Mod Options row that undoes a save or a clear, named from its own label.
+    private static string RestoreHint() =>
+        $"{Dialog.Clean(DialogIds.PopupRestoreHintId)} {Dialog.Clean(DialogIds.RestoreSessionId)}";
+
+    // The Mod Options row. What a save or a clear discarded comes back, and what was built on the
+    // discarded state is rebuilt from it.
+    public static void RestoreSession() {
+        if (!Settings.Enabled || !SessionManager.RestoreStash()) return;
+        MetricsExporter.Clear();
+        MetricEngine.Clear();
+        GraphManager.Init();
+        _lastKnownRoomCount = 0;
+        TextOverlay.SetTextVisible(false);
+        GraphManager.HideGraph();
+        PopupMessage(Dialog.Clean(DialogIds.PopupSessionRestoredId));
     }
 
     private static void UpdateGraphOverlay(Level self) {

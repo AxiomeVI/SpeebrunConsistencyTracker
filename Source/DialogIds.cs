@@ -7,6 +7,10 @@ public static class DialogIds {
     public const string ClearSessionId = "SCT_CLEAR_SESSION";
     public const string ClearSessionTitleId = "SCT_CLEAR_SESSION_TITLE";
     public const string ClearSessionMessageId = "SCT_CLEAR_SESSION_MESSAGE";
+    public const string RestoreSessionId = "SCT_RESTORE_SESSION";
+    public const string RestoreSessionDescId = "SCT_RESTORE_SESSION_DESC";
+    public const string DisableTitleId = "SCT_DISABLE_TITLE";
+    public const string DisableMessageId = "SCT_DISABLE_MESSAGE";
 
     // Pages and their shared rows
     public const string BulkHeaderId = "SCT_BULK_HEADER";
@@ -56,6 +60,9 @@ public static class DialogIds {
     public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";
     public const string PopupExportToFileFailedId = "SCT_EXPORT_TO_FILE_FAILED";
     public const string PopupDataClearId = "SCT_DATA_CLEAR";
+    public const string PopupSessionReplacedId = "SCT_SESSION_REPLACED";
+    public const string PopupSessionRestoredId = "SCT_SESSION_RESTORED";
+    public const string PopupRestoreHintId = "SCT_RESTORE_HINT";
     public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
     public const string PopupSrtUnavailableId = "SCT_SRT_UNAVAILABLE";
 
