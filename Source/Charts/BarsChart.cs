@@ -36,9 +36,9 @@ internal sealed class BarsChart : SketchChart
     internal readonly record struct Retuned(string Title, List<double> Secondary, string SecondaryLabel);
     internal const int MinThresholdFrames = 1, MaxThresholdFrames = 118, FrameMs = 17;
     private const float SliderWidth = 260f;
-    private readonly ButtonBar _foot;
-    private readonly BarSlider _threshold;
-    private readonly BarCaption _thresholdValue;
+    private ButtonBar _foot;
+    private BarSlider _threshold;
+    private BarCaption _thresholdValue;
     private readonly Func<int, Retuned> _retune;
     private bool _unsaved;
 
@@ -235,6 +235,15 @@ internal sealed class BarsChart : SketchChart
             SpeebrunConsistencyTrackerModule.Instance.SaveSettings();
         }
         return _threshold.Dragging | _foot.Contains(pointer.X, pointer.Y) | UpdateColumns(pointer);
+    }
+
+    // A room finished during a drag of the slider: the drag goes on here, and is saved when it
+    // ends. This chart's shares were computed at the threshold the drag had written.
+    internal override void TakeViewFrom(BaseChartOverlay previous)
+    {
+        base.TakeViewFrom(previous);
+        if (_foot != null && previous is BarsChart { _foot: not null } chart)
+            (_foot, _threshold, _thresholdValue, _unsaved) = (chart._foot, chart._threshold, chart._thresholdValue, chart._unsaved);
     }
 
     protected override void DrawOwnControls()

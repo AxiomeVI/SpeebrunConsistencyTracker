@@ -30,7 +30,7 @@ internal sealed class ScatterChart : RoomColumnsChart
     private readonly Func<TimeTicks?> _targetSetting;
     private readonly Action<TimeTicks> _setTarget;
     private TimeTicks? _target;
-    private readonly DragLine _targetDrag = new(captureId: CaptureIds.TargetDrag, vertical: false);
+    private DragLine _targetDrag = new(captureId: CaptureIds.TargetDrag, vertical: false);
     // Where the line shows: the target, or where a drag has it.
     private long _targetShown;
     private bool _targetHot;
@@ -95,6 +95,15 @@ internal sealed class ScatterChart : RoomColumnsChart
     }
 
     protected override void OnModeChosen(bool relative) => ChartOptions.ScatterRelative = relative;
+
+    // A room finished during a drag of the target line: the drag goes on here, and its release
+    // still saves the target. A fresh line would wait for a new press under a held button.
+    internal override void TakeViewFrom(BaseChartOverlay previous)
+    {
+        base.TakeViewFrom(previous);
+        if (previous is ScatterChart chart)
+            (_targetDrag, _targetShown, _targetHot) = (chart._targetDrag, chart._targetShown, chart._targetHot);
+    }
 
     protected override void DrawData(ChartStyle style)
     {
