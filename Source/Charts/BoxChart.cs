@@ -22,9 +22,11 @@ internal sealed class BoxChart : RoomColumnsChart
     private readonly record struct Column(long Min, long Q1, long Median, long Q3, long Max, BoxMarks Marks);
 
     private Column?[] _columns = [];
-    private int _hoverBuiltFor = -1;
-    private float _hoverShift;
-    private Sketch _stats;
+    // Each highlighted box's outline and five numbers, kept per column until a build, or a scroll
+    // that moves it: a single kept highlight was built again for each of two pinned boxes, or of one
+    // pinned and one hovered, on every frame. NaN: not built.
+    private Sketch[] _outlines = [], _stats = [];
+    private float[] _builtFor = [];
 
     public BoxChart(List<List<TimeTicks>> roomTimes, List<TimeTicks> segmentTimes)
         : base(Dialog.Clean(DialogIds.ChartBoxPlotTitle), relative: ChartOptions.BoxPlotRelative)
@@ -44,7 +46,13 @@ internal sealed class BoxChart : RoomColumnsChart
 
     protected override void DrawData(ChartStyle style)
     {
-        _hoverBuiltFor = -1;
+        if (_builtFor.Length < Rooms + 1)
+        {
+            Array.Resize(ref _outlines, Rooms + 1);
+            Array.Resize(ref _stats, Rooms + 1);
+            _builtFor = new float[Rooms + 1];
+        }
+        Array.Fill(_builtFor, float.NaN);
         ChartPalette palette = ChartPalette.Current;
         ChartStyle roomStyle    = style with { Data = GameCanvas.ToRgba(palette.Room), BoxFill = GameCanvas.ToRgba(palette.RoomFill), Median = Rgba.White };
         ChartStyle segmentStyle = style with { Data = GameCanvas.ToRgba(palette.Segment), BoxFill = GameCanvas.ToRgba(palette.SegmentFill), Median = Rgba.White };
@@ -125,20 +133,21 @@ internal sealed class BoxChart : RoomColumnsChart
         int i = info.Mark;
         if (i < 0 || i >= _columns.Length || _columns[i] is not { } column) return;
         float shift = ShiftOf(i);
-        if (i != _hoverBuiltFor || shift != _hoverShift) BuildHighlight(i, column, shift);
-        GameCanvas.Draw(Hover, -shift, 0f, i < Rooms ? RoomArea : Plot);
-        GameCanvas.Draw(_stats);
+        if (_builtFor[i] != shift) BuildHighlight(i, column, shift);
+        GameCanvas.Draw(_outlines[i], -shift, 0f, i < Rooms ? RoomArea : Plot);
+        GameCanvas.Draw(_stats[i]);
     }
 
     // The box redrawn in white where it was built, and its five numbers beside where it shows,
     // each level with its own line.
     private void BuildHighlight(int index, Column column, float shift)
     {
-        (_hoverBuiltFor, _hoverShift) = (index, shift);
-        _stats ??= new Sketch(Sketch.Metrics);
-        Hover.Clear();
-        _stats.Clear();
-        Paint.Box(Hover, Bands, index, column.Marks, Style with { Data = Rgba.White.Times(0.85f), BoxFill = Rgba.Transparent, Median = Rgba.White });
+        _builtFor[index] = shift;
+        Sketch outline = _outlines[index] ??= new Sketch(Sketch.Metrics);
+        Sketch statsSketch = _stats[index] ??= new Sketch(Sketch.Metrics);
+        outline.Clear();
+        statsSketch.Clear();
+        Paint.Box(outline, Bands, index, column.Marks, Style with { Data = Rgba.White.Times(0.85f), BoxFill = Rgba.Transparent, Median = Rgba.White });
 
         // Y grows downward, so the slowest sits highest: Max, Q3, Median, Q1, Min.
         (string Name, long Ticks, float At)[] stats =
@@ -154,13 +163,13 @@ internal sealed class BoxChart : RoomColumnsChart
         float boxWidth = 0f, boxHeight = 0f;
         foreach (string text in texts)
         {
-            (float w, float h) = Paint.TooltipSize(_stats, text, Style);
+            (float w, float h) = Paint.TooltipSize(statsSketch, text, Style);
             boxWidth  = Math.Max(boxWidth, w);
             boxHeight = h;
         }
         float[] centres = LabelColumn.Spread([.. stats.Select(s => s.At)], boxHeight, Plot.Y + boxHeight / 2f, Plot.Bottom - boxHeight / 2f);
         float x = Bands.BarStart(index) - shift + Bands.BarWidthOf(index) + ChartConstants.Interactivity.TooltipBgPadding;
         for (int i = 0; i < texts.Length; i++)
-            Paint.TooltipBox(_stats, texts[i], new Area(x, centres[i] - boxHeight / 2f, boxWidth, boxHeight), Style);
+            Paint.TooltipBox(statsSketch, texts[i], new Area(x, centres[i] - boxHeight / 2f, boxWidth, boxHeight), Style);
     }
 }
