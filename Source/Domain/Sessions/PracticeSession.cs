@@ -11,6 +11,9 @@ public sealed class PracticeSession
     public int MaxRoomCount { get; set; } = 0;
     public uint Version { get; private set; } = 0;
 
+    // The level the session was recorded in, as the manager names it. Not read by the statistics.
+    public string LevelName { get; init; }
+
     public int CurrentAttemptIndex { get; private set; } = -1;
     public int CurrentRoomIndex { get; private set; } = 0;
     public TimeTicks RunningSegmentTime { get; private set; } = TimeTicks.Zero;

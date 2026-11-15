@@ -20,12 +20,14 @@ public sealed class SessionManagerTests : IDisposable
         Srt.Tool = _srt;
         SessionManager.ClearAll();
         SessionManager.DropStash();
+        SessionManager.LevelName = "unknown";
     }
 
     public void Dispose()
     {
         SessionManager.ClearAll();
         SessionManager.DropStash();
+        SessionManager.LevelName = "unknown";
         Srt.Tool = _previous;
     }
 
@@ -423,5 +425,112 @@ public sealed class SessionManagerTests : IDisposable
         SessionManager.RestoreStash();
 
         Assert.Same(first, SessionManager.CurrentSession);
+    }
+
+    // A stash only holds sessions of the level it was made in.
+
+    [Fact]
+    public void Entering_another_level_drops_the_stash_and_refuses_a_restore()
+    {
+        SessionManager.LevelName = "Level A";
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        SessionManager.ClearAll();
+        Assert.True(SessionManager.HasStash);
+
+        SessionManager.LevelName = "Level B";
+
+        Assert.False(SessionManager.HasStash);
+        Assert.False(SessionManager.RestoreStash());
+        Assert.Null(SessionManager.CurrentSession);
+    }
+
+    [Fact]
+    public void Entering_the_same_level_again_keeps_the_stash()
+    {
+        SessionManager.LevelName = "Level A";
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession before = SessionManager.CurrentSession;
+        SessionManager.ClearAll();
+
+        SessionManager.LevelName = "Level A";
+
+        Assert.True(SessionManager.HasStash);
+        Assert.True(SessionManager.RestoreStash());
+        Assert.Same(before, SessionManager.CurrentSession);
+    }
+
+    // SpeedrunTool's scene switch into another level runs the mod's OnLoadLevel first and clears the
+    // old level's slots after: the session is of level A while the manager already says B.
+    [Fact]
+    public void A_session_of_another_level_cleared_after_the_switch_is_not_stashed()
+    {
+        SessionManager.LevelName = "Level A";
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        SessionManager.LevelName = "Level B";
+
+        SessionManager.ClearSlot(Slot);
+
+        Assert.False(SessionManager.HasStash);
+        Assert.False(SessionManager.RestoreStash());
+    }
+
+    // SpeedrunTool's scene-switch clear calls once per saved slot, in one frame (the same wipe).
+    [Fact]
+    public void Slot_clears_in_one_frame_are_one_wipe()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession first = SessionManager.CurrentSession;
+        SessionManager.SaveSlot(OtherSlot);
+        RunThreeRoomsThenReload(OtherSlot);
+        PracticeSession second = SessionManager.CurrentSession;
+
+        SessionManager.ClearSlot(Slot, frame: 40);
+        SessionManager.ClearSlot(OtherSlot, frame: 40);
+        SessionManager.RestoreStash();
+
+        SessionManager.LoadSlot(Slot);
+        Assert.Same(first, SessionManager.CurrentSession);
+        SessionManager.LoadSlot(OtherSlot);
+        Assert.Same(second, SessionManager.CurrentSession);
+    }
+
+    [Fact]
+    public void Slot_clears_in_different_frames_are_two_wipes()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession first = SessionManager.CurrentSession;
+        SessionManager.SaveSlot(OtherSlot);
+        RunThreeRoomsThenReload(OtherSlot);
+        PracticeSession second = SessionManager.CurrentSession;
+
+        SessionManager.ClearSlot(Slot, frame: 40);
+        SessionManager.ClearSlot(OtherSlot, frame: 41);
+        SessionManager.RestoreStash();
+
+        Assert.Same(second, SessionManager.CurrentSession);
+        SessionManager.LoadSlot(Slot);
+        Assert.NotSame(first, SessionManager.CurrentSession);
+    }
+
+    [Fact]
+    public void Slot_clears_given_no_frame_never_gather()
+    {
+        SessionManager.SaveSlot(Slot);
+        RunThreeRoomsThenReload();
+        PracticeSession first = SessionManager.CurrentSession;
+        SessionManager.SaveSlot(OtherSlot);
+        RunThreeRoomsThenReload(OtherSlot);
+
+        SessionManager.ClearSlot(Slot);
+        SessionManager.ClearSlot(OtherSlot);
+        SessionManager.RestoreStash();
+
+        SessionManager.LoadSlot(Slot);
+        Assert.NotSame(first, SessionManager.CurrentSession);
     }
 }

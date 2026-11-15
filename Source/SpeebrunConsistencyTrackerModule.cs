@@ -113,7 +113,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         if (!Settings.Enabled)
             return;
         string slot = Srt.Tool.SlotName ?? DefaultSlotName;
-        SessionManager.ClearSlot(slot);
+        SessionManager.ClearSlot(slot, Engine.FrameCounter);
         _lastKnownRoomCount = 0;
     }
 

@@ -14,7 +14,18 @@ public static class SessionManager
     public static PracticeSession CurrentSession { get; private set; }
 
     // Shared across slots: every session in play is in the same level. Set from OnLoadLevel.
-    public static string LevelName { get; set; } = "unknown";
+    // Entering another level drops the stash, which only holds sessions of the level it was made in;
+    // entering the same one again (from the overworld) keeps it.
+    public static string LevelName
+    {
+        get => _levelName;
+        set
+        {
+            if (value != _levelName) DropStash();
+            _levelName = value;
+        }
+    }
+    private static string _levelName = "unknown";
 
     // Counted again on read when the session, the timer type or NumberOfRooms moved since the last count: the
     // trajectory widget reads it with no chart open, where nothing else calls UpdateRoomCount
@@ -59,6 +70,8 @@ public static class SessionManager
     // Not persisted: a game restart loses it.
     private static readonly Dictionary<string, PracticeSession> _stash = new();
     private static string _stashedCurrentSlot;
+    // The engine frame of the clear that filled the stash, when a slot clear did: see ClearSlot.
+    private static ulong? _stashFrame;
     // A slot clear stashed a session, and no save has followed yet: the save that does is the one
     // that replaces it. SpeedrunTool clears a slot before it saves over it, so this is how a
     // replacing save really arrives; see ClearSlot.
@@ -73,7 +86,25 @@ public static class SessionManager
     {
         _stash.Clear();
         _stashedCurrentSlot = null;
+        _stashFrame = null;
         _slotClearedWithRuns = false;
+    }
+
+    // A session that recorded a run in the level now played. A session of another level is not
+    // worth keeping: a restore there would put statistics of one level into another.
+    private static bool IsStashable(PracticeSession session) =>
+        session.HasRuns && session.LevelName == LevelName;
+
+    // gather: the session joins what the stash already holds, as part of the same wipe. Otherwise it
+    // replaces the stash. False when the session is not stashable, which leaves the stash alone.
+    private static bool Stash(string slotName, PracticeSession session, bool gather, ulong? frame = null)
+    {
+        if (!IsStashable(session)) return false;
+        if (!gather) DropStash();
+        _stash[slotName] = session;
+        _stashFrame = frame;
+        if (ReferenceEquals(CurrentSession, session)) _stashedCurrentSlot = slotName;
+        return true;
     }
 
     // Puts the stash back, over any slot of the same name, and makes the session that was current
@@ -106,16 +137,9 @@ public static class SessionManager
     {
         bool stashed = _slotClearedWithRuns;
         _slotClearedWithRuns = false;
-        if (_slots.TryGetValue(slotName, out PracticeSession replaced) && replaced.HasRuns)
-        {
-            DropStash();
-            _stash[slotName] = replaced;
-            _stashedCurrentSlot = slotName;
-            stashed = true;
-        }
-        var session = new PracticeSession(
-            _segmentShape,
-            initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4));
+        if (_slots.TryGetValue(slotName, out PracticeSession replaced))
+            stashed |= Stash(slotName, replaced, gather: false);
+        var session = NewSession();
         _slots[slotName] = session;
         CurrentSession = session;
         UpdateRoomCount();
@@ -138,27 +162,32 @@ public static class SessionManager
             CurrentSession.StartNewAttempt();
             return;
         }
-        session = new PracticeSession(
-            _segmentShape,
-            initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4));
+        session = NewSession();
         _slots[slotName] = session;
         CurrentSession = session;
     }
 
+    private static PracticeSession NewSession() => new(
+        _segmentShape,
+        initialColumnCapacity: Math.Max(16, Srt.Tool.NumberOfRooms + 4))
+    {
+        LevelName = LevelName,
+    };
+
     // SRT OnClearState. SpeedrunTool also clears a slot just before it saves over it, so this is
     // where a session replaced by a save arrives; it is stashed here, and the SaveSlot that follows
     // finds no slot to replace.
-    public static void ClearSlot(string slotName)
+    //
+    // SpeedrunTool's scene-switch clear calls this once per saved slot, all in the one frame of the
+    // scene's Begin (SaveSlotsManager.ClearStateWhenSwitchScene). Calls given the same frame are one
+    // wipe, and the stash gathers them; any other call replaces the stash. No frame, no gathering.
+    public static void ClearSlot(string slotName, ulong? frame = null)
     {
         if (_slots.TryGetValue(slotName, out PracticeSession clearedSession))
         {
-            if (clearedSession.HasRuns)
-            {
-                DropStash();
-                _stash[slotName] = clearedSession;
-                if (ReferenceEquals(CurrentSession, clearedSession)) _stashedCurrentSlot = slotName;
+            bool sameWipe = frame != null && _stashFrame == frame && HasStash;
+            if (Stash(slotName, clearedSession, gather: sameWipe, frame))
                 _slotClearedWithRuns = true;
-            }
             _slots.Remove(slotName);
             if (ReferenceEquals(_countedFor, clearedSession)) _countedFor = null;
             if (ReferenceEquals(CurrentSession, clearedSession))
@@ -174,14 +203,11 @@ public static class SessionManager
     // the stash when any of them held a run.
     public static void ClearAll()
     {
-        if (AnyRuns)
+        if (_slots.Values.Any(IsStashable))
         {
             DropStash();
             foreach (KeyValuePair<string, PracticeSession> entry in _slots)
-            {
-                _stash[entry.Key] = entry.Value;
-                if (ReferenceEquals(entry.Value, CurrentSession)) _stashedCurrentSlot = entry.Key;
-            }
+                Stash(entry.Key, entry.Value, gather: true);
         }
         _slots.Clear();
         CurrentSession = null;
