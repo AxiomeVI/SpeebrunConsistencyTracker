@@ -24,6 +24,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     private const string DefaultSlotName = "Default Slot";
 
     private static int _lastKnownRoomCount = 0;
+    private static readonly UI.QueuedPopup _afterSrtPopup = new();
 
 
     public SpeebrunConsistencyTrackerModule() {
@@ -88,7 +89,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         _lastKnownRoomCount = 0;
         TextOverlay.SetTextVisible(false);
         GraphManager.HideGraph();
-        if (replaced) PopupMessage($"{Dialog.Clean(DialogIds.PopupSessionReplacedId)}. {RestoreHint()}");
+        // SpeedrunTool shows "Save to [slot]" at the same spot once this returns.
+        if (replaced) _afterSrtPopup.Queue($"{Dialog.Clean(DialogIds.PopupSessionReplacedId)}. {RestoreHint()}");
     }
 
     public static void OnBeforeLoadState(Level level)
@@ -125,6 +127,8 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
 
     private static void SceneOnAfterUpdate(On.Monocle.Scene.orig_AfterUpdate orig, Scene self) {
         orig(self);
+        // Here and not in LevelOnUpdate: SpeedrunTool skips Level.Update while it holds the game.
+        if (self is Level) _afterSrtPopup.Update(Srt.Tool);
         bool updated = _levelUpdated;
         _levelUpdated = false;
         if (updated || self is not Level level) return;
@@ -253,6 +257,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     // discarded state is rebuilt from it.
     public static void RestoreSession() {
         if (!Settings.Enabled || !SessionManager.RestoreStash()) return;
+        _afterSrtPopup.Drop();
         MetricsExporter.Clear();
         MetricEngine.Clear();
         GraphManager.Init();
@@ -306,6 +311,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
         TextOverlay.Clear();
         GraphManager.Clear();
         _lastKnownRoomCount = 0;
+        _afterSrtPopup.Drop();
     }
 
     public static void ExportDataToClipboard()

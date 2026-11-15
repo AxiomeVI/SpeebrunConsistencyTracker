@@ -18,6 +18,7 @@ public sealed class StubSpeedrunTool : ISpeedrunTool
     public string RoomName { get; set; }
     public bool LevelCompleted { get; set; }
     public string SlotName { get; set; }
+    public bool PopupShowing { get; set; }
 
     public int RoomTimesExports { get; private set; }
     public List<string> Popups { get; } = [];

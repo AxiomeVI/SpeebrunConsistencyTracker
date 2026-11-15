@@ -18,6 +18,7 @@ internal sealed class UnavailableSpeedrunTool(string reason) : ISpeedrunTool
     public string RoomName => null;
     public bool LevelCompleted => false;
     public string SlotName => null;
+    public bool PopupShowing => false;
 
     public void ExportRoomTimes() { }
 
