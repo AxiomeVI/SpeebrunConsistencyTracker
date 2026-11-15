@@ -1,4 +1,5 @@
 // MenuTools requires: nothing else
+#nullable disable
 using System;
 using System.Runtime.CompilerServices;
 
@@ -28,7 +29,9 @@ public interface IInputHoldingItem {
 /// Two limits. A block that is never released stays for as long as the menu exists: a page whose scene ends without
 /// <c>Return()</c> leaves its parent blocked, so that menu must not be shown again in another scene. And each mod
 /// compiles its own copy of this class, so in a menu several mods add rows to, such as Mod Options, a page of one mod
-/// does not block the submenus of another.
+/// does not block the submenus of another. A handler under such a page that moves the selection into another mod's
+/// submenu gives it the input, and the page's return focuses the menu too: both then handle the keys. A mod must not
+/// move the selection into another mod's submenu while one of its pages is open.
 /// </remarks>
 public static class MenuInputBlock {
     private static readonly ConditionalWeakTable<TextMenu, StrongBox<int>> blocks = new();

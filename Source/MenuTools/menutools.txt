@@ -1,6 +1,6 @@
 # Files copied from CelesteMenuTools by its tools/vendor.sh.
 # Don't edit them here. Re-vendor with: tools/vendor.sh --update <this folder>
-commit: 4d3411afc30d3f448ec46913a8933fc269b80298
+commit: 869a200f47ab690d53a5f51f74fd7546f76c0669
 namespace: Celeste.Mod.MenuTools
 names: TextMenuPage ColorWheelButton ConfirmationPage
 dialog: ../../Dialog
@@ -17,13 +17,13 @@ file: MenuToolsDialog.cs
 file: StringEntryPage.cs
 file: TextMenuPage.cs
 file: LICENSE
-sum: ColorEntryPage.cs 840038954 4105
-sum: ColorHex.cs 728714145 2405
-sum: ColorSwatchButton.cs 3499670177 4943
-sum: ColorWheelButton.cs 2748762007 3087
-sum: ColorWheelPage.cs 3545133733 35027
-sum: ConfirmationPage.cs 854236473 3909
-sum: IInputHoldingItem.cs 3455040880 3759
-sum: MenuToolsDialog.cs 101731652 1155
-sum: StringEntryPage.cs 859641215 40710
-sum: TextMenuPage.cs 3592106056 13860
+sum: ColorEntryPage.cs 1447991655 4123
+sum: ColorHex.cs 3114986048 2423
+sum: ColorSwatchButton.cs 930838887 4961
+sum: ColorWheelButton.cs 2055079623 3135
+sum: ColorWheelPage.cs 4149969315 35045
+sum: ConfirmationPage.cs 3241113307 3927
+sum: IInputHoldingItem.cs 3985212664 4049
+sum: MenuToolsDialog.cs 1336900545 1173
+sum: StringEntryPage.cs 1258177103 42605
+sum: TextMenuPage.cs 3394206761 15543
