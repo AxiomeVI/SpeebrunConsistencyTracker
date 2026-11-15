@@ -100,8 +100,8 @@ public class TextMenuPage : TextMenu {
             Input.Pause.ConsumeBuffer();
             Entered             = true;
             parent.Focused      = false;
-            // The menu's AutoScroll is left alone: a handler under the page may take the scrolling or give it back
-            // (#41), and the submenus read it as what they owe. The hidden menu may scroll meanwhile.
+            // The menu's AutoScroll is left alone: a handler under the page may take the scrolling or give it back,
+            // and the submenus read it as what they owe. The hidden menu may scroll meanwhile.
             restoreSubMenuInput = holder?.SuspendInput(stopAutoScroll: true);
             // Also when no submenu had the input: a handler can move the selection into one while the page is open
             releaseParentInput  = MenuInputBlock.Block(parent);
