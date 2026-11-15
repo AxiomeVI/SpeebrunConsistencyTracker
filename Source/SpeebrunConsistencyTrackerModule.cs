@@ -295,7 +295,7 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
     public static void ClearSession() {
         int attempts = SessionManager.CurrentSession?.TotalAttempts ?? 0;
         Clear();
-        PopupMessage($"{Dialog.Clean(DialogIds.PopupDataClearId)} ({attempts} {(attempts == 1 ? "run" : "runs")})");
+        PopupMessage($"{Dialog.Clean(DialogIds.PopupDataClearId)} ({DialogText.Count(attempts, DialogIds.ChartOneRun, DialogIds.ChartRunsFmt)})");
     }
 
     private static void UpdateGraphOverlay(Level self) {
