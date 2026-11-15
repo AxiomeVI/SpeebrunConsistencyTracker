@@ -10,10 +10,10 @@ Metrics are computed per room and per segment. They are available in the text ov
 - **Average:** your typical time, pulled toward outliers
 - **Median:** your middle time, half your runs are faster, half are slower. Less affected by outliers than average
 - **Reset Rate:** how often you reset, as a percentage of all attempts
-- ⚠️ A reset in the *first* room of the segment is not recorded, in either timer mode. Reloading a
-  save state is how a practice session starts every attempt, and a run that ends where it started
-  is indistinguishable from one that never began. So R1's reset rate reads 0, and the attempt total
-  counts only runs that reached a second room
+- **Resets in the first room** depend on SpeedrunTool's Room Timer setting:
+  - `CurrentRoom`: the first room is R1. Reloading a save state after the timer ran in it is a reset there, and the attempt counts.
+  - `NextRoom`: the room before the first transition is not in the segment. A reload there is no reset and no attempt. R1 is the room after it.
+  - Either way, a reload before the timer ran is not recorded. Nothing was played, so it is not a reset.
 - **Reset Share:** (rooms only) what portion of all your resets happen in this room. The segment column is left empty: a share of the whole is not a statistic
 - **Best:** your fastest time
 - **Best Split:** (export only) for each room, the fastest you have ever reached that point across all your attempts. Unlike Sum of Bests, these are real paces from actual runs, not a mix of different runs' best individual rooms

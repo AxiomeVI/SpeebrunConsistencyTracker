@@ -23,6 +23,8 @@ decide what it records. Both are under *Mod Options -> Speedrun Tool -> Room Tim
 
 SpeedrunTool `3.26.4` or later is required (`everest.yaml` pins it).
 
+All six hotkeys ship unbound. Until you bind one under *Mod Options -> Hotkeys*, no chart can be opened.
+
 ## Usage
 
 ### 1. Practice Workflow
