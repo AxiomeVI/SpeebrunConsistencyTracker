@@ -16,7 +16,7 @@ Metrics are computed per room and per segment. They are available in the text ov
   - Either way, a reload before the timer ran is not recorded. Nothing was played, so it is not a reset.
 - **Reset Share:** (rooms only) what portion of all your resets happen in this room. The segment column is left empty: a share of the whole is not a statistic
 - **Best:** your fastest time
-- **Best Split:** (export only) for each room, the fastest you have ever reached that point across all your attempts. Unlike Sum of Bests, these are real paces from actual runs, not a mix of different runs' best individual rooms
+- **Best Split:** (export only) for each room, the fastest you have ever reached that point across all your attempts. Unlike Sum of Bests, these are real paces from actual runs, not a mix of different runs' best individual rooms: a run stops counting at its first deleted room time
 - **Worst:** your slowest time
 - **Session Best Rate:** how often you match your best time *this session* in a room or segment. Not an all-time gold: the reference resets with the session
 - **Standard Deviation:** how consistent your times are, low means you're getting similar results every run, high means your times vary a lot
@@ -24,7 +24,7 @@ Metrics are computed per room and per segment. They are available in the text ov
 - **Percentile:** the time that beats n% of your runs (default: 90th, meaning 90% of your runs were faster than this)
 - **Interquartile Range:** the gap between your 25th and 75th percentile times, the spread of your "typical" runs, ignoring outliers at both ends
 - **Trend Slope:** whether you're getting faster or slower as the session goes on. Negative means improving, positive means fading, near zero means no clear trend
-- **SoB:** Sum of Bests — the theoretical fastest segment if you combined your best time in every individual room. Not necessarily achievable in a single run
+- **SoB:** Sum of Bests — the theoretical fastest segment if you combined your best time in every individual room. Not necessarily achievable in a single run. A room's best, and its average, count **every completed time of that room, whatever happened earlier in the run**: a room time you deleted from a run does not make that run's later rooms less real. The Run Trajectory chart reads the same times. A room with no time at all adds nothing, and ends the Trajectory's SoB line
 - **Median Absolute Deviation:** how far your typical run strays from the median, a more outlier-resistant version of Standard Deviation
 - **Relative Median Absolute Deviation:** same as MAD but as a percentage, for cross-room comparison
 - **Multimodal Test:** (export only) detects whether you have two distinct clusters of times, a sign of a hit-or-miss strat with a fast and slow outcome
