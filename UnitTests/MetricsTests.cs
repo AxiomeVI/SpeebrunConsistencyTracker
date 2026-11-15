@@ -1,5 +1,7 @@
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Time;
+using Celeste.Mod.SpeebrunConsistencyTracker;
+using Celeste.Mod.SpeebrunConsistencyTracker.Enums;
 using Celeste.Mod.SpeebrunConsistencyTracker.Metrics;
 using Xunit;
 
@@ -132,5 +134,41 @@ public class MetricsTests
 
         Assert.Single(result.RoomValues);
         Assert.Equal(T(20).ToString(), result.RoomValues[0]);
+    }
+}
+
+// The overlay recomputes when this key changes. The target and the percentile are read from the
+// settings each time, so no path that edits them has to remember to invalidate anything.
+public class OverlayKeyTests
+{
+    [Fact]
+    public void The_key_changes_when_the_target_changes_with_no_invalidation()
+    {
+        var settings = new SpeebrunConsistencyTrackerModuleSettings();
+        MetricEngine.OverlayKey before = MetricEngine.OverlayKeyFor(settings, 7);
+
+        settings.Seconds = 45;
+
+        Assert.NotEqual(before, MetricEngine.OverlayKeyFor(settings, 7));
+    }
+
+    [Fact]
+    public void The_key_changes_when_the_percentile_changes()
+    {
+        var settings = new SpeebrunConsistencyTrackerModuleSettings { PercentileValue = PercentileChoice.P10 };
+        MetricEngine.OverlayKey before = MetricEngine.OverlayKeyFor(settings, 7);
+
+        settings.PercentileValue = PercentileChoice.P90;
+
+        Assert.NotEqual(before, MetricEngine.OverlayKeyFor(settings, 7));
+    }
+
+    [Fact]
+    public void An_unchanged_target_and_toggle_set_give_an_equal_key()
+    {
+        var settings = new SpeebrunConsistencyTrackerModuleSettings { Seconds = 45 };
+
+        Assert.Equal(MetricEngine.OverlayKeyFor(settings, 7), MetricEngine.OverlayKeyFor(settings, 7));
+        Assert.NotEqual(MetricEngine.OverlayKeyFor(settings, 7), MetricEngine.OverlayKeyFor(settings, 8));
     }
 }

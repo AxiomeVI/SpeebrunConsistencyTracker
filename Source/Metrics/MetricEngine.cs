@@ -18,7 +18,15 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             _settingsHash = ComputeOverlaySettingsHash();
         }
 
-        public static int GetOverlaySettingsHash() => _settingsHash;
+        // What the overlay text was computed from. Only the metric toggles are a stored hash that a
+        // menu must refresh; the target and the percentile are read live, so a path that changes
+        // them (clipboard import, a drag of the target line) cannot leave the overlay stale.
+        public readonly record struct OverlayKey(int Toggles, long TargetTicks, PercentileChoice Percentile);
+
+        public static OverlayKey GetOverlayKey() => OverlayKeyFor(SpeebrunConsistencyTrackerModule.Settings, _settingsHash);
+
+        public static OverlayKey OverlayKeyFor(SpeebrunConsistencyTrackerModuleSettings settings, int toggles)
+            => new(toggles, TargetTimeTicksFor(settings).Ticks, settings.PercentileValue);
 
         public static List<(MetricDescriptor, MetricResult)> Compute(PracticeSession session, MetricOutput mode)
         {
@@ -35,12 +43,9 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
         private static int ComputeOverlaySettingsHash()
         {
-            var settings = SpeebrunConsistencyTrackerModule.Settings;
             var hashCode = new HashCode();
             foreach (string header in FilterMetrics(MetricOutput.Overlay).Select(m => m.CsvHeader()))
                 hashCode.Add(header);
-            hashCode.Add(GetTargetTimeTicks());
-            hashCode.Add(settings.PercentileValue);
             return hashCode.ToHashCode();
         }
 
@@ -49,9 +54,10 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
             return [.. MetricRegistry.AllMetrics.Where(m => m.IsEnabled(mode))];
         }
 
-        public static TimeTicks GetTargetTimeTicks()
+        public static TimeTicks GetTargetTimeTicks() => TargetTimeTicksFor(SpeebrunConsistencyTrackerModule.Settings);
+
+        public static TimeTicks TargetTimeTicksFor(SpeebrunConsistencyTrackerModuleSettings settings)
         {
-            var settings = SpeebrunConsistencyTrackerModule.Settings;
             int totalMilliseconds = settings.Minutes * 60000 + settings.Seconds * 1000 + settings.MillisecondsFirstDigit * 100 + settings.MillisecondsSecondDigit * 10 + settings.MillisecondsThirdDigit;
             return new TimeTicks(TimeSpan.FromMilliseconds(totalMilliseconds).Ticks);
         }
