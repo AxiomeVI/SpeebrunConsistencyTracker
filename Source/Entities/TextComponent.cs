@@ -138,8 +138,6 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Entities {
             }
             else
             {
-                if (Text.Count == 0) return;
-
                 Vector2 sampleSize = ActiveFont.Measure(Text[0]) * Scale;
                 float lineHeight = sampleSize.Y * LineSpacing;
                 
