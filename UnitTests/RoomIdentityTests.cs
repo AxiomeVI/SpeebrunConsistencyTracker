@@ -3,6 +3,7 @@ using Celeste.Mod.SpeebrunConsistencyTracker.Charts;
 using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
+using Celeste.Mod.SpeebrunConsistencyTracker.Utility;
 using Xunit;
 
 namespace SpeebrunConsistencyTracker.UnitTests;
@@ -187,5 +188,25 @@ public class RenumberedChartTests
 
         Assert.NotSame(before, after);
         Assert.Empty(after.Hidden);
+    }
+
+    // #53: ChartPalette.Current is a new instance whenever a colour setting changes. The data did
+    // not change, so the view carries over.
+    [Fact]
+    public void A_new_palette_rebuilds_the_chart_and_keeps_the_view()
+    {
+        var settings = new Celeste.Mod.SpeebrunConsistencyTracker.SpeebrunConsistencyTrackerModuleSettings();
+        var palette = new ChartPalette(settings);
+        ChartCache<Chart> cache = Cache();
+        Chart before = cache.Get(_session, 1, 5, NextRoom, 1, palette);
+        before.ToggleColumn(2);
+
+        Assert.Same(before, cache.Get(_session, 1, 5, NextRoom, 1, palette));
+
+        Chart after = cache.Get(_session, 1, 5, NextRoom, 1, new ChartPalette(settings));
+
+        Assert.NotSame(before, after);
+        Assert.Equal([2], after.Hidden);
+        Assert.False(after.TakeDroppedPins());
     }
 }
