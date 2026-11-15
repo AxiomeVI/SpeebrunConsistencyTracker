@@ -1,15 +1,18 @@
 using System;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 
 namespace Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 
-// Rebuild key: session version, visible room count, SpeedrunTool room timer type, and the raw
-// index of the segment's first room.
+// Rebuild key: the session, its version, visible room count, SpeedrunTool room timer type, and the
+// raw index of the segment's first room. Another session's chart is rebuilt and takes nothing from
+// the one it replaces: its pins and hidden rooms named that session's runs.
 internal sealed class ChartCache<T> where T : class
 {
     private readonly Func<int, T> _build;
     private readonly Action<T, T, bool> _carry;
 
     private T _value;
+    private PracticeSession _session;
     private uint _version;
     private int _roomCount;
     private int _timerType;
@@ -23,15 +26,18 @@ internal sealed class ChartCache<T> where T : class
 
     public T Get()
     {
-        uint curVersion   = SessionManager.CurrentSession.Version;
+        PracticeSession curSession = SessionManager.CurrentSession;
+        uint curVersion   = curSession.Version;
         int  curRoomCount = SessionManager.RoomCount;
         int  curTimerType = (int)Integration.Srt.Tool.TimerType;
-        return Get(curVersion, curRoomCount, curTimerType, SessionManager.StartRoomIndex);
+        return Get(curSession, curVersion, curRoomCount, curTimerType, SessionManager.StartRoomIndex);
     }
 
     // The key as read by Get(); a test passes its own.
-    internal T Get(uint curVersion, int curRoomCount, int curTimerType, int curStartRoomIndex)
+    internal T Get(PracticeSession curSession, uint curVersion, int curRoomCount, int curTimerType, int curStartRoomIndex)
     {
+        if (!ReferenceEquals(_session, curSession)) _value = null;
+
         T previous = null;
         if (_value != null && (
             _version   != curVersion   ||
@@ -47,6 +53,7 @@ internal sealed class ChartCache<T> where T : class
         {
             bool renumbered = previous != null && _startRoomIndex != curStartRoomIndex;
             _value     = _build(curRoomCount);
+            _session   = curSession;
             _version   = curVersion;
             _roomCount = curRoomCount;
             _timerType = curTimerType;
@@ -60,6 +67,7 @@ internal sealed class ChartCache<T> where T : class
     public void Clear()
     {
         _value     = null;
+        _session   = null;
         _version   = 0;
         _roomCount = 0;
         _timerType = 0;

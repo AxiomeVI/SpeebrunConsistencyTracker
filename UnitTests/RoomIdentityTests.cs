@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Celeste.Mod.SpeebrunConsistencyTracker.Charts;
+using Celeste.Mod.SpeebrunConsistencyTracker.Domain.Sessions;
 using Celeste.Mod.SpeebrunConsistencyTracker.Entities;
 using Celeste.Mod.SpeebrunConsistencyTracker.SessionManagement;
 using Xunit;
@@ -124,6 +125,8 @@ public class RenumberedChartTests
         public IReadOnlyCollection<int> Hidden => _hiddenRooms;
     }
 
+    private readonly PracticeSession _session = new(new StubSegmentShape());
+
     private static ChartCache<Chart> Cache() =>
         new(_ => new Chart(), static (previous, fresh, renumbered) => fresh.Replace(previous, renumbered));
 
@@ -131,10 +134,10 @@ public class RenumberedChartTests
     public void A_move_of_the_first_room_drops_the_hidden_rooms_and_the_pins()
     {
         ChartCache<Chart> cache = Cache();
-        Chart before = cache.Get(1, 5, NextRoom, curStartRoomIndex: 1);
+        Chart before = cache.Get(_session, 1, 5, NextRoom, curStartRoomIndex: 1);
         before.ToggleColumn(2);
 
-        Chart after = cache.Get(1, 5, CurrentRoom, curStartRoomIndex: 0);
+        Chart after = cache.Get(_session, 1, 5, CurrentRoom, curStartRoomIndex: 0);
 
         Assert.NotSame(before, after);
         Assert.Empty(after.Hidden);
@@ -145,10 +148,10 @@ public class RenumberedChartTests
     public void A_new_room_time_keeps_the_hidden_rooms_and_the_pins()
     {
         ChartCache<Chart> cache = Cache();
-        Chart before = cache.Get(1, 5, NextRoom, curStartRoomIndex: 1);
+        Chart before = cache.Get(_session, 1, 5, NextRoom, curStartRoomIndex: 1);
         before.ToggleColumn(2);
 
-        Chart after = cache.Get(2, 5, NextRoom, curStartRoomIndex: 1);
+        Chart after = cache.Get(_session, 2, 5, NextRoom, curStartRoomIndex: 1);
 
         Assert.NotSame(before, after);
         Assert.Equal([2], after.Hidden);
@@ -161,13 +164,28 @@ public class RenumberedChartTests
     {
         const int Off = 0;
         ChartCache<Chart> cache = Cache();
-        Chart before = cache.Get(1, 5, NextRoom, curStartRoomIndex: 1);
+        Chart before = cache.Get(_session, 1, 5, NextRoom, curStartRoomIndex: 1);
         before.ToggleColumn(3);
 
-        Chart after = cache.Get(1, 5, Off, curStartRoomIndex: 1);
+        Chart after = cache.Get(_session, 1, 5, Off, curStartRoomIndex: 1);
 
         Assert.NotSame(before, after);
         Assert.Equal([3], after.Hidden);
         Assert.False(after.TakeDroppedPins());
+    }
+
+    // #37: a load of another slot with the same version and room count. GraphManager also clears
+    // its caches on a session change, but only from Render; the Update side reads the cache first.
+    [Fact]
+    public void Another_session_gets_a_chart_of_its_own_and_none_of_the_view()
+    {
+        ChartCache<Chart> cache = Cache();
+        Chart before = cache.Get(_session, 1, 5, NextRoom, curStartRoomIndex: 1);
+        before.ToggleColumn(2);
+
+        Chart after = cache.Get(new PracticeSession(new StubSegmentShape()), 1, 5, NextRoom, curStartRoomIndex: 1);
+
+        Assert.NotSame(before, after);
+        Assert.Empty(after.Hidden);
     }
 }
