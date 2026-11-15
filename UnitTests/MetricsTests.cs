@@ -72,13 +72,13 @@ public class MetricsTests
     }
 
     [Fact]
-    public void SuccessRate_is_empty_when_no_run_has_been_completed()
+    public void SuccessRate_has_no_data_when_no_run_has_been_completed()
     {
         PracticeSession session = new(new StubSegmentShape(roomCount: 3));
 
         MetricResult result = MetricFunctions.SuccessRate(session, Context(targetTicks: 200), isExport: false);
 
-        Assert.Equal("", result.SegmentValue);
+        Assert.Equal(MetricHelper.NoData, result.SegmentValue);
         Assert.Empty(result.RoomValues);
     }
 
@@ -116,13 +116,13 @@ public class MetricsTests
     }
 
     [Fact]
-    public void Percentile_is_zero_when_no_run_has_been_completed()
+    public void Percentile_has_no_data_when_no_run_has_been_completed()
     {
         PracticeSession session = new(new StubSegmentShape(roomCount: 3));
 
         MetricResult result = MetricFunctions.Percentile(session, Context(percentile: 90), isExport: false);
 
-        Assert.Equal(TimeTicks.Zero.ToString(), result.SegmentValue);
+        Assert.Equal(MetricHelper.NoData, result.SegmentValue);
     }
 
     [Fact]

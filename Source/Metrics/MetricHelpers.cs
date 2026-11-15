@@ -68,6 +68,16 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
 
     public static class MetricHelper
     {
+        // What every metric shows, in the overlay and the CSV, where the session holds too little
+        // to compute it. A cell stays empty only where the metric has no value by definition:
+        // Success Rate per room, Reset Share for the segment, Room Dependency for the first room.
+        public const string NoData = "-";
+
+        public static List<string> NoDataPerRoom(int roomCount) => [.. Enumerable.Repeat(NoData, roomCount)];
+
+        public static bool HasSegmentTimes(PracticeSession session, MetricContext context) =>
+            SortedSegmentValues(session, context).Count > 0;
+
         public static bool IsMetricEnabled(object value, MetricOutput mode)
         {
             return value switch
@@ -526,7 +536,7 @@ namespace Celeste.Mod.SpeebrunConsistencyTracker.Metrics
         public static List<string> ComputeRoomValues(
             bool isExport, PracticeSession session, MetricContext context,
             Func<int, List<TimeTicks>, string> computeValue,
-            int minCount = 1, string defaultValue = "0")
+            int minCount = 1, string defaultValue = NoData)
         {
             int roomCount = session.RoomCount;
             var roomValues = new List<string>(roomCount);

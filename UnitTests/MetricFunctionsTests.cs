@@ -12,8 +12,8 @@ using MetricFunctions = Celeste.Mod.SpeebrunConsistencyTracker.Metrics.Metrics;
 namespace SpeebrunConsistencyTracker.UnitTests;
 
 // Pins what every function in Metrics.cs returns today, on one small hand-computed session.
-// The "no data" spellings differ per metric ("0", "0.000", "", "Insufficient data");
-// they are pinned as they are, not as they should be.
+// Where the session holds too little, every metric answers MetricHelper.NoData, "-". An empty
+// string is a value the metric never has there, or a function asked outside an export.
 public class MetricFunctionsTests
 {
     // Times are written in milliseconds so the expected strings read as seconds.
@@ -118,15 +118,15 @@ public class MetricFunctionsTests
     [Fact]
     public void StdDev_needs_two_times_in_the_segment_and_in_a_room()
     {
-        // Room 0: mean 12, deviations -2 and 2, 8/1 -> 2.828. Rooms with a single time give "0".
-        Check(Compute(MetricFunctions.StdDev, OneCompletedRun(), true), "0", "2.828", "0", "0");
+        // Room 0: mean 12, deviations -2 and 2, 8/1 -> 2.828. Rooms with a single time have no data.
+        Check(Compute(MetricFunctions.StdDev, OneCompletedRun(), true), "-", "2.828", "-", "-");
     }
 
     [Fact]
     public void CoefVariation_needs_two_times_in_the_segment_and_in_a_room()
     {
         // Room 0: 2.828 / 12.
-        Check(Compute(MetricFunctions.CoefVariation, OneCompletedRun(), true), "0", "23.57%", "0", "0");
+        Check(Compute(MetricFunctions.CoefVariation, OneCompletedRun(), true), "-", "23.57%", "-", "-");
     }
 
     // ---- Best, Worst, SumOfBest, BestSplit -----------------------------------------------------
@@ -238,10 +238,10 @@ public class MetricFunctionsTests
     }
 
     [Fact]
-    public void ResetShare_is_0_percent_everywhere_when_nothing_was_reset()
+    public void ResetShare_has_no_data_when_nothing_was_reset()
     {
         PracticeSession session = TrajectorySessions.Of(3, Ms(10000, 20000, 30000));
-        Check(Compute(MetricFunctions.ResetShare, session, true), "", "0%", "0%", "0%");
+        Check(Compute(MetricFunctions.ResetShare, session, true), "", "-", "-", "-");
     }
 
     [Fact]
@@ -289,8 +289,8 @@ public class MetricFunctionsTests
     [Fact]
     public void MultimodalTest_needs_ten_completed_runs()
     {
-        Check(Compute(MetricFunctions.MultimodalTest, Main(), true), "Insufficient data");
-        Check(Compute(MetricFunctions.MultimodalTest, SingleRoomRuns(9, 10000), true), "Insufficient data");
+        Check(Compute(MetricFunctions.MultimodalTest, Main(), true), "-", "-", "-", "-");
+        Check(Compute(MetricFunctions.MultimodalTest, SingleRoomRuns(9, 10000), true), "-", "-");
     }
 
     [Fact]
@@ -345,7 +345,7 @@ public class MetricFunctionsTests
     [Fact]
     public void RoomDependency_needs_ten_attempts()
     {
-        Check(Compute(MetricFunctions.RoomDependency, Main(), true), "Insufficient data");
+        Check(Compute(MetricFunctions.RoomDependency, Main(), true), "", "", "-", "-");
     }
 
     [Fact]
@@ -359,35 +359,35 @@ public class MetricFunctionsTests
     public void RoomDependency_needs_five_pairs_for_a_room()
     {
         Check(Compute(MetricFunctions.RoomDependency, CorrelatedRuns(5), true), "", "", "1.00", "-1.00");
-        Check(Compute(MetricFunctions.RoomDependency, CorrelatedRuns(4), true), "", "", "1.00", "");
+        Check(Compute(MetricFunctions.RoomDependency, CorrelatedRuns(4), true), "", "", "1.00", "-");
     }
 
     // ---- The empty session -------------------------------------------------------------------
 
     public static TheoryData<string, string, string[]> EmptyExpectations => new()
     {
-        { nameof(MetricFunctions.Average), "0", ["0", "0", "0"] },
-        { nameof(MetricFunctions.Median), "0.000", ["0", "0", "0"] },
-        { nameof(MetricFunctions.MedianAbsoluteDeviation), "0.000", ["0", "0", "0"] },
-        { nameof(MetricFunctions.RelativeMAD), "0.00%", ["0", "0", "0"] },
-        { nameof(MetricFunctions.StdDev), "0", ["0", "0", "0"] },
-        { nameof(MetricFunctions.CoefVariation), "0", ["0", "0", "0"] },
-        { nameof(MetricFunctions.Best), "0", ["0", "0", "0"] },
-        { nameof(MetricFunctions.Worst), "0", ["0", "0", "0"] },
-        { nameof(MetricFunctions.SumOfBest), "0.000", ["", "", ""] },
-        { nameof(MetricFunctions.BestSplit), "0", ["", "", ""] },
-        { nameof(MetricFunctions.SuccessRate), "", [] },
-        { nameof(MetricFunctions.Percentile), "0.000", ["0.000", "0.000", "0.000"] },
-        { nameof(MetricFunctions.InterquartileRange), "0.000", ["0.000", "0.000", "0.000"] },
+        { nameof(MetricFunctions.Average), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.Median), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.MedianAbsoluteDeviation), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.RelativeMAD), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.StdDev), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.CoefVariation), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.Best), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.Worst), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.SumOfBest), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.BestSplit), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.SuccessRate), "-", [] },
+        { nameof(MetricFunctions.Percentile), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.InterquartileRange), "-", ["-", "-", "-"] },
         { nameof(MetricFunctions.CompletedRunCount), "0", ["0", "0", "0"] },
         { nameof(MetricFunctions.TotalRunCount), "0", ["0", "0", "0"] },
         { nameof(MetricFunctions.DnfCount), "0", ["0", "0", "0"] },
-        { nameof(MetricFunctions.ResetRate), "", ["", "", ""] },
-        { nameof(MetricFunctions.ResetShare), "", ["0%", "0%", "0%"] },
-        { nameof(MetricFunctions.TrendSlope), "0.000", ["0.000", "0.000", "0.000"] },
-        { nameof(MetricFunctions.MultimodalTest), "Insufficient data", [] },
-        { nameof(MetricFunctions.GoldRate), "", ["0", "0", "0"] },
-        { nameof(MetricFunctions.RoomDependency), "Insufficient data", [] },
+        { nameof(MetricFunctions.ResetRate), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.ResetShare), "", ["-", "-", "-"] },
+        { nameof(MetricFunctions.TrendSlope), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.MultimodalTest), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.GoldRate), "-", ["-", "-", "-"] },
+        { nameof(MetricFunctions.RoomDependency), "", ["", "-", "-"] },
     };
 
     private static Metric ByName(string name)

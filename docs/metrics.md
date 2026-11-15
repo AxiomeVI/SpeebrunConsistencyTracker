@@ -2,6 +2,8 @@
 
 Metrics are computed per room and per segment. They are available in the text overlay and in data exports. Each metric has two switches in Mod Options, one on the **Stats overlay** page and one on the **Export options** page, so it can be shown, exported, both or neither. Export-only metrics appear in CSV exports but not in the in-game overlay.
 
+A dash (`-`) means the session holds too little to compute the value yet: no completed run for a segment time, no time in a room, or too few runs (a spread or a trend needs two, the Multimodal Test and Room Dependency ten). A count is never a dash: no runs is 0. A cell is left empty only where the metric has no value by definition, such as Success Rate for a room.
+
 - **History:** every run time from the session, in order
 - **Success Rate:** (segment only) how often you finish within your target time, as a share of your *completed* runs, not of every attempt
 - **Reset Count:** how many runs you abandoned (for rooms: how many times you reset in that room). Deleting a room time from a finished run does not make it a reset
