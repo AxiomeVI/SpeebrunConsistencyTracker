@@ -17,7 +17,7 @@ namespace SpeebrunConsistencyTracker.UnitTests;
 public class MetricFunctionsTests
 {
     // Times are written in milliseconds so the expected strings read as seconds.
-    private static long[] Ms(params int[] ms) => ms.Select(m => m * 10_000L).ToArray();
+    internal static long[] Ms(params int[] ms) => ms.Select(m => m * 10_000L).ToArray();
 
     // Rooms 0, 1, 2 over six attempts (seconds):
     //   A0 10 20 30   completed, 60
@@ -29,7 +29,7 @@ public class MetricFunctionsTests
     // Segment times, sorted: 60 60 62 65.
     // Room 0 sorted: 10 10 10 11 12 13.  Room 1: 19 20 21 22.  Room 2: 27 30 30 33 34.
     // Counts: 6 attempts, 4 completed, 1 DNF. Per room: attempts 6 5 5, completed 6 4 5, DNFs 0 1 0.
-    private static PracticeSession Main()
+    internal static PracticeSession Main()
     {
         PracticeSession session = TrajectorySessions.Of(3,
             Ms(10000, 20000, 30000),
@@ -42,7 +42,7 @@ public class MetricFunctionsTests
         return session;
     }
 
-    private static PracticeSession Empty() => new(new StubSegmentShape(roomCount: 3));
+    internal static PracticeSession Empty() => new(new StubSegmentShape(roomCount: 3));
 
     private delegate MetricResult Metric(PracticeSession session, MetricContext context, bool isExport);
 
@@ -111,7 +111,7 @@ public class MetricFunctionsTests
 
     // One completed run, plus an attempt that reset in room 1 after 14 s in room 0.
     // Room 0 holds two times (10, 14), rooms 1 and 2 hold one each (20, 30).
-    private static PracticeSession OneCompletedRun() => TrajectorySessions.Of(3,
+    internal static PracticeSession OneCompletedRun() => TrajectorySessions.Of(3,
         Ms(10000, 20000, 30000),
         Ms(14000));
 

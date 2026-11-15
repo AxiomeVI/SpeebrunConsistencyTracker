@@ -6,8 +6,9 @@ using Xunit;
 
 namespace SpeebrunConsistencyTracker.UnitTests;
 
-// SessionManager is static, and so is Srt.Tool: no other test class may touch either, or xUnit's
-// parallel classes race on them.
+// SessionManager is static, and so is Srt.Tool: a test class that touches either joins this
+// collection, or xUnit's parallel classes race on them.
+[Collection(StaticStateCollection.Name)]
 public sealed class SessionManagerTests : IDisposable
 {
     private const string Slot = "SaveSlot@2";
