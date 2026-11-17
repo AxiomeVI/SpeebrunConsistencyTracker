@@ -95,7 +95,6 @@ SCT_INVALID_EXPORT=                        No data to export
 SCT_EXPORT_TO_FILE=                        Session data exported to file
 SCT_EXPORT_TO_FILE_FAILED=                 Could not write the export files, see log.txt
 SCT_DATA_CLEAR=                            Session data cleared
-SCT_SESSION_REPLACED=                      Session replaced
 SCT_SESSION_RESTORED=                      Session restored
 SCT_RESTORE_HINT=                          To undo, open Mod Options:
 SCT_SRT_UNAVAILABLE=                       Speebrun Stats Tracker cannot read Speedrun Tool and records nothing. See log.txt

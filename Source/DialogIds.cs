@@ -60,7 +60,6 @@ public static class DialogIds {
     public const string PopupExportToFileId = "SCT_EXPORT_TO_FILE";
     public const string PopupExportToFileFailedId = "SCT_EXPORT_TO_FILE_FAILED";
     public const string PopupDataClearId = "SCT_DATA_CLEAR";
-    public const string PopupSessionReplacedId = "SCT_SESSION_REPLACED";
     public const string PopupSessionRestoredId = "SCT_SESSION_RESTORED";
     public const string PopupRestoreHintId = "SCT_RESTORE_HINT";
     public const string PopupNoGraphId = "SCT_NO_GRAPH_ERROR";
