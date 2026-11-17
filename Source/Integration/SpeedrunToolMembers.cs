@@ -17,8 +17,6 @@ internal static class SpeedrunToolMembers
     internal const string ManagerType = "Celeste.Mod.SpeedrunTool.RoomTimer.RoomTimerManager";
     internal const string PopupType = "Celeste.Mod.SpeedrunTool.Message.PopupMessageUtils";
     internal const string EndPointType = "Celeste.Mod.SpeedrunTool.RoomTimer.EndPoint";
-    internal const string TooltipType = "Celeste.Mod.SpeedrunTool.Message.Tooltip";
-    internal const string DialogBoxType = "Celeste.Mod.SpeedrunTool.Message.NonFrozenMiniTextbox";
 
     internal const string CurrentRoomTimerData = "CurrentRoomTimerData";
     internal const string Time = "Time";
@@ -71,9 +69,6 @@ internal static class SpeedrunToolMembers
         Type popup = RequireType(speedrunTool, PopupType, missing);
         if (popup != null)
             RequireMethod(popup, "Show", [typeof(string), typeof(string)], missing);
-        // The two entities that popup adds, which the adapter looks for in the level.
-        RequireType(speedrunTool, TooltipType, missing);
-        RequireType(speedrunTool, DialogBoxType, missing);
 
         return missing;
     }
