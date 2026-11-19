@@ -231,10 +231,18 @@ internal static class ChartLayer {
     private static void Rebind() {
         _rebind = false;
         GraphicsDevice device = Engine.Graphics.GraphicsDevice;
-        device.SetRenderTargets(_bound.Length == 0 ? null : _bound);
+        // A target its owner disposed while it was still bound stays in the device's bindings, and
+        // binding it again crashes FNA's OpenGL backend: put the back buffer back instead.
+        device.SetRenderTargets(_bound.Length == 0 || AnyDisposed(_bound) ? null : _bound);
         device.Viewport = _viewport;
         // Holds no render target alive until the next pass.
         Array.Clear(_bound);
+    }
+
+    private static bool AnyDisposed(RenderTargetBinding[] bindings) {
+        for (int i = 0; i < bindings.Length; i++)
+            if (bindings[i].RenderTarget is { IsDisposed: true }) return true;
+        return false;
     }
 
     // Fields, so the pass hands the guard the same two delegates every frame.
