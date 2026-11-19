@@ -297,6 +297,13 @@ public class SpeebrunConsistencyTrackerModule : EverestModule {
             SessionManager.TimerStateUpdated(endPoint, newSplit);
     }
 
+    // The Mod Options switch. Off wipes every slot, which keeps them for Restore last session.
+    public static void SetEnabled(bool value)
+    {
+        Settings.Enabled = value;
+        if (!value) Clear();
+    }
+
     public static void Clear()
     {
         MetricsExporter.Clear();
