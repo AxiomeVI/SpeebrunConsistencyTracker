@@ -78,10 +78,8 @@ public static partial class ModMenuOptions
         TextMenu.OnOff enabledToggle = new(Dialog.Clean(DialogIds.EnabledId), _settings.Enabled);
         void Apply(bool value)
         {
-            _settings.Enabled = value;
+            SpeebrunConsistencyTrackerModule.SetEnabled(value);
             foreach (TextMenu.Item row in rows) row.Visible = value;
-            if (!value)
-                SpeebrunConsistencyTrackerModule.Clear();
         }
         enabledToggle.Change(value =>
         {

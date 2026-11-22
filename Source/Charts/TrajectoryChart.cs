@@ -785,6 +785,8 @@ internal sealed class TrajectoryChart : SketchChart
         _widgetBar.Update(corner);
         _editBar.Update(corner);
         bool onCorner = _widgetBar.Contains(corner.X, corner.Y) || _editBar.Contains(corner.X, corner.Y);
+        // A right click anywhere unpins, as on the histogram wall.
+        if (pointer.Pressed(PointerButton.Right)) DropPins();
         // Mod Options has the same switch: follow it when it moved.
         if (_widgetSwitch.Changed) TrajectoryWidget.Switch(_widgetSwitch.Choice == 0);
         else if ((_widgetSwitch.Choice == 0) != WidgetOn) _widgetSwitch.Choice = WidgetOn ? 0 : 1;
@@ -906,6 +908,13 @@ internal sealed class TrajectoryChart : SketchChart
         _layoutStale = true;
         Invalidate();
         return true;
+    }
+
+    // Closed, paused or moved off: the pins go, where the other charts keep theirs.
+    internal override void OnLeft()
+    {
+        Pins.Clear();
+        ClearPins();
     }
 
     public override void ClearPins()
